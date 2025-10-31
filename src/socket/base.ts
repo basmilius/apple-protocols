@@ -1,4 +1,4 @@
-export default class BaseSocket {
+export default class BaseSocket extends EventTarget {
     get address(): string {
         return this.#address;
     }
@@ -11,6 +11,7 @@ export default class BaseSocket {
     readonly #port: number;
 
     constructor(address: string, port: number) {
+        super();
         this.#address = address;
         this.#port = port;
     }

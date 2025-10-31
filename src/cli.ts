@@ -13,3 +13,7 @@ export function debug(...data: any[]): void {
 export async function prompt(message: string): Promise<string> {
     return await new Promise<string>(resolve => stdin.question(`${message}: `, resolve));
 }
+
+export async function waitFor(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}

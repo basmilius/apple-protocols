@@ -40,15 +40,12 @@
         }
     },
     "dependencies": {
-        "@basmilius/utils": "^2.13.0",
         "@noble/curves": "^2.0.1",
-        "@noble/ed25519": "^3.0.0",
         "@plist/binary.parse": "^1.1.0",
         "@plist/binary.serialize": "^1.1.0",
         "chacha": "^2.1.0",
         "fast-srp-hap": "^2.0.4",
         "node-dns-sd": "^1.0.1",
-        "oxc-transform": "^0.95.0",
         "tweetnacl": "^1.0.3",
         "uuid": "^13.0.0"
     },

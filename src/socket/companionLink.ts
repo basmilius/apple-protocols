@@ -12,6 +12,7 @@ export default class extends BaseSocket {
 
     readonly #socket: Socket;
     readonly #queue: Record<number, Function> = {};
+    #buffer: Buffer = Buffer.alloc(0);
     #readCount: number;
     #readKey?: Buffer;
     #writeCount: number;
@@ -59,17 +60,15 @@ export default class extends BaseSocket {
     async exchange(type: number, obj: Record<string, unknown>): Promise<[number, unknown]> {
         const _x = this.#xid;
 
-        const promise = new Promise<[number, number]>((resolve, reject) => {
+        return new Promise<[number, number]>((resolve, reject) => {
             if (PairFrameTypes.includes(type)) {
                 this.#queue[-1] = resolve;
             } else {
                 this.#queue[_x] = resolve;
             }
+
+            this.send(type, obj).catch(reject);
         });
-
-        await this.send(type, obj);
-
-        return promise;
     }
 
     async send(type: number, obj: Record<string, unknown>): Promise<void> {
@@ -116,33 +115,58 @@ export default class extends BaseSocket {
     }
 
     async onData(buffer: Buffer): Promise<void> {
-        debug('Received data frame', buffer.toString('hex'));
+        // debug('Received data frame', buffer.toString('hex'));
 
-        buffer = await this.#decrypt(buffer);
+        this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
-        const header = buffer.subarray(0, 4).readInt8();
-        let payload = buffer.subarray(4);
+        while (this.#buffer.byteLength >= 4) {
+            const header = this.#buffer.subarray(0, 4);
+            const payloadLength = header.readUintBE(1, 3);
 
-        if (OPackFrameTypes.includes(header)) {
-            [payload] = decodeOPack(payload);
-        }
+            if (this.#buffer.byteLength < payloadLength) {
+                debug('Not enough data yet, waiting on the next frame..');
+                break;
+            }
 
-        debug('Decoded OPACK', {header, payload});
+            let data = this.#buffer.subarray(0, 4 + payloadLength);
+            data = await this.#decrypt(data);
 
-        if ('_x' in payload) {
-            const _x = (payload as any)._x;
-            const resolve = this.#queue[_x] ?? null;
-            resolve?.([header, payload]);
+            this.#buffer = this.#buffer.subarray(data.byteLength);
 
-            delete this.#queue[_x];
-        } else if (this.#queue[-1]) {
-            const _x = -1;
-            const resolve = this.#queue[_x] ?? null;
-            resolve?.([header, payload]);
+            let payload = data.subarray(4);
 
-            delete this.#queue[_x];
-        } else {
-            debug('No handler for message', [header, payload]);
+            if (OPackFrameTypes.includes(header.readInt8())) {
+                [payload] = decodeOPack(payload);
+            }
+
+            debug('Decoded OPACK', {header, payload});
+
+            if ('_x' in payload) {
+                const _x = (payload as any)._x;
+
+                if (_x in this.#queue) {
+                    const resolve = this.#queue[_x] ?? null;
+                    resolve?.([header, payload]);
+
+                    delete this.#queue[_x];
+                } else {
+                    // probably an event
+                    const content = payload['_c'];
+                    const keys = Object.keys(content).map(k => k.substring(0, -3));
+
+                    for (const key of keys) {
+                        this.dispatchEvent(new CustomEvent(key, {detail: content[key]}));
+                    }
+                }
+            } else if (this.#queue[-1]) {
+                const _x = -1;
+                const resolve = this.#queue[_x] ?? null;
+                resolve?.([header, payload]);
+
+                delete this.#queue[_x];
+            } else {
+                debug('No handler for message', [header, payload]);
+            }
         }
     }
 

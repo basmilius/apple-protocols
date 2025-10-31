@@ -1,5 +1,5 @@
-import { waitFor } from '@basmilius/utils';
 import mdns, { Result } from 'node-dns-sd';
+import { waitFor } from '@/cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from '@/const';
 
 export default class Discovery {

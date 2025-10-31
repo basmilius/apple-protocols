@@ -1,5 +1,4 @@
 import { Result } from 'node-dns-sd';
-import { debug } from '@/cli';
 import { CompanionLinkSocket } from '@/socket';
 import Api from './api/companionLink';
 import Pairing from './pairing/companionLink';

@@ -1,7 +1,6 @@
 import { randomInt } from 'node:crypto';
-import { waitFor } from '@basmilius/utils';
-import { debug } from '@/cli';
-import { opackFloat } from '@/encoding';
+import { debug, waitFor } from '@/cli';
+import { opackFloat, parseBinaryPlist } from '@/encoding';
 import { CompanionLinkFrameType, CompanionLinkMessageType, type CompanionLinkSocket } from '@/socket';
 import type CompanionLink from '../companionLink';
 
@@ -12,6 +11,30 @@ export default class Api {
     constructor(protocol: CompanionLink, socket: CompanionLinkSocket) {
         this.#protocol = protocol;
         this.#socket = socket;
+    }
+
+    async fetchMediaControlStatus(): Promise<void> {
+        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+            _i: 'FetchMediaControlStatus',
+            _t: CompanionLinkMessageType.Request,
+            _c: {}
+        });
+    }
+
+    async fetchNowPlayingInfo(): Promise<void> {
+        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+            _i: 'FetchCurrentNowPlayingInfoEvent',
+            _t: CompanionLinkMessageType.Request,
+            _c: {}
+        });
+    }
+
+    async fetchSupportedActions(): Promise<void> {
+        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+            _i: 'FetchSupportedActionsEvent',
+            _t: CompanionLinkMessageType.Request,
+            _c: {}
+        });
     }
 
     async getAttentionState(): Promise<AttentionState> {
@@ -41,14 +64,6 @@ export default class Api {
         }
     }
 
-    async getNowPlayingInfo(): Promise<void> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
-            _i: 'FetchCurrentNowPlayingInfoEvent',
-            _t: CompanionLinkMessageType.Request,
-            _c: {}
-        });
-    }
-
     async getLaunchableApps(): Promise<LaunchableApp[]> {
         const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
             _i: 'FetchLaunchableApplicationssEvent',
@@ -62,6 +77,16 @@ export default class Api {
             bundleId,
             name
         }));
+    }
+
+    async getSiriRemoteInfo(): Promise<any> {
+        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+            _i: 'FetchSiriRemoteInfo',
+            _t: CompanionLinkMessageType.Request,
+            _c: {}
+        });
+
+        return parseBinaryPlist(Buffer.from(payload['_c']['SiriRemoteInfoKey']).buffer);
     }
 
     async getUserAccounts(): Promise<UserAccount[]> {
@@ -156,7 +181,9 @@ export default class Api {
         });
     }
 
-    async _subscribe(event: string): Promise<void> {
+    async _subscribe(event: string, fn: EventListener): Promise<void> {
+        this.#socket.addEventListener(event, fn);
+
         await this.#socket.send(CompanionLinkFrameType.E_OPACK, {
             _i: '_interest',
             _t: CompanionLinkMessageType.Event,
@@ -166,7 +193,11 @@ export default class Api {
         });
     }
 
-    async _unsubscribe(event: string): Promise<void> {
+    async _unsubscribe(event: string, fn?: EventListener): Promise<void> {
+        if (fn) {
+            this.#socket.removeEventListener(event, fn);
+        }
+
         await this.#socket.send(CompanionLinkFrameType.E_OPACK, {
             _i: '_interest',
             _t: CompanionLinkMessageType.Event,

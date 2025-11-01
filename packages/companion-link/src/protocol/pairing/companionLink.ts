@@ -1,11 +1,8 @@
-import { CompanionLinkFrameType, type CompanionLinkSocket } from '@/socket';
+import { AIRPLAY_TRANSIENT_PIN, bailTlv, debug, decodeTlv, decryptChacha20, encodeOPack, encodeTlv, encryptChacha20, hkdf, TlvFlags, TlvMethod, TlvState, TlvValue } from '@basmilius/apple-common';
 import { SRP, SrpClient } from 'fast-srp-hap';
-import { v4 as uuid } from 'uuid';
 import tweetnacl from 'tweetnacl';
-import { debug } from '@/cli';
-import { AIRPLAY_TRANSIENT_PIN } from '@/const';
-import { decryptChacha20, encryptChacha20, hkdf } from '@/crypto';
-import { bailTlv, decodeTlv, encodeOPack, encodeTlv, TlvFlags, TlvMethod, TlvState, TlvValue } from '@/encoding';
+import { v4 as uuid } from 'uuid';
+import { CompanionLinkFrameType, type CompanionLinkSocket } from '@/socket';
 import CompanionLink from '../companionLink';
 
 export default class {

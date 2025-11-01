@@ -1,4 +1,4 @@
-import { Result } from 'node-dns-sd';
+import type { DiscoveryResult } from '@basmilius/apple-common';
 import { CompanionLinkSocket } from '@/socket';
 import Api from './api/companionLink';
 import Pairing from './pairing/companionLink';
@@ -22,12 +22,12 @@ export default class CompanionLink {
     }
 
     readonly #api: Api;
-    readonly #device: Result;
+    readonly #device: DiscoveryResult;
     readonly #socket: CompanionLinkSocket;
     readonly #pairing: Pairing;
     readonly #verify: Verify;
 
-    constructor(device: Result) {
+    constructor(device: DiscoveryResult) {
         this.#device = device;
         this.#socket = new CompanionLinkSocket(device.address, device.service.port);
         this.#api = new Api(this, this.#socket);

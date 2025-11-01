@@ -1,4 +1,4 @@
-import mdns, { Result } from 'node-dns-sd';
+import mdns from 'node-dns-sd';
 import { waitFor } from '@/cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from '@/const';
 
@@ -9,13 +9,13 @@ export default class Discovery {
         this.#service = service;
     }
 
-    async find(): Promise<Result[]> {
+    async find(): Promise<DiscoveryResult[]> {
         return await mdns.discover({
             name: this.#service
         });
     }
 
-    async findUntil(fqdn: string, tries: number = 10, timeout: number = 1000): Promise<Result> {
+    async findUntil(fqdn: string, tries: number = 10, timeout: number = 1000): Promise<DiscoveryResult> {
         while (tries > 0) {
             const devices = await this.find();
             const device = devices.find(device => device.fqdn === fqdn);
@@ -50,3 +50,24 @@ export default class Discovery {
         return new Discovery(RAOP_SERVICE);
     }
 }
+
+export type DiscoveryResult = {
+    readonly fqdn: string;
+    readonly address: string;
+    readonly modelName: string;
+    readonly familyName: string | null;
+    readonly service: {
+        readonly port: number;
+        readonly protocol: 'tcp' | 'udp';
+        readonly type: string;
+    };
+    readonly packet: {
+        readonly address: string;
+        readonly header: Record<string, number>;
+        readonly questions: Array<any>;
+        readonly answers: Array<any>;
+        readonly authorities: Array<any>;
+        readonly additionals: [];
+    };
+    readonly [key: string]: unknown;
+};

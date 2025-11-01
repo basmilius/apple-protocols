@@ -1,3 +1,1 @@
-export * from './discovery';
-export * from './encoding';
-export * from './protocol';
+export { CompanionLink } from './protocol';

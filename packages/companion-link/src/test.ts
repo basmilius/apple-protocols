@@ -1,7 +1,4 @@
-import { write } from 'bun';
-import { debug, prompt, waitFor } from '@/cli';
-import { Discovery } from '@/discovery';
-import { parseBinaryPlist } from '@/encoding';
+import { debug, Discovery, parseBinaryPlist, prompt } from '@basmilius/apple-common';
 import { CompanionLink } from '@/protocol';
 
 const discovery = Discovery.companionLink();

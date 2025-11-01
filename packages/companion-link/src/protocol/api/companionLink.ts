@@ -1,6 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { debug, waitFor } from '@/cli';
-import { opackFloat, parseBinaryPlist } from '@/encoding';
+import { debug, opackFloat, parseBinaryPlist, waitFor } from '@basmilius/apple-common';
 import { CompanionLinkFrameType, CompanionLinkMessageType, type CompanionLinkSocket } from '@/socket';
 import type CompanionLink from '../companionLink';
 

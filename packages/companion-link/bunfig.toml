@@ -1,5 +1,2 @@
 [console]
 depth = 8
-
-[define]
-"PRODUCTION" = "false"

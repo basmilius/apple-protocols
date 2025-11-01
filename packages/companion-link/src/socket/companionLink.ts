@@ -1,8 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { Socket } from 'node:net';
-import { debug } from '@/cli';
-import { decryptChacha20, encryptChacha20 } from '@/crypto';
-import { decodeOPack, encodeOPack, opackSizedInt } from '@/encoding';
+import { debug, decodeOPack, decryptChacha20, encodeOPack, encryptChacha20, opackSizedInt } from '@basmilius/apple-common';
 import BaseSocket from './base';
 
 const HEADER_BYTES = 4;

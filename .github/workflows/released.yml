@@ -38,10 +38,12 @@ jobs:
 
             -   name: 🔨 Build
                 run: |
+                    bun --cwd packages/common build
                     bun --cwd packages/companion-link build
 
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
                 run: |
+                    bun publish --cwd packages/common --access public
                     bun publish --cwd packages/companion-link --access public
                 env:
                     NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}

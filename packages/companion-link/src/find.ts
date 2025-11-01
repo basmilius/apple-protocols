@@ -1,6 +1,5 @@
 import { styleText } from 'node:util';
-import { Discovery } from '@/discovery';
-import { waitFor } from '@/cli';
+import { Discovery, waitFor } from '@basmilius/apple-common';
 
 const discovery = Discovery.companionLink();
 

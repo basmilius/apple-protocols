@@ -21,8 +21,5 @@ await build({
         'node-dns-sd',
         'tweetnacl',
         'uuid'
-    ],
-    drop: [
-        'console.debug'
     ]
 });

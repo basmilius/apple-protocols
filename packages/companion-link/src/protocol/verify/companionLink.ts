@@ -1,7 +1,5 @@
+import { bailTlv, debug, decodeTlv, decryptChacha20, encodeTlv, encryptChacha20, generateCurve25519KeyPair, generateCurve25519SharedSecKey, hkdf, TlvState, TlvValue } from '@basmilius/apple-common';
 import tweetnacl, { type BoxKeyPair } from 'tweetnacl';
-import { debug } from '@/cli';
-import { decryptChacha20, encryptChacha20, generateCurve25519KeyPair, generateCurve25519SharedSecKey, hkdf } from '@/crypto';
-import { bailTlv, decodeTlv, encodeTlv, TlvState, TlvValue } from '@/encoding';
 import { CompanionLinkFrameType, CompanionLinkSocket } from '@/socket';
 import CompanionLink from '../companionLink';
 

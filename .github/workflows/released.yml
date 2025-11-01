@@ -1,0 +1,46 @@
+name: 🚀 Release packages
+
+on:
+    release:
+        types: [ released ]
+
+env:
+    RELEASE_VERSION: ${{ github.event.release.tag_name }}
+
+permissions:
+    id-token: write
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        name: 🚀 Publish to Registry
+        steps:
+            -   name: 👀 Checkout
+                uses: actions/checkout@v4
+
+            -   name: 🍞 Setup Bun
+                uses: oven-sh/setup-bun@v2
+
+            -   name: ✏️ Tag v${{ env.RELEASE_VERSION }}
+                run: |
+                    # Temporary solution for the commented out lines below.
+                    sed -i 's/0.0.0/${{ env.RELEASE_VERSION }}/g' packages/*/package.json
+                    sed -i 's/workspace:\*/${{ env.RELEASE_VERSION }}/g' packages/*/package.json
+                    
+                    # Uncomment the following when Bun fixes the issue where workspace:* is
+                    # incorrectly replaced with the version from bun.lock.
+                    # bun pm version --cwd packages/airplay2 ${{ env.RELEASE_VERSION }} --no-git-tag-version
+                    # bun pm version --cwd packages/companion-link ${{ env.RELEASE_VERSION }} --no-git-tag-version
+
+            -   name: 📦️ Install dependencies
+                run: bun install --frozen-lockfile
+
+            -   name: 🔨 Build
+                run: |
+                    bun --cwd packages/companion-link build
+
+            -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
+                run: |
+                    bun publish --cwd packages/companion-link --access public
+                env:
+                    NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}

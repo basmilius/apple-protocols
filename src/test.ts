@@ -34,8 +34,6 @@ async function verify(): Promise<void> {
 
     const keys = await protocol.verify.start(credentials);
 
-    await waitFor(250);
-
     await protocol.socket.enableEncryption(
         keys.accessoryToControllerKey,
         keys.controllerToAccessoryKey
@@ -79,30 +77,50 @@ async function verify(): Promise<void> {
     // await protocol.api.mediaControlCommand('Play');
 
     // await protocol.api.pressButton('PageUp');
+
+    // await protocol.api.pressButton('Sleep');
+    // await protocol.api.pressButton('Wake');
+
+    // await protocol.api.mediaControlCommand('GetVolume');
+
+    // await protocol.api.pressButton('Menu');
+
+    // await protocol.api.launchUrl('https://play.hbomax.com/video/watch/330677a5-aff2-4270-b19e-d67b021adfaf/be45824d-2c34-4d7f-9fac-2380c8e46123');
 }
 
 async function handleNowPlayingInfo(evt: CustomEvent): Promise<void> {
-    const {detail: nowPlaying} = evt;
-    const parsed = parseBinaryPlist(Buffer.from(nowPlaying).buffer) as any;
+    const {detail: {NowPlayingInfoKey}} = evt;
+    const buffer = NowPlayingInfoKey.buffer.slice(
+        NowPlayingInfoKey.byteOffset,
+        NowPlayingInfoKey.byteOffset + NowPlayingInfoKey.byteLength
+    );
 
-    if (!parsed.$objects[15]) {
-        try {
-            await write('./artwork.png', parsed.$objects[14]);
-        } catch (_) {
-        }
+    try {
+        const nowPlaying = parseBinaryPlist(buffer) as any;
+        console.log('NowPlayingInfoKey', {nowPlaying});
+    } catch (err) {
+        console.error(err);
+        // console.error(Buffer.from(buffer).toString());
     }
 
-    if (parsed.$objects[4]) {
-        debug(`Now playing ${parsed.$objects[8]} on Apple TV.`);
-    } else {
-        debug('Not playing?');
-    }
-
-    // debug(parsed);
-    // debug('Keys', parsed.$objects[1]);
-    // debug('Image data is placeholder', parsed.$objects[15]);
-    // debug('metadata', parsed.$objects[6]);
-    // debug('playback state', parsed.$objects[4]);
+    // if (!nowPlaying.$objects[15]) {
+    //     try {
+    //         await write('./artwork.png', nowPlaying.$objects[14]);
+    //     } catch (_) {
+    //     }
+    // }
+    //
+    // if (nowPlaying.$objects[4]) {
+    //     debug(`Now playing ${nowPlaying.$objects[8]} on Apple TV.`);
+    // } else {
+    //     debug('Not playing?');
+    // }
+    //
+    // // debug(nowPlaying);
+    // // debug('Keys', nowPlaying.$objects[1]);
+    // // debug('Image data is placeholder', nowPlaying.$objects[15]);
+    // // debug('metadata', nowPlaying.$objects[6]);
+    // debug('playback state', nowPlaying.$objects[4]);
 }
 
 // await pair();

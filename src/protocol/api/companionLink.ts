@@ -66,7 +66,7 @@ export default class Api {
 
     async getLaunchableApps(): Promise<LaunchableApp[]> {
         const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
-            _i: 'FetchLaunchableApplicationssEvent',
+            _i: 'FetchLaunchableApplicationsEvent',
             _t: CompanionLinkMessageType.Request,
             _c: {}
         });

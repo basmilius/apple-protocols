@@ -40,12 +40,12 @@ export default class {
     }
 
     async pin(askPin: () => Promise<string>): Promise<PairingCredentials> {
-        const m1 = await this.#m1();
-        const m2 = await this.#m2(m1, await askPin());
-        const m3 = await this.#m3(m2);
-        const m4 = await this.#m4(m3);
-        const m5 = await this.#m5(m4);
-        const m6 = await this.#m6(m4, m5);
+        const m1 = await this.m1();
+        const m2 = await this.m2(m1, await askPin());
+        const m3 = await this.m3(m2);
+        const m4 = await this.m4(m3);
+        const m5 = await this.m5(m4);
+        const m6 = await this.m6(m4, m5);
 
         if (!m6) {
             throw new Error('Pairing failed, could not get accessory keys.');
@@ -55,10 +55,10 @@ export default class {
     }
 
     async transient(): Promise<TransientPairingCredentials> {
-        const m1 = await this.#m1([[TlvValue.Flags, TlvFlags.TransientPairing]]);
-        const m2 = await this.#m2(m1);
-        const m3 = await this.#m3(m2);
-        const m4 = await this.#m4(m3);
+        const m1 = await this.m1([[TlvValue.Flags, TlvFlags.TransientPairing]]);
+        const m2 = await this.m2(m1);
+        const m3 = await this.m3(m2);
+        const m4 = await this.m4(m3);
 
         const accessoryToControllerKey = hkdf({
             hash: 'sha512',
@@ -84,7 +84,7 @@ export default class {
         };
     }
 
-    async #m1(additionalTlv: [number, number | Buffer][] = []): Promise<M1> {
+    async m1(additionalTlv: [number, number | Buffer][] = []): Promise<M1> {
         const [, response] = await this.#socket.exchange(CompanionLinkFrameType.PS_Start, {
             _pd: encodeTlv([
                 [TlvValue.Method, TlvMethod.PairSetup],
@@ -101,7 +101,7 @@ export default class {
         return {publicKey, salt};
     }
 
-    async #m2(m1: M1, pin: string = AIRPLAY_TRANSIENT_PIN): Promise<M2> {
+    async m2(m1: M1, pin: string = AIRPLAY_TRANSIENT_PIN): Promise<M2> {
         const srpKey = await SRP.genKey(32);
 
         this.#srp = new SrpClient(SRP.params.hap, m1.salt, Buffer.from('Pair-Setup'), Buffer.from(pin), srpKey, true);
@@ -113,7 +113,7 @@ export default class {
         return {publicKey, proof};
     }
 
-    async #m3(m2: M2): Promise<M3> {
+    async m3(m2: M2): Promise<M3> {
         const [, response] = await this.#socket.exchange(CompanionLinkFrameType.PS_Next, {
             _pd: encodeTlv([
                 [TlvValue.State, TlvState.M3],
@@ -129,7 +129,7 @@ export default class {
         return {serverProof};
     }
 
-    async #m4(m3: M3): Promise<M4> {
+    async m4(m3: M3): Promise<M4> {
         this.#srp.checkM2(m3.serverProof);
 
         const sharedSecret = this.#srp.computeK();
@@ -137,7 +137,7 @@ export default class {
         return {sharedSecret};
     }
 
-    async #m5(m4: M4): Promise<M5> {
+    async m5(m4: M4): Promise<M5> {
         const iosDeviceX = hkdf({
             hash: 'sha512',
             key: m4.sharedSecret,
@@ -194,7 +194,7 @@ export default class {
         };
     }
 
-    async #m6(m4: M4, m5: M5): Promise<PairingCredentials> {
+    async m6(m4: M4, m5: M5): Promise<PairingCredentials> {
         const data = decryptChacha20(m5.sessionKey, Buffer.from('PS-Msg06'), null, m5.data, m5.authTag);
         const tlv = decodeTlv(data);
 

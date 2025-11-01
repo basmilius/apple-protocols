@@ -5,6 +5,8 @@ import { decryptChacha20, encryptChacha20 } from '@/crypto';
 import { decodeOPack, encodeOPack, opackSizedInt } from '@/encoding';
 import BaseSocket from './base';
 
+const HEADER_BYTES = 4;
+
 export default class extends BaseSocket {
     get isEncrypted(): boolean {
         return !!this.#readKey && !!this.#writeKey;
@@ -48,6 +50,10 @@ export default class extends BaseSocket {
                 keepAlive: true
             }, resolve);
         });
+    }
+
+    async disconnect(): Promise<void> {
+        this.#socket.destroy();
     }
 
     async enableEncryption(readKey: Buffer, writeKey: Buffer): Promise<void> {
@@ -119,54 +125,27 @@ export default class extends BaseSocket {
 
         this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
-        while (this.#buffer.byteLength >= 4) {
-            const header = this.#buffer.subarray(0, 4);
+        while (this.#buffer.byteLength >= HEADER_BYTES) {
+            const header = this.#buffer.subarray(0, HEADER_BYTES);
             const payloadLength = header.readUintBE(1, 3);
+            const totalLength = HEADER_BYTES + payloadLength;
 
-            if (this.#buffer.byteLength < payloadLength) {
-                debug('Not enough data yet, waiting on the next frame..');
-                break;
+            if (this.#buffer.byteLength < totalLength) {
+                debug(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                return;
             }
 
-            let data = this.#buffer.subarray(0, 4 + payloadLength);
-            data = await this.#decrypt(data);
+            debug(`Frame found length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
 
-            this.#buffer = this.#buffer.subarray(data.byteLength);
+            const frame = Buffer.from(this.#buffer.subarray(0, totalLength));
+            this.#buffer = this.#buffer.subarray(totalLength);
 
-            let payload = data.subarray(4);
+            debug(`Handle frame, ${this.#buffer.byteLength} bytes left...`);
 
-            if (OPackFrameTypes.includes(header.readInt8())) {
-                [payload] = decodeOPack(payload);
-            }
+            const data = await this.#decrypt(frame);
+            let payload = data.subarray(4, totalLength);
 
-            debug('Decoded OPACK', {header, payload});
-
-            if ('_x' in payload) {
-                const _x = (payload as any)._x;
-
-                if (_x in this.#queue) {
-                    const resolve = this.#queue[_x] ?? null;
-                    resolve?.([header, payload]);
-
-                    delete this.#queue[_x];
-                } else {
-                    // probably an event
-                    const content = payload['_c'];
-                    const keys = Object.keys(content).map(k => k.substring(0, -3));
-
-                    for (const key of keys) {
-                        this.dispatchEvent(new CustomEvent(key, {detail: content[key]}));
-                    }
-                }
-            } else if (this.#queue[-1]) {
-                const _x = -1;
-                const resolve = this.#queue[_x] ?? null;
-                resolve?.([header, payload]);
-
-                delete this.#queue[_x];
-            } else {
-                debug('No handler for message', [header, payload]);
-            }
+            await this.#handle(header, payload);
         }
     }
 
@@ -186,7 +165,7 @@ export default class extends BaseSocket {
         const header = data.subarray(0, 4);
         const payloadLength = header.readUintBE(1, 3);
 
-        const payload = data.subarray(4, payloadLength + 16);
+        const payload = data.subarray(4, 4 + payloadLength);
         const authTag = payload.subarray(payload.byteLength - 16);
         const ciphertext = payload.subarray(0, payload.byteLength - 16);
 
@@ -196,6 +175,47 @@ export default class extends BaseSocket {
         const decrypted = decryptChacha20(this.#readKey, nonce, header, ciphertext, authTag);
 
         return Buffer.concat([header, decrypted, authTag]);
+    }
+
+    async #handle(header: Buffer, payload: Buffer): Promise<void> {
+        const type = header.readInt8();
+
+        if (!OPackFrameTypes.includes(type)) {
+            debug('Packet not handled, no opack frame.');
+        }
+
+        [payload] = decodeOPack(payload);
+
+        debug('Decoded OPACK', {header, payload});
+
+        if ('_x' in payload) {
+            const _x = (payload as any)._x;
+
+            if (_x in this.#queue) {
+                const resolve = this.#queue[_x] ?? null;
+                resolve?.([header, payload]);
+
+                delete this.#queue[_x];
+            } else if ('_i' in payload) {
+                this.dispatchEvent(new CustomEvent(payload['_i'] as string, {detail: payload['_c']}));
+            } else {
+                // probably an event
+                const content = payload['_c'];
+                const keys = Object.keys(content).map(k => k.substring(0, -3));
+
+                for (const key of keys) {
+                    this.dispatchEvent(new CustomEvent(key, {detail: content[key]}));
+                }
+            }
+        } else if (this.#queue[-1]) {
+            const _x = -1;
+            const resolve = this.#queue[_x] ?? null;
+            resolve?.([header, payload]);
+
+            delete this.#queue[_x];
+        } else {
+            debug('No handler for message', [header, payload]);
+        }
     }
 }
 

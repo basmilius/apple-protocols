@@ -1,7 +1,14 @@
+import { exists, rm } from 'node:fs/promises';
 import { build, dts } from '@basmilius/tools';
 
+if (await exists('./dist')) {
+    await rm('./dist', {
+        recursive: true
+    });
+}
+
 await build({
-    entrypoints: ['src/index.ts', 'src/test.ts'],
+    entrypoints: ['src/index.ts'],
     plugins: [
         dts()
     ],
@@ -14,5 +21,8 @@ await build({
         'node-dns-sd',
         'tweetnacl',
         'uuid'
-    ]
+    ],
+    define: {
+        PRODUCTION: 'false'
+    }
 });

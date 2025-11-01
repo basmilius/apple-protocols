@@ -113,8 +113,6 @@ export default class {
             _auTy: 4
         });
 
-        console.log(this.#tlv(response));
-
         return {};
     }
 

@@ -84,6 +84,7 @@ async function verify(): Promise<void> {
     // await protocol.api.mediaControlCommand('GetVolume');
 
     // await protocol.api.pressButton('Menu');
+    // await protocol.api.pressButton('Screensaver');
 
     // await protocol.api.launchUrl('https://play.hbomax.com/video/watch/330677a5-aff2-4270-b19e-d67b021adfaf/be45824d-2c34-4d7f-9fac-2380c8e46123');
 }

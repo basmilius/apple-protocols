@@ -1,7 +1,7 @@
 {
     "name": "@basmilius/apple-companion-link",
     "description": "Implementation of Apple's Companion Link",
-    "version": "0.0.5",
+    "version": "0.0.7",
     "type": "module",
     "license": "MIT",
     "author": {

@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline';
-import { styleText } from 'node:util';
+
+declare const PRODUCTION: boolean;
 
 const stdin = createInterface({
     input: process.stdin,
@@ -7,7 +8,11 @@ const stdin = createInterface({
 });
 
 export function debug(...data: any[]): void {
-    console.debug(styleText('cyan', '[debug]'), ...data);
+    if (PRODUCTION === true) {
+        return;
+    }
+
+    console.debug('\u001b[36m[debug]\u001b[39m', ...data);
 }
 
 export async function prompt(message: string): Promise<string> {

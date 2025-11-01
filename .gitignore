@@ -3,3 +3,6 @@ dist/
 node_modules/
 
 .env
+
+!/.idea/.name
+!/.idea/icon.svg

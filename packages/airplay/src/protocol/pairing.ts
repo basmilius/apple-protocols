@@ -13,6 +13,7 @@ export default class AirPlayPairing {
 
     readonly #internal: AccessoryPair;
     readonly #protocol: AirPlay;
+    #hkp: 3 | 4;
 
     constructor(protocol: AirPlay) {
         this.#internal = new AccessoryPair(this.#request.bind(this));
@@ -24,17 +25,36 @@ export default class AirPlayPairing {
     }
 
     async pin(askPin: () => Promise<string>): Promise<AccessoryCredentials> {
+        this.#hkp = 3;
+
+        await this.#pinStart();
+
         return this.#internal.pin(askPin);
     }
 
     async transient(): Promise<AccessoryKeys> {
+        this.#hkp = 4;
+
+        await this.#pinStart();
+
         return this.#internal.transient();
+    }
+
+    async #pinStart(): Promise<void> {
+        const response = await this.rtsp.post('/pair-pin-start', null, {
+            'Content-Type': 'application/octet-stream',
+            'X-Apple-HKP': this.#hkp.toString()
+        });
+
+        if (response.status !== 200) {
+            throw new Error('Cannot start pairing session.');
+        }
     }
 
     async #request(_: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
         const response = await this.rtsp.post('/pair-setup', data, {
             'Content-Type': 'application/octet-stream',
-            'X-Apple-HKP': '4'
+            'X-Apple-HKP': this.#hkp.toString()
         });
 
         return Buffer.from(await response.arrayBuffer());

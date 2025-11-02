@@ -1,45 +1,47 @@
 import { randomInt } from 'node:crypto';
 import { debug, opackFloat, parseBinaryPlist, waitFor } from '@basmilius/apple-common';
-import { CompanionLinkFrameType, CompanionLinkMessageType, type CompanionLinkSocket } from '@/socket';
-import type CompanionLink from '../companionLink';
+import { type default as CompanionLinkSocket, FrameType, MessageType } from './socket';
+import type CompanionLink from './protocol';
 
-export default class Api {
+export default class CompanionLinkApi {
+    get socket(): CompanionLinkSocket {
+        return this.#protocol.socket;
+    }
+
     readonly #protocol: CompanionLink;
-    readonly #socket: CompanionLinkSocket;
 
-    constructor(protocol: CompanionLink, socket: CompanionLinkSocket) {
+    constructor(protocol: CompanionLink) {
         this.#protocol = protocol;
-        this.#socket = socket;
     }
 
     async fetchMediaControlStatus(): Promise<void> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchMediaControlStatus',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
     }
 
     async fetchNowPlayingInfo(): Promise<void> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchCurrentNowPlayingInfoEvent',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
     }
 
     async fetchSupportedActions(): Promise<void> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchSupportedActionsEvent',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
     }
 
     async getAttentionState(): Promise<AttentionState> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchAttentionState',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
 
@@ -64,9 +66,9 @@ export default class Api {
     }
 
     async getLaunchableApps(): Promise<LaunchableApp[]> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchLaunchableApplicationsEvent',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
 
@@ -79,9 +81,9 @@ export default class Api {
     }
 
     async getSiriRemoteInfo(): Promise<any> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchSiriRemoteInfo',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
 
@@ -89,9 +91,9 @@ export default class Api {
     }
 
     async getUserAccounts(): Promise<UserAccount[]> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'FetchUserAccountsEvent',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {}
         });
 
@@ -104,9 +106,9 @@ export default class Api {
     }
 
     async hidCommand(command: keyof typeof HidCommand, down = false): Promise<void> {
-        await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_hidC',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _hBtS: down ? 1 : 2,
                 _hidC: HidCommand[command]
@@ -115,9 +117,9 @@ export default class Api {
     }
 
     async launchApp(bundleId: string): Promise<void> {
-        await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_launchApp',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _bundleID: bundleId
             }
@@ -125,9 +127,9 @@ export default class Api {
     }
 
     async launchUrl(url: string): Promise<void> {
-        await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_launchApp',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _urlS: url
             }
@@ -135,9 +137,9 @@ export default class Api {
     }
 
     async mediaControlCommand(command: keyof typeof MediaControlCommand, content?: object): Promise<object> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_mcc',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _mcc: MediaControlCommand[command],
                 ...(content || {})
@@ -171,9 +173,9 @@ export default class Api {
     }
 
     async switchUserAccount(accountId: string): Promise<void> {
-        await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'SwitchUserAccountEvent',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 SwitchAccountID: accountId
             }
@@ -181,11 +183,11 @@ export default class Api {
     }
 
     async _subscribe(event: string, fn: EventListener): Promise<void> {
-        this.#socket.addEventListener(event, fn);
+        this.socket.addEventListener(event, fn);
 
-        await this.#socket.send(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.send(FrameType.E_OPACK, {
             _i: '_interest',
-            _t: CompanionLinkMessageType.Event,
+            _t: MessageType.Event,
             _c: {
                 _regEvents: [event]
             }
@@ -194,12 +196,12 @@ export default class Api {
 
     async _unsubscribe(event: string, fn?: EventListener): Promise<void> {
         if (fn) {
-            this.#socket.removeEventListener(event, fn);
+            this.socket.removeEventListener(event, fn);
         }
 
-        await this.#socket.send(CompanionLinkFrameType.E_OPACK, {
+        await this.socket.send(FrameType.E_OPACK, {
             _i: '_interest',
-            _t: CompanionLinkMessageType.Event,
+            _t: MessageType.Event,
             _c: {
                 _deregEvents: [event]
             }
@@ -207,9 +209,9 @@ export default class Api {
     }
 
     async _sessionStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_sessionStart',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _srvT: 'com.apple.tvremoteservices',
                 _sid: randomInt(0, 2 ** 32 - 1)
@@ -220,9 +222,9 @@ export default class Api {
     }
 
     async _systemInfo(pairingId: Buffer): Promise<object> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_systemInfo',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _bf: 0,
                 _cf: 512,
@@ -241,9 +243,9 @@ export default class Api {
     }
 
     async _touchStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_touchStart',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _c: {
                 _height: opackFloat(1000.0),
                 _tFl: 0,
@@ -255,9 +257,9 @@ export default class Api {
     }
 
     async _tvrcSessionStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(CompanionLinkFrameType.E_OPACK, {
+        const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: 'TVRCSessionStart',
-            _t: CompanionLinkMessageType.Request,
+            _t: MessageType.Request,
             _btHP: false,
             _inUseProc: 'tvremoted',
             _c: {}

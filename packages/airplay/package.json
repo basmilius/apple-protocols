@@ -1,6 +1,6 @@
 {
-    "name": "@basmilius/apple-common",
-    "description": "Common features shared across various apple protocol packages.",
+    "name": "@basmilius/apple-airplay",
+    "description": "Implementation of Apple's AirPlay2 in Node.js.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -25,7 +25,9 @@
         "provenance": true
     },
     "scripts": {
-        "build": "bun -b build.ts"
+        "build": "bun -b build.ts",
+        "find": "bun src/find.ts",
+        "watch:test": "bun --watch src/test.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -38,14 +40,7 @@
         }
     },
     "dependencies": {
-        "@noble/curves": "^2.0.1",
-        "@plist/binary.parse": "^1.1.0",
-        "@plist/binary.serialize": "^1.1.0",
-        "chacha": "^2.1.0",
-        "fast-srp-hap": "^2.0.4",
-        "node-dns-sd": "^1.0.1",
-        "tweetnacl": "^1.0.3",
-        "uuid": "^13.0.0"
+        "@basmilius/apple-common": "workspace:*"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.13.0",

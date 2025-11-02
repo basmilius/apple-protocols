@@ -18,4 +18,7 @@ export default class BaseSocket extends EventTarget {
 
     async connect(): Promise<void> {
     }
+
+    async disconnect(): Promise<void> {
+    }
 }

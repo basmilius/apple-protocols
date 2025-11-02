@@ -11,7 +11,7 @@
     },
     "keywords": [
         "apple",
-        "airplay",
+        "companion link",
         "tv",
         "apple tv",
         "homekit"
@@ -40,10 +40,7 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "fast-srp-hap": "^2.0.4",
-        "tweetnacl": "^1.0.3",
-        "uuid": "^13.0.0"
+        "@basmilius/apple-common": "workspace:*"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.13.0",

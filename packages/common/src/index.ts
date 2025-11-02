@@ -5,3 +5,6 @@ export * from './net';
 
 export * from './cli';
 export * from './const';
+
+export type { AccessoryCredentials, AccessoryKeys } from './pairing';
+export { AccessoryPair, AccessoryVerify } from './pairing';

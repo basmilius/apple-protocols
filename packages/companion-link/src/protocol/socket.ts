@@ -1,11 +1,10 @@
 import { randomInt } from 'node:crypto';
 import { Socket } from 'node:net';
-import { debug, decodeOPack, decryptChacha20, encodeOPack, encryptChacha20, opackSizedInt } from '@basmilius/apple-common';
-import BaseSocket from './base';
+import { BaseSocket, debug, decodeOPack, decryptChacha20, encodeOPack, encryptChacha20, opackSizedInt } from '@basmilius/apple-common';
 
 const HEADER_BYTES = 4;
 
-export default class extends BaseSocket {
+export default class CompanionLinkSocket extends BaseSocket {
     get isEncrypted(): boolean {
         return !!this.#readKey && !!this.#writeKey;
     }

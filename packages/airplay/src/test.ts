@@ -2,7 +2,7 @@ import { Discovery } from '@basmilius/apple-common';
 import { AirPlay } from '@/protocol';
 
 const discovery = Discovery.airplay();
-const device = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
+const device = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
 
 const protocol = new AirPlay(device);
 await protocol.connect();
@@ -13,9 +13,9 @@ await protocol.connect();
 //
 // console.log(plist);
 
-// await protocol.pairing.start();
-// const keys = await protocol.pairing.transient();
-// console.log(keys);
+await protocol.pairing.start();
+const keys = await protocol.pairing.transient();
+console.log(keys);
 
 // await protocol.pairing.start();
 // const credentials = await protocol.pairing.pin(async () => await prompt('Enter PIN'));

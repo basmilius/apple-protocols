@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+  optional OriginClientPropertiesMessage originClientPropertiesMessage = 87;
+}
+
+message OriginClientPropertiesMessage {
+  optional double lastPlayingTimestamp = 1;
+}

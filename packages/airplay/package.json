@@ -27,6 +27,7 @@
     "scripts": {
         "build": "bun -b build.ts",
         "find": "bun src/find.ts",
+        "gen:proto": "buf generate",
         "watch:test": "bun --watch src/test.ts"
     },
     "main": "./dist/index.js",
@@ -40,10 +41,13 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*"
+        "@basmilius/apple-common": "workspace:*",
+        "@bufbuild/protobuf": "^2.10.0"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.13.0",
+        "@bufbuild/buf": "^1.59.0",
+        "@bufbuild/protoc-gen-es": "^2.10.0",
         "@types/bun": "^1.3.1"
     }
 }

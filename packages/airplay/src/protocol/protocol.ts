@@ -1,4 +1,7 @@
-import type { DiscoveryResult } from '@basmilius/apple-common';
+import { debug, type DiscoveryResult, getMacAddress, parseBinaryPlist, serializeBinaryPlist, uuid } from '@basmilius/apple-common';
+import { randomInt64 } from './utils';
+import DataStream from './dataStream';
+import EventStream from './eventStream';
 import Pairing from './pairing';
 import RTSP from './rtsp';
 import Verify from './verify';
@@ -6,6 +9,14 @@ import Verify from './verify';
 export default class AirPlay {
     get device(): DiscoveryResult {
         return this.#device;
+    }
+
+    get dataStream(): DataStream | undefined {
+        return this.#dataStream;
+    }
+
+    get eventStream(): EventStream | undefined {
+        return this.#eventStream;
     }
 
     get pairing(): Pairing {
@@ -24,12 +35,18 @@ export default class AirPlay {
     readonly #pairing: Pairing;
     readonly #rtsp: RTSP;
     readonly #verify: Verify;
+    readonly #sessionId: string;
+    readonly #sessionUUID: string;
+    #dataStream?: DataStream;
+    #eventStream?: EventStream;
 
     constructor(device: DiscoveryResult) {
         this.#device = device;
         this.#rtsp = new RTSP(device.address, device.service.port);
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
+        this.#sessionId = '14511846595692938970';
+        this.#sessionUUID = uuid();
     }
 
     async connect(): Promise<void> {
@@ -38,5 +55,71 @@ export default class AirPlay {
 
     async disconnect(): Promise<void> {
         await this.#rtsp.disconnect();
+    }
+
+    async feedback(): Promise<void> {
+        await this.#rtsp.post('/feedback');
+    }
+
+    async setupDataStream(sharedSecret: Buffer): Promise<void> {
+        const seed = randomInt64();
+        const request = serializeBinaryPlist({
+            streams: [
+                {
+                    controlType: 2,
+                    channelID: '3ZDG',
+                    seed,
+                    clientUUID: uuid().toUpperCase(),
+                    type: 130,
+                    wantsDedicatedSocket: true,
+                    clientTypeUUID: '1910A70F-DBC0-4242-AF95-115DB30604E1'
+                }
+            ]
+        });
+
+        const response = await this.#rtsp.setup(`/${this.#sessionId}`, Buffer.from(request), {
+            'Content-Type': 'application/x-apple-binary-plist'
+        });
+
+        const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
+        const dataPort = plist.streams[0].dataPort & 0xFFFF;
+        debug('Should listen on data port', dataPort);
+
+        this.#dataStream = new DataStream(this.#rtsp.address, dataPort);
+        await this.#dataStream.setup(sharedSecret, seed);
+        await this.#dataStream.connect();
+    }
+
+    async setupEventStream(pairingId: Buffer, sharedSecret: Buffer): Promise<void> {
+        const request = serializeBinaryPlist({
+            deviceID: pairingId.toString(),
+            isRemoteControlOnly: true,
+            macAddress: getMacAddress(),
+            model: 'iPhone16,2',
+            name: 'iPhone van Bas',
+            osBuildVersion: '23B82',
+            osName: 'iPhone OS',
+            osVersion: '26.1',
+            sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
+            sessionUUID: this.#sessionUUID,
+            sourceVersion: '920.10.1',
+            startsCollectionEnabled: false,
+            timingProtocol: 'None',
+            updateSessionRequest: false
+        });
+
+        const response = await this.#rtsp.setup(`/${this.#sessionId}`, Buffer.from(request), {
+            'Content-Type': 'application/x-apple-binary-plist'
+        });
+
+        const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
+        const eventPort = plist.eventPort & 0xFFFF;
+        debug('Should listen on event port', eventPort);
+
+        this.#eventStream = new EventStream(this.#rtsp.address, eventPort);
+        await this.#eventStream.setup(sharedSecret);
+        await this.#eventStream.connect();
+
+        await this.#rtsp.record(`/${this.#sessionId}`);
     }
 }

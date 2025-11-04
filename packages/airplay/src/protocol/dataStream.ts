@@ -147,10 +147,52 @@ export default class AirPlayDataStream extends AirPlayStream {
         this.dispatchEvent(new CustomEvent('deviceInfo', {detail: message}));
     }
 
+    async #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): Promise<void> {
+        debug('Origin client update properties', message);
+
+        this.dispatchEvent(new CustomEvent('originClientProperties', {detail: message}));
+    }
+
+    async #onPlayerClientPropertiesMessage(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
+        debug('Player client properties', message);
+
+        this.dispatchEvent(new CustomEvent('playerClientProperties', {detail: message}));
+    }
+
     async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
         debug('Set default supported commands', message);
 
         this.dispatchEvent(new CustomEvent('setDefaultSupportedCommands', {detail: message}));
+    }
+
+    async #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): Promise<void> {
+        debug('Set now playing client', message);
+
+        this.dispatchEvent(new CustomEvent('nowPlayingClient', {detail: message}));
+    }
+
+    async #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
+        debug('Set now playing player', message);
+
+        this.dispatchEvent(new CustomEvent('nowPlayingPlayer', {detail: message}));
+    }
+
+    async #onSetStateMessage(message: Proto.SetStateMessage): Promise<void> {
+        debug('Set state', message);
+
+        this.dispatchEvent(new CustomEvent('setState', {detail: message}));
+    }
+
+    async #onUpdateClientMessage(message: Proto.UpdateClientMessage): Promise<void> {
+        debug('Update client', message);
+
+        this.dispatchEvent(new CustomEvent('updateClient', {detail: message}));
+    }
+
+    async #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): Promise<void> {
+        debug('Update player', message);
+
+        this.dispatchEvent(new CustomEvent('updatePlayer', {detail: message}));
     }
 
     async #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
@@ -163,6 +205,12 @@ export default class AirPlayDataStream extends AirPlayStream {
         debug('Volume control availability', message);
 
         this.dispatchEvent(new CustomEvent('volumeControlAvailability', {detail: message}));
+    }
+
+    async #onVolumeControlCapabilitiesDidChangeMessage(message: Proto.VolumeControlCapabilitiesDidChangeMessage): Promise<void> {
+        debug('Volume control capabilities did change', message);
+
+        this.dispatchEvent(new CustomEvent('volumeControlCapabilitiesDidChange', {detail: message}));
     }
 
     async #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): Promise<void> {
@@ -249,8 +297,36 @@ export default class AirPlayDataStream extends AirPlayStream {
                 await this.#onDeviceInfoMessage(getExtension(message, Proto.deviceInfoMessage));
                 break;
 
+            case Proto.ProtocolMessage_Type.ORIGIN_CLIENT_PROPERTIES_MESSAGE:
+                await this.#onOriginClientPropertiesMessage(getExtension(message, Proto.originClientPropertiesMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.PLAYER_CLIENT_PROPERTIES_MESSAGE:
+                await this.#onPlayerClientPropertiesMessage(getExtension(message, Proto.playerClientPropertiesMessage));
+                break;
+
             case Proto.ProtocolMessage_Type.SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE:
                 await this.#onSetDefaultSupportedCommandsMessage(getExtension(message, Proto.setDefaultSupportedCommandsMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.SET_NOW_PLAYING_CLIENT_MESSAGE:
+                await this.#onSetNowPlayingClientMessage(getExtension(message, Proto.setNowPlayingClientMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.SET_NOW_PLAYING_PLAYER_MESSAGE:
+                await this.#onSetNowPlayingPlayerMessage(getExtension(message, Proto.setNowPlayingPlayerMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.SET_STATE_MESSAGE:
+                await this.#onSetStateMessage(getExtension(message, Proto.setStateMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.UPDATE_CLIENT_MESSAGE:
+                await this.#onUpdateClientMessage(getExtension(message, Proto.updateClientMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.UPDATE_PLAYER_MESSAGE:
+                await this.#onUpdatePlayerMessage(getExtension(message, Proto.updatePlayerMessage));
                 break;
 
             case Proto.ProtocolMessage_Type.UPDATE_OUTPUT_DEVICE_MESSAGE:
@@ -259,6 +335,10 @@ export default class AirPlayDataStream extends AirPlayStream {
 
             case Proto.ProtocolMessage_Type.VOLUME_CONTROL_AVAILABILITY_MESSAGE:
                 await this.#onVolumeControlAvailabilityMessage(getExtension(message, Proto.volumeControlAvailabilityMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE:
+                await this.#onVolumeControlCapabilitiesDidChangeMessage(getExtension(message, Proto.volumeControlCapabilitiesDidChangeMessage));
                 break;
 
             case ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE:

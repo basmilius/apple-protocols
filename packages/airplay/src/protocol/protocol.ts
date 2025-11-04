@@ -35,7 +35,6 @@ export default class AirPlay {
     readonly #pairing: Pairing;
     readonly #rtsp: RTSP;
     readonly #verify: Verify;
-    readonly #sessionId: string;
     readonly #sessionUUID: string;
     #dataStream?: DataStream;
     #eventStream?: EventStream;
@@ -45,7 +44,6 @@ export default class AirPlay {
         this.#rtsp = new RTSP(device.address, device.service.port);
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
-        this.#sessionId = '14511846595692938970';
         this.#sessionUUID = uuid();
     }
 
@@ -77,7 +75,7 @@ export default class AirPlay {
             ]
         });
 
-        const response = await this.#rtsp.setup(`/${this.#sessionId}`, Buffer.from(request), {
+        const response = await this.#rtsp.setup(`/${this.rtsp.sessionId}`, Buffer.from(request), {
             'Content-Type': 'application/x-apple-binary-plist'
         });
 
@@ -93,22 +91,22 @@ export default class AirPlay {
     async setupEventStream(pairingId: Buffer, sharedSecret: Buffer): Promise<void> {
         const request = serializeBinaryPlist({
             deviceID: pairingId.toString(),
-            isRemoteControlOnly: true,
-            macAddress: getMacAddress(),
-            model: 'iPhone16,2',
+            macAddress: getMacAddress().toUpperCase(),
             name: 'iPhone van Bas',
+            model: 'iPhone16,2',
             osBuildVersion: '23B82',
             osName: 'iPhone OS',
             osVersion: '26.1',
-            sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
+            sourceVersion: '550.10',
             sessionUUID: this.#sessionUUID,
-            sourceVersion: '920.10.1',
-            startsCollectionEnabled: false,
+            sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
             timingProtocol: 'None',
-            updateSessionRequest: false
+            isRemoteControlOnly: true,
+            startsCollectionEnabled: false,
+            updateSessionRequest: false,
         });
 
-        const response = await this.#rtsp.setup(`/${this.#sessionId}`, Buffer.from(request), {
+        const response = await this.#rtsp.setup(`/${this.rtsp.sessionId}`, Buffer.from(request), {
             'Content-Type': 'application/x-apple-binary-plist'
         });
 
@@ -120,6 +118,6 @@ export default class AirPlay {
         await this.#eventStream.setup(sharedSecret);
         await this.#eventStream.connect();
 
-        await this.#rtsp.record(`/${this.#sessionId}`);
+        await this.#rtsp.record(`/${this.rtsp.sessionId}`);
     }
 }

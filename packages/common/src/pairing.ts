@@ -223,7 +223,7 @@ export class AccessoryVerify {
 
         await this.#m3(credentials.pairingId, credentials.secretKey, m2);
 
-        return await this.#m4(m2);
+        return await this.#m4(m2, credentials.pairingId);
     }
 
     async #m1(): Promise<VerifyM1> {
@@ -311,26 +311,12 @@ export class AccessoryVerify {
         return {};
     }
 
-    async #m4(m2: VerifyM2): Promise<AccessoryKeys> {
-        const accessoryToControllerKey = hkdf({
-            hash: 'sha512',
-            key: m2.sharedSecret,
-            length: 32,
-            salt: Buffer.alloc(0),
-            info: Buffer.from('ServerEncrypt-main')
-        });
-
-        const controllerToAccessoryKey = hkdf({
-            hash: 'sha512',
-            key: m2.sharedSecret,
-            length: 32,
-            salt: Buffer.alloc(0),
-            info: Buffer.from('ClientEncrypt-main')
-        });
-
+    async #m4(m2: VerifyM2, pairingId: Buffer): Promise<AccessoryKeys> {
         return {
-            accessoryToControllerKey,
-            controllerToAccessoryKey
+            accessoryToControllerKey: Buffer.alloc(0),
+            controllerToAccessoryKey: Buffer.alloc(0),
+            pairingId,
+            sharedSecret: m2.sharedSecret
         };
     }
 }
@@ -395,8 +381,8 @@ export type AccessoryCredentials = {
 };
 
 export type AccessoryKeys = {
-    readonly pairingId?: Buffer;
-    readonly sharedSecret?: Buffer;
+    readonly pairingId: Buffer;
+    readonly sharedSecret: Buffer;
     readonly accessoryToControllerKey: Buffer;
     readonly controllerToAccessoryKey: Buffer;
 };

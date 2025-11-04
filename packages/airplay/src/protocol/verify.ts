@@ -1,4 +1,4 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryVerify } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryVerify, hkdf } from '@basmilius/apple-common';
 import type AirPlay from './protocol';
 import type AirPlayRTSP from './rtsp';
 
@@ -16,7 +16,30 @@ export default class AirPlayVerify {
     }
 
     async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
-        return await this.#internal.start(credentials);
+        const keys = await this.#internal.start(credentials);
+
+        const accessoryToControllerKey = hkdf({
+            hash: 'sha512',
+            key: keys.sharedSecret,
+            length: 32,
+            salt: Buffer.from('Control-Salt'),
+            info: Buffer.from('Control-Read-Encryption-Key')
+        });
+
+        const controllerToAccessoryKey = hkdf({
+            hash: 'sha512',
+            key: keys.sharedSecret,
+            length: 32,
+            salt: Buffer.from('Control-Salt'),
+            info: Buffer.from('Control-Write-Encryption-Key')
+        });
+
+        return {
+            accessoryToControllerKey,
+            controllerToAccessoryKey,
+            pairingId: keys.pairingId,
+            sharedSecret: keys.sharedSecret
+        };
     }
 
     async #request(_: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {

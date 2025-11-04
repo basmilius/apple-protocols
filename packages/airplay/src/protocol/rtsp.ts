@@ -4,11 +4,34 @@ import { makeHttpHeader, makeHttpResponse } from './utils';
 import AirPlayStream from './stream';
 
 export default class AirPlayRTSP extends AirPlayStream {
+    get activeRemote(): string {
+        return this.#activeRemote;
+    }
+
+    get dacpId(): string {
+        return this.#dacpId;
+    }
+
+    get sessionId(): string {
+        return this.#sessionId;
+    }
+
+    readonly #activeRemote: string;
+    readonly #dacpId: string;
+    readonly #sessionId: string;
     #buffer: Buffer = Buffer.alloc(0);
     #cseq: number = 0;
     #requesting: boolean = false;
     #reject: Function;
     #resolve: Function;
+
+    constructor(address: string, port: number) {
+        super(address, port);
+
+        this.#activeRemote = Math.floor(Math.random() * 2 ** 32).toString(10);
+        this.#dacpId = Math.floor(Math.random() * 2 ** 64).toString(16).toUpperCase();
+        this.#sessionId = Math.floor(Math.random() * 2 ** 32).toString(10);
+    }
 
     async get(path: string, headers: HeadersInit = {}): Promise<Response> {
         return await this.#request('GET', path, null, headers);
@@ -74,6 +97,10 @@ export default class AirPlayRTSP extends AirPlayStream {
         }
 
         this.#requesting = true;
+
+        headers['Active-Remote'] = this.activeRemote;
+        headers['Client-Instance'] = this.dacpId;
+        headers['DACP-ID'] = this.dacpId;
 
         let data: Buffer;
 

@@ -1,6 +1,6 @@
+import { uuid } from '@basmilius/apple-common';
 import { create, setExtension } from '@bufbuild/protobuf';
 import * as Proto from '@/proto';
-import { uuid } from '@basmilius/apple-common';
 
 export default class {
     clientUpdatesConfig(): Proto.ProtocolMessage {
@@ -52,6 +52,31 @@ export default class {
             identifier: uuid().toUpperCase(),
             uniqueIdentifier: uuid().toUpperCase()
         });
+    }
+
+    sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.SEND_BUTTON_EVENT_MESSAGE);
+        const message = create(Proto.SendButtonEventMessageSchema, {
+            usagePage,
+            usage,
+            buttonDown
+        });
+
+        setExtension(protocolMessage, Proto.sendButtonEventMessage, message);
+
+        return protocolMessage;
+    }
+
+    sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.SEND_COMMAND_MESSAGE);
+        const message = create(Proto.SendCommandMessageSchema, {
+            command,
+            options
+        });
+
+        setExtension(protocolMessage, Proto.sendCommandMessage, message);
+
+        return protocolMessage;
     }
 
     setConnectionState(state: Proto.SetConnectionStateMessage_ConnectionState = Proto.SetConnectionStateMessage_ConnectionState.Connected): Proto.ProtocolMessage {

@@ -99,7 +99,7 @@ export default class AirPlayDataStream extends AirPlayStream {
                 }
 
                 const frame = this.#buffer.subarray(DATA_HEADER_LENGTH, totalLength);
-                const plist = parseBinaryPlist(Buffer.from(frame).buffer) as any;
+                const plist = parseBinaryPlist(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
                 const command = header.toString('ascii', 4, 8);
 
                 debug('Raw data received', header.toString(), frame.toString());
@@ -157,6 +157,12 @@ export default class AirPlayDataStream extends AirPlayStream {
         debug('Player client properties', message);
 
         this.dispatchEvent(new CustomEvent('playerClientProperties', {detail: message}));
+    }
+
+    async #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): Promise<void> {
+        debug('Send command result', message);
+
+        this.dispatchEvent(new CustomEvent('sendCommandResult', {detail: message}));
     }
 
     async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
@@ -303,6 +309,10 @@ export default class AirPlayDataStream extends AirPlayStream {
 
             case Proto.ProtocolMessage_Type.PLAYER_CLIENT_PROPERTIES_MESSAGE:
                 await this.#onPlayerClientPropertiesMessage(getExtension(message, Proto.playerClientPropertiesMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.SEND_COMMAND_RESULT_MESSAGE:
+                await this.#onSendCommandResultMessage(getExtension(message, Proto.sendCommandResultMessage));
                 break;
 
             case Proto.ProtocolMessage_Type.SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE:

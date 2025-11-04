@@ -95,7 +95,7 @@ export default class AirPlayEventStream extends AirPlayStream {
 
         switch (key) {
             case 'POST /command':
-                const data = parseBinaryPlist(Buffer.from(body).buffer) as any;
+                const data = parseBinaryPlist(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as any;
 
                 debug(data);
 

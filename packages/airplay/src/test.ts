@@ -1,6 +1,7 @@
-import { Discovery, prompt } from '@basmilius/apple-common';
+import { Discovery, prompt, waitFor } from '@basmilius/apple-common';
 import { AirPlay } from '@/protocol';
 import * as Proto from '@/proto';
+import { create } from '@bufbuild/protobuf';
 
 async function homepod(): Promise<void> {
     const discovery = Discovery.airplay();
@@ -60,7 +61,16 @@ async function tv(): Promise<void> {
     protocol.dataStream.addEventListener('deviceInfo', async (_: CustomEvent) => {
         await protocol.dataStream.exchange(protocol.dataStream.messages.setConnectionState());
         await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
-        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Rewind15Seconds))
+        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Rewind15Seconds));
+
+        await waitFor(1000);
+
+        const options = create(Proto.CommandOptionsSchema, {
+            stationURL: 'https://bmcdn.nl/doorbell.ogg'
+        });
+
+        await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Play, options));
+
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, true));
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, false));
     });

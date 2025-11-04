@@ -8,19 +8,12 @@ if (await exists('./dist')) {
 }
 
 await build({
-    entrypoints: ['src/index.ts'],
+    entrypoints: ['src/index.ts', 'src/test.ts'],
     plugins: [
         dts()
     ],
     external: [
-        '@noble/curves',
-        '@plist/binary.parse',
-        '@plist/binary.serialize',
-        'chacha',
-        'fast-srp-hap',
-        'node-dns-sd',
-        'tweetnacl',
-        'uuid'
+        '@bufbuild/protobuf'
     ],
     drop: [
         'console.debug'

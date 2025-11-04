@@ -63,13 +63,13 @@ async function tv(): Promise<void> {
         await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Rewind15Seconds));
 
-        await waitFor(1000);
+        // await waitFor(1000);
 
-        const options = create(Proto.CommandOptionsSchema, {
-            stationURL: 'https://bmcdn.nl/doorbell.ogg'
-        });
+        // const options = create(Proto.CommandOptionsSchema, {
+        //     stationURL: 'https://bmcdn.nl/doorbell.ogg'
+        // });
 
-        await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Play, options));
+        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Play, options));
 
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, true));
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, false));

@@ -102,7 +102,7 @@ export default class AirPlayDataStream extends AirPlayStream {
                 const plist = parseBinaryPlist(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
                 const command = header.toString('ascii', 4, 8);
 
-                debug('Raw data received', header.toString(), frame.toString());
+                debug('Raw data received', header.toString());
                 debug(`Should read ${totalLength} bytes, ${this.#buffer.byteLength} available.`);
 
                 this.#buffer = this.#buffer.subarray(totalLength);
@@ -165,6 +165,12 @@ export default class AirPlayDataStream extends AirPlayStream {
         this.dispatchEvent(new CustomEvent('sendCommandResult', {detail: message}));
     }
 
+    async #onSetArtworkMessage(message: Proto.SetArtworkMessage): Promise<void> {
+        debug('Set artwork', message);
+
+        this.dispatchEvent(new CustomEvent('setArtwork', {detail: message}));
+    }
+
     async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
         debug('Set default supported commands', message);
 
@@ -193,6 +199,18 @@ export default class AirPlayDataStream extends AirPlayStream {
         debug('Update client', message);
 
         this.dispatchEvent(new CustomEvent('updateClient', {detail: message}));
+    }
+
+    async #onUpdateContentItemMessage(message: Proto.UpdateContentItemMessage): Promise<void> {
+        debug('Update content item', message);
+
+        this.dispatchEvent(new CustomEvent('updateContentItem', {detail: message}));
+    }
+
+    async #onUpdateContentItemArtworkMessage(message: Proto.UpdateContentItemArtworkMessage): Promise<void> {
+        debug('Update content artwork', message);
+
+        this.dispatchEvent(new CustomEvent('updateContentItemArtwork', {detail: message}));
     }
 
     async #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): Promise<void> {
@@ -315,6 +333,10 @@ export default class AirPlayDataStream extends AirPlayStream {
                 await this.#onSendCommandResultMessage(getExtension(message, Proto.sendCommandResultMessage));
                 break;
 
+            case Proto.ProtocolMessage_Type.SET_ARTWORK_MESSAGE:
+                await this.#onSetArtworkMessage(getExtension(message, Proto.setArtworkMessage));
+                break;
+
             case Proto.ProtocolMessage_Type.SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE:
                 await this.#onSetDefaultSupportedCommandsMessage(getExtension(message, Proto.setDefaultSupportedCommandsMessage));
                 break;
@@ -333,6 +355,14 @@ export default class AirPlayDataStream extends AirPlayStream {
 
             case Proto.ProtocolMessage_Type.UPDATE_CLIENT_MESSAGE:
                 await this.#onUpdateClientMessage(getExtension(message, Proto.updateClientMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_MESSAGE:
+                await this.#onUpdateContentItemMessage(getExtension(message, Proto.updateContentItemMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE:
+                await this.#onUpdateContentItemArtworkMessage(getExtension(message, Proto.updateContentItemArtworkMessage));
                 break;
 
             case Proto.ProtocolMessage_Type.UPDATE_PLAYER_MESSAGE:

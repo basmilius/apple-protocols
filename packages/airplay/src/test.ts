@@ -1,8 +1,5 @@
-import { Discovery, uuid } from '@basmilius/apple-common';
+import { Discovery } from '@basmilius/apple-common';
 import { AirPlay } from '@/protocol';
-import { deviceInfoMessage, DeviceInfoMessageSchema } from '@/proto/DeviceInfoMessage_pb';
-import { ErrorCode_Enum, ProtocolMessage_Type, ProtocolMessageSchema } from '@/proto/ProtocolMessage_pb';
-import { create, setExtension } from '@bufbuild/protobuf';
 
 const discovery = Discovery.airplay();
 // const device = await discovery.findUntil('Woonkamer HomePod (3)._airplay._tcp.local');
@@ -22,82 +19,14 @@ await protocol.rtsp.enableEncryption(
 await protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
 await protocol.setupDataStream(keys.sharedSecret);
 
-// setInterval(() => protocol.feedback(), 2000);
+setInterval(() => protocol.feedback(), 2000);
 
-// await protocol.dataStream.sendProto(ConfigureConnectionMessageSchema, {
-//     groupID: '7121A067-38A0-4638-B777-1B8C45B9700C+F78E5A0E-39ED-441E-8F81-80B0944D6491'
-// });
+await protocol.dataStream.exchange(protocol.dataStream.messages.deviceInfo(keys.pairingId));
 
-/*
-import { ProtocolMessage, ProtocolMessage_Type } from './gen/protocol_pb';
-import { deviceInfoMessage } from './gen/device_info_pb';
-import { create, toBinary } from '@bufbuild/protobuf';
-
-// 1. Create the inner DeviceInfoMessage
-const deviceInfo = create(deviceInfoMessage.type, {});
-
-// 2. Create the ProtocolMessage wrapper and attach the extension
-const protocolMsg = create(ProtocolMessage, {
-  type: ProtocolMessage_Type.DEVICE_INFO_MESSAGE,
-  uniqueIdentifier: deviceInfo.uniqueIdentifier,
+protocol.dataStream.addEventListener('deviceInfo', async (_: CustomEvent) => {
+    await protocol.dataStream.exchange(protocol.dataStream.messages.setConnectionState());
+    await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
 });
-deviceInfoMessage.set(protocolMsg, deviceInfo); // attach DeviceInfoMessage as extension
-
-// 3. Serialize as usual
-const bytes = toBinary(protocolMsg);
- */
-
-deviceInfoMessage.extendee
-
-const deviceInfo = create(DeviceInfoMessageSchema, {
-    uniqueIdentifier: keys.pairingId.toString(),
-    name: 'iPhone van Bas',
-    localizedModelName: 'iPhone',
-    systemBuildVersion: '23B82',
-    applicationBundleIdentifier: 'com.apple.TVRemote',
-    applicationBundleVersion: '344.28',
-    protocolVersion: 1,
-    lastSupportedMessageType: 108,
-    supportsSystemPairing: true,
-    allowsPairing: true,
-    systemMediaApplication: 'com.apple.TVMusic',
-    supportsACL: true,
-    supportsSharedQueue: true,
-    supportsExtendedMotion: true,
-    sharedQueueVersion: 2,
-    deviceClass: 1,
-    logicalDeviceCount: 1
-});
-
-const protocolMessage = create(ProtocolMessageSchema, {
-    type: ProtocolMessage_Type.DEVICE_INFO_MESSAGE,
-    errorCode: ErrorCode_Enum.NoError,
-    identifier: uuid().toUpperCase()
-});
-
-setExtension(protocolMessage, deviceInfoMessage, deviceInfo);
-
-await protocol.dataStream.sendProtoRaw(ProtocolMessageSchema, protocolMessage);
-
-// await protocol.dataStream.sendProto(DeviceInfoMessageSchema, {
-//     uniqueIdentifier: keys.pairingId.toString(),
-//     name: 'iPhone van Bas',
-//     localizedModelName: 'iPhone',
-//     systemBuildVersion: '23B82',
-//     applicationBundleIdentifier: 'com.apple.TVRemote',
-//     applicationBundleVersion: '344.28',
-//     protocolVersion: 1,
-//     lastSupportedMessageType: 108,
-//     supportsSystemPairing: true,
-//     allowsPairing: true,
-//     systemMediaApplication: 'com.apple.TVMusic',
-//     supportsACL: true,
-//     supportsSharedQueue: true,
-//     supportsExtendedMotion: true,
-//     sharedQueueVersion: 2,
-//     deviceClass: 1,
-//     logicalDeviceCount: 1
-// });
 
 // const info = await protocol.rtsp.get('/info');
 // const raw = await info.blob();

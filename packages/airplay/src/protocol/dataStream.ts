@@ -1,33 +1,49 @@
-import { debug, encryptChacha20, hkdf, parseBinaryPlist, serializeBinaryPlist } from '@basmilius/apple-common';
-import { create, type DescMessage, type MessageInitShape, type MessageShape, toBinary } from '@bufbuild/protobuf';
+import { debug, decryptChacha20, encryptChacha20, hkdf, parseBinaryPlist, serializeBinaryPlist } from '@basmilius/apple-common';
+import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
 import { randomInt32 } from './utils';
+import AirPlayDataStreamMessages from './dataStreamMessages';
 import AirPlayStream from './stream';
+import * as Proto from '@/proto';
+import { ProtocolMessage_Type } from '@/proto';
 
 const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
 
 export default class AirPlayDataStream extends AirPlayStream {
+    get messages(): AirPlayDataStreamMessages {
+        return this.#messages;
+    }
+
+    readonly #messages: AirPlayDataStreamMessages;
+    #buffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
+    #readCount: number;
     #writeCount: number;
+    #handler?: [Function, Function];
 
     constructor(address: string, port: number) {
         super(address, port);
 
+        this.#messages = new AirPlayDataStreamMessages();
         this.#seqno = 0x100000000n + BigInt(randomInt32());
         this.#writeCount = 0;
     }
 
-    async sendProto<TMessage extends DescMessage>(
-        schema: TMessage,
-        init?: MessageInitShape<TMessage>
-    ): Promise<void> {
-        await this.sendProtoRaw(schema, create(schema, init));
+    async exchange(message: Proto.ProtocolMessage): Promise<Proto.ProtocolMessage> {
+        return new Promise(async (resolve, reject) => {
+            this.#handler = [resolve, reject];
+            await this.send(message);
+        });
     }
 
-    async sendProtoRaw<TMessage extends DescMessage>(
-        schema: TMessage,
-        message: MessageShape<TMessage>
-    ): Promise<void> {
-        const bytes = toBinary(schema, message, {writeUnknownFields: true});
+    async reply(seqno: bigint): Promise<void> {
+        const rply = buildReply(seqno);
+
+        debug('Sending reply.');
+        this.socket.write(await this.#encrypt(rply));
+    }
+
+    async send(message: Proto.ProtocolMessage): Promise<void> {
+        const bytes = toBinary(Proto.ProtocolMessageSchema, message, {writeUnknownFields: true});
         const lenPrefix = Buffer.from(encodeVarint(bytes.length));
         const pbPayload = Buffer.concat([lenPrefix, Buffer.from(bytes)]);
 
@@ -43,7 +59,7 @@ export default class AirPlayDataStream extends AirPlayStream {
         const frame = Buffer.concat([header, plistPayload]);
         const encrypted = await this.#encrypt(frame);
 
-        debug(Buffer.from(bytes).toString());
+        debug('Sending data stream message', message);
 
         this.socket.write(encrypted);
     }
@@ -69,16 +85,128 @@ export default class AirPlayDataStream extends AirPlayStream {
     }
 
     async onData(buffer: Buffer): Promise<void> {
-        const data = await this.decrypt(buffer);
-        const frame = data.subarray(DATA_HEADER_LENGTH);
-        const plist = parseBinaryPlist(Buffer.from(frame).buffer) as any;
+        try {
+            this.#buffer = Buffer.concat([this.#buffer, buffer]);
+            this.#buffer = await this.#decrypt(this.#buffer);
 
-        if (!plist || !plist.params || !plist.params.data) {
-            return;
+            while (this.#buffer.byteLength > DATA_HEADER_LENGTH) {
+                const header = this.#buffer.subarray(0, DATA_HEADER_LENGTH);
+                const totalLength = header.readUint32BE();
+
+                if (this.#buffer.byteLength < totalLength) {
+                    debug(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                    return;
+                }
+
+                const frame = this.#buffer.subarray(DATA_HEADER_LENGTH, totalLength);
+                const plist = parseBinaryPlist(Buffer.from(frame).buffer) as any;
+                const command = header.toString('ascii', 4, 8);
+
+                debug('Raw data received', header.toString(), frame.toString());
+                debug(`Should read ${totalLength} bytes, ${this.#buffer.byteLength} available.`);
+
+                this.#buffer = this.#buffer.subarray(totalLength);
+
+                if (!plist || !plist.params || !plist.params.data) {
+                    if (command === 'rply') {
+                        debug('Got reply...');
+                    }
+
+                    if (command === 'sync') {
+                        await this.reply(parseHeaderSeqno(header));
+                    }
+
+                    if (this.#handler) {
+                        const [resolve] = this.#handler;
+                        this.#handler = undefined;
+
+                        resolve();
+                    }
+
+                    continue;
+                }
+
+                const content = Buffer.from(plist.params.data);
+
+                for (const message of await parseMessages(content)) {
+                    await this.#handleMessage(message);
+                }
+
+                if (command === 'sync') {
+                    await this.reply(parseHeaderSeqno(header));
+                }
+            }
+        } catch (err) {
+            debug('Error in onData', err);
+        }
+    }
+
+    async #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): Promise<void> {
+        debug('Connected to device', message.name);
+
+        this.dispatchEvent(new CustomEvent('deviceInfo', {detail: message}));
+    }
+
+    async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
+        debug('Set default supported commands', message);
+
+        this.dispatchEvent(new CustomEvent('setDefaultSupportedCommands', {detail: message}));
+    }
+
+    async #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
+        debug('Update output device', message);
+
+        this.dispatchEvent(new CustomEvent('updateOutputDevice', {detail: message}));
+    }
+
+    async #onVolumeControlAvailabilityMessage(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {
+        debug('Volume control availability', message);
+
+        this.dispatchEvent(new CustomEvent('volumeControlAvailability', {detail: message}));
+    }
+
+    async #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): Promise<void> {
+        debug('VolumeDidChange message', message);
+
+        this.dispatchEvent(new CustomEvent('volumeDidChange', {detail: message}));
+    }
+
+    async #decrypt(data: Buffer): Promise<Buffer> {
+        const result: Buffer[] = [];
+        let offset = 0;
+        let readCount = this.#readCount ?? 0;
+
+        while (offset < data.length) {
+            if (offset + 2 > data.length) throw new Error('Truncated frame length');
+            const frameLength = data.readUInt16LE(offset);
+            offset += 2;
+
+            const nonce = Buffer.alloc(12);
+            nonce.writeBigUInt64LE(BigInt(readCount++), 4);
+
+            const end = offset + frameLength + 16;
+            if (end > data.length) {
+                throw new Error(`Truncated frame end=${end} length=${data.length}`);
+            }
+
+            const ciphertext = data.subarray(offset, offset + frameLength);
+            const authTag = data.subarray(offset + frameLength, end);
+            offset = end;
+
+            const plaintext = decryptChacha20(
+                this.readKey,
+                nonce,
+                Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)), // same AAD = leLength
+                ciphertext,
+                authTag
+            );
+
+            result.push(plaintext);
         }
 
-        const protobuf = plist.params.data;
-        console.log(Buffer.from(protobuf).toString());
+        this.#readCount = readCount;
+
+        return Buffer.concat(result);
     }
 
     async #encrypt(data: Buffer): Promise<Buffer> {
@@ -107,6 +235,41 @@ export default class AirPlayDataStream extends AirPlayStream {
 
         return Buffer.concat(result);
     }
+
+    async #handleMessage(message: Proto.ProtocolMessage): Promise<void> {
+        if (this.#handler) {
+            const [resolve] = this.#handler;
+            this.#handler = undefined;
+
+            resolve(message);
+        }
+
+        switch (message.type) {
+            case Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE:
+                await this.#onDeviceInfoMessage(getExtension(message, Proto.deviceInfoMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE:
+                await this.#onSetDefaultSupportedCommandsMessage(getExtension(message, Proto.setDefaultSupportedCommandsMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.UPDATE_OUTPUT_DEVICE_MESSAGE:
+                await this.#onUpdateOutputDeviceMessage(getExtension(message, Proto.updateOutputDeviceMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.VOLUME_CONTROL_AVAILABILITY_MESSAGE:
+                await this.#onVolumeControlAvailabilityMessage(getExtension(message, Proto.volumeControlAvailabilityMessage));
+                break;
+
+            case ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE:
+                await this.#onVolumeDidChangeMessage(getExtension(message, Proto.volumeDidChangeMessage));
+                break;
+
+            default:
+                debug('Received unknown message.', message);
+                break;
+        }
+    }
 }
 
 function buildHeader(totalSize: number, seqno: bigint): Buffer {
@@ -120,6 +283,24 @@ function buildHeader(totalSize: number, seqno: bigint): Buffer {
     buf.writeUInt32BE(0, 28);
 
     return buf;
+}
+
+function buildReply(seqno: bigint): Buffer {
+    const header = Buffer.alloc(32);
+    header.writeUInt32BE(0, 0); // placeholder
+    header.write('rply', 4, 'ascii');
+    header.fill(0, 8, 16);
+    header.writeBigUInt64BE(seqno, 20);
+    header.writeUInt32BE(0, 28);
+
+    const plist = Buffer.from(
+        serializeBinaryPlist(Buffer.alloc(0) as any)
+    );
+
+    const total = header.length + plist.length;
+    header.writeUInt32BE(total, 0);
+
+    return Buffer.concat([header, plist]);
 }
 
 function encodeVarint(value: number): Uint8Array {
@@ -136,4 +317,62 @@ function encodeVarint(value: number): Uint8Array {
     bytes.push(value);
 
     return Uint8Array.from(bytes);
+}
+
+function parseHeaderSeqno(header: Buffer): bigint {
+    if (header.length < 28) {
+        throw new Error('Header too short');
+    }
+
+    return header.readBigUInt64BE(20);
+}
+
+async function parseMessages(content: Buffer): Promise<Proto.ProtocolMessage[]> {
+    const messages: Proto.ProtocolMessage[] = [];
+    let offset = 0;
+
+    while (offset < content.length) {
+        const firstByte = content[offset];
+
+        if (firstByte === 0x08) {
+            const message = content.subarray(offset);
+            const decoded = fromBinary(Proto.ProtocolMessageSchema, message, { readUnknownFields: true });
+            messages.push(decoded);
+            break;
+        }
+
+        const [length, variantLen] = readVariant(content, offset);
+        offset += variantLen;
+
+        if (offset + length > content.length) {
+            break;
+        }
+
+        const message = content.subarray(offset, offset + length);
+        offset += length;
+
+        const decoded = fromBinary(Proto.ProtocolMessageSchema, message, { readUnknownFields: true });
+        messages.push(decoded);
+    }
+
+    return messages;
+}
+
+function readVariant(buf: Buffer, offset = 0): [number, number] {
+    let result = 0;
+    let shift = 0;
+    let bytesRead = 0;
+
+    while (true) {
+        const byte = buf[offset + bytesRead++];
+        result |= (byte & 0x7f) << shift;
+
+        if ((byte & 0x80) === 0) {
+            break;
+        }
+
+        shift += 7;
+    }
+
+    return [result, bytesRead];
 }

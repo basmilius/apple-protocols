@@ -73,7 +73,7 @@ export default class AirPlayEventStream extends AirPlayStream {
             this.#buffer = await this.decrypt(this.#buffer);
         }
 
-        debug('Event stream received data', this.#buffer.toString());
+        // debug('Event stream received data', this.#buffer.toString());
 
         while (this.#buffer.byteLength > 0) {
             const result = makeHttpRequest(this.#buffer);
@@ -98,7 +98,6 @@ export default class AirPlayEventStream extends AirPlayStream {
                 const data = parseBinaryPlist(Buffer.from(body).buffer) as any;
 
                 debug(data);
-                debug(Buffer.from(data.value.txtAirPlay).toString());
 
                 const response = new Response(null, {
                     status: 200,

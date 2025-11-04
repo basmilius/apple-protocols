@@ -72,8 +72,6 @@ export function makeHttpResponse(buffer: Buffer): HttpResponse | null {
         headers
     });
 
-    debug(buffer.toString());
-
     return {
         response,
         responseLength

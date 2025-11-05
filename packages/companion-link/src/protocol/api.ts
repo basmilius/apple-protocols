@@ -182,8 +182,8 @@ export default class CompanionLinkApi {
         });
     }
 
-    async _subscribe(event: string, fn: EventListener): Promise<void> {
-        this.socket.addEventListener(event, fn);
+    async _subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
+        this.socket.on(event, fn);
 
         await this.socket.send(FrameType.E_OPACK, {
             _i: '_interest',
@@ -194,9 +194,9 @@ export default class CompanionLinkApi {
         });
     }
 
-    async _unsubscribe(event: string, fn?: EventListener): Promise<void> {
+    async _unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
         if (fn) {
-            this.socket.removeEventListener(event, fn);
+            this.socket.off(event, fn);
         }
 
         await this.socket.send(FrameType.E_OPACK, {

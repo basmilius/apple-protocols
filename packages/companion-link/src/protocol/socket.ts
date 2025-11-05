@@ -4,7 +4,7 @@ import { BaseSocket, debug, decodeOPack, decryptChacha20, encodeOPack, encryptCh
 
 const HEADER_BYTES = 4;
 
-export default class CompanionLinkSocket extends BaseSocket {
+export default class CompanionLinkSocket extends BaseSocket<Record<string, [unknown]>> {
     get isEncrypted(): boolean {
         return !!this.#readKey && !!this.#writeKey;
     }
@@ -194,14 +194,14 @@ export default class CompanionLinkSocket extends BaseSocket {
 
                 delete this.#queue[_x];
             } else if ('_i' in payload) {
-                this.dispatchEvent(new CustomEvent(payload['_i'] as string, {detail: payload['_c']}));
+                this.emit(payload['_i'] as string, payload['_c']);
             } else {
                 // probably an event
                 const content = payload['_c'];
                 const keys = Object.keys(content).map(k => k.substring(0, -3));
 
                 for (const key of keys) {
-                    this.dispatchEvent(new CustomEvent(key, {detail: content[key]}));
+                    this.emit(key, content[key]);
                 }
             }
         } else if (this.#queue[-1]) {

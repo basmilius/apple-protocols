@@ -8,7 +8,27 @@ import { ProtocolMessage_Type } from '@/proto';
 
 const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
 
-export default class AirPlayDataStream extends AirPlayStream {
+type EventMap = {
+    readonly deviceInfo: [Proto.DeviceInfoMessage];
+    readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
+    readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
+    readonly sendCommandResult: [Proto.SendCommandResultMessage];
+    readonly setArtwork: [Proto.SetArtworkMessage];
+    readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
+    readonly nowPlayingClient: [Proto.SetNowPlayingClientMessage];
+    readonly nowPlayingPlayer: [Proto.SetNowPlayingPlayerMessage];
+    readonly setState: [Proto.SetStateMessage];
+    readonly updateClient: [Proto.UpdateClientMessage];
+    readonly updateContentItem: [Proto.UpdateContentItemMessage];
+    readonly updateContentItemArtwork: [Proto.UpdateContentItemArtworkMessage];
+    readonly updatePlayer: [Proto.UpdatePlayerMessage];
+    readonly updateOutputDevice: [Proto.UpdateOutputDeviceMessage];
+    readonly volumeControlAvailability: [Proto.VolumeControlAvailabilityMessage];
+    readonly volumeControlCapabilitiesDidChange: [Proto.VolumeControlCapabilitiesDidChangeMessage];
+    readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
+};
+
+export default class AirPlayDataStream extends AirPlayStream<EventMap> {
     get messages(): AirPlayDataStreamMessages {
         return this.#messages;
     }
@@ -144,103 +164,103 @@ export default class AirPlayDataStream extends AirPlayStream {
     async #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): Promise<void> {
         debug('Connected to device', message.name);
 
-        this.dispatchEvent(new CustomEvent('deviceInfo', {detail: message}));
+        this.emit('deviceInfo', message);
     }
 
     async #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): Promise<void> {
         debug('Origin client update properties', message);
 
-        this.dispatchEvent(new CustomEvent('originClientProperties', {detail: message}));
+        this.emit('originClientProperties', message);
     }
 
     async #onPlayerClientPropertiesMessage(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
         debug('Player client properties', message);
 
-        this.dispatchEvent(new CustomEvent('playerClientProperties', {detail: message}));
+        this.emit('playerClientProperties', message);
     }
 
     async #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): Promise<void> {
         debug('Send command result', message);
 
-        this.dispatchEvent(new CustomEvent('sendCommandResult', {detail: message}));
+        this.emit('sendCommandResult', message);
     }
 
     async #onSetArtworkMessage(message: Proto.SetArtworkMessage): Promise<void> {
         debug('Set artwork', message);
 
-        this.dispatchEvent(new CustomEvent('setArtwork', {detail: message}));
+        this.emit('setArtwork', message);
     }
 
     async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
         debug('Set default supported commands', message);
 
-        this.dispatchEvent(new CustomEvent('setDefaultSupportedCommands', {detail: message}));
+        this.emit('setDefaultSupportedCommands', message);
     }
 
     async #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): Promise<void> {
         debug('Set now playing client', message);
 
-        this.dispatchEvent(new CustomEvent('nowPlayingClient', {detail: message}));
+        this.emit('nowPlayingClient', message);
     }
 
     async #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
         debug('Set now playing player', message);
 
-        this.dispatchEvent(new CustomEvent('nowPlayingPlayer', {detail: message}));
+        this.emit('nowPlayingPlayer', message);
     }
 
     async #onSetStateMessage(message: Proto.SetStateMessage): Promise<void> {
         debug('Set state', message);
 
-        this.dispatchEvent(new CustomEvent('setState', {detail: message}));
+        this.emit('setState', message);
     }
 
     async #onUpdateClientMessage(message: Proto.UpdateClientMessage): Promise<void> {
         debug('Update client', message);
 
-        this.dispatchEvent(new CustomEvent('updateClient', {detail: message}));
+        this.emit('updateClient', message);
     }
 
     async #onUpdateContentItemMessage(message: Proto.UpdateContentItemMessage): Promise<void> {
         debug('Update content item', message);
 
-        this.dispatchEvent(new CustomEvent('updateContentItem', {detail: message}));
+        this.emit('updateContentItem', message);
     }
 
     async #onUpdateContentItemArtworkMessage(message: Proto.UpdateContentItemArtworkMessage): Promise<void> {
         debug('Update content artwork', message);
 
-        this.dispatchEvent(new CustomEvent('updateContentItemArtwork', {detail: message}));
+        this.emit('updateContentItemArtwork', message);
     }
 
     async #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): Promise<void> {
         debug('Update player', message);
 
-        this.dispatchEvent(new CustomEvent('updatePlayer', {detail: message}));
+        this.emit('updatePlayer', message);
     }
 
     async #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
         debug('Update output device', message);
 
-        this.dispatchEvent(new CustomEvent('updateOutputDevice', {detail: message}));
+        this.emit('updateOutputDevice', message);
     }
 
     async #onVolumeControlAvailabilityMessage(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {
         debug('Volume control availability', message);
 
-        this.dispatchEvent(new CustomEvent('volumeControlAvailability', {detail: message}));
+        this.emit('volumeControlAvailability', message);
     }
 
     async #onVolumeControlCapabilitiesDidChangeMessage(message: Proto.VolumeControlCapabilitiesDidChangeMessage): Promise<void> {
         debug('Volume control capabilities did change', message);
 
-        this.dispatchEvent(new CustomEvent('volumeControlCapabilitiesDidChange', {detail: message}));
+        this.emit('volumeControlCapabilitiesDidChange', message);
     }
 
     async #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): Promise<void> {
         debug('VolumeDidChange message', message);
 
-        this.dispatchEvent(new CustomEvent('volumeDidChange', {detail: message}));
+        this.emit('volumeDidChange', message);
     }
 
     async #decrypt(data: Buffer): Promise<Buffer> {
@@ -456,7 +476,7 @@ async function parseMessages(content: Buffer): Promise<Proto.ProtocolMessage[]> 
 
         if (firstByte === 0x08) {
             const message = content.subarray(offset);
-            const decoded = fromBinary(Proto.ProtocolMessageSchema, message, { readUnknownFields: true });
+            const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
             messages.push(decoded);
             break;
         }
@@ -471,7 +491,7 @@ async function parseMessages(content: Buffer): Promise<Proto.ProtocolMessage[]> 
         const message = content.subarray(offset, offset + length);
         offset += length;
 
-        const decoded = fromBinary(Proto.ProtocolMessageSchema, message, { readUnknownFields: true });
+        const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
         messages.push(decoded);
     }
 

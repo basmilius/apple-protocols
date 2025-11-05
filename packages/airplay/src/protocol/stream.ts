@@ -1,7 +1,7 @@
 import { Socket } from 'node:net';
 import { BaseSocket, debug, decryptChacha20, encryptChacha20 } from '@basmilius/apple-common';
 
-export default class AirPlayStream extends BaseSocket {
+export default class AirPlayStream<TEventMap extends Record<string, any>> extends BaseSocket<TEventMap> {
     get isEncrypted(): boolean {
         return !!this.#readKey && !!this.#writeKey;
     }
@@ -130,74 +130,6 @@ export default class AirPlayStream extends BaseSocket {
         }
 
         return result;
-    }
-
-    async decryptRaw(data: Buffer): Promise<Buffer> {
-        if (this.#buffer) {
-            data = Buffer.concat([this.#buffer, data]);
-            this.#buffer = undefined;
-        }
-
-        let result = Buffer.alloc(0);
-        let offset = 0;
-
-        while (offset + 2 <= data.length) {
-            const length = data.readUInt16LE(offset);
-
-            const totalChunkLength = 2 + length + 16;
-
-            if (offset + totalChunkLength > data.length) {
-                this.#buffer = data.subarray(offset);
-                break;
-            }
-
-            const aad = data.subarray(offset, offset + 2);
-            const ciphertext = data.subarray(offset + 2, offset + 2 + length);
-            const authTag = data.subarray(offset + 2 + length, offset + 2 + length + 16);
-
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#readCount++), 4);
-
-            const plaintext = decryptChacha20(
-                this.#readKey,
-                nonce,
-                aad,
-                ciphertext,
-                authTag
-            );
-
-            result = Buffer.concat([result, plaintext]);
-            offset += totalChunkLength;
-        }
-
-        return result;
-    }
-
-    async encryptRaw(data: Buffer): Promise<Buffer> {
-        const FRAME_LENGTH = 1024;
-        const parts: Buffer[] = [];
-
-        for (let offset = 0; offset < data.length;) {
-            const frame = data.subarray(offset, offset + FRAME_LENGTH);
-            offset += frame.length;
-
-            const leLength = Buffer.alloc(2);
-            leLength.writeUInt16LE(frame.length, 0);
-
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 4);
-
-            const encrypted = encryptChacha20(
-                this.#writeKey, // same key for all frames
-                nonce,          // sequential nonce
-                leLength,       // 2-byte AAD
-                frame           // plaintext
-            );
-
-            parts.push(leLength, encrypted.ciphertext, encrypted.authTag);
-        }
-
-        return Buffer.concat(parts);
     }
 
     async onClose(): Promise<void> {

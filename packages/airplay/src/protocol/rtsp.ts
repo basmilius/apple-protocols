@@ -3,7 +3,7 @@ import type { RTSPMethod } from './types';
 import { makeHttpHeader, makeHttpResponse } from './utils';
 import AirPlayStream from './stream';
 
-export default class AirPlayRTSP extends AirPlayStream {
+export default class AirPlayRTSP extends AirPlayStream<never> {
     get activeRemote(): string {
         return this.#activeRemote;
     }

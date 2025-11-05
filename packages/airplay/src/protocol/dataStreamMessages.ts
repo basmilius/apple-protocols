@@ -45,6 +45,17 @@ export default class {
         return protocolMessage;
     }
 
+    notification(notification: string[]): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.NOTIFICATION_MESSAGE);
+        const message = create(Proto.NotificationMessageSchema, {
+            notification
+        });
+
+        setExtension(protocolMessage, Proto.notificationMessage, message);
+
+        return protocolMessage;
+    }
+
     protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.ErrorCode_Enum = Proto.ErrorCode_Enum.NoError): Proto.ProtocolMessage {
         return create(Proto.ProtocolMessageSchema, {
             type,

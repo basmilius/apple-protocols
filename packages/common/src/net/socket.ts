@@ -1,4 +1,6 @@
-export default class BaseSocket extends EventTarget {
+import { EventEmitter } from 'node:events';
+
+export default class BaseSocket<T extends Record<string, any>> extends EventEmitter<T> {
     get address(): string {
         return this.#address;
     }

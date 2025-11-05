@@ -42,19 +42,19 @@ async function verify(): Promise<void> {
     await protocol.api._tvrcSessionStart();
 
     await protocol.api._unsubscribe('_iMC');
-    await protocol.api._subscribe('TVSystemStatus', (e: CustomEvent) => debug(e));
+    await protocol.api._subscribe('TVSystemStatus', evt => debug(evt));
 
     // await protocol.api._subscribe('NowPlayingInfo', handleNowPlayingInfo);
     // await protocol.api.fetchNowPlayingInfo();
 
-    // await protocol.api._subscribe('SupportedActions', (e: CustomEvent) => debug(e));
+    // await protocol.api._subscribe('SupportedActions', evt => debug(evt));
     // await protocol.api.fetchSupportedActions();
 
-    // await protocol.api._subscribe('PushSiriRemoteInfo', (e: CustomEvent) => debug(e));
+    // await protocol.api._subscribe('PushSiriRemoteInfo', evt => debug(evt));
     // const data = await protocol.api.getSiriRemoteInfo();
     // debug(data);
 
-    // await protocol.api._subscribe('MediaControlStatus', (e: CustomEvent) => debug(e));
+    // await protocol.api._subscribe('MediaControlStatus', evt => debug(evt));
     // const data = await protocol.api.fetchMediaControlStatus();
     // debug(data);
 
@@ -86,8 +86,7 @@ async function verify(): Promise<void> {
     // await protocol.api.launchUrl('https://play.hbomax.com/video/watch/330677a5-aff2-4270-b19e-d67b021adfaf/be45824d-2c34-4d7f-9fac-2380c8e46123');
 }
 
-async function handleNowPlayingInfo(evt: CustomEvent): Promise<void> {
-    const {detail: {NowPlayingInfoKey}} = evt;
+async function handleNowPlayingInfo({NowPlayingInfoKey}: any): Promise<void> {
     const buffer = NowPlayingInfoKey.buffer.slice(
         NowPlayingInfoKey.byteOffset,
         NowPlayingInfoKey.byteOffset + NowPlayingInfoKey.byteLength

@@ -1,11 +1,9 @@
-import { Discovery, prompt, waitFor } from '@basmilius/apple-common';
+import { Discovery, prompt } from '@basmilius/apple-common';
 import { AirPlay } from '@/protocol';
-import * as Proto from '@/proto';
-import { create } from '@bufbuild/protobuf';
 
 async function homepod(): Promise<void> {
     const discovery = Discovery.airplay();
-    const device = await discovery.findUntil('Woonkamer HomePod (3)._airplay._tcp.local');
+    const device = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
     const protocol = new AirPlay(device);
 
     await protocol.connect();
@@ -25,9 +23,15 @@ async function homepod(): Promise<void> {
 
     await protocol.dataStream.exchange(protocol.dataStream.messages.deviceInfo(keys.pairingId));
 
-    protocol.dataStream.addEventListener('deviceInfo', async (_: CustomEvent) => {
+    protocol.dataStream.addListener('deviceInfo', async () => {
         await protocol.dataStream.exchange(protocol.dataStream.messages.setConnectionState());
         await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
+
+        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Play));
+
+        // await protocol.dataStream.exchange(protocol.dataStream.messages.notification([
+        //     'Hallo wereld!'
+        // ]));
     });
 }
 
@@ -58,7 +62,7 @@ async function tv(): Promise<void> {
 
     await protocol.dataStream.exchange(protocol.dataStream.messages.deviceInfo(keys.pairingId));
 
-    protocol.dataStream.addEventListener('deviceInfo', async (_: CustomEvent) => {
+    protocol.dataStream.addListener('deviceInfo', async () => {
         await protocol.dataStream.exchange(protocol.dataStream.messages.setConnectionState());
         await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Rewind15Seconds));
@@ -114,20 +118,22 @@ async function tvPair(): Promise<void> {
     });
 }
 
-// await homepod();
-await tv();
-// await tvPair();
+const what = process.argv[1] ?? null;
 
-// const discovery = Discovery.airplay();
-// const device = await discovery.findUntil('Woonkamer HomePod (3)._airplay._tcp.local');
+switch (what) {
+    case 'homepod':
+        await homepod();
+        break;
 
-// const protocol = new AirPlay(device);
-// const protocol = new AirPlay({address: '192.168.1.195', service: {port: 7000}} as any);
-// await protocol.connect();
+    case 'tv':
+        await tv();
+        break;
 
-// const info = await protocol.rtsp.get('/info');
-// const raw = await info.blob();
-// const plist = parseBinaryPlist(await raw.arrayBuffer());
-//
-// console.log(plist);
+    case 'tvPair':
+        await tvPair();
+        break;
 
+    default:
+        console.error('Unknown test, please use specify either homepod, tv or tvPair.');
+        break;
+}

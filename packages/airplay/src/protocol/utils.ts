@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { debug } from '@basmilius/apple-common';
-import type { RTSPMethod } from '@/protocol/types';
+import type { RTSPMethod } from './types';
 
 export function makeHttpHeader(method: RTSPMethod, path: string, headers: HeadersInit, cseq: number): string {
     const lines = [];

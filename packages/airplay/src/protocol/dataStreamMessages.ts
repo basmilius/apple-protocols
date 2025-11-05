@@ -100,4 +100,15 @@ export default class {
 
         return protocolMessage;
     }
+
+    setVolume(volume: number): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MESSAGE);
+        const message = create(Proto.SetVolumeMessageSchema, {
+            volume
+        });
+
+        setExtension(protocolMessage, Proto.setVolumeMessage, message);
+
+        return protocolMessage;
+    }
 }

@@ -1,10 +1,9 @@
 import { debug, decryptChacha20, encryptChacha20, hkdf, parseBinaryPlist, serializeBinaryPlist } from '@basmilius/apple-common';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
+import * as Proto from '../proto';
 import { randomInt32 } from './utils';
 import AirPlayDataStreamMessages from './dataStreamMessages';
 import AirPlayStream from './stream';
-import * as Proto from '@/proto';
-import { ProtocolMessage_Type } from '@/proto';
 
 const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
 
@@ -401,7 +400,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
                 await this.#onVolumeControlCapabilitiesDidChangeMessage(getExtension(message, Proto.volumeControlCapabilitiesDidChangeMessage));
                 break;
 
-            case ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE:
+            case Proto.ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE:
                 await this.#onVolumeDidChangeMessage(getExtension(message, Proto.volumeDidChangeMessage));
                 break;
 

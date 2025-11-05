@@ -118,7 +118,7 @@ async function tvPair(): Promise<void> {
     });
 }
 
-const what = process.argv[1] ?? null;
+const what = process.argv[2] ?? null;
 
 switch (what) {
     case 'homepod':
@@ -134,6 +134,6 @@ switch (what) {
         break;
 
     default:
-        console.error('Unknown test, please use specify either homepod, tv or tvPair.');
+        console.error(`Unknown test ${what}, please use specify either homepod, tv or tvPair.`);
         break;
 }

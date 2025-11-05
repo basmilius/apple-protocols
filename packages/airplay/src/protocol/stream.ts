@@ -2,6 +2,10 @@ import { Socket } from 'node:net';
 import { BaseSocket, debug, decryptChacha20, encryptChacha20 } from '@basmilius/apple-common';
 
 export default class AirPlayStream<TEventMap extends Record<string, any>> extends BaseSocket<TEventMap> {
+    get isConnected(): boolean {
+        return this.#socket.readyState === 'open';
+    }
+
     get isEncrypted(): boolean {
         return !!this.#readKey && !!this.#writeKey;
     }

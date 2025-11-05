@@ -92,6 +92,10 @@ export default class AirPlayRTSP extends AirPlayStream<never> {
     }
 
     async #request(method: RTSPMethod, path: string, body: Buffer | string | null, headers: HeadersInit): Promise<Response> {
+        if (!this.isConnected) {
+            throw new Error('Accessory not connected.');
+        }
+
         if (this.#requesting) {
             throw new Error('Another request is currently being made.');
         }

@@ -32,6 +32,12 @@ export default class AirPlayPairing {
         return this.#internal.pin(askPin);
     }
 
+    async pinStart(): Promise<void> {
+        this.#hkp = 3;
+
+        await this.#pinStart();
+    }
+
     async transient(): Promise<AccessoryKeys> {
         this.#hkp = 4;
 

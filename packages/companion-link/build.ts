@@ -13,16 +13,6 @@ await build({
         dts()
     ],
     external: [
-        '@noble/curves',
-        '@plist/binary.parse',
-        '@plist/binary.serialize',
-        'chacha',
-        'fast-srp-hap',
-        'node-dns-sd',
-        'tweetnacl',
-        'uuid'
-    ],
-    drop: [
-        'console.debug'
+        '@basmilius/apple-common'
     ]
 });

@@ -13,9 +13,7 @@ await build({
         dts()
     ],
     external: [
+        '@basmilius/apple-common',
         '@bufbuild/protobuf'
-    ],
-    drop: [
-        'console.debug'
     ]
 });

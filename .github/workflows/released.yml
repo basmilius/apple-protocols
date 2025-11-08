@@ -36,11 +36,13 @@ jobs:
                     bun --cwd packages/common build
                     bun --cwd packages/airplay build
                     bun --cwd packages/companion-link build
+                    bun --cwd packages/devices build
 
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
                 run: |
                     bun publish --cwd packages/common --access public
                     bun publish --cwd packages/airplay --access public
                     bun publish --cwd packages/companion-link --access public
+                    bun publish --cwd packages/devices --access public
                 env:
                     NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}

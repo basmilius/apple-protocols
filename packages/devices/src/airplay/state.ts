@@ -8,6 +8,9 @@ type EventMap = {
     readonly clients: [Record<string, Client>];
     readonly nowPlayingClient: [string | null];
     readonly setState: [Proto.SetStateMessage];
+    readonly volumeControlAvailability: [boolean, Proto.VolumeCapabilities_Enum];
+    readonly volumeControlCapabilitiesDidChange: [boolean, Proto.VolumeCapabilities_Enum];
+    readonly volumeDidChange: [number];
 };
 
 export default class extends EventEmitter<EventMap> {
@@ -31,31 +34,56 @@ export default class extends EventEmitter<EventMap> {
         return this.#nowPlayingClientBundleIdentifier;
     }
 
+    get volume(): number {
+        return this.#volume;
+    }
+
+    get volumeAvailable(): boolean {
+        return this.#volumeAvailable;
+    }
+
+    get volumeCapabilities(): Proto.VolumeCapabilities_Enum {
+        return this.#volumeCapabilities;
+    }
+
     readonly #clients: Record<string, Client> = {};
     readonly #device: Device;
     #nowPlayingClientBundleIdentifier: string;
+    #volume: number;
+    #volumeAvailable: boolean;
+    #volumeCapabilities: Proto.VolumeCapabilities_Enum;
 
     constructor(device: Device) {
         super();
 
         this.#device = device;
         this.#nowPlayingClientBundleIdentifier = null;
+        this.#volume = 0;
 
         this.onSetNowPlayingClient = this.onSetNowPlayingClient.bind(this);
         this.onSetState = this.onSetState.bind(this);
         this.onUpdateClient = this.onUpdateClient.bind(this);
+        this.onVolumeControlAvailability = this.onVolumeControlAvailability.bind(this);
+        this.onVolumeControlCapabilitiesDidChange = this.onVolumeControlCapabilitiesDidChange.bind(this);
+        this.onVolumeDidChange = this.onVolumeDidChange.bind(this);
     }
 
     async [AIRPLAY_STATE_SUBSCRIBE_SYMBOL](): Promise<void> {
         this.#dataStream.on('setNowPlayingClient', this.onSetNowPlayingClient);
         this.#dataStream.on('setState', this.onSetState);
         this.#dataStream.on('updateClient', this.onUpdateClient);
+        this.#dataStream.on('volumeControlAvailability', this.onVolumeControlAvailability);
+        this.#dataStream.on('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
+        this.#dataStream.on('volumeDidChange', this.onVolumeDidChange);
     }
 
     async [AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL](): Promise<void> {
         this.#dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
         this.#dataStream.off('setState', this.onSetState);
         this.#dataStream.off('updateClient', this.onUpdateClient);
+        this.#dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
+        this.#dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
+        this.#dataStream.off('volumeDidChange', this.onVolumeDidChange);
     }
 
     async onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): Promise<void> {
@@ -84,7 +112,28 @@ export default class extends EventEmitter<EventMap> {
 
     async onUpdateClient(message: Proto.UpdateClientMessage): Promise<void> {
         this.#client(message.client.bundleIdentifier, message.client.displayName);
+
         this.emit('clients', this.#clients);
+    }
+
+    async onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {
+        this.#volumeAvailable = message.volumeControlAvailable;
+        this.#volumeCapabilities = message.volumeCapabilities;
+
+        this.emit('volumeControlAvailability', message.volumeControlAvailable, message.volumeCapabilities);
+    }
+
+    async onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): Promise<void> {
+        this.#volumeAvailable = message.capabilities.volumeControlAvailable;
+        this.#volumeCapabilities = message.capabilities.volumeCapabilities;
+
+        this.emit('volumeControlCapabilitiesDidChange', message.capabilities.volumeControlAvailable, message.capabilities.volumeCapabilities);
+    }
+
+    async onVolumeDidChange(message: Proto.VolumeDidChangeMessage): Promise<void> {
+        this.#volume = message.volume;
+
+        this.emit('volumeDidChange', message.volume);
     }
 
     #client(bundleIdentifier: string, displayName: string): Client {

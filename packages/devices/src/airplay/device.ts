@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { AirPlay, type AirPlayDataStream } from '@basmilius/apple-airplay';
+import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
 import type { AccessoryKeys, DiscoveryResult } from '@basmilius/apple-common';
 import { AIRPLAY_FEEDBACK_INTERVAL, AIRPLAY_PROTOCOL, AIRPLAY_STATE_SUBSCRIBE_SYMBOL, AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import State from './state';
@@ -43,6 +43,18 @@ export default class extends EventEmitter {
 
         await this.#unsubscribe();
         await this.#protocol.disconnect();
+    }
+
+    async sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Promise<void> {
+        await this.#dataStream.exchange(this.#dataStream.messages.sendButtonEvent(usagePage, usage, buttonDown));
+    }
+
+    async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
+        await this.#dataStream.exchange(this.#dataStream.messages.sendCommand(command, options));
+    }
+
+    async setVolume(volume: number): Promise<void> {
+        await this.#dataStream.exchange(this.#dataStream.messages.setVolume(volume));
     }
 
     async #setup(): Promise<void> {

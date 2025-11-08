@@ -22,21 +22,24 @@ export default class extends EventEmitter<EventMap> {
         return this.#state;
     }
 
-    readonly #protocol: AirPlay;
+    readonly #discoveryResult: DiscoveryResult;
     readonly #state: State;
+    #disconnect: boolean = false;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
-    #disconnect: boolean = false;
+    #protocol!: AirPlay;
 
     constructor(discoveryResult: DiscoveryResult) {
         super();
 
-        this.#protocol = new AirPlay(discoveryResult);
+        this.#discoveryResult = discoveryResult;
         this.#state = new State(this);
     }
 
     async connect(): Promise<void> {
         this.#disconnect = false;
+
+        this.#protocol = new AirPlay(this.#discoveryResult);
 
         await this.#protocol.connect();
         await this.#protocol.pairing.start();

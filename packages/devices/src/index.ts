@@ -1,2 +1,2 @@
-export * from './airplay';
-export * from './model';
+export type { AirPlayDevice } from './airplay';
+export { HomePod, HomePodMini } from './model';

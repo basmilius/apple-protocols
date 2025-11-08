@@ -1,6 +1,8 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { Discovery } from '@basmilius/apple-common';
+import { Discovery, enableDebug } from '@basmilius/apple-common';
 import { HomePodMini } from '@/model';
+
+enableDebug();
 
 const discovery = Discovery.airplay();
 const discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');

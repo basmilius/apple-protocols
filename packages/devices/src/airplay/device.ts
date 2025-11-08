@@ -60,10 +60,6 @@ export default class extends EventEmitter {
     async #setup(): Promise<void> {
         const keys = this.#keys;
 
-        if (!keys) {
-            throw new Error('No encryption keys available. Please pair the device first.');
-        }
-
         await this.#protocol.rtsp.enableEncryption(
             keys.accessoryToControllerKey,
             keys.controllerToAccessoryKey
@@ -77,9 +73,9 @@ export default class extends EventEmitter {
         await this.#dataStream.exchange(this.#dataStream.messages.deviceInfo(keys.pairingId));
 
         this.#dataStream.on('deviceInfo', async () => {
+            await this.#subscribe();
             await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
             await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
-            await this.#subscribe();
         });
     }
 

@@ -14,8 +14,8 @@ type EventMap = {
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
-    readonly nowPlayingClient: [Proto.SetNowPlayingClientMessage];
-    readonly nowPlayingPlayer: [Proto.SetNowPlayingPlayerMessage];
+    readonly setNowPlayingClient: [Proto.SetNowPlayingClientMessage];
+    readonly setNowPlayingPlayer: [Proto.SetNowPlayingPlayerMessage];
     readonly setState: [Proto.SetStateMessage];
     readonly updateClient: [Proto.UpdateClientMessage];
     readonly updateContentItem: [Proto.UpdateContentItemMessage];
@@ -167,7 +167,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
     }
 
     async #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): Promise<void> {
-        debug('Origin client update properties', message);
+        debug('Origin client properties', message);
 
         this.emit('originClientProperties', message);
     }
@@ -199,13 +199,13 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
     async #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): Promise<void> {
         debug('Set now playing client', message);
 
-        this.emit('nowPlayingClient', message);
+        this.emit('setNowPlayingClient', message);
     }
 
     async #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
         debug('Set now playing player', message);
 
-        this.emit('nowPlayingPlayer', message);
+        this.emit('setNowPlayingPlayer', message);
     }
 
     async #onSetStateMessage(message: Proto.SetStateMessage): Promise<void> {

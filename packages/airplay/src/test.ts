@@ -1,10 +1,12 @@
-import { Discovery, prompt } from '@basmilius/apple-common';
+import { Discovery, enableDebug, prompt } from '@basmilius/apple-common';
 import { AirPlay } from '@/protocol';
+
+enableDebug();
 
 async function homepod(): Promise<void> {
     const discovery = Discovery.airplay();
-    const device = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
-    const protocol = new AirPlay(device);
+    const discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
+    const protocol = new AirPlay(discoveryResult);
 
     await protocol.connect();
 
@@ -21,6 +23,7 @@ async function homepod(): Promise<void> {
 
     setInterval(() => protocol.feedback(), 2000);
 
+    // await protocol.dataStream.exchange(protocol.dataStream.messages.configureConnection(``));
     await protocol.dataStream.exchange(protocol.dataStream.messages.deviceInfo(keys.pairingId));
 
     protocol.dataStream.addListener('deviceInfo', async () => {

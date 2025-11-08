@@ -65,7 +65,7 @@ export default class AirPlay {
             streams: [
                 {
                     controlType: 2,
-                    channelID: '3ZDG',
+                    channelID: uuid().toUpperCase(),
                     seed,
                     clientUUID: uuid().toUpperCase(),
                     type: 130,
@@ -94,16 +94,16 @@ export default class AirPlay {
             macAddress: getMacAddress().toUpperCase(),
             name: 'iPhone van Bas',
             model: 'iPhone16,2',
-            osBuildVersion: '23B82',
+            osBuildVersion: '23C5027f',
             osName: 'iPhone OS',
-            osVersion: '26.1',
-            sourceVersion: '550.10',
+            osVersion: '26.2',
+            sourceVersion: '925.3.2',
             sessionUUID: this.#sessionUUID,
             sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
             timingProtocol: 'None',
             isRemoteControlOnly: true,
-            startsCollectionEnabled: false,
-            updateSessionRequest: false,
+            statsCollectionEnabled: false,
+            updateSessionRequest: false
         });
 
         const response = await this.#rtsp.setup(`/${this.rtsp.sessionId}`, Buffer.from(request), {

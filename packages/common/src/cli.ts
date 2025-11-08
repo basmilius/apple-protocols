@@ -5,8 +5,18 @@ const stdin = createInterface({
     output: process.stdout
 });
 
+let debugEnabled = false;
+
+export function disableDebug(): void {
+    debugEnabled = false;
+}
+
+export function enableDebug(): void {
+    debugEnabled = true;
+}
+
 export function debug(...data: any[]): void {
-    console.debug('\u001b[36m[debug]\u001b[39m', ...data);
+    debugEnabled && console.debug('\u001b[36m[debug]\u001b[39m', ...data);
 }
 
 export async function prompt(message: string): Promise<string> {

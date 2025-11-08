@@ -7,13 +7,24 @@ export default class {
         const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.CLIENT_UPDATES_CONFIG_MESSAGE);
         const message = create(Proto.ClientUpdatesConfigMessageSchema, {
             artworkUpdates: true,
-            nowPlayingUpdates: true,
+            nowPlayingUpdates: false,
             volumeUpdates: true,
-            keyboardUpdates: true,
+            keyboardUpdates: false,
             outputDeviceUpdates: true
         });
 
         setExtension(protocolMessage, Proto.clientUpdatesConfigMessage, message);
+
+        return protocolMessage;
+    }
+
+    configureConnection(groupId: string): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE);
+        const message = create(Proto.ConfigureConnectionMessageSchema, {
+            groupID: groupId
+        });
+
+        setExtension(protocolMessage, Proto.configureConnectionMessage, message);
 
         return protocolMessage;
     }

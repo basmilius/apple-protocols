@@ -1,10 +1,15 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import type { AccessoryKeys, DiscoveryResult } from '@basmilius/apple-common';
+import { type AccessoryKeys, debug, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
 import { AIRPLAY_FEEDBACK_INTERVAL, AIRPLAY_PROTOCOL, AIRPLAY_STATE_SUBSCRIBE_SYMBOL, AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import State from './state';
 
-export default class extends EventEmitter {
+type EventMap = {
+    connected: [];
+    disconnected: [];
+};
+
+export default class extends EventEmitter<EventMap> {
     get [AIRPLAY_PROTOCOL](): AirPlay {
         return this.#protocol;
     }
@@ -21,6 +26,7 @@ export default class extends EventEmitter {
     readonly #state: State;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
+    #disconnect: boolean = false;
 
     constructor(discoveryResult: DiscoveryResult) {
         super();
@@ -30,19 +36,28 @@ export default class extends EventEmitter {
     }
 
     async connect(): Promise<void> {
-        await this.#protocol.connect();
+        this.#disconnect = false;
 
+        await this.#protocol.connect();
         await this.#protocol.pairing.start();
         this.#keys = await this.#protocol.pairing.transient();
 
+        this.#protocol.rtsp.on('close', async () => this.#onClose());
+
         await this.#setup();
+
+        this.emit('connected');
     }
 
     async disconnect(): Promise<void> {
+        this.#disconnect = true;
+
         clearInterval(this.#feedbackInterval);
 
         await this.#unsubscribe();
         await this.#protocol.disconnect();
+
+        this.emit('disconnected');
     }
 
     async sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Promise<void> {
@@ -57,6 +72,26 @@ export default class extends EventEmitter {
         await this.#dataStream.exchange(this.#dataStream.messages.setVolume(volume));
     }
 
+    async #feedback(): Promise<void> {
+        try {
+            await this.#protocol.feedback();
+        } catch (err) {
+            debug('Feedback error', err);
+        }
+    }
+
+    async #onClose(): Promise<void> {
+        if (this.#disconnect) {
+            return;
+        }
+
+        clearInterval(this.#feedbackInterval);
+
+        await this.#unsubscribe();
+        await waitFor(10000);
+        await this.connect();
+    }
+
     async #setup(): Promise<void> {
         const keys = this.#keys;
 
@@ -68,7 +103,7 @@ export default class extends EventEmitter {
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
 
-        this.#feedbackInterval = setInterval(() => this.#protocol.feedback(), AIRPLAY_FEEDBACK_INTERVAL);
+        this.#feedbackInterval = setInterval(async () => await this.#feedback(), AIRPLAY_FEEDBACK_INTERVAL);
 
         await this.#dataStream.exchange(this.#dataStream.messages.deviceInfo(keys.pairingId));
 

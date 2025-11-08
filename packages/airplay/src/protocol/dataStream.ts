@@ -404,6 +404,9 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
                 await this.#onVolumeDidChangeMessage(getExtension(message, Proto.volumeDidChangeMessage));
                 break;
 
+            case Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE:
+                break;
+
             default:
                 debug('Received unknown message.', message);
                 break;

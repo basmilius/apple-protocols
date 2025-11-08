@@ -1,6 +1,12 @@
 import { EventEmitter } from 'node:events';
 
-export default class BaseSocket<T extends Record<string, any>> extends EventEmitter<T> {
+type EventMap = {
+    close: [];
+    connect: [];
+    error: [Error];
+};
+
+export default class BaseSocket<T extends Record<string, any>> extends EventEmitter<T | EventMap> {
     get address(): string {
         return this.#address;
     }
@@ -22,5 +28,17 @@ export default class BaseSocket<T extends Record<string, any>> extends EventEmit
     }
 
     async disconnect(): Promise<void> {
+    }
+
+    async onClose(): Promise<void> {
+        this.emit('close');
+    }
+
+    async onConnect(): Promise<void> {
+        this.emit('connect');
+    }
+
+    async onError(err: Error): Promise<void> {
+        this.emit('error', err);
     }
 }

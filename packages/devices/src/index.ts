@@ -1,2 +1,2 @@
 export type { AirPlayDevice } from './airplay';
-export { HomePod, HomePodMini } from './model';
+export { AppleTV, HomePod, HomePodMini } from './model';

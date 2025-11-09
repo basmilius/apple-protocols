@@ -87,7 +87,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): Promise<void> {
-        this.#nowPlayingClientBundleIdentifier = message.client.bundleIdentifier ?? null;
+        this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
         this.emit('nowPlayingClient', this.#nowPlayingClientBundleIdentifier);
     }

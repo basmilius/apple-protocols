@@ -1,12 +1,12 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import State from './state';
 
 type EventMap = {
     connected: [];
-    disconnected: [];
+    disconnected: [unexpected: boolean];
 };
 
 export default class extends EventEmitter<EventMap> {
@@ -16,6 +16,10 @@ export default class extends EventEmitter<EventMap> {
 
     get #dataStream(): AirPlayDataStream {
         return this.#protocol.dataStream;
+    }
+
+    get isConnected(): boolean {
+        return this.#protocol.rtsp.isConnected;
     }
 
     get state(): State {
@@ -65,7 +69,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#unsubscribe();
         await this.#protocol.disconnect();
 
-        this.emit('disconnected');
+        this.emit('disconnected', false);
     }
 
     async requestPlaybackQueue(length: number): Promise<void> {
@@ -105,8 +109,9 @@ export default class extends EventEmitter<EventMap> {
         clearInterval(this.#feedbackInterval);
 
         await this.#unsubscribe();
-        await waitFor(1000);
-        await this.connect();
+        await this.#protocol.disconnect();
+
+        this.emit('disconnected', true);
     }
 
     async #setup(): Promise<void> {

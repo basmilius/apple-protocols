@@ -3,6 +3,11 @@ import { Proto } from '@basmilius/apple-airplay';
 import type { DiscoveryResult } from '@basmilius/apple-common';
 import { AirPlayDevice } from '../airplay';
 
+type EventMap = {
+    connected: [];
+    disconnected: [unexpected: boolean];
+};
+
 export default abstract class extends EventEmitter {
     get airplay(): AirPlayDevice {
         return this.#airplay;
@@ -14,6 +19,10 @@ export default abstract class extends EventEmitter {
 
     get displayName(): string | null {
         return this.#airplay.state.nowPlayingClient?.displayName ?? null;
+    }
+
+    get isConnected(): boolean {
+        return this.#airplay.isConnected;
     }
 
     get playbackQueue(): Proto.PlaybackQueue | null {
@@ -41,6 +50,9 @@ export default abstract class extends EventEmitter {
     }
 
     async connect(): Promise<void> {
+        this.#airplay.on('connected', () => this.#onConnected());
+        this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
+
         await this.#airplay.connect();
     }
 
@@ -90,5 +102,13 @@ export default abstract class extends EventEmitter {
         }
 
         return client.isCommandSupported(command);
+    }
+
+    async #onConnected(): Promise<void> {
+        this.emit('connected');
+    }
+
+    async #onDisconnected(unexpected: boolean): Promise<void> {
+        this.emit('disconnected', unexpected);
     }
 }

@@ -4,52 +4,64 @@ import { HomePodMini } from './model';
 
 enableDebug();
 
-const discovery = Discovery.airplay();
-const discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
+async function main(): Promise<void> {
+    const discovery = Discovery.airplay();
+    const discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
 
-const device = new HomePodMini(discoveryResult);
-await device.connect();
+    const device = new HomePodMini(discoveryResult);
+    await device.connect();
 
-await device.airplay.requestPlaybackQueue(1);
+    device.on('disconnected', unexpected => {
+        if (!unexpected) {
+            return;
+        }
 
-device.airplay.state.on('setState', () => {
-    const client = device.airplay.state.nowPlayingClient;
+        main();
+    });
 
-    if (!client) {
-        console.log('No app playing.');
-        return;
-    }
+    await device.airplay.requestPlaybackQueue(1);
 
-    const item = client.playbackQueue?.contentItems?.[0] ?? null;
+    device.airplay.state.on('setState', () => {
+        const client = device.airplay.state.nowPlayingClient;
 
-    if (!item) {
-        console.log(`No item in queue of ${client.bundleIdentifier} (${client.displayName}).`);
-        return;
-    }
+        if (!client) {
+            console.log('No app playing.');
+            return;
+        }
 
-    switch (client.playbackState) {
-        case Proto.PlaybackState_Enum.Unknown:
-            console.log('Unknown client state.');
-            break;
+        const item = client.playbackQueue?.contentItems?.[0] ?? null;
 
-        case Proto.PlaybackState_Enum.Playing:
-            console.log(`Now playing: ${item.metadata.title} (${item.metadata.trackArtistName})`);
-            break;
+        if (!item) {
+            console.log(`No item in queue of ${client.bundleIdentifier} (${client.displayName}).`);
+            return;
+        }
 
-        case Proto.PlaybackState_Enum.Paused:
-            console.log(`Now paused: ${item.metadata.title} (${item.metadata.trackArtistName})`);
-            break;
+        switch (client.playbackState) {
+            case Proto.PlaybackState_Enum.Unknown:
+                console.log('Unknown client state.');
+                break;
 
-        case Proto.PlaybackState_Enum.Stopped:
-            console.log(`Now stopped: ${item.metadata.title} (${item.metadata.trackArtistName})`);
-            break;
+            case Proto.PlaybackState_Enum.Playing:
+                console.log(`Now playing: ${item.metadata.title} (${item.metadata.trackArtistName})`);
+                break;
 
-        case Proto.PlaybackState_Enum.Interrupted:
-            console.log(`Now interrupted: ${item.metadata.title} (${item.metadata.trackArtistName})`);
-            break;
+            case Proto.PlaybackState_Enum.Paused:
+                console.log(`Now paused: ${item.metadata.title} (${item.metadata.trackArtistName})`);
+                break;
 
-        case Proto.PlaybackState_Enum.Seeking:
-            console.log(`Seeking: ${item.metadata.title} (${item.metadata.trackArtistName})`);
-            break;
-    }
-});
+            case Proto.PlaybackState_Enum.Stopped:
+                console.log(`Now stopped: ${item.metadata.title} (${item.metadata.trackArtistName})`);
+                break;
+
+            case Proto.PlaybackState_Enum.Interrupted:
+                console.log(`Now interrupted: ${item.metadata.title} (${item.metadata.trackArtistName})`);
+                break;
+
+            case Proto.PlaybackState_Enum.Seeking:
+                console.log(`Seeking: ${item.metadata.title} (${item.metadata.trackArtistName})`);
+                break;
+        }
+    });
+}
+
+await main();

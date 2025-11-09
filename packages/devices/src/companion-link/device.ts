@@ -1,11 +1,11 @@
 import { EventEmitter } from 'node:events';
 import { CompanionLink, type CompanionLinkApi } from '@basmilius/apple-companion-link';
-import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 
 type EventMap = {
     connected: [];
-    disconnected: [];
+    disconnected: [unexpected: boolean];
     power: [boolean];
 };
 
@@ -18,6 +18,10 @@ export type MediaControlCommand = Parameters<CLAPI['mediaControlCommand']>[0];
 export default class extends EventEmitter<EventMap> {
     get [PROTOCOL](): CompanionLink {
         return this.#protocol;
+    }
+
+    get isConnected(): boolean {
+        return this.#protocol.socket.isConnected;
     }
 
     readonly #discoveryResult: DiscoveryResult;
@@ -59,7 +63,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#unsubscribe();
         await this.#protocol.disconnect();
 
-        this.emit('disconnected');
+        this.emit('disconnected', false);
     }
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
@@ -104,8 +108,9 @@ export default class extends EventEmitter<EventMap> {
         }
 
         await this.#unsubscribe();
-        await waitFor(1000);
-        await this.connect();
+        await this.#protocol.disconnect();
+
+        this.emit('disconnected', true);
     }
 
     async #setup(): Promise<void> {

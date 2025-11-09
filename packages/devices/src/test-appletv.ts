@@ -11,15 +11,27 @@ const credentials = {
     secretKey: Buffer.from('1abbb7a03b1ff46702fc3f95b2a0b5e83bbf4a730927f88ba2975ce10fb0c7e0b12ef596d615e040f43675020e73a52c375d7fcecc2d10c4a342694eeb01d87a', 'hex')
 };
 
-const airplayDiscovery = Discovery.airplay();
-const airplayDiscoveryResult = await airplayDiscovery.findUntil('Woonkamer TV._airplay._tcp.local');
-const companionLinkDiscovery = Discovery.companionLink();
-const companionLinkDiscoveryResult = await companionLinkDiscovery.findUntil('Woonkamer TV._companion-link._tcp.local');
+async function main(): Promise<void> {
+    const airplayDiscovery = Discovery.airplay();
+    const airplayDiscoveryResult = await airplayDiscovery.findUntil('Woonkamer TV._airplay._tcp.local');
+    const companionLinkDiscovery = Discovery.companionLink();
+    const companionLinkDiscoveryResult = await companionLinkDiscovery.findUntil('Woonkamer TV._companion-link._tcp.local');
 
-const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
-await device.connect(credentials);
+    const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
+    await device.connect(credentials);
 
-await device.airplay.requestPlaybackQueue(1);
+    device.on('disconnected', unexpected => {
+        if (!unexpected) {
+            return;
+        }
 
-// await device.turnOn();
-// await device.companionLink.pressButton('Select');
+        main();
+    });
+
+    await device.airplay.requestPlaybackQueue(1);
+
+    // await device.turnOn();
+    // await device.companionLink.pressButton('Select');
+}
+
+await main();

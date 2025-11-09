@@ -5,6 +5,10 @@ import { BaseSocket, debug, decodeOPack, decryptChacha20, encodeOPack, encryptCh
 const HEADER_BYTES = 4;
 
 export default class CompanionLinkSocket extends BaseSocket<Record<string, [unknown]>> {
+    get isConnected(): boolean {
+        return this.#socket.readyState === 'open';
+    }
+
     get isEncrypted(): boolean {
         return !!this.#readKey && !!this.#writeKey;
     }

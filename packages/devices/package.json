@@ -29,7 +29,8 @@
     },
     "scripts": {
         "build": "bun -b build.ts",
-        "watch:test": "bun --watch src/test.ts"
+        "test:appletv": "bun --watch src/test-appletv.ts",
+        "test:homepod": "bun --watch src/test-homepod.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

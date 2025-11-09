@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { AirPlay, AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { AIRPLAY_PROTOCOL, AIRPLAY_STATE_SUBSCRIBE_SYMBOL, AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Client from './client';
 import type Device from './device';
 
@@ -19,7 +19,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     get #protocol(): AirPlay {
-        return this.#device[AIRPLAY_PROTOCOL];
+        return this.#device[PROTOCOL];
     }
 
     get clients(): Record<string, Client> {
@@ -68,7 +68,7 @@ export default class extends EventEmitter<EventMap> {
         this.onVolumeDidChange = this.onVolumeDidChange.bind(this);
     }
 
-    async [AIRPLAY_STATE_SUBSCRIBE_SYMBOL](): Promise<void> {
+    async [STATE_SUBSCRIBE_SYMBOL](): Promise<void> {
         this.#dataStream.on('setNowPlayingClient', this.onSetNowPlayingClient);
         this.#dataStream.on('setState', this.onSetState);
         this.#dataStream.on('updateClient', this.onUpdateClient);
@@ -77,7 +77,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('volumeDidChange', this.onVolumeDidChange);
     }
 
-    async [AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL](): Promise<void> {
+    async [STATE_UNSUBSCRIBE_SYMBOL](): Promise<void> {
         this.#dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
         this.#dataStream.off('setState', this.onSetState);
         this.#dataStream.off('updateClient', this.onUpdateClient);

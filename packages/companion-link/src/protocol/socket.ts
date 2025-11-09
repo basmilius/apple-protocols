@@ -110,10 +110,12 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
     }
 
     async onClose(): Promise<void> {
+        await super.onClose();
         debug(`Connection closed from ${this.address}:${this.port}`);
     }
 
     async onConnect(): Promise<void> {
+        await super.onConnect();
         debug(`Connected to ${this.address}:${this.port}`);
     }
 
@@ -151,6 +153,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
     }
 
     async onError(err: Error): Promise<void> {
+        await super.onError(err);
         debug('Error received', err);
     }
 

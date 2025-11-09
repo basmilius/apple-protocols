@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
 import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
-import { AIRPLAY_FEEDBACK_INTERVAL, AIRPLAY_PROTOCOL, AIRPLAY_STATE_SUBSCRIBE_SYMBOL, AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import State from './state';
 
 type EventMap = {
@@ -10,7 +10,7 @@ type EventMap = {
 };
 
 export default class extends EventEmitter<EventMap> {
-    get [AIRPLAY_PROTOCOL](): AirPlay {
+    get [PROTOCOL](): AirPlay {
         return this.#protocol;
     }
 
@@ -39,7 +39,6 @@ export default class extends EventEmitter<EventMap> {
 
     async connect(): Promise<void> {
         this.#disconnect = false;
-
         this.#protocol = new AirPlay(this.#discoveryResult);
 
         await this.#protocol.connect();
@@ -117,7 +116,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
 
-        this.#feedbackInterval = setInterval(async () => await this.#feedback(), AIRPLAY_FEEDBACK_INTERVAL);
+        this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
         const gid = this.#discoveryResult.packet.additionals.find(a => 'rdata' in a && 'gid' in a['rdata'])?.['rdata']['gid'] as string;
 
@@ -135,10 +134,10 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #subscribe(): Promise<void> {
-        await this.#state[AIRPLAY_STATE_SUBSCRIBE_SYMBOL]();
+        await this.#state[STATE_SUBSCRIBE_SYMBOL]();
     }
 
     async #unsubscribe(): Promise<void> {
-        await this.#state[AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL]();
+        await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
     }
 }

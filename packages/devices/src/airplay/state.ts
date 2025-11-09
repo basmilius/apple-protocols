@@ -68,9 +68,20 @@ export default class extends EventEmitter<EventMap> {
         this.#nowPlayingClientBundleIdentifier = null;
         this.#volume = 0;
 
+        this.onDeviceInfo = this.onDeviceInfo.bind(this);
+        this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
+        this.onPlayerClientProperties = this.onPlayerClientProperties.bind(this);
+        this.onSendCommandResult = this.onSendCommandResult.bind(this);
+        this.onSetArtwork = this.onSetArtwork.bind(this);
+        this.onSetDefaultSupportedCommands = this.onSetDefaultSupportedCommands.bind(this);
         this.onSetNowPlayingClient = this.onSetNowPlayingClient.bind(this);
+        this.onSetNowPlayingPlayer = this.onSetNowPlayingPlayer.bind(this);
         this.onSetState = this.onSetState.bind(this);
         this.onUpdateClient = this.onUpdateClient.bind(this);
+        this.onUpdateContentItem = this.onUpdateContentItem.bind(this);
+        this.onUpdateContentItemArtwork = this.onUpdateContentItemArtwork.bind(this);
+        this.onUpdatePlayer = this.onUpdatePlayer.bind(this);
+        this.onUpdateOutputDevice = this.onUpdateOutputDevice.bind(this);
         this.onVolumeControlAvailability = this.onVolumeControlAvailability.bind(this);
         this.onVolumeControlCapabilitiesDidChange = this.onVolumeControlCapabilitiesDidChange.bind(this);
         this.onVolumeDidChange = this.onVolumeDidChange.bind(this);

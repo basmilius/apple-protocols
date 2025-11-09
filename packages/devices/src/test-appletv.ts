@@ -1,5 +1,5 @@
 import { Discovery, enableDebug } from '@basmilius/apple-common';
-import { AppleTV } from '@/model';
+import { AppleTV } from './model';
 
 enableDebug();
 

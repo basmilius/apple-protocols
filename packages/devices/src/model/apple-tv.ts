@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { Proto } from '@basmilius/apple-airplay';
 import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
-import { AirPlayDevice } from '@/airplay';
-import { CompanionLinkDevice } from '@/companion-link';
+import { AirPlayDevice } from '../airplay';
+import { CompanionLinkDevice } from '../companion-link';
 
 export default class extends EventEmitter {
     get airplay(): AirPlayDevice {

@@ -1,6 +1,6 @@
 import { Proto } from '@basmilius/apple-airplay';
 import { Discovery, enableDebug } from '@basmilius/apple-common';
-import { HomePodMini } from '@/model';
+import { HomePodMini } from './model';
 
 enableDebug();
 

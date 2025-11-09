@@ -1,5 +1,5 @@
 import { debug, Discovery, parseBinaryPlist, prompt } from '@basmilius/apple-common';
-import { CompanionLink } from '@/protocol';
+import { CompanionLink } from './protocol';
 
 const discovery = Discovery.companionLink();
 const device = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');

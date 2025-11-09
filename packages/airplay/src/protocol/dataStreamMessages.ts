@@ -1,6 +1,6 @@
 import { uuid } from '@basmilius/apple-common';
 import { create, setExtension } from '@bufbuild/protobuf';
-import * as Proto from '@/proto';
+import * as Proto from '../proto';
 
 export default class {
     clientUpdatesConfig(): Proto.ProtocolMessage {

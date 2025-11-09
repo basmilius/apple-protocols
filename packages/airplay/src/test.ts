@@ -1,5 +1,5 @@
 import { Discovery, enableDebug, prompt } from '@basmilius/apple-common';
-import { AirPlay } from '@/protocol';
+import { AirPlay } from './protocol';
 
 enableDebug();
 

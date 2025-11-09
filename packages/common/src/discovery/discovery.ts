@@ -1,6 +1,6 @@
 import mdns from 'node-dns-sd';
-import { waitFor } from '@/cli';
-import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from '@/const';
+import { waitFor } from '../cli';
+import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from '../const';
 
 export default class Discovery {
     readonly #service: string;

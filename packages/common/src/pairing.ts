@@ -1,10 +1,10 @@
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import tweetnacl, { type BoxKeyPair } from 'tweetnacl';
-import { debug } from '@/cli';
-import { AIRPLAY_TRANSIENT_PIN } from '@/const';
-import { decryptChacha20, encryptChacha20, generateCurve25519KeyPair, generateCurve25519SharedSecKey, hkdf } from '@/crypto';
-import { bailTlv, decodeTlv, encodeOPack, encodeTlv, TlvFlags, TlvMethod, TlvState, TlvValue } from '@/encoding';
+import { debug } from './cli';
+import { AIRPLAY_TRANSIENT_PIN } from './const';
+import { decryptChacha20, encryptChacha20, generateCurve25519KeyPair, generateCurve25519SharedSecKey, hkdf } from './crypto';
+import { bailTlv, decodeTlv, encodeOPack, encodeTlv, TlvFlags, TlvMethod, TlvState, TlvValue } from './encoding';
 
 export class AccessoryPair {
     readonly #name: string;

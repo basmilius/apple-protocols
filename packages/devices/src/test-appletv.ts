@@ -19,5 +19,7 @@ const companionLinkDiscoveryResult = await companionLinkDiscovery.findUntil('Woo
 const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
 await device.connect(credentials);
 
+await device.airplay.requestPlaybackQueue(1);
+
 // await device.turnOn();
 // await device.companionLink.pressButton('Select');

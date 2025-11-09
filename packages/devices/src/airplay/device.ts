@@ -68,6 +68,10 @@ export default class extends EventEmitter<EventMap> {
         this.emit('disconnected');
     }
 
+    async requestPlaybackQueue(length: number): Promise<void> {
+        await this.#dataStream.exchange(this.#dataStream.messages.playbackQueueRequest(0, length));
+    }
+
     async sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Promise<void> {
         await this.#dataStream.exchange(this.#dataStream.messages.sendButtonEvent(usagePage, usage, buttonDown));
     }

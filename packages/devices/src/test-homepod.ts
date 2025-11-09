@@ -10,6 +10,8 @@ const discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._
 const device = new HomePodMini(discoveryResult);
 await device.connect();
 
+await device.airplay.requestPlaybackQueue(1);
+
 device.airplay.state.on('setState', () => {
     const client = device.airplay.state.nowPlayingClient;
 

@@ -98,6 +98,26 @@ export default class {
         return protocolMessage;
     }
 
+    playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = true): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
+        const message = create(Proto.PlaybackQueueRequestMessageSchema, {
+            location,
+            length,
+            includeMetadata,
+            includeLanguageOptions,
+            artworkHeight: 600,
+            artworkWidth: 600,
+            includeInfo: true,
+            includeLyrics: true,
+            includeSections: true,
+            returnContentItemAssetsInUserCompletion: true
+        });
+
+        setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);
+
+        return protocolMessage;
+    }
+
     protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.ErrorCode_Enum = Proto.ErrorCode_Enum.NoError): Proto.ProtocolMessage {
         return create(Proto.ProtocolMessageSchema, {
             type,

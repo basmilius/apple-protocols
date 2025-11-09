@@ -268,7 +268,11 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
         let readCount = this.#readCount ?? 0;
 
         while (offset < data.length) {
-            if (offset + 2 > data.length) throw new Error('Truncated frame length');
+            if (offset + 2 > data.length) {
+                console.error('Truncated frame length');
+                return this.#buffer;
+            }
+
             const frameLength = data.readUInt16LE(offset);
             offset += 2;
 
@@ -276,8 +280,10 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
             nonce.writeBigUInt64LE(BigInt(readCount++), 4);
 
             const end = offset + frameLength + 16;
+
             if (end > data.length) {
-                throw new Error(`Truncated frame end=${end} length=${data.length}`);
+                console.error(`Truncated frame end=${end} length=${data.length}`);
+                return this.#buffer;
             }
 
             const ciphertext = data.subarray(offset, offset + frameLength);

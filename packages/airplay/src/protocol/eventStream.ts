@@ -37,8 +37,6 @@ export default class AirPlayEventStream extends AirPlayStream<never> {
             data = Buffer.from(headers);
         }
 
-        debug(data.toString());
-
         if (this.isEncrypted) {
             data = await this.encrypt(data);
         }

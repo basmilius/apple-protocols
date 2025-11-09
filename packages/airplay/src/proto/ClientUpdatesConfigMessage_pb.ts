@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ClientUpdatesConfigMessage.proto.
  */
 export const file_ClientUpdatesConfigMessage: GenFile = /*@__PURE__*/
-  fileDesc("CiBDbGllbnRVcGRhdGVzQ29uZmlnTWVzc2FnZS5wcm90byKcAQoaQ2xpZW50VXBkYXRlc0NvbmZpZ01lc3NhZ2USFgoOYXJ0d29ya1VwZGF0ZXMYASABKAgSGQoRbm93UGxheWluZ1VwZGF0ZXMYAiABKAgSFQoNdm9sdW1lVXBkYXRlcxgDIAEoCBIXCg9rZXlib2FyZFVwZGF0ZXMYBCABKAgSGwoTb3V0cHV0RGV2aWNlVXBkYXRlcxgFIAEoCDptChpjbGllbnRVcGRhdGVzQ29uZmlnTWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRgVIAEoCzIbLkNsaWVudFVwZGF0ZXNDb25maWdNZXNzYWdlUhpjbGllbnRVcGRhdGVzQ29uZmlnTWVzc2FnZQ", [file_ProtocolMessage]);
+  fileDesc("CiBDbGllbnRVcGRhdGVzQ29uZmlnTWVzc2FnZS5wcm90byKwAQoaQ2xpZW50VXBkYXRlc0NvbmZpZ01lc3NhZ2USFgoOYXJ0d29ya1VwZGF0ZXMYASABKAgSGQoRbm93UGxheWluZ1VwZGF0ZXMYAiABKAgSFQoNdm9sdW1lVXBkYXRlcxgDIAEoCBIXCg9rZXlib2FyZFVwZGF0ZXMYBCABKAgSGwoTb3V0cHV0RGV2aWNlVXBkYXRlcxgFIAEoCBISCgpfX3Vua25vd24xGAYgASgIOm0KGmNsaWVudFVwZGF0ZXNDb25maWdNZXNzYWdlEhAuUHJvdG9jb2xNZXNzYWdlGBUgASgLMhsuQ2xpZW50VXBkYXRlc0NvbmZpZ01lc3NhZ2VSGmNsaWVudFVwZGF0ZXNDb25maWdNZXNzYWdl", [file_ProtocolMessage]);
 
 /**
  * @generated from message ClientUpdatesConfigMessage
@@ -42,6 +42,11 @@ export type ClientUpdatesConfigMessage = Message<"ClientUpdatesConfigMessage"> &
    * @generated from field: optional bool outputDeviceUpdates = 5;
    */
   outputDeviceUpdates: boolean;
+
+  /**
+   * @generated from field: optional bool __unknown1 = 6;
+   */
+  Unknown1: boolean;
 };
 
 /**

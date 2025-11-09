@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryKeys, debug, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
 import { AIRPLAY_FEEDBACK_INTERVAL, AIRPLAY_PROTOCOL, AIRPLAY_STATE_SUBSCRIBE_SYMBOL, AIRPLAY_STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import State from './state';
 
@@ -24,6 +24,7 @@ export default class extends EventEmitter<EventMap> {
 
     readonly #discoveryResult: DiscoveryResult;
     readonly #state: State;
+    #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
@@ -42,8 +43,13 @@ export default class extends EventEmitter<EventMap> {
         this.#protocol = new AirPlay(this.#discoveryResult);
 
         await this.#protocol.connect();
-        await this.#protocol.pairing.start();
-        this.#keys = await this.#protocol.pairing.transient();
+
+        if (this.#credentials) {
+            this.#keys = await this.#protocol.verify.start(this.#credentials);
+        } else {
+            await this.#protocol.pairing.start();
+            this.#keys = await this.#protocol.pairing.transient();
+        }
 
         this.#protocol.rtsp.on('close', async () => this.#onClose());
 
@@ -75,9 +81,14 @@ export default class extends EventEmitter<EventMap> {
         await this.#dataStream.exchange(this.#dataStream.messages.setVolume(volume));
     }
 
+    async setCredentials(credentials: AccessoryCredentials): Promise<void> {
+        this.#credentials = credentials;
+    }
+
     async #feedback(): Promise<void> {
         try {
             await this.#protocol.feedback();
+            await this.#dataStream.exchange(this.#dataStream.messages.protocol(Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE));
         } catch (err) {
             debug('Feedback error', err);
         }
@@ -91,7 +102,7 @@ export default class extends EventEmitter<EventMap> {
         clearInterval(this.#feedbackInterval);
 
         await this.#unsubscribe();
-        await waitFor(10000);
+        await waitFor(1000);
         await this.connect();
     }
 
@@ -107,6 +118,12 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.setupDataStream(keys.sharedSecret);
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), AIRPLAY_FEEDBACK_INTERVAL);
+
+        const gid = this.#discoveryResult.packet.additionals.find(a => 'rdata' in a && 'gid' in a['rdata'])?.['rdata']['gid'] as string;
+
+        if (gid) {
+            await this.#dataStream.exchange(this.#dataStream.messages.configureConnection(gid));
+        }
 
         await this.#dataStream.exchange(this.#dataStream.messages.deviceInfo(keys.pairingId));
 

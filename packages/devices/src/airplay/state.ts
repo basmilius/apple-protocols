@@ -6,8 +6,20 @@ import type Device from './device';
 
 type EventMap = {
     readonly clients: [Record<string, Client>];
-    readonly nowPlayingClient: [string | null];
+    readonly deviceInfo: [Proto.DeviceInfoMessage];
+    readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
+    readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
+    readonly sendCommandResult: [Proto.SendCommandResultMessage];
+    readonly setArtwork: [Proto.SetArtworkMessage];
+    readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
+    readonly setNowPlayingClient: [string | null];
+    readonly setNowPlayingPlayer: [Proto.SetNowPlayingPlayerMessage];
     readonly setState: [Proto.SetStateMessage];
+    readonly updateClient: [Proto.UpdateClientMessage];
+    readonly updateContentItem: [Proto.UpdateContentItemMessage];
+    readonly updateContentItemArtwork: [Proto.UpdateContentItemArtworkMessage];
+    readonly updatePlayer: [Proto.UpdatePlayerMessage];
+    readonly updateOutputDevice: [Proto.UpdateOutputDeviceMessage];
     readonly volumeControlAvailability: [boolean, Proto.VolumeCapabilities_Enum];
     readonly volumeControlCapabilitiesDidChange: [boolean, Proto.VolumeCapabilities_Enum];
     readonly volumeDidChange: [number];
@@ -28,10 +40,6 @@ export default class extends EventEmitter<EventMap> {
 
     get nowPlayingClient(): Client | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
-    }
-
-    get nowPlayingClientBundleIdentifier(): string | null {
-        return this.#nowPlayingClientBundleIdentifier;
     }
 
     get volume(): number {
@@ -69,27 +77,77 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async [STATE_SUBSCRIBE_SYMBOL](): Promise<void> {
+        this.#dataStream.on('deviceInfo', this.onDeviceInfo);
+        this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
+        this.#dataStream.on('playerClientProperties', this.onPlayerClientProperties);
+        this.#dataStream.on('sendCommandResult', this.onSendCommandResult);
+        this.#dataStream.on('setArtwork', this.onSetArtwork);
+        this.#dataStream.on('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
         this.#dataStream.on('setNowPlayingClient', this.onSetNowPlayingClient);
+        this.#dataStream.on('setNowPlayingPlayer', this.onSetNowPlayingPlayer);
         this.#dataStream.on('setState', this.onSetState);
         this.#dataStream.on('updateClient', this.onUpdateClient);
+        this.#dataStream.on('updateContentItem', this.onUpdateContentItem);
+        this.#dataStream.on('updateContentItemArtwork', this.onUpdateContentItemArtwork);
+        this.#dataStream.on('updatePlayer', this.onUpdatePlayer);
+        this.#dataStream.on('updateOutputDevice', this.onUpdateOutputDevice);
         this.#dataStream.on('volumeControlAvailability', this.onVolumeControlAvailability);
         this.#dataStream.on('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
         this.#dataStream.on('volumeDidChange', this.onVolumeDidChange);
     }
 
     async [STATE_UNSUBSCRIBE_SYMBOL](): Promise<void> {
+        this.#dataStream.off('deviceInfo', this.onDeviceInfo);
+        this.#dataStream.off('originClientProperties', this.onOriginClientProperties);
+        this.#dataStream.off('playerClientProperties', this.onPlayerClientProperties);
+        this.#dataStream.off('sendCommandResult', this.onSendCommandResult);
+        this.#dataStream.off('setArtwork', this.onSetArtwork);
+        this.#dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
         this.#dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
+        this.#dataStream.off('setNowPlayingPlayer', this.onSetNowPlayingPlayer);
         this.#dataStream.off('setState', this.onSetState);
         this.#dataStream.off('updateClient', this.onUpdateClient);
+        this.#dataStream.off('updateContentItem', this.onUpdateContentItem);
+        this.#dataStream.off('updateContentItemArtwork', this.onUpdateContentItemArtwork);
+        this.#dataStream.off('updatePlayer', this.onUpdatePlayer);
+        this.#dataStream.off('updateOutputDevice', this.onUpdateOutputDevice);
         this.#dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
         this.#dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
         this.#dataStream.off('volumeDidChange', this.onVolumeDidChange);
     }
 
+    async onDeviceInfo(message: Proto.DeviceInfoMessage): Promise<void> {
+        this.emit('deviceInfo', message);
+    }
+
+    async onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): Promise<void> {
+        this.emit('originClientProperties', message);
+    }
+
+    async onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
+        this.emit('playerClientProperties', message);
+    }
+
+    async onSendCommandResult(message: Proto.SendCommandResultMessage): Promise<void> {
+        this.emit('sendCommandResult', message);
+    }
+
+    async onSetArtwork(message: Proto.SetArtworkMessage): Promise<void> {
+        this.emit('setArtwork', message);
+    }
+
+    async onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
+        this.emit('setDefaultSupportedCommands', message);
+    }
+
     async onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): Promise<void> {
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
-        this.emit('nowPlayingClient', this.#nowPlayingClientBundleIdentifier);
+        this.emit('setNowPlayingClient', this.#nowPlayingClientBundleIdentifier);
+    }
+
+    async onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
+        this.emit('setNowPlayingPlayer', message);
     }
 
     async onSetState(message: Proto.SetStateMessage): Promise<void> {
@@ -110,10 +168,26 @@ export default class extends EventEmitter<EventMap> {
         this.emit('setState', message);
     }
 
+    async onUpdateContentItem(message: Proto.UpdateContentItemMessage): Promise<void> {
+        this.emit('updateContentItem', message);
+    }
+
+    async onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): Promise<void> {
+        this.emit('updateContentItemArtwork', message);
+    }
+
+    async onUpdatePlayer(message: Proto.UpdatePlayerMessage): Promise<void> {
+        this.emit('updatePlayer', message);
+    }
+
     async onUpdateClient(message: Proto.UpdateClientMessage): Promise<void> {
         this.#client(message.client.bundleIdentifier, message.client.displayName);
 
         this.emit('clients', this.#clients);
+    }
+
+    async onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
+        this.emit('updateOutputDevice', message);
     }
 
     async onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {

@@ -118,7 +118,7 @@ export default class extends EventEmitter<EventMap> {
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
-        const gid = this.#discoveryResult.packet.additionals.find(a => 'rdata' in a && 'gid' in a['rdata'])?.['rdata']['gid'] as string;
+        const gid = this.#discoveryResult.packet.additionals.find(a => 'rdata' in a && typeof a['rdata'] === 'object' && 'gid' in a['rdata'])?.['rdata']['gid'] as string;
 
         if (gid) {
             await this.#dataStream.exchange(this.#dataStream.messages.configureConnection(gid));

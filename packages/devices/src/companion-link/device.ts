@@ -21,7 +21,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     get isConnected(): boolean {
-        return this.#protocol.socket.isConnected;
+        return this.#protocol?.socket?.isConnected ?? false;
     }
 
     #credentials?: AccessoryCredentials;

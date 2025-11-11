@@ -19,7 +19,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     get isConnected(): boolean {
-        return this.#protocol.rtsp.isConnected;
+        return this.#protocol?.rtsp?.isConnected ?? false;
     }
 
     get state(): State {

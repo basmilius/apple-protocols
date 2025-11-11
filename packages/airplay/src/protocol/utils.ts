@@ -31,8 +31,6 @@ export function makeHttpRequest(buffer: Buffer): HttpRequest | null {
 
     const requestLength = headerLength + 4 + contentLength;
 
-    debug(buffer.byteLength, requestLength);
-
     if (buffer.byteLength < requestLength) {
         return null;
     }

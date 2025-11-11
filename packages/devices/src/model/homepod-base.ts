@@ -113,6 +113,7 @@ export default abstract class extends EventEmitter {
     }
 
     async #onDisconnected(unexpected: boolean): Promise<void> {
+        await this.disconnect();
         this.emit('disconnected', unexpected);
     }
 }

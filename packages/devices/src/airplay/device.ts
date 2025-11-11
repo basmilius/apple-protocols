@@ -106,11 +106,6 @@ export default class extends EventEmitter<EventMap> {
             return;
         }
 
-        clearInterval(this.#feedbackInterval);
-
-        await this.#unsubscribe();
-        await this.#protocol.disconnect();
-
         this.emit('disconnected', true);
     }
 

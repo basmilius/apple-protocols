@@ -107,9 +107,6 @@ export default class extends EventEmitter<EventMap> {
             return;
         }
 
-        await this.#unsubscribe();
-        await this.#protocol.disconnect();
-
         this.emit('disconnected', true);
     }
 

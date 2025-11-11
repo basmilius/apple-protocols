@@ -4,7 +4,12 @@ import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-com
 import { AirPlayDevice } from '../airplay';
 import { CompanionLinkDevice } from '../companion-link';
 
-export default class extends EventEmitter {
+type EventMap = {
+    connected: [];
+    disconnected: [unexpected: boolean];
+};
+
+export default class extends EventEmitter<EventMap> {
     get airplay(): AirPlayDevice {
         return this.#airplay;
     }
@@ -39,6 +44,7 @@ export default class extends EventEmitter {
 
     readonly #airplay: AirPlayDevice;
     readonly #companionLink: CompanionLinkDevice;
+    #disconnect: boolean = false;
 
     constructor(airplayDiscoveryResult: DiscoveryResult, companionLinkDiscoveryResult: DiscoveryResult) {
         super();
@@ -58,6 +64,8 @@ export default class extends EventEmitter {
 
         await this.#airplay.connect();
         await this.#companionLink.connect();
+
+        this.#disconnect = false;
     }
 
     async disconnect(): Promise<void> {
@@ -130,10 +138,20 @@ export default class extends EventEmitter {
     }
 
     async #onConnected(): Promise<void> {
+        if (!this.#airplay.isConnected || !this.#companionLink.isConnected) {
+            return;
+        }
+
         this.emit('connected');
     }
 
     async #onDisconnected(unexpected: boolean): Promise<void> {
+        if (this.#disconnect) {
+            return;
+        }
+
+        this.#disconnect = true;
+
         await this.disconnect();
         this.emit('disconnected', unexpected);
     }

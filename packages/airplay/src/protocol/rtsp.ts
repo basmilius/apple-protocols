@@ -106,22 +106,23 @@ export default class AirPlayRTSP extends AirPlayStream<never> {
         headers['Client-Instance'] = this.dacpId;
         headers['DACP-ID'] = this.dacpId;
 
+        const cseq = this.#cseq++;
         let data: Buffer;
 
         if (body) {
             headers['Content-Length'] = Buffer.byteLength(body).toString();
 
             data = Buffer.concat([
-                Buffer.from(makeHttpHeader(method, path, headers, this.#cseq++)),
+                Buffer.from(makeHttpHeader(method, path, headers, cseq)),
                 Buffer.from(body)
             ]);
         } else {
             headers['Content-Length'] = '0';
 
-            data = Buffer.from(makeHttpHeader(method, path, headers, this.#cseq++));
+            data = Buffer.from(makeHttpHeader(method, path, headers, cseq));
         }
 
-        debug(method, path);
+        debug(method, path, `cseq = ${cseq}`);
 
         if (this.isEncrypted) {
             data = await this.encrypt(data);

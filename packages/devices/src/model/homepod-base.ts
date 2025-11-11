@@ -8,7 +8,7 @@ type EventMap = {
     disconnected: [unexpected: boolean];
 };
 
-export default abstract class extends EventEmitter {
+export default abstract class extends EventEmitter<EventMap> {
     get airplay(): AirPlayDevice {
         return this.#airplay;
     }
@@ -42,6 +42,7 @@ export default abstract class extends EventEmitter {
     }
 
     readonly #airplay: AirPlayDevice;
+    #disconnect: boolean = false;
 
     constructor(discoveryResult: DiscoveryResult) {
         super();
@@ -53,6 +54,7 @@ export default abstract class extends EventEmitter {
 
     async connect(): Promise<void> {
         await this.#airplay.connect();
+        this.#disconnect = false;
     }
 
     async disconnect(): Promise<void> {
@@ -112,6 +114,12 @@ export default abstract class extends EventEmitter {
     }
 
     async #onDisconnected(unexpected: boolean): Promise<void> {
+        if (this.#disconnect) {
+            return;
+        }
+
+        this.#disconnect = true;
+
         await this.disconnect();
         this.emit('disconnected', unexpected);
     }

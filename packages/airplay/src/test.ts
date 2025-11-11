@@ -1,4 +1,4 @@
-import { debug, Discovery, enableDebug, getMacAddress, prompt, serializeBinaryPlist, uuid, waitFor } from '@basmilius/apple-common';
+import { Discovery, enableDebug, getMacAddress, prompt, serializeBinaryPlist, TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { AirPlay } from './protocol';
 
 enableDebug();
@@ -58,6 +58,7 @@ async function tv(): Promise<void> {
         keys.controllerToAccessoryKey
     );
 
+    await protocol.setupTimingServer(new TimingServer());
     await protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
     await protocol.setupDataStream(keys.sharedSecret);
 
@@ -80,6 +81,8 @@ async function tv(): Promise<void> {
 
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, true));
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, false));
+
+        await waitFor(1000);
 
         const response = await protocol.rtsp.post('/play', Buffer.from(serializeBinaryPlist({
             'Content-Location': 'https://bmcdn.nl/doorbell.ogg',
@@ -104,7 +107,7 @@ async function tv(): Promise<void> {
             'osBuildVersion': '23C5027f',
             'rate': 1.0
         })), {
-            'X-Apple-Session-ID': protocol.sessionUUID,
+            'X-Apple-Session-ID': uuid(),
             'X-Apple-Stream-ID': '1'
         });
 

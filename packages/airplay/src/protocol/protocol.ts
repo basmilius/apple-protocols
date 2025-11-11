@@ -104,7 +104,7 @@ export default class AirPlay {
             osVersion: '26.2',
             sourceVersion: '925.3.2',
             sessionUUID: this.#sessionUUID,
-            sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
+            sessionCorrelationUUID: uuid().toUpperCase(),
             timingProtocol: 'None',
             isRemoteControlOnly: true,
             statsCollectionEnabled: false,

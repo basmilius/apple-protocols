@@ -22,8 +22,10 @@ export default class {
     }
 
     async listen(): Promise<void> {
-        this.#socket.once('listening', () => this.#onListening());
-        this.#socket.bind(0);
+        return new Promise<void>(resolve => {
+            this.#socket.once('listening', () => this.#onListening());
+            this.#socket.bind(0, resolve);
+        });
     }
 
     async #onError(err: Error): Promise<void> {
@@ -31,13 +33,8 @@ export default class {
     }
 
     async #onListening(): Promise<void> {
-        const a = this.#socket.address();
-
-        if (typeof a === 'object') {
-            this.#port = a.port;
-        } else {
-            throw new Error('Unexpected address type.');
-        }
+        const {port} = this.#socket.address();
+        this.#port = port;
     }
 
     async #onMessage(data: Buffer, info: RemoteInfo): Promise<void> {

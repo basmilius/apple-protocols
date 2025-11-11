@@ -47,12 +47,11 @@ export default abstract class extends EventEmitter {
         super();
 
         this.#airplay = new AirPlayDevice(discoveryResult);
+        this.#airplay.on('connected', () => this.#onConnected());
+        this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
     }
 
     async connect(): Promise<void> {
-        this.#airplay.on('connected', () => this.#onConnected());
-        this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
-
         await this.#airplay.connect();
     }
 

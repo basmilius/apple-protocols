@@ -45,18 +45,18 @@ export default class extends EventEmitter {
 
         this.#airplay = new AirPlayDevice(airplayDiscoveryResult);
         this.#companionLink = new CompanionLinkDevice(companionLinkDiscoveryResult);
-    }
 
-    async connect(credentials: AccessoryCredentials): Promise<void> {
         this.#airplay.on('connected', () => this.#onConnected());
         this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
         this.#companionLink.on('connected', () => this.#onConnected());
         this.#companionLink.on('disconnected', unexpected => this.#onDisconnected(unexpected));
+    }
 
+    async connect(credentials: AccessoryCredentials): Promise<void> {
         await this.#airplay.setCredentials(credentials);
-        await this.#airplay.connect();
-
         await this.#companionLink.setCredentials(credentials);
+
+        await this.#airplay.connect();
         await this.#companionLink.connect();
     }
 

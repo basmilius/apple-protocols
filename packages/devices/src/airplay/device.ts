@@ -95,7 +95,6 @@ export default class extends EventEmitter<EventMap> {
     async #feedback(): Promise<void> {
         try {
             await this.#protocol.feedback();
-            await this.#dataStream.exchange(this.#dataStream.messages.protocol(Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE));
         } catch (err) {
             debug('Feedback error', err);
         }

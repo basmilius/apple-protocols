@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto';
-import { debug } from '@basmilius/apple-common';
 import type { RTSPMethod } from './types';
 
 export function makeHttpHeader(method: RTSPMethod, path: string, headers: HeadersInit, cseq: number): string {
@@ -7,6 +6,7 @@ export function makeHttpHeader(method: RTSPMethod, path: string, headers: Header
     lines.push(`${method} ${path} RTSP/1.0`);
     lines.push(`CSeq: ${cseq}`);
     lines.push('User-Agent: AirPlay/320.20');
+    lines.push('X-Apple-ProtocolVersion: 1');
     lines.push('X-ProtocolVersion: 1');
 
     for (const [name, value] of Object.entries(headers)) {

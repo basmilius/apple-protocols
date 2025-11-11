@@ -69,17 +69,7 @@ export default class {
             computerName: 'iPhone van Bas',
             configuredClusterSize: 0
             // applicationBundleVersion: '344.28',
-            // protocolVersion: 1,
-            // lastSupportedMessageType: 108,
-            // supportsSystemPairing: true,
-            // allowsPairing: true,
-            // systemMediaApplication: 'com.apple.TVMusic',
-            // supportsACL: true,
-            // supportsSharedQueue: true,
-            // supportsExtendedMotion: true,
-            // sharedQueueVersion: 2,
-            // deviceClass: 1,
-            // logicalDeviceCount: 1
+            // supportsExtendedMotion: true
         });
 
         setExtension(protocolMessage, Proto.deviceInfoMessage, message);

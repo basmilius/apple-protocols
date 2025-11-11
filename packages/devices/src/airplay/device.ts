@@ -122,6 +122,7 @@ export default class extends EventEmitter<EventMap> {
 
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
+        await this.#subscribe();
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
@@ -134,7 +135,6 @@ export default class extends EventEmitter<EventMap> {
         await this.#dataStream.exchange(this.#dataStream.messages.deviceInfo(keys.pairingId));
 
         this.#dataStream.on('deviceInfo', async () => {
-            await this.#subscribe();
             await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
             await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
         });

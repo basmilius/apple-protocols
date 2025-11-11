@@ -1,4 +1,4 @@
-import { debug, type DiscoveryResult, getMacAddress, parseBinaryPlist, serializeBinaryPlist, uuid } from '@basmilius/apple-common';
+import { debug, type DiscoveryResult, getMacAddress, parseBinaryPlist, serializeBinaryPlist, TimingServer, uuid } from '@basmilius/apple-common';
 import { randomInt64 } from './utils';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
@@ -27,6 +27,10 @@ export default class AirPlay {
         return this.#rtsp;
     }
 
+    get sessionUUID(): string {
+        return this.#sessionUUID;
+    }
+
     get verify(): Verify {
         return this.#verify;
     }
@@ -34,6 +38,7 @@ export default class AirPlay {
     readonly #device: DiscoveryResult;
     readonly #pairing: Pairing;
     readonly #rtsp: RTSP;
+    readonly #timing: TimingServer;
     readonly #verify: Verify;
     readonly #sessionUUID: string;
     #dataStream?: DataStream;
@@ -43,16 +48,19 @@ export default class AirPlay {
         this.#device = device;
         this.#rtsp = new RTSP(device.address, device.service.port);
         this.#pairing = new Pairing(this);
+        this.#timing = new TimingServer();
         this.#verify = new Verify(this);
         this.#sessionUUID = uuid();
     }
 
     async connect(): Promise<void> {
         await this.#rtsp.connect();
+        await this.#timing.listen();
     }
 
     async disconnect(): Promise<void> {
         await this.#rtsp.disconnect();
+        await this.#timing.close();
     }
 
     async feedback(): Promise<void> {
@@ -100,7 +108,8 @@ export default class AirPlay {
             sourceVersion: '925.3.2',
             sessionUUID: this.#sessionUUID,
             sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
-            timingProtocol: 'None',
+            timingPort: this.#timing.port,
+            timingProtocol: 'NTP',
             isRemoteControlOnly: true,
             statsCollectionEnabled: false,
             updateSessionRequest: false
@@ -109,6 +118,10 @@ export default class AirPlay {
         const response = await this.#rtsp.setup(`/${this.rtsp.sessionId}`, Buffer.from(request), {
             'Content-Type': 'application/x-apple-binary-plist'
         });
+
+        if (response.status !== 200) {
+            throw new Error('Cannot setup event stream.');
+        }
 
         const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
         const eventPort = plist.eventPort & 0xFFFF;

@@ -1,4 +1,4 @@
-import { Discovery, enableDebug, prompt } from '@basmilius/apple-common';
+import { debug, Discovery, enableDebug, getMacAddress, prompt, serializeBinaryPlist, uuid, waitFor } from '@basmilius/apple-common';
 import { AirPlay } from './protocol';
 
 enableDebug();
@@ -80,6 +80,35 @@ async function tv(): Promise<void> {
 
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, true));
         // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, false));
+
+        const response = await protocol.rtsp.post('/play', Buffer.from(serializeBinaryPlist({
+            'Content-Location': 'https://bmcdn.nl/doorbell.ogg',
+            'Start-Position-Seconds': 0,
+            'uuid': uuid().toUpperCase(),
+            'streamType': 1,
+            'mediaType': 'file',
+            'mightSupportStorePastisKeyRequests': true,
+            'playbackRestrictions': 0,
+            'secureConnectionMs': 22,
+            'volume': 0.5,
+            'infoMs': 122,
+            'connectMs': 18,
+            'authMs': 0,
+            'bonjourMs': 0,
+            'referenceRestrictions': 3,
+            'SenderMACAddress': getMacAddress().toUpperCase(),
+            'model': 'iPhone16,2',
+            'postAuthMs': 0,
+            'clientBundleID': 'com.basmilius.airplay',
+            'clientProcName': 'com.basmilius.airplay',
+            'osBuildVersion': '23C5027f',
+            'rate': 1.0
+        })), {
+            'X-Apple-Session-ID': protocol.sessionUUID,
+            'X-Apple-Stream-ID': '1'
+        });
+
+        console.log(response);
     });
 
     /*

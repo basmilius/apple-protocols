@@ -56,6 +56,10 @@ export default abstract class extends EventEmitter {
         await this.#airplay.connect();
     }
 
+    async disconnect(): Promise<void> {
+        await this.#airplay.disconnect();
+    }
+
     async pause(): Promise<void> {
         await this.#airplay.sendCommand(Proto.Command.Pause);
     }

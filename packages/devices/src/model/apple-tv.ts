@@ -60,6 +60,11 @@ export default class extends EventEmitter {
         await this.#companionLink.connect();
     }
 
+    async disconnect(): Promise<void> {
+        await this.#airplay.disconnect();
+        await this.#companionLink.disconnect();
+    }
+
     async turnOff(): Promise<void> {
         await this.#companionLink.pressButton('Sleep');
     }

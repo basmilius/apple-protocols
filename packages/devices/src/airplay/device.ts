@@ -26,10 +26,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#state;
     }
 
-    readonly #discoveryResult: DiscoveryResult;
     readonly #state: State;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
+    #discoveryResult: DiscoveryResult;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #protocol!: AirPlay;
@@ -90,6 +90,10 @@ export default class extends EventEmitter<EventMap> {
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
         this.#credentials = credentials;
+    }
+
+    async setDiscoveryResult(discoveryResult: DiscoveryResult): Promise<void> {
+        this.#discoveryResult = discoveryResult;
     }
 
     async #feedback(): Promise<void> {

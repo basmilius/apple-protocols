@@ -24,9 +24,9 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol.socket.isConnected;
     }
 
-    readonly #discoveryResult: DiscoveryResult;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
+    #discoveryResult: DiscoveryResult;
     #keys: AccessoryKeys;
     #protocol!: CompanionLink;
 
@@ -68,6 +68,10 @@ export default class extends EventEmitter<EventMap> {
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
         this.#credentials = credentials;
+    }
+
+    async setDiscoveryResult(discoveryResult: DiscoveryResult): Promise<void> {
+        this.#discoveryResult = discoveryResult;
     }
 
     async getAttentionState(): ReturnType<CLAPI['getAttentionState']> {

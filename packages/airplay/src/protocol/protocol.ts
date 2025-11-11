@@ -94,7 +94,7 @@ export default class AirPlay {
     }
 
     async setupEventStream(pairingId: Buffer, sharedSecret: Buffer): Promise<void> {
-        const request = serializeBinaryPlist({
+        const body: Record<string, string | boolean | number> = {
             deviceID: pairingId.toString(),
             macAddress: getMacAddress().toUpperCase(),
             name: 'iPhone van Bas',
@@ -105,13 +105,18 @@ export default class AirPlay {
             sourceVersion: '925.3.2',
             sessionUUID: this.#sessionUUID,
             sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
-            timingPort: this.#timingServer?.port,
-            timingProtocol: this.#timingServer ? 'NTP' : 'None',
+            timingProtocol: 'None',
             isRemoteControlOnly: true,
             statsCollectionEnabled: false,
             updateSessionRequest: false
-        });
+        };
 
+        if (this.#timingServer) {
+            body.timingPort = this.#timingServer.port;
+            body.timingProtocol = 'NTP';
+        }
+
+        const request = serializeBinaryPlist(body);
         const response = await this.#rtsp.setup(`/${this.rtsp.sessionId}`, Buffer.from(request), {
             'Content-Type': 'application/x-apple-binary-plist'
         });

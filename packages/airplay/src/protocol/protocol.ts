@@ -38,29 +38,26 @@ export default class AirPlay {
     readonly #device: DiscoveryResult;
     readonly #pairing: Pairing;
     readonly #rtsp: RTSP;
-    readonly #timing: TimingServer;
     readonly #verify: Verify;
     readonly #sessionUUID: string;
     #dataStream?: DataStream;
     #eventStream?: EventStream;
+    #timingServer?: TimingServer;
 
     constructor(device: DiscoveryResult) {
         this.#device = device;
         this.#rtsp = new RTSP(device.address, device.service.port);
         this.#pairing = new Pairing(this);
-        this.#timing = new TimingServer();
         this.#verify = new Verify(this);
         this.#sessionUUID = uuid();
     }
 
     async connect(): Promise<void> {
         await this.#rtsp.connect();
-        await this.#timing.listen();
     }
 
     async disconnect(): Promise<void> {
         await this.#rtsp.disconnect();
-        await this.#timing.close();
     }
 
     async feedback(): Promise<void> {
@@ -108,8 +105,8 @@ export default class AirPlay {
             sourceVersion: '925.3.2',
             sessionUUID: this.#sessionUUID,
             sessionCorrelationUUID: 'BBB3A645-7453-46B2-92CF-30A8E1F02D26',
-            timingPort: this.#timing.port,
-            timingProtocol: 'NTP',
+            timingPort: this.#timingServer?.port,
+            timingProtocol: this.#timingServer ? 'NTP' : 'None',
             isRemoteControlOnly: true,
             statsCollectionEnabled: false,
             updateSessionRequest: false
@@ -132,5 +129,11 @@ export default class AirPlay {
         await this.#eventStream.connect();
 
         await this.#rtsp.record(`/${this.rtsp.sessionId}`);
+    }
+
+    async setupTimingServer(timing: TimingServer): Promise<void> {
+        this.#timingServer = timing;
+
+        await this.#timingServer.listen();
     }
 }

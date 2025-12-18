@@ -76,16 +76,16 @@ export default class extends EventEmitter<EventMap> {
         await this.#dataStream.exchange(this.#dataStream.messages.playbackQueueRequest(0, length));
     }
 
-    async send(message: Proto.ProtocolMessage): Promise<void> {
-        await this.#dataStream.exchange(message);
-    }
-
     async sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Promise<void> {
         await this.#dataStream.exchange(this.#dataStream.messages.sendButtonEvent(usagePage, usage, buttonDown));
     }
 
     async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
         await this.#dataStream.exchange(this.#dataStream.messages.sendCommand(command, options));
+    }
+
+    async sendHIDEvent(usePage: number, usage: number, down: boolean): Promise<void> {
+        await this.#dataStream.exchange(this.#dataStream.messages.sendHIDEvent(usePage, usage, down));
     }
 
     async setVolume(volume: number): Promise<void> {

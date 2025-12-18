@@ -1,7 +1,8 @@
-import { Discovery, enableDebug } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult, enableDebug } from '@basmilius/apple-common';
+import { redis } from 'bun';
 import { AppleTV } from './model';
 
-enableDebug();
+// enableDebug();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
@@ -12,15 +13,12 @@ const credentials = {
 };
 
 async function main(): Promise<void> {
-    const airplayDiscovery = Discovery.airplay();
-    const airplayDiscoveryResult = await airplayDiscovery.findUntil('Woonkamer TV._airplay._tcp.local');
-    const companionLinkDiscovery = Discovery.companionLink();
-    const companionLinkDiscoveryResult = await companionLinkDiscovery.findUntil('Woonkamer TV._companion-link._tcp.local');
+    const airplayDiscoveryResult = await airplay();
+    const companionLinkDiscoveryResult = await companionLink();
 
     const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
-    await device.connect(credentials);
 
-    device.on('disconnected', unexpected => {
+    device.airplay.on('disconnected', unexpected => {
         if (!unexpected) {
             return;
         }
@@ -28,10 +26,41 @@ async function main(): Promise<void> {
         main();
     });
 
-    await device.airplay.requestPlaybackQueue(1);
+    device.airplay.state.on('setNowPlayingClient', evt => console.log('setNowPlayingClient', evt.client.bundleIdentifier));
+    device.airplay.state.on('setState', evt => console.log('setState', evt.playerPath.client.bundleIdentifier, device.airplay.state.nowPlayingClient?.playbackQueue?.contentItems?.[0]?.metadata?.title));
+
+    await device.connect(credentials);
+
+    console.log('Ready');
+
+    // await device.airplay.requestPlaybackQueue(1);
 
     // await device.turnOn();
     // await device.companionLink.pressButton('Select');
+}
+
+async function airplay(): Promise<DiscoveryResult> {
+    if (await redis.exists('airplay')) {
+        return JSON.parse(await redis.get('airplay'));
+    }
+
+    const discovery = Discovery.airplay();
+    const discoveryResult = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
+
+    await redis.setex('airplay', 3600, JSON.stringify(discoveryResult));
+
+    return discoveryResult;
+}
+
+async function companionLink(): Promise<DiscoveryResult> {
+    if (await redis.exists('companion-link')) {
+        return JSON.parse(await redis.get('companion-link'));
+    }
+
+    const discovery = Discovery.companionLink();
+    const discoveryResult = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');
+
+    await redis.setex('companion-link', 3600, JSON.stringify(discoveryResult));
 }
 
 await main();

@@ -46,11 +46,11 @@ export default class extends EventEmitter<EventMap> {
 
         this.#disconnect = false;
         this.#protocol = new CompanionLink(this.#discoveryResult);
+        this.#protocol.socket.on('close', async () => this.#onClose());
+        this.#protocol.socket.on('error', async (err: Error) => this.#onError(err));
 
         await this.#protocol.connect();
         this.#keys = await this.#protocol.verify.start(this.#credentials);
-
-        this.#protocol.socket.on('close', async () => this.#onClose());
 
         await this.#setup();
 
@@ -109,6 +109,17 @@ export default class extends EventEmitter<EventMap> {
     async #onClose(): Promise<void> {
         if (this.#disconnect) {
             return;
+        }
+
+        this.emit('disconnected', true);
+    }
+
+    async #onError(err: Error): Promise<void> {
+        debug('Companion Link error', err);
+
+        try {
+            await this.disconnect();
+        } catch (_) {
         }
 
         this.emit('disconnected', true);

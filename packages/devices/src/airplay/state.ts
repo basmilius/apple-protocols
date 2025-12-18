@@ -12,7 +12,7 @@ type EventMap = {
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
-    readonly setNowPlayingClient: [string | null];
+    readonly setNowPlayingClient: [Proto.SetNowPlayingClientMessage];
     readonly setNowPlayingPlayer: [Proto.SetNowPlayingPlayerMessage];
     readonly setState: [Proto.SetStateMessage];
     readonly updateClient: [Proto.UpdateClientMessage];
@@ -154,7 +154,7 @@ export default class extends EventEmitter<EventMap> {
     async onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): Promise<void> {
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
-        this.emit('setNowPlayingClient', this.#nowPlayingClientBundleIdentifier);
+        this.emit('setNowPlayingClient', message);
     }
 
     async onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {

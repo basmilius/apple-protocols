@@ -6,7 +6,16 @@ export * from './net';
 export * from './cli';
 export * from './const';
 
-export type { AccessoryCredentials, AccessoryKeys } from './pairing';
-export { AccessoryPair, AccessoryVerify } from './pairing';
+export {
+    type AccessoryCredentials,
+    type AccessoryKeys,
+    AccessoryPair,
+    AccessoryVerify
+} from './pairing';
+
+export {
+    uint16ToBE,
+    uint53ToLE
+} from './utils';
 
 export { v4 as uuid } from 'uuid';

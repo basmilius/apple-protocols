@@ -1,4 +1,4 @@
-import { uuid } from '@basmilius/apple-common';
+import { uint16ToBE, uuid } from '@basmilius/apple-common';
 import { create, setExtension } from '@bufbuild/protobuf';
 import * as Proto from '../proto';
 
@@ -142,6 +142,26 @@ export default class {
         return protocolMessage;
     }
 
+    sendHIDEvent(usePage: number, usage: number, down: boolean): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.SEND_HID_EVENT_MESSAGE);
+        const message = create(Proto.SendHIDEventMessageSchema, {
+            hidEventData: Buffer.concat([
+                Buffer.from('438922cf08020000', 'hex'), // time
+                Buffer.from('00000000000000000100000000000000020' + '00000200000000300000001000000000000', 'hex'),
+                Buffer.concat([
+                    uint16ToBE(usePage),
+                    uint16ToBE(usage),
+                    uint16ToBE(down ? 1 : 0)
+                ]), // data
+                Buffer.from('0000000000000001000000', 'hex')
+            ])
+        });
+
+        setExtension(protocolMessage, Proto.sendHIDEventMessage, message);
+
+        return protocolMessage;
+    }
+
     setConnectionState(state: Proto.SetConnectionStateMessage_ConnectionState = Proto.SetConnectionStateMessage_ConnectionState.Connected): Proto.ProtocolMessage {
         const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.SET_CONNECTION_STATE_MESSAGE);
         const message = create(Proto.SetConnectionStateMessageSchema, {
@@ -160,6 +180,15 @@ export default class {
         });
 
         setExtension(protocolMessage, Proto.setVolumeMessage, message);
+
+        return protocolMessage;
+    }
+
+    wakeDevice(): Proto.ProtocolMessage {
+        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.WAKE_DEVICE_MESSAGE);
+        const message = create(Proto.WakeDeviceMessageSchema, {});
+
+        setExtension(protocolMessage, Proto.wakeDeviceMessage, message);
 
         return protocolMessage;
     }

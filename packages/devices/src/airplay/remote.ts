@@ -1,4 +1,5 @@
 import type { AirPlay, AirPlayDataStream } from '@basmilius/apple-airplay';
+import { Proto } from '@basmilius/apple-airplay';
 import { waitFor } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 import type Device from './device';
@@ -42,6 +43,14 @@ export default class {
         await this.pressAndRelease(12, 0xB0);
     }
 
+    async playPause(): Promise<void> {
+        if (this.#device.state.nowPlayingClient?.playbackState === Proto.PlaybackState_Enum.Playing) {
+            await this.pause();
+        } else {
+            await this.play();
+        }
+    }
+
     async pause(): Promise<void> {
         await this.pressAndRelease(12, 0xB1);
     }
@@ -76,6 +85,10 @@ export default class {
 
     async volumeDown(): Promise<void> {
         await this.pressAndRelease(12, 0xEA);
+    }
+
+    async mute(): Promise<void> {
+        await this.pressAndRelease(12, 0xE2);
     }
 
     async doublePress(usePage: number, usage: number): Promise<void> {

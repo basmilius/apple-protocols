@@ -78,23 +78,23 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async turnOff(): Promise<void> {
-        await this.#companionLink.pressButton('Sleep');
+        await this.#airplay.remote.suspend();
     }
 
     async turnOn(): Promise<void> {
-        await this.#companionLink.pressButton('Wake');
+        await this.#airplay.remote.wake();
     }
 
     async pause(): Promise<void> {
-        await this.#companionLink.mediaControlCommand('Pause');
+        await this.#airplay.sendCommand(Proto.Command.Pause);
     }
 
     async playPause(): Promise<void> {
-        await this.#companionLink.pressButton('PlayPause');
+        await this.#airplay.sendCommand(Proto.Command.TogglePlayPause);
     }
 
     async play(): Promise<void> {
-        await this.#companionLink.mediaControlCommand('Play');
+        await this.#airplay.sendCommand(Proto.Command.Play);
     }
 
     async stop(): Promise<void> {
@@ -102,23 +102,23 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async next(): Promise<void> {
-        await this.#companionLink.mediaControlCommand('NextTrack');
+        await this.#airplay.sendCommand(Proto.Command.NextInContext);
     }
 
     async previous(): Promise<void> {
-        await this.#companionLink.mediaControlCommand('PreviousTrack');
+        await this.#airplay.sendCommand(Proto.Command.PreviousInContext);
     }
 
     async volumeDown(): Promise<void> {
-        await this.#companionLink.pressButton('VolumeDown');
+        await this.#airplay.remote.volumeDown();
     }
 
     async volumeMute(): Promise<void> {
-        await this.#companionLink.pressButton('PageUp');
+        await this.#airplay.remote.mute();
     }
 
     async volumeUp(): Promise<void> {
-        await this.#companionLink.pressButton('VolumeUp');
+        await this.#airplay.remote.volumeUp();
     }
 
     async getCommandInfo(command: Proto.Command): Promise<Proto.CommandInfo | null> {

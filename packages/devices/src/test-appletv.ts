@@ -2,7 +2,7 @@ import { Discovery, type DiscoveryResult, enableDebug } from '@basmilius/apple-c
 import { redis } from 'bun';
 import { AppleTV } from './model';
 
-// enableDebug();
+enableDebug();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
@@ -32,6 +32,9 @@ async function main(): Promise<void> {
     await device.connect(credentials);
 
     console.log('Ready');
+
+    // await device.airplay.remote.doublePress(12, 0x40);
+    // await device.airplay.remote.menu();
 
     // await device.airplay.requestPlaybackQueue(1);
 

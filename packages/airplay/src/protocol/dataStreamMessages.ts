@@ -77,17 +77,6 @@ export default class {
         return protocolMessage;
     }
 
-    notification(notification: string[]): Proto.ProtocolMessage {
-        const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.NOTIFICATION_MESSAGE);
-        const message = create(Proto.NotificationMessageSchema, {
-            notification
-        });
-
-        setExtension(protocolMessage, Proto.notificationMessage, message);
-
-        return protocolMessage;
-    }
-
     playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = true): Proto.ProtocolMessage {
         const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
         const message = create(Proto.PlaybackQueueRequestMessageSchema, {

@@ -1,8 +1,8 @@
-import { Discovery, type DiscoveryResult, enableDebug } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
 import { redis } from 'bun';
 import { AppleTV } from './model';
 
-enableDebug();
+// enableDebug();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
@@ -26,20 +26,15 @@ async function main(): Promise<void> {
         main();
     });
 
-    device.airplay.state.on('setNowPlayingClient', evt => console.log('setNowPlayingClient', evt.client.bundleIdentifier));
-    device.airplay.state.on('setState', evt => console.log('setState', evt.playerPath.client.bundleIdentifier, device.airplay.state.nowPlayingClient?.playbackQueue?.contentItems?.[0]?.metadata?.title));
+    device.airplay.state.on('setNowPlayingClient', evt => {
+        console.log('setNowPlayingClient', evt.client.bundleIdentifier);
+    });
+
+    device.airplay.state.on('setState', async evt => {
+        console.log('setState', evt.playerPath.client.bundleIdentifier, evt.playbackState, device.airplay.state.nowPlayingClient?.playbackQueue?.contentItems?.[0]?.metadata?.title);
+    });
 
     await device.connect(credentials);
-
-    console.log('Ready');
-
-    // await device.airplay.remote.doublePress(12, 0x40);
-    // await device.airplay.remote.menu();
-
-    // await device.airplay.requestPlaybackQueue(1);
-
-    // await device.turnOn();
-    // await device.companionLink.pressButton('Select');
 }
 
 async function airplay(): Promise<DiscoveryResult> {

@@ -282,7 +282,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
             const end = offset + frameLength + 16;
 
             if (end > data.length) {
-                console.error(`Truncated frame end=${end} length=${data.length}`);
+                debug(`Truncated frame end=${end} length=${data.length}`);
                 return this.#buffer;
             }
 

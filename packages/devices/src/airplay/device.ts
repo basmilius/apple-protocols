@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -52,6 +52,9 @@ export default class extends EventEmitter<EventMap> {
         this.#disconnect = false;
         this.#protocol = new AirPlay(this.#discoveryResult);
 
+        this.#protocol.rtsp.on('close', async () => this.#onClose());
+        this.#protocol.rtsp.on('error', async (err: Error) => this.#onError(err));
+
         await this.#protocol.connect();
 
         if (this.#credentials) {
@@ -60,8 +63,6 @@ export default class extends EventEmitter<EventMap> {
             await this.#protocol.pairing.start();
             this.#keys = await this.#protocol.pairing.transient();
         }
-
-        this.#protocol.rtsp.on('close', async () => this.#onClose());
 
         await this.#setup();
 
@@ -119,6 +120,16 @@ export default class extends EventEmitter<EventMap> {
         this.emit('disconnected', true);
     }
 
+    async #onError(err: Error): Promise<void> {
+        debug('AirPlay error', err);
+
+        try {
+            await this.disconnect();
+        } catch (_) {}
+
+        this.emit('disconnected', true);
+    }
+
     async #setup(): Promise<void> {
         const keys = this.#keys;
 
@@ -127,7 +138,6 @@ export default class extends EventEmitter<EventMap> {
             keys.controllerToAccessoryKey
         );
 
-        await this.#protocol.setupTimingServer(new TimingServer());
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
         await this.#subscribe();

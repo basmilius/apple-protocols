@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
 import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import Remote from './remote';
 import State from './state';
 
 type EventMap = {
@@ -22,10 +23,15 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol?.rtsp?.isConnected ?? false;
     }
 
+    get remote(): Remote {
+        return this.#remote;
+    }
+
     get state(): State {
         return this.#state;
     }
 
+    readonly #remote: Remote;
     readonly #state: State;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
@@ -38,6 +44,7 @@ export default class extends EventEmitter<EventMap> {
         super();
 
         this.#discoveryResult = discoveryResult;
+        this.#remote = new Remote(this);
         this.#state = new State(this);
     }
 
@@ -82,10 +89,6 @@ export default class extends EventEmitter<EventMap> {
 
     async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
         await this.#dataStream.exchange(this.#dataStream.messages.sendCommand(command, options));
-    }
-
-    async sendHIDEvent(usePage: number, usage: number, down: boolean): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.sendHIDEvent(usePage, usage, down));
     }
 
     async setVolume(volume: number): Promise<void> {

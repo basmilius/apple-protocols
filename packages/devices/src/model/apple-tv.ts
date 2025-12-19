@@ -30,6 +30,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#airplay.isConnected && this.#companionLink.isConnected;
     }
 
+    get isPlaying(): boolean {
+        return this.playbackState === Proto.PlaybackState_Enum.Playing;
+    }
+
     get playbackQueue(): Proto.PlaybackQueue | null {
         return this.#airplay.state.nowPlayingClient?.playbackQueue ?? null;
     }

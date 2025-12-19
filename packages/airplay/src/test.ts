@@ -113,25 +113,6 @@ async function tv(): Promise<void> {
 
         console.log(response);
     });
-
-    /*
-        "up": (1, 0x8C),
-        "down": (1, 0x8D),
-        "left": (1, 0x8B),
-        "right": (1, 0x8A),
-        "stop": (12, 0xB7),
-        "next": (12, 0xB5),
-        "previous": (12, 0xB6),
-        "select": (1, 0x89),
-        "menu": (1, 0x86),
-        "topmenu": (12, 0x60),
-        "home": (12, 0x40),
-        "suspend": (1, 0x82),
-        "wakeup": (1, 0x83),
-        "volume_up": (12, 0xE9),
-        "volume_down": (12, 0xEA),
-        'mic': (12, 0x04),
-     */
 }
 
 async function tvPair(): Promise<void> {

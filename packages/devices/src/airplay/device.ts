@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -127,6 +127,7 @@ export default class extends EventEmitter<EventMap> {
             keys.controllerToAccessoryKey
         );
 
+        await this.#protocol.setupTimingServer(new TimingServer());
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
         await this.#subscribe();

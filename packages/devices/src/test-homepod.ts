@@ -6,7 +6,7 @@ enableDebug();
 
 async function main(): Promise<void> {
     const discovery = Discovery.airplay();
-    const discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
+    const discoveryResult = await discovery.findUntil('Woonkamer HomePod._airplay._tcp.local');
 
     const device = new HomePodMini(discoveryResult);
     await device.connect();

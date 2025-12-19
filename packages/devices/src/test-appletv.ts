@@ -1,8 +1,8 @@
-import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult, enableDebug } from '@basmilius/apple-common';
 import { redis } from 'bun';
 import { AppleTV } from './model';
 
-// enableDebug();
+enableDebug();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',

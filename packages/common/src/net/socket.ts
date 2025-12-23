@@ -4,6 +4,7 @@ type EventMap = {
     close: [];
     connect: [];
     error: [Error];
+    timeout: [];
 };
 
 export default class BaseSocket<T extends Record<string, any>> extends EventEmitter<T | EventMap> {
@@ -40,5 +41,9 @@ export default class BaseSocket<T extends Record<string, any>> extends EventEmit
 
     async onError(err: Error): Promise<void> {
         this.emit('error', err);
+    }
+
+    async onTimeout(): Promise<void> {
+        this.emit('timeout');
     }
 }

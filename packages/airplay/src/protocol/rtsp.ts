@@ -3,7 +3,7 @@ import type { RTSPMethod } from './types';
 import { makeHttpHeader, makeHttpResponse } from './utils';
 import AirPlayStream from './stream';
 
-export default class AirPlayRTSP extends AirPlayStream<never> {
+export default class AirPlayRTSP extends AirPlayStream<{}> {
     get activeRemote(): string {
         return this.#activeRemote;
     }
@@ -77,6 +77,11 @@ export default class AirPlayRTSP extends AirPlayStream<never> {
     async onError(err: Error): Promise<void> {
         await super.onError(err);
         await this.#handle(undefined, err);
+    }
+
+    async onTimeout(): Promise<void> {
+        await super.onTimeout();
+        await this.#handle(undefined, new Error('Request timed out.'));
     }
 
     async #handle(data: unknown, err?: Error): Promise<void> {

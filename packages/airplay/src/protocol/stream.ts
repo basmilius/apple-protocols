@@ -1,7 +1,14 @@
 import { Socket } from 'node:net';
 import { BaseSocket, debug, decryptChacha20, encryptChacha20 } from '@basmilius/apple-common';
 
-export default class AirPlayStream<TEventMap extends Record<string, any>> extends BaseSocket<TEventMap> {
+type EventMap = {
+    close: [];
+    connect: [];
+    error: [Error];
+    timeout: [];
+};
+
+export default class AirPlayStream<TEventMap extends Record<string, any>> extends BaseSocket<EventMap & TEventMap> {
     get isConnected(): boolean {
         return this.#socket.readyState === 'open';
     }
@@ -37,6 +44,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
         this.onData = this.onData.bind(this);
         this.onEnd = this.onEnd.bind(this);
         this.onError = this.onError.bind(this);
+        this.onTimeout = this.onTimeout.bind(this);
 
         this.#socket = new Socket();
         this.#socket.on('close', this.onClose);
@@ -44,6 +52,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
         this.#socket.on('data', this.onData);
         this.#socket.on('end', this.onEnd);
         this.#socket.on('error', this.onError);
+        this.#socket.on('timeout', this.onTimeout);
     }
 
     async connect(): Promise<void> {

@@ -1,1 +1,4 @@
-export { default as Discovery, type DiscoveryResult } from './discovery';
+export {
+    default as Discovery,
+    type DiscoveryResult
+} from './discovery';

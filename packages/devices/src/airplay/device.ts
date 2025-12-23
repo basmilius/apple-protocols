@@ -54,6 +54,7 @@ export default class extends EventEmitter<EventMap> {
 
         this.#protocol.rtsp.on('close', async () => this.#onClose());
         this.#protocol.rtsp.on('error', async (err: Error) => this.#onError(err));
+        this.#protocol.rtsp.on('timeout', async () => this.#onTimeout());
 
         await this.#protocol.connect();
 
@@ -80,12 +81,15 @@ export default class extends EventEmitter<EventMap> {
         this.emit('disconnected', false);
     }
 
-    async requestPlaybackQueue(length: number): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.playbackQueueRequest(0, length));
+    async disconnectSafely(): Promise<void> {
+        try {
+            await this.disconnect();
+        } catch (_) {
+        }
     }
 
-    async sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.sendButtonEvent(usagePage, usage, buttonDown));
+    async requestPlaybackQueue(length: number): Promise<void> {
+        await this.#dataStream.exchange(this.#dataStream.messages.playbackQueueRequest(0, length));
     }
 
     async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
@@ -123,9 +127,15 @@ export default class extends EventEmitter<EventMap> {
     async #onError(err: Error): Promise<void> {
         debug('AirPlay error', err);
 
-        try {
-            await this.disconnect();
-        } catch (_) {}
+        await this.disconnectSafely();
+
+        this.emit('disconnected', true);
+    }
+
+    async #onTimeout(): Promise<void> {
+        debug('AirPlay timeout');
+
+        await this.disconnectSafely();
 
         this.emit('disconnected', true);
     }

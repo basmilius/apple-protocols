@@ -48,7 +48,7 @@
         "@basmilius/apple-companion-link": "workspace:*"
     },
     "devDependencies": {
-        "@basmilius/tools": "^2.13.0",
-        "@types/bun": "^1.3.1"
+        "@basmilius/tools": "^2.23.0",
+        "@types/bun": "^1.3.5"
     }
 }

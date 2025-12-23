@@ -173,6 +173,10 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #unsubscribe(): Promise<void> {
-        await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
+        try {
+            await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
+        } catch (err) {
+            debug('State unsubscribe error', err);
+        }
     }
 }

@@ -1,10 +1,10 @@
 export {
-    type AirPlayDevice,
+    AirPlayDevice,
     AIRPLAY
 } from './airplay';
 
 export {
-    type CompanionLinkDevice,
+    CompanionLinkDevice,
     COMPANION_LINK
 } from './companion-link';
 

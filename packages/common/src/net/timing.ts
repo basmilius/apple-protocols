@@ -1,5 +1,5 @@
 import { createSocket, RemoteInfo, Socket } from 'node:dgram';
-import { debug } from '../cli';
+import { reporter } from '../cli';
 import { decode, encode, now, toParts } from '../ntp';
 
 export default class {
@@ -29,7 +29,7 @@ export default class {
     }
 
     async #onError(err: Error): Promise<void> {
-        console.error('Timing server error', err);
+        reporter.error('Timing server error', err);
     }
 
     async #onListening(): Promise<void> {
@@ -42,7 +42,7 @@ export default class {
         const ntp = now();
         const [receivedSeconds, receivedFraction] = toParts(ntp);
 
-        debug(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
+        reporter.info(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
 
         const response = encode({
             proto: request.proto,

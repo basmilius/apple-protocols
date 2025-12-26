@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CompanionLink, type CompanionLinkApi } from '@basmilius/apple-companion-link';
-import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 
 type EventMap = {
@@ -115,7 +115,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onError(err: Error): Promise<void> {
-        debug('Companion Link error', err);
+        reporter.error('Companion Link error', err);
 
         try {
             await this.disconnect();
@@ -156,12 +156,12 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async onSystemStatus(data: { readonly state: number; }): Promise<void> {
-        debug('System Status', data);
+        reporter.info('System Status', data);
         this.emit('power', data.state === 0x02 || data.state === 0x03);
     }
 
     async onTVSystemStatus(data: { readonly state: number; }): Promise<void> {
-        debug('TV System Status', data);
+        reporter.info('TV System Status', data);
         this.emit('power', data.state === 0x02 || data.state === 0x03);
     }
 }

@@ -1,5 +1,5 @@
 import { Socket } from 'node:net';
-import { BaseSocket, debug, decryptChacha20, encryptChacha20 } from '@basmilius/apple-common';
+import { BaseSocket, decryptChacha20, encryptChacha20, reporter } from '@basmilius/apple-common';
 
 type EventMap = {
     close: [];
@@ -56,7 +56,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
     }
 
     async connect(): Promise<void> {
-        debug(`Connecting to ${this.address}:${this.port}...`);
+        reporter.net(`Connecting to ${this.address}:${this.port}...`);
 
         return await new Promise(resolve => {
             this.#socket.connect({
@@ -148,26 +148,26 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
     async onClose(): Promise<void> {
         await super.onClose();
 
-        debug(`Connection closed from ${this.address}:${this.port}`);
+        reporter.net(`Connection closed from ${this.address}:${this.port}`);
     }
 
     async onConnect(): Promise<void> {
         await super.onConnect();
 
-        debug(`Connected to ${this.address}:${this.port}`);
+        reporter.net(`Connected to ${this.address}:${this.port}`);
     }
 
     async onData(buffer: Buffer): Promise<void> {
-        debug('Data frame received', buffer.toString());
+        reporter.raw('Data frame received', buffer.toString());
     }
 
     async onEnd(): Promise<void> {
-        debug('Connection ended');
+        reporter.net('Connection ended');
     }
 
     async onError(err: Error): Promise<void> {
         await super.onError(err);
 
-        debug('Error received', err);
+        reporter.error('Error received', err);
     }
 }

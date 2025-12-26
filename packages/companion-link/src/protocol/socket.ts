@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { Socket } from 'node:net';
-import { BaseSocket, debug, decodeOPack, decryptChacha20, encodeOPack, encryptChacha20, opackSizedInt } from '@basmilius/apple-common';
+import { BaseSocket, decodeOPack, decryptChacha20, encodeOPack, encryptChacha20, opackSizedInt, reporter } from '@basmilius/apple-common';
 
 const HEADER_BYTES = 4;
 
@@ -42,7 +42,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
     }
 
     async connect(): Promise<void> {
-        debug(`Connecting to ${this.address}:${this.port}...`);
+        reporter.net(`Connecting to ${this.address}:${this.port}...`);
 
         return await new Promise(resolve => {
             this.#socket.connect({
@@ -105,7 +105,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
             data = Buffer.concat([header, payload]);
         }
 
-        debug('Send data frame', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
+        reporter.raw('Send data frame', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
 
         return new Promise((resolve, reject) => {
             this.#socket.write(data, err => err && reject(err));
@@ -115,16 +115,16 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
 
     async onClose(): Promise<void> {
         await super.onClose();
-        debug(`Connection closed from ${this.address}:${this.port}`);
+        reporter.net(`Connection closed from ${this.address}:${this.port}`);
     }
 
     async onConnect(): Promise<void> {
         await super.onConnect();
-        debug(`Connected to ${this.address}:${this.port}`);
+        reporter.net(`Connected to ${this.address}:${this.port}`);
     }
 
     async onData(buffer: Buffer): Promise<void> {
-        // debug('Received data frame', buffer.toString('hex'));
+        // reporter.raw('Received data frame', buffer.toString('hex'));
 
         this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
@@ -134,16 +134,16 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
             const totalLength = HEADER_BYTES + payloadLength;
 
             if (this.#buffer.byteLength < totalLength) {
-                debug(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
                 return;
             }
 
-            debug(`Frame found length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+            reporter.raw(`Frame found length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
 
             const frame = Buffer.from(this.#buffer.subarray(0, totalLength));
             this.#buffer = this.#buffer.subarray(totalLength);
 
-            debug(`Handle frame, ${this.#buffer.byteLength} bytes left...`);
+            reporter.raw(`Handle frame, ${this.#buffer.byteLength} bytes left...`);
 
             const data = await this.#decrypt(frame);
             let payload = data.subarray(4, totalLength);
@@ -153,12 +153,12 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
     }
 
     async onEnd(): Promise<void> {
-        debug('Connection ended');
+        reporter.net('Connection ended');
     }
 
     async onError(err: Error): Promise<void> {
         await super.onError(err);
-        debug('Error received', err);
+        reporter.error('Error received', err);
     }
 
     async #decrypt(data: Buffer): Promise<Buffer> {
@@ -185,12 +185,13 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
         const type = header.readInt8();
 
         if (!OPackFrameTypes.includes(type)) {
-            debug('Packet not handled, no opack frame.');
+            reporter.warn('Packet not handled, no opack frame.');
+            return;
         }
 
         [payload] = decodeOPack(payload);
 
-        debug('Decoded OPACK', {header, payload});
+        reporter.raw('Decoded OPACK', {header, payload});
 
         if ('_x' in payload) {
             const _x = (payload as any)._x;
@@ -218,7 +219,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
 
             delete this.#queue[_x];
         } else {
-            debug('No handler for message', [header, payload]);
+            reporter.warn('No handler for message', [header, payload]);
         }
     }
 }

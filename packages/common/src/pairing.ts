@@ -1,7 +1,7 @@
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import tweetnacl, { type BoxKeyPair } from 'tweetnacl';
-import { debug } from './cli';
+import { reporter } from './cli';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
 import { decryptChacha20, encryptChacha20, generateCurve25519KeyPair, generateCurve25519SharedSecKey, hkdf } from './crypto';
 import { bailTlv, decodeTlv, encodeOPack, encodeTlv, TlvFlags, TlvMethod, TlvState, TlvValue } from './encoding';
@@ -328,7 +328,7 @@ function tlv(buffer: Buffer): Map<number, Buffer> {
         bailTlv(data);
     }
 
-    debug('Decoded TLV', data);
+    reporter.raw('Decoded TLV', data);
 
     return data;
 }

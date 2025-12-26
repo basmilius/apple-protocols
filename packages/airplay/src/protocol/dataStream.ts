@@ -1,4 +1,4 @@
-import { debug, decryptChacha20, encryptChacha20, hkdf, parseBinaryPlist, serializeBinaryPlist } from '@basmilius/apple-common';
+import { decryptChacha20, encryptChacha20, hkdf, parseBinaryPlist, reporter, serializeBinaryPlist } from '@basmilius/apple-common';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
 import * as Proto from '../proto';
 import { randomInt32 } from './utils';
@@ -57,7 +57,8 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
     async reply(seqno: bigint): Promise<void> {
         const rply = buildReply(seqno);
 
-        debug('Sending reply.');
+        reporter.raw(`[datastream] Sending reply for seqno ${seqno}.`);
+
         this.socket.write(await this.#encrypt(rply));
     }
 
@@ -78,7 +79,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
         const frame = Buffer.concat([header, plistPayload]);
         const encrypted = await this.#encrypt(frame);
 
-        debug('Sending data stream message', message);
+        reporter.raw('[datastream] Sending message.', message);
 
         this.socket.write(encrypted);
     }
@@ -113,7 +114,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
                 const totalLength = header.readUint32BE();
 
                 if (this.#buffer.byteLength < totalLength) {
-                    debug(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                    reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
                     return;
                 }
 
@@ -121,17 +122,14 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
                 const plist = parseBinaryPlist(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
                 const command = header.toString('ascii', 4, 8);
 
-                debug('Raw data received', header.toString());
-                debug(`Should read ${totalLength} bytes, ${this.#buffer.byteLength} available.`);
+                reporter.raw('Raw data received', header.toString());
 
                 this.#buffer = this.#buffer.subarray(totalLength);
 
                 if (!plist || !plist.params || !plist.params.data) {
                     if (command === 'rply') {
-                        debug('Got reply...');
-                    }
-
-                    if (command === 'sync') {
+                        reporter.raw('Got reply...');
+                    } else if (command === 'sync') {
                         await this.reply(parseHeaderSeqno(header));
                     }
 
@@ -156,108 +154,108 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
                 }
             }
         } catch (err) {
-            debug('Error in onData', err);
+            reporter.error('Error in onData', err);
         }
     }
 
     async #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): Promise<void> {
-        debug('Connected to device', message.name);
+        reporter.info('Connected to device', message.name);
 
         this.emit('deviceInfo', message);
     }
 
     async #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): Promise<void> {
-        debug('Origin client properties', message);
+        reporter.raw('Origin client properties', message);
 
         this.emit('originClientProperties', message);
     }
 
     async #onPlayerClientPropertiesMessage(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
-        debug('Player client properties', message);
+        reporter.raw('Player client properties', message);
 
         this.emit('playerClientProperties', message);
     }
 
     async #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): Promise<void> {
-        debug('Send command result', message);
+        reporter.info('Send command result', message);
 
         this.emit('sendCommandResult', message);
     }
 
     async #onSetArtworkMessage(message: Proto.SetArtworkMessage): Promise<void> {
-        debug('Set artwork', message);
+        reporter.info('Set artwork', message);
 
         this.emit('setArtwork', message);
     }
 
     async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
-        debug('Set default supported commands', message);
+        reporter.info('Set default supported commands', message);
 
         this.emit('setDefaultSupportedCommands', message);
     }
 
     async #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): Promise<void> {
-        debug('Set now playing client', message);
+        reporter.info('Set now playing client', message);
 
         this.emit('setNowPlayingClient', message);
     }
 
     async #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
-        debug('Set now playing player', message);
+        reporter.info('Set now playing player', message);
 
         this.emit('setNowPlayingPlayer', message);
     }
 
     async #onSetStateMessage(message: Proto.SetStateMessage): Promise<void> {
-        debug('Set state', message);
+        reporter.info('Set state', message);
 
         this.emit('setState', message);
     }
 
     async #onUpdateClientMessage(message: Proto.UpdateClientMessage): Promise<void> {
-        debug('Update client', message);
+        reporter.info('Update client', message);
 
         this.emit('updateClient', message);
     }
 
     async #onUpdateContentItemMessage(message: Proto.UpdateContentItemMessage): Promise<void> {
-        debug('Update content item', message);
+        reporter.info('Update content item', message);
 
         this.emit('updateContentItem', message);
     }
 
     async #onUpdateContentItemArtworkMessage(message: Proto.UpdateContentItemArtworkMessage): Promise<void> {
-        debug('Update content artwork', message);
+        reporter.info('Update content artwork', message);
 
         this.emit('updateContentItemArtwork', message);
     }
 
     async #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): Promise<void> {
-        debug('Update player', message);
+        reporter.info('Update player', message);
 
         this.emit('updatePlayer', message);
     }
 
     async #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
-        debug('Update output device', message);
+        reporter.info('Update output device', message);
 
         this.emit('updateOutputDevice', message);
     }
 
     async #onVolumeControlAvailabilityMessage(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {
-        debug('Volume control availability', message);
+        reporter.info('Volume control availability', message);
 
         this.emit('volumeControlAvailability', message);
     }
 
     async #onVolumeControlCapabilitiesDidChangeMessage(message: Proto.VolumeControlCapabilitiesDidChangeMessage): Promise<void> {
-        debug('Volume control capabilities did change', message);
+        reporter.info('Volume control capabilities did change', message);
 
         this.emit('volumeControlCapabilitiesDidChange', message);
     }
 
     async #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): Promise<void> {
-        debug('VolumeDidChange message', message);
+        reporter.info('VolumeDidChange message', message);
 
         this.emit('volumeDidChange', message);
     }
@@ -269,7 +267,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
 
         while (offset < data.length) {
             if (offset + 2 > data.length) {
-                console.error('Truncated frame length');
+                reporter.warn('Truncated frame length');
                 return this.#buffer;
             }
 
@@ -282,7 +280,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
             const end = offset + frameLength + 16;
 
             if (end > data.length) {
-                debug(`Truncated frame end=${end} length=${data.length}`);
+                reporter.raw(`Truncated frame end=${end} length=${data.length}`);
                 return this.#buffer;
             }
 
@@ -414,7 +412,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
                 break;
 
             default:
-                debug('Received unknown message.', message);
+                reporter.warn('Received unknown message.', message);
                 break;
         }
     }

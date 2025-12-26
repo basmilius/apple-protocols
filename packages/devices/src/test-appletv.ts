@@ -1,8 +1,8 @@
-import { Discovery, type DiscoveryResult, enableDebug } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult, reporter } from '@basmilius/apple-common';
 import { redis } from 'bun';
 import { AppleTV } from './model';
 
-enableDebug();
+reporter.all();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
@@ -51,14 +51,16 @@ async function airplay(): Promise<DiscoveryResult> {
 }
 
 async function companionLink(): Promise<DiscoveryResult> {
-    if (await redis.exists('companion-link')) {
-        return JSON.parse(await redis.get('companion-link'));
-    }
+    // if (await redis.exists('companion-link')) {
+    //     return JSON.parse(await redis.get('companion-link'));
+    // }
 
     const discovery = Discovery.companionLink();
     const discoveryResult = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');
 
     await redis.setex('companion-link', 3600, JSON.stringify(discoveryResult));
+
+    return discoveryResult;
 }
 
 await main();

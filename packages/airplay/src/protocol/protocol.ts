@@ -1,4 +1,4 @@
-import { debug, type DiscoveryResult, getMacAddress, parseBinaryPlist, serializeBinaryPlist, TimingServer, uuid } from '@basmilius/apple-common';
+import { type DiscoveryResult, getMacAddress, parseBinaryPlist, reporter, serializeBinaryPlist, TimingServer, uuid } from '@basmilius/apple-common';
 import { randomInt64 } from './utils';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
@@ -86,7 +86,7 @@ export default class AirPlay {
 
         const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
         const dataPort = plist.streams[0].dataPort & 0xFFFF;
-        debug('Should listen on data port', dataPort);
+        reporter.net(`Connecting to data stream on port ${dataPort}...`);
 
         this.#dataStream = new DataStream(this.#rtsp.address, dataPort);
         await this.#dataStream.setup(sharedSecret, seed);
@@ -122,12 +122,14 @@ export default class AirPlay {
         });
 
         if (response.status !== 200) {
+            reporter.error('Cannot setup event stream', response.status, response.statusText, await response.text());
+
             throw new Error('Cannot setup event stream.');
         }
 
         const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
         const eventPort = plist.eventPort & 0xFFFF;
-        debug('Should listen on event port', eventPort);
+        reporter.net(`Connecting to event stream on port ${eventPort}...`);
 
         this.#eventStream = new EventStream(this.#rtsp.address, eventPort);
         await this.#eventStream.setup(sharedSecret);
@@ -138,7 +140,5 @@ export default class AirPlay {
 
     async setupTimingServer(timing: TimingServer): Promise<void> {
         this.#timingServer = timing;
-
-        await this.#timingServer.listen();
     }
 }

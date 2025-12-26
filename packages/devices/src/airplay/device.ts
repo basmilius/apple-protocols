@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, debug, type DiscoveryResult } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -112,7 +112,7 @@ export default class extends EventEmitter<EventMap> {
         try {
             await this.#protocol.feedback();
         } catch (err) {
-            debug('Feedback error', err);
+            reporter.error('Feedback error', err);
         }
     }
 
@@ -125,7 +125,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onError(err: Error): Promise<void> {
-        debug('AirPlay error', err);
+        reporter.error('AirPlay error', err);
 
         await this.disconnectSafely();
 
@@ -133,7 +133,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onTimeout(): Promise<void> {
-        debug('AirPlay timeout');
+        reporter.error('AirPlay timeout');
 
         await this.disconnectSafely();
 
@@ -176,7 +176,7 @@ export default class extends EventEmitter<EventMap> {
         try {
             await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
         } catch (err) {
-            debug('State unsubscribe error', err);
+            reporter.error('State unsubscribe error', err);
         }
     }
 }

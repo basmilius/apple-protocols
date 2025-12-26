@@ -44,11 +44,10 @@ export {
 } from './net';
 
 export {
-    debug,
-    disableDebug,
-    enableDebug,
     prompt,
-    waitFor
+    waitFor,
+    cli,
+    reporter
 } from './cli';
 
 export {

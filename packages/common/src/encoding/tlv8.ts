@@ -1,3 +1,5 @@
+import { reporter } from '../cli';
+
 export const Flags = {
     TransientPairing: 0x10
 } as const;
@@ -52,7 +54,7 @@ export function bail(data: Map<number, Buffer>): never {
         throw new Error(`Device returned an error code: ${data.get(Value.Error).readUint8()}`);
     }
 
-    console.error(data);
+    reporter.error(data);
 
     throw new Error('Invalid response');
 }

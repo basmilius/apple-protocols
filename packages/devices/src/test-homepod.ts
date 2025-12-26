@@ -1,8 +1,8 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { Discovery, enableDebug } from '@basmilius/apple-common';
+import { Discovery, reporter } from '@basmilius/apple-common';
 import { HomePodMini } from './model';
 
-enableDebug();
+reporter.all();
 
 async function main(): Promise<void> {
     const discovery = Discovery.airplay();

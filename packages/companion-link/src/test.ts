@@ -1,4 +1,4 @@
-import { debug, Discovery, parseBinaryPlist, prompt } from '@basmilius/apple-common';
+import { Discovery, parseBinaryPlist, prompt } from '@basmilius/apple-common';
 import { CompanionLink } from './protocol';
 
 const discovery = Discovery.companionLink();
@@ -42,25 +42,25 @@ async function verify(): Promise<void> {
     await protocol.api._tvrcSessionStart();
 
     await protocol.api._unsubscribe('_iMC');
-    await protocol.api._subscribe('TVSystemStatus', evt => debug(evt));
+    await protocol.api._subscribe('TVSystemStatus', evt => console.debug(evt));
 
     // await protocol.api._subscribe('NowPlayingInfo', handleNowPlayingInfo);
     // await protocol.api.fetchNowPlayingInfo();
 
-    // await protocol.api._subscribe('SupportedActions', evt => debug(evt));
+    // await protocol.api._subscribe('SupportedActions', evt => console.debug(evt));
     // await protocol.api.fetchSupportedActions();
 
-    // await protocol.api._subscribe('PushSiriRemoteInfo', evt => debug(evt));
+    // await protocol.api._subscribe('PushSiriRemoteInfo', evt => console.debug(evt));
     // const data = await protocol.api.getSiriRemoteInfo();
-    // debug(data);
+    // console.debug(data);
 
-    // await protocol.api._subscribe('MediaControlStatus', evt => debug(evt));
+    // await protocol.api._subscribe('MediaControlStatus', evt => console.debug(evt));
     // const data = await protocol.api.fetchMediaControlStatus();
-    // debug(data);
+    // console.debug(data);
 
-    // debug('Attention state', await protocol.api.getAttentionState());
-    // debug('Launchable apps', await protocol.api.getLaunchableApps());
-    // debug('Available user accounts', await protocol.api.getUserAccounts());
+    // console.debug('Attention state', await protocol.api.getAttentionState());
+    // console.debug('Launchable apps', await protocol.api.getLaunchableApps());
+    // console.debug('Available user accounts', await protocol.api.getUserAccounts());
 
     // await protocol.api.launchApp('com.apple.TVMusic');
     // await protocol.api.launchUrl('nflx://www.netflix.com/title/70291117');
@@ -108,16 +108,16 @@ async function handleNowPlayingInfo({NowPlayingInfoKey}: any): Promise<void> {
     // }
     //
     // if (nowPlaying.$objects[4]) {
-    //     debug(`Now playing ${nowPlaying.$objects[8]} on Apple TV.`);
+    //     console.debug(`Now playing ${nowPlaying.$objects[8]} on Apple TV.`);
     // } else {
-    //     debug('Not playing?');
+    //     console.debug('Not playing?');
     // }
     //
-    // // debug(nowPlaying);
-    // // debug('Keys', nowPlaying.$objects[1]);
-    // // debug('Image data is placeholder', nowPlaying.$objects[15]);
-    // // debug('metadata', nowPlaying.$objects[6]);
-    // debug('playback state', nowPlaying.$objects[4]);
+    // // console.debug(nowPlaying);
+    // // console.debug('Keys', nowPlaying.$objects[1]);
+    // // console.debug('Image data is placeholder', nowPlaying.$objects[15]);
+    // // console.debug('metadata', nowPlaying.$objects[6]);
+    // console.debug('playback state', nowPlaying.$objects[4]);
 }
 
 // await pair();

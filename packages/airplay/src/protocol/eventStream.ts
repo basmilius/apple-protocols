@@ -1,4 +1,4 @@
-import { debug, hkdf, parseBinaryPlist } from '@basmilius/apple-common';
+import { hkdf, parseBinaryPlist, reporter } from '@basmilius/apple-common';
 import type { RTSPMethod } from './types';
 import { makeHttpRequest } from './utils';
 import AirPlayStream from './stream';
@@ -71,7 +71,7 @@ export default class AirPlayEventStream extends AirPlayStream<never> {
             this.#buffer = await this.decrypt(this.#buffer);
         }
 
-        // debug('Event stream received data', this.#buffer.toString());
+        // reporter.raw('Event stream received data', this.#buffer.toString());
 
         while (this.#buffer.byteLength > 0) {
             const result = makeHttpRequest(this.#buffer);
@@ -89,13 +89,11 @@ export default class AirPlayEventStream extends AirPlayStream<never> {
     async #handle(method: RTSPMethod, path: string, headers: Record<string, string>, body: Buffer): Promise<void> {
         const key = `${method} ${path}`;
 
-        debug(key);
-
         switch (key) {
             case 'POST /command':
                 const data = parseBinaryPlist(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as any;
 
-                debug(data);
+                reporter.info('Received event stream request.', data);
 
                 const response = new Response(null, {
                     status: 200,
@@ -110,7 +108,7 @@ export default class AirPlayEventStream extends AirPlayStream<never> {
                 break;
 
             default:
-                debug('No handler for url', key);
+                reporter.warn('No handler for url', key);
                 break;
         }
     }

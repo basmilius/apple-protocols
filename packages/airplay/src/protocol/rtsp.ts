@@ -1,4 +1,4 @@
-import { debug, HTTP_TIMEOUT } from '@basmilius/apple-common';
+import { HTTP_TIMEOUT, reporter } from '@basmilius/apple-common';
 import type { RTSPMethod } from './types';
 import { makeHttpHeader, makeHttpResponse } from './utils';
 import AirPlayStream from './stream';
@@ -127,7 +127,7 @@ export default class AirPlayRTSP extends AirPlayStream<{}> {
             data = Buffer.from(makeHttpHeader(method, path, headers, cseq));
         }
 
-        debug(method, path, `cseq = ${cseq}`);
+        reporter.net('[rtsp]', method, path, `cseq = ${cseq}`);
 
         if (this.isEncrypted) {
             data = await this.encrypt(data);

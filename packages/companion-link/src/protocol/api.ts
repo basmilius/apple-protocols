@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { debug, opackFloat, parseBinaryPlist, waitFor } from '@basmilius/apple-common';
+import { opackFloat, parseBinaryPlist, reporter, waitFor } from '@basmilius/apple-common';
 import { type default as CompanionLinkSocket, FrameType, MessageType } from './socket';
 import type CompanionLink from './protocol';
 
@@ -317,7 +317,7 @@ function objectOrFail<T = object>(obj: unknown): T {
         return obj as T;
     }
 
-    debug('Expected an object.', {obj});
+    reporter.error('Expected an object.', {obj});
 
     throw new Error('Expected an object.');
 }

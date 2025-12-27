@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
 import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter } from '@basmilius/apple-common';
-import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL } from './const';
+import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
 
@@ -50,8 +50,9 @@ export default class extends EventEmitter<EventMap> {
 
     async connect(): Promise<void> {
         this.#disconnect = false;
-        this.#protocol = new AirPlay(this.#discoveryResult);
+        this.#state.clear();
 
+        this.#protocol = new AirPlay(this.#discoveryResult);
         this.#protocol.rtsp.on('close', async () => this.#onClose());
         this.#protocol.rtsp.on('error', async (err: Error) => this.#onError(err));
         this.#protocol.rtsp.on('timeout', async () => this.#onTimeout());
@@ -74,6 +75,8 @@ export default class extends EventEmitter<EventMap> {
         this.#disconnect = true;
 
         clearInterval(this.#feedbackInterval);
+
+        await this.#unsubscribe();
         await this.#protocol.disconnect();
 
         this.emit('disconnected', false);
@@ -146,7 +149,7 @@ export default class extends EventEmitter<EventMap> {
 
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
-        await this.#state[STATE_SUBSCRIBE_SYMBOL]();
+        await this.#subscribe();
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
@@ -162,5 +165,17 @@ export default class extends EventEmitter<EventMap> {
             await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
             await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
         });
+    }
+
+    async #subscribe(): Promise<void> {
+        await this.#state[STATE_SUBSCRIBE_SYMBOL]();
+    }
+
+    async #unsubscribe(): Promise<void> {
+        try {
+            await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
+        } catch (err) {
+            reporter.error('State unsubscribe error', err);
+        }
     }
 }

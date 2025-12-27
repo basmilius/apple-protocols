@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { AirPlay, AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
+import { type AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
 import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Client from './client';
 import type Device from './device';
@@ -54,9 +54,9 @@ export default class extends EventEmitter<EventMap> {
         return this.#volumeCapabilities;
     }
 
-    readonly #clients: Record<string, Client> = {};
     readonly #device: Device;
-    #nowPlayingClientBundleIdentifier: string;
+    #clients: Record<string, Client>;
+    #nowPlayingClientBundleIdentifier: string | null;
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
@@ -65,8 +65,7 @@ export default class extends EventEmitter<EventMap> {
         super();
 
         this.#device = device;
-        this.#nowPlayingClientBundleIdentifier = null;
-        this.#volume = 0;
+        this.clear();
 
         this.onDeviceInfo = this.onDeviceInfo.bind(this);
         this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
@@ -125,6 +124,14 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
         this.#dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
         this.#dataStream.off('volumeDidChange', this.onVolumeDidChange);
+    }
+
+    clear(): void {
+        this.#clients = {};
+        this.#nowPlayingClientBundleIdentifier = undefined;
+        this.#volume = 0;
+        this.#volumeAvailable = false;
+        this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
     }
 
     async onDeviceInfo(message: Proto.DeviceInfoMessage): Promise<void> {

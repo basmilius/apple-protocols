@@ -107,23 +107,29 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async [STATE_UNSUBSCRIBE_SYMBOL](): Promise<void> {
-        this.#dataStream.off('deviceInfo', this.onDeviceInfo);
-        this.#dataStream.off('originClientProperties', this.onOriginClientProperties);
-        this.#dataStream.off('playerClientProperties', this.onPlayerClientProperties);
-        this.#dataStream.off('sendCommandResult', this.onSendCommandResult);
-        this.#dataStream.off('setArtwork', this.onSetArtwork);
-        this.#dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
-        this.#dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
-        this.#dataStream.off('setNowPlayingPlayer', this.onSetNowPlayingPlayer);
-        this.#dataStream.off('setState', this.onSetState);
-        this.#dataStream.off('updateClient', this.onUpdateClient);
-        this.#dataStream.off('updateContentItem', this.onUpdateContentItem);
-        this.#dataStream.off('updateContentItemArtwork', this.onUpdateContentItemArtwork);
-        this.#dataStream.off('updatePlayer', this.onUpdatePlayer);
-        this.#dataStream.off('updateOutputDevice', this.onUpdateOutputDevice);
-        this.#dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
-        this.#dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
-        this.#dataStream.off('volumeDidChange', this.onVolumeDidChange);
+        const dataStream = this.#dataStream;
+
+        if (!dataStream) {
+            return;
+        }
+
+        dataStream.off('deviceInfo', this.onDeviceInfo);
+        dataStream.off('originClientProperties', this.onOriginClientProperties);
+        dataStream.off('playerClientProperties', this.onPlayerClientProperties);
+        dataStream.off('sendCommandResult', this.onSendCommandResult);
+        dataStream.off('setArtwork', this.onSetArtwork);
+        dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
+        dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
+        dataStream.off('setNowPlayingPlayer', this.onSetNowPlayingPlayer);
+        dataStream.off('setState', this.onSetState);
+        dataStream.off('updateClient', this.onUpdateClient);
+        dataStream.off('updateContentItem', this.onUpdateContentItem);
+        dataStream.off('updateContentItemArtwork', this.onUpdateContentItemArtwork);
+        dataStream.off('updatePlayer', this.onUpdatePlayer);
+        dataStream.off('updateOutputDevice', this.onUpdateOutputDevice);
+        dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
+        dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
+        dataStream.off('volumeDidChange', this.onVolumeDidChange);
     }
 
     clear(): void {

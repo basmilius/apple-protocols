@@ -38,7 +38,6 @@
         }
     },
     "dependencies": {
-        "@noble/curves": "^2.0.1",
         "@plist/binary.parse": "^1.1.0",
         "@plist/binary.serialize": "^1.1.0",
         "chacha": "^2.1.0",

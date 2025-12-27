@@ -267,7 +267,8 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
 
         while (offset < data.length) {
             if (offset + 2 > data.length) {
-                throw new Error('Truncated frame length');
+                reporter.warn('Truncated frame length');
+                return this.#buffer;
             }
 
             const frameLength = data.readUInt16LE(offset);
@@ -279,7 +280,8 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
             const end = offset + frameLength + 16;
 
             if (end > data.length) {
-                throw new Error(`Truncated frame end=${end} length=${data.length}`);
+                reporter.warn(`Truncated frame end=${end} length=${data.length}`);
+                return this.#buffer;
             }
 
             const ciphertext = data.subarray(offset, offset + frameLength);

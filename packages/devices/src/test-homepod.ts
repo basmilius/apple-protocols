@@ -1,12 +1,21 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { Discovery, reporter } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult, reporter } from '@basmilius/apple-common';
+import { redis } from 'bun';
 import { HomePodMini } from './model';
 
 reporter.all();
 
 async function main(): Promise<void> {
-    const discovery = Discovery.airplay();
-    const discoveryResult = await discovery.findUntil('Woonkamer HomePod._airplay._tcp.local');
+    let discoveryResult: DiscoveryResult;
+
+    if (await redis.exists('homepod')) {
+        discoveryResult = JSON.parse(await redis.get('homepod'));
+    } else {
+        const discovery = Discovery.airplay();
+        discoveryResult = await discovery.findUntil('Woonkamer HomePod._airplay._tcp.local');
+
+        await redis.setex('homepod', 3600, JSON.stringify(discoveryResult));
+    }
 
     const device = new HomePodMini(discoveryResult);
     await device.connect();

@@ -48,6 +48,7 @@ export default class extends EventEmitter<EventMap> {
         this.#protocol = new CompanionLink(this.#discoveryResult);
         this.#protocol.socket.on('close', async () => this.#onClose());
         this.#protocol.socket.on('error', async (err: Error) => this.#onError(err));
+        this.#protocol.socket.on('timeout', async () => this.#onTimeout());
 
         await this.#protocol.connect();
         this.#keys = await this.#protocol.verify.start(this.#credentials);
@@ -64,6 +65,13 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.disconnect();
 
         this.emit('disconnected', false);
+    }
+
+    async disconnectSafely(): Promise<void> {
+        try {
+            await this.disconnect();
+        } catch (_) {
+        }
     }
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
@@ -121,6 +129,14 @@ export default class extends EventEmitter<EventMap> {
             await this.disconnect();
         } catch (_) {
         }
+
+        this.emit('disconnected', true);
+    }
+
+    async #onTimeout(): Promise<void> {
+        reporter.error('Companion Link timeout');
+
+        await this.disconnectSafely();
 
         this.emit('disconnected', true);
     }

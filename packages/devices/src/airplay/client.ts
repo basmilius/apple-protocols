@@ -61,15 +61,15 @@ export default class Client {
         if (!this.#playbackQueue) {
             return;
         }
-        
+
         const index = this.#playbackQueue.contentItems.findIndex(i => i.identifier === item.identifier);
         if (index === -1) {
             return;
         }
-        
+
         this.#playbackQueue.contentItems[index] = merge(
-            this.#playbackQueue.contentItems[index],
-            item
+            item,
+            this.#playbackQueue.contentItems[index]
         );
     }
 }

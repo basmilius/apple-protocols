@@ -21,6 +21,13 @@ async function main(): Promise<void> {
 
     await device.airplay.requestPlaybackQueue(1);
 
+    function updateNowPlaying(): void {
+        const client = device.airplay.state.nowPlayingClient;
+        const item = client?.playbackQueue?.contentItems?.[0];
+
+        console.log(item?.metadata);
+    }
+
     device.airplay.state.on('setState', () => {
         const client = device.airplay.state.nowPlayingClient;
 
@@ -62,6 +69,9 @@ async function main(): Promise<void> {
                 break;
         }
     });
+
+    device.airplay.state.on('updateContentItem', updateNowPlaying);
+    device.airplay.state.on('setState', updateNowPlaying);
 }
 
 await main();

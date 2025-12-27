@@ -147,6 +147,7 @@ export default class extends EventEmitter<EventMap> {
             keys.controllerToAccessoryKey
         );
 
+        await this.#unsubscribe();
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
         await this.#subscribe();

@@ -1,9 +1,9 @@
 import { HTTP_TIMEOUT, reporter } from '@basmilius/apple-common';
 import type { RTSPMethod } from './types';
 import { makeHttpHeader, makeHttpResponse } from './utils';
-import AirPlayStream from './stream';
+import Stream from './stream';
 
-export default class AirPlayRTSP extends AirPlayStream<{}> {
+export default class AirPlayRTSP extends Stream<{}> {
     get activeRemote(): string {
         return this.#activeRemote;
     }

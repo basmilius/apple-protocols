@@ -1,16 +1,17 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryVerify, hkdf } from '@basmilius/apple-common';
-import { type default as CompanionLinkSocket, FrameType } from './socket';
-import type CompanionLink from './protocol';
+import { FrameType } from './messages';
+import type Protocol from './protocol';
+import type Socket from './socket';
 
 export default class CompanionLinkVerify {
-    get socket(): CompanionLinkSocket {
+    get socket(): Socket {
         return this.#protocol.socket;
     }
 
     readonly #internal: AccessoryVerify;
-    readonly #protocol: CompanionLink;
+    readonly #protocol: Protocol;
 
-    constructor(protocol: CompanionLink) {
+    constructor(protocol: Protocol) {
         this.#internal = new AccessoryVerify(this.#request.bind(this));
         this.#protocol = protocol;
     }

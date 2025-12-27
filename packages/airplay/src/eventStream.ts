@@ -1,9 +1,9 @@
 import { hkdf, parseBinaryPlist, reporter } from '@basmilius/apple-common';
 import type { RTSPMethod } from './types';
 import { makeHttpRequest } from './utils';
-import AirPlayStream from './stream';
+import Stream from './stream';
 
-export default class AirPlayEventStream extends AirPlayStream<never> {
+export default class AirPlayEventStream extends Stream<never> {
     #buffer: Buffer = Buffer.alloc(0);
 
     async respond(response: Response): Promise<void> {

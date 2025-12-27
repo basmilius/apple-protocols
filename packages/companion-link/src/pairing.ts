@@ -1,20 +1,21 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair } from '@basmilius/apple-common';
-import { type default as CompanionLinkSocket, FrameType } from './socket';
-import type CompanionLink from './protocol';
+import { FrameType } from './messages';
+import type Socket from './socket';
+import type Protocol from './protocol';
 
 export default class CompanionLinkPairing {
     get internal(): AccessoryPair {
         return this.#internal;
     }
 
-    get socket(): CompanionLinkSocket {
+    get socket(): Socket {
         return this.#protocol.socket;
     }
 
     readonly #internal: AccessoryPair;
-    readonly #protocol: CompanionLink;
+    readonly #protocol: Protocol;
 
-    constructor(protocol: CompanionLink) {
+    constructor(protocol: Protocol) {
         this.#internal = new AccessoryPair(this.#request.bind(this));
         this.#protocol = protocol;
     }

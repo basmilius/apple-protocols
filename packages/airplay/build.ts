@@ -8,7 +8,7 @@ if (await exists('./dist')) {
 }
 
 await build({
-    entrypoints: ['src/index.ts', 'src/test.ts'],
+    entrypoints: ['src/index.ts'],
     plugins: [
         dts()
     ],

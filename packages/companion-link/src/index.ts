@@ -1,9 +1,26 @@
+export type { default as CompanionLinkApi } from './api';
+export type { default as CompanionLinkPairing } from './pairing';
+export type { default as CompanionLinkVerify } from './verify';
+
 export type {
-    CompanionLinkApi,
-    CompanionLinkPairing,
-    CompanionLinkVerify
-} from './protocol';
+    HidCommandKey,
+    MediaControlCommandKey
+} from './const';
+
+export type {
+    AttentionState,
+    ButtonPressType,
+    LaunchableApp,
+    UserAccount
+} from './types';
 
 export {
-    CompanionLink
-} from './protocol';
+    HidCommand,
+    MediaControlCommand
+} from './const';
+
+export {
+    convertAttentionState
+} from './utils';
+
+export { default as CompanionLink } from './protocol';

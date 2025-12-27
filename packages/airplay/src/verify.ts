@@ -1,16 +1,16 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryVerify, hkdf } from '@basmilius/apple-common';
-import type AirPlay from './protocol';
-import type AirPlayRTSP from './rtsp';
+import type Protocol from './protocol';
+import type RTSP from './rtsp';
 
 export default class AirPlayVerify {
-    get rtsp(): AirPlayRTSP {
+    get rtsp(): RTSP {
         return this.#protocol.rtsp;
     }
 
     readonly #internal: AccessoryVerify;
-    readonly #protocol: AirPlay;
+    readonly #protocol: Protocol;
 
-    constructor(protocol: AirPlay) {
+    constructor(protocol: Protocol) {
         this.#internal = new AccessoryVerify(this.#request.bind(this));
         this.#protocol = protocol;
     }

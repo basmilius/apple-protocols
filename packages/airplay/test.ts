@@ -1,7 +1,6 @@
 import { Discovery, prompt, reporter, TimingServer } from '@basmilius/apple-common';
 import { create } from '@bufbuild/protobuf';
-import { AirPlay } from './protocol';
-import * as Proto from './proto';
+import { AirPlay, Proto } from './src';
 
 reporter.all();
 

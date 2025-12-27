@@ -1,9 +1,9 @@
 import { decryptChacha20, encryptChacha20, hkdf, parseBinaryPlist, reporter, serializeBinaryPlist } from '@basmilius/apple-common';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
-import * as Proto from '../proto';
+import * as Proto from './proto';
 import { randomInt32 } from './utils';
-import AirPlayDataStreamMessages from './dataStreamMessages';
-import AirPlayStream from './stream';
+import DataStreamMessages from './dataStreamMessages';
+import Stream from './stream';
 
 const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
 
@@ -27,12 +27,12 @@ type EventMap = {
     readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
 };
 
-export default class AirPlayDataStream extends AirPlayStream<EventMap> {
-    get messages(): AirPlayDataStreamMessages {
+export default class AirPlayDataStream extends Stream<EventMap> {
+    get messages(): DataStreamMessages {
         return this.#messages;
     }
 
-    readonly #messages: AirPlayDataStreamMessages;
+    readonly #messages: DataStreamMessages;
     #buffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
     #readCount: number;
@@ -42,7 +42,7 @@ export default class AirPlayDataStream extends AirPlayStream<EventMap> {
     constructor(address: string, port: number) {
         super(address, port);
 
-        this.#messages = new AirPlayDataStreamMessages();
+        this.#messages = new DataStreamMessages();
         this.#seqno = 0x100000000n + BigInt(randomInt32());
         this.#writeCount = 0;
     }

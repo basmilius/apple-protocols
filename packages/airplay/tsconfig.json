@@ -28,7 +28,9 @@
     "include": [
         "src/**/*.ts",
         "test/**/*.ts",
-        "build.ts"
+        "build.ts",
+        "find.ts",
+        "test.ts"
     ],
     "exclude": [
         "dist",

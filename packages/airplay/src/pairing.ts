@@ -1,21 +1,21 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair } from '@basmilius/apple-common';
-import type AirPlay from './protocol';
-import type AirPlayRTSP from './rtsp';
+import type Protocol from './protocol';
+import type RTSP from './rtsp';
 
 export default class AirPlayPairing {
     get internal(): AccessoryPair {
         return this.#internal;
     }
 
-    get rtsp(): AirPlayRTSP {
+    get rtsp(): RTSP {
         return this.#protocol.rtsp;
     }
 
     readonly #internal: AccessoryPair;
-    readonly #protocol: AirPlay;
+    readonly #protocol: Protocol;
     #hkp: 3 | 4;
 
-    constructor(protocol: AirPlay) {
+    constructor(protocol: Protocol) {
         this.#internal = new AccessoryPair(this.#request.bind(this));
         this.#protocol = protocol;
     }

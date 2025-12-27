@@ -64,7 +64,7 @@ export function makeHttpResponse(buffer: Buffer): HttpResponse | null {
     }
 
     const body = buffer.subarray(headerLength + 4, responseLength);
-    const response = new Response(body, {
+    const response = new Response(body as unknown as ReadableStream, {
         status,
         statusText,
         headers

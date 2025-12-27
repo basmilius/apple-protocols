@@ -1,16 +1,20 @@
 import { randomInt } from 'node:crypto';
 import { opackFloat, parseBinaryPlist, reporter, waitFor } from '@basmilius/apple-common';
-import { type default as CompanionLinkSocket, FrameType, MessageType } from './socket';
-import type CompanionLink from './protocol';
+import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
+import { FrameType, MessageType } from './messages';
+import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';
+import { convertAttentionState } from './utils';
+import type Protocol from './protocol';
+import type Socket from './socket';
 
 export default class CompanionLinkApi {
-    get socket(): CompanionLinkSocket {
+    get socket(): Socket {
         return this.#protocol.socket;
     }
 
-    readonly #protocol: CompanionLink;
+    readonly #protocol: Protocol;
 
-    constructor(protocol: CompanionLink) {
+    constructor(protocol: Protocol) {
         this.#protocol = protocol;
     }
 
@@ -47,22 +51,7 @@ export default class CompanionLinkApi {
 
         const {_c} = objectOrFail<AttentionStateResponse>(payload);
 
-        switch (_c.state) {
-            case 0x01:
-                return 'asleep';
-
-            case 0x02:
-                return 'screensaver';
-
-            case 0x03:
-                return 'awake';
-
-            case 0x04:
-                return 'idle';
-
-            default:
-                return 'unknown';
-        }
+        return convertAttentionState(_c.state);
     }
 
     async getLaunchableApps(): Promise<LaunchableApp[]> {
@@ -105,7 +94,7 @@ export default class CompanionLinkApi {
         }));
     }
 
-    async hidCommand(command: keyof typeof HidCommand, down = false): Promise<void> {
+    async hidCommand(command: HidCommandKey, down = false): Promise<void> {
         await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_hidC',
             _t: MessageType.Request,
@@ -136,7 +125,7 @@ export default class CompanionLinkApi {
         });
     }
 
-    async mediaControlCommand(command: keyof typeof MediaControlCommand, content?: object): Promise<object> {
+    async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<object> {
         const [, payload] = await this.socket.exchange(FrameType.E_OPACK, {
             _i: '_mcc',
             _t: MessageType.Request,
@@ -149,7 +138,7 @@ export default class CompanionLinkApi {
         return objectOrFail(payload);
     }
 
-    async pressButton(command: keyof typeof HidCommand, type: ButtonPressType = 'SingleTap', holdDelayMs = 500): Promise<void> {
+    async pressButton(command: HidCommandKey, type: ButtonPressType = 'SingleTap', holdDelayMs = 500): Promise<void> {
         switch (type) {
             case 'DoubleTap':
                 await this.hidCommand(command, true);
@@ -269,49 +258,6 @@ export default class CompanionLinkApi {
     }
 }
 
-const HidCommand = {
-    Up: 1,
-    Down: 2,
-    Left: 3,
-    Right: 4,
-    Menu: 5,
-    Select: 6,
-    Home: 7,
-    VolumeUp: 8,
-    VolumeDown: 9,
-    Siri: 10,
-    Screensaver: 11,
-    Sleep: 12,
-    Wake: 13,
-    PlayPause: 14,
-    ChannelIncrement: 15,
-    ChannelDecrement: 16,
-    Guide: 17,
-    PageUp: 18,
-    PageDown: 19
-} as const;
-
-const MediaControlCommand = {
-    Play: 1,
-    Pause: 2,
-    NextTrack: 3,
-    PreviousTrack: 4,
-    GetVolume: 5,
-    SetVolume: 6,
-    SkipBy: 7,
-    FastForwardBegin: 8,
-    FastForwardEnd: 9,
-    RewindBegin: 10,
-    RewindEnd: 11,
-    GetCaptionSettings: 12,
-    SetCaptionSettings: 13
-} as const;
-
-type ButtonPressType =
-    | 'DoubleTap'
-    | 'Hold'
-    | 'SingleTap';
-
 function objectOrFail<T = object>(obj: unknown): T {
     if (typeof obj === 'object') {
         return obj as T;
@@ -322,31 +268,14 @@ function objectOrFail<T = object>(obj: unknown): T {
     throw new Error('Expected an object.');
 }
 
-type AttentionState =
-    | 'unknown'
-    | 'asleep'
-    | 'screensaver'
-    | 'awake'
-    | 'idle';
-
 type AttentionStateResponse = {
     readonly _c: {
         readonly state: number;
     };
 };
 
-type LaunchableApp = {
-    readonly bundleId: string;
-    readonly name: string;
-};
-
 type LaunchableAppsResponse = {
     readonly _c: Record<string, string>;
-};
-
-type UserAccount = {
-    readonly accountId: string;
-    readonly name: string;
 };
 
 type UserAccountsResponse = {

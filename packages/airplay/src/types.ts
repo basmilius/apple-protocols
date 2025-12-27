@@ -1,0 +1,11 @@
+export type RTSPMethod =
+    | 'GET'
+    | 'OPTIONS'
+    | 'POST'
+    | 'PUT'
+    | 'GET_PARAMETER'
+    | 'SET_PARAMETER'
+    | 'ANNOUNCE'
+    | 'RECORD'
+    | 'SETUP'
+    | 'TEARDOWN';

@@ -1,5 +1,5 @@
 import { exists, rm } from 'node:fs/promises';
-import { build, dts } from '@basmilius/tools';
+import { build, copy, dts } from '@basmilius/tools';
 
 if (await exists('./dist')) {
     await rm('./dist', {
@@ -10,7 +10,8 @@ if (await exists('./dist')) {
 await build({
     entrypoints: ['src/index.ts'],
     plugins: [
-        dts()
+        dts(),
+        copy('./src/types.ts', './dist/types.d.ts')
     ],
     external: [
         '@basmilius/apple-common'

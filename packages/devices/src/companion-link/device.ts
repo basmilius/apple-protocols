@@ -159,7 +159,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.api._subscribe('TVSystemStatus', this.onTVSystemStatus);
 
         const state = await this.getAttentionState();
-        this.emit('power', state === 'awake' || state === 'screensaver');
+        this.emit('power', state);
     }
 
     async #unsubscribe(): Promise<void> {

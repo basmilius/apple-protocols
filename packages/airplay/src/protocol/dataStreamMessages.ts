@@ -7,7 +7,7 @@ export default class {
         const protocolMessage = this.protocol(Proto.ProtocolMessage_Type.CLIENT_UPDATES_CONFIG_MESSAGE);
         const message = create(Proto.ClientUpdatesConfigMessageSchema, {
             artworkUpdates: true,
-            nowPlayingUpdates: false,
+            nowPlayingUpdates: true,
             volumeUpdates: true,
             keyboardUpdates: false,
             outputDeviceUpdates: true,

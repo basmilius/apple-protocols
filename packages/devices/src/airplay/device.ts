@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
 import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter } from '@basmilius/apple-common';
-import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
 
@@ -31,11 +31,11 @@ export default class extends EventEmitter<EventMap> {
         return this.#state;
     }
 
+    readonly #discoveryResult: DiscoveryResult;
     readonly #remote: Remote;
     readonly #state: State;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
-    #discoveryResult: DiscoveryResult;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #protocol!: AirPlay;
@@ -74,8 +74,6 @@ export default class extends EventEmitter<EventMap> {
         this.#disconnect = true;
 
         clearInterval(this.#feedbackInterval);
-
-        await this.#unsubscribe();
         await this.#protocol.disconnect();
 
         this.emit('disconnected', false);
@@ -102,10 +100,6 @@ export default class extends EventEmitter<EventMap> {
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
         this.#credentials = credentials;
-    }
-
-    async setDiscoveryResult(discoveryResult: DiscoveryResult): Promise<void> {
-        this.#discoveryResult = discoveryResult;
     }
 
     async #feedback(): Promise<void> {
@@ -152,7 +146,7 @@ export default class extends EventEmitter<EventMap> {
 
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
-        await this.#subscribe();
+        await this.#state[STATE_SUBSCRIBE_SYMBOL]();
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
@@ -168,17 +162,5 @@ export default class extends EventEmitter<EventMap> {
             await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
             await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
         });
-    }
-
-    async #subscribe(): Promise<void> {
-        await this.#state[STATE_SUBSCRIBE_SYMBOL]();
-    }
-
-    async #unsubscribe(): Promise<void> {
-        try {
-            await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
-        } catch (err) {
-            reporter.error('State unsubscribe error', err);
-        }
     }
 }

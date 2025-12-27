@@ -1,6 +1,8 @@
 import { EventEmitter } from 'node:events';
-import { AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter } from '@basmilius/apple-common';
+import type { AirPlayDataStream } from '@basmilius/apple-airplay';
+import { AirPlay, Proto } from '@basmilius/apple-airplay';
+import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult, TimingServer } from '@basmilius/apple-common';
+import { reporter } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -31,6 +33,14 @@ export default class extends EventEmitter<EventMap> {
         return this.#state;
     }
 
+    get timingServer(): TimingServer | undefined {
+        return this.#timingServer;
+    }
+
+    set timingServer(timingServer: TimingServer | undefined) {
+        this.#timingServer = timingServer;
+    }
+
     readonly #discoveryResult: DiscoveryResult;
     readonly #remote: Remote;
     readonly #state: State;
@@ -39,6 +49,7 @@ export default class extends EventEmitter<EventMap> {
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #protocol!: AirPlay;
+    #timingServer?: TimingServer;
 
     constructor(discoveryResult: DiscoveryResult) {
         super();
@@ -148,6 +159,11 @@ export default class extends EventEmitter<EventMap> {
         );
 
         await this.#unsubscribe();
+
+        if (this.#timingServer) {
+            await this.#protocol.setupTimingServer(this.#timingServer);
+        }
+
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
         await this.#subscribe();

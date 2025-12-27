@@ -121,6 +121,8 @@ export default class extends EventEmitter<EventMap> {
             return;
         }
 
+        clearInterval(this.#feedbackInterval);
+
         this.emit('disconnected', true);
     }
 

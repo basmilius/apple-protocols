@@ -1,19 +1,15 @@
 import { EventEmitter } from 'node:events';
-import { CompanionLink, type CompanionLinkApi } from '@basmilius/apple-companion-link';
-import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter } from '@basmilius/apple-common';
+import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult } from '@basmilius/apple-common';
+import { reporter } from '@basmilius/apple-common';
+import type { AttentionState, ButtonPressType, HidCommandKey, LaunchableApp, MediaControlCommandKey, UserAccount } from '@basmilius/apple-companion-link';
+import { CompanionLink, convertAttentionState } from '@basmilius/apple-companion-link';
 import { PROTOCOL } from './const';
 
 type EventMap = {
     connected: [];
     disconnected: [unexpected: boolean];
-    power: [boolean];
+    power: [AttentionState];
 };
-
-type CLAPI = typeof CompanionLinkApi.prototype;
-
-export type ButtonPressType = Parameters<CLAPI['pressButton']>[1];
-export type HidCommand = Parameters<CLAPI['pressButton']>[0];
-export type MediaControlCommand = Parameters<CLAPI['mediaControlCommand']>[0];
 
 export default class extends EventEmitter<EventMap> {
     get [PROTOCOL](): CompanionLink {
@@ -82,15 +78,15 @@ export default class extends EventEmitter<EventMap> {
         this.#discoveryResult = discoveryResult;
     }
 
-    async getAttentionState(): ReturnType<CLAPI['getAttentionState']> {
+    async getAttentionState(): Promise<AttentionState> {
         return await this.#protocol.api.getAttentionState();
     }
 
-    async getLaunchableApps(): ReturnType<CLAPI['getLaunchableApps']> {
+    async getLaunchableApps(): Promise<LaunchableApp[]> {
         return await this.#protocol.api.getLaunchableApps();
     }
 
-    async getUserAccounts(): ReturnType<CLAPI['getUserAccounts']> {
+    async getUserAccounts(): Promise<UserAccount[]> {
         return await this.#protocol.api.getUserAccounts();
     }
 
@@ -102,11 +98,11 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.api.launchUrl(url);
     }
 
-    async mediaControlCommand(command: MediaControlCommand, content?: object): Promise<void> {
+    async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<void> {
         await this.#protocol.api.mediaControlCommand(command, content);
     }
 
-    async pressButton(command: HidCommand, type?: ButtonPressType, holdDelayMs?: number): Promise<void> {
+    async pressButton(command: HidCommandKey, type?: ButtonPressType, holdDelayMs?: number): Promise<void> {
         await this.#protocol.api.pressButton(command, type, holdDelayMs);
     }
 
@@ -173,11 +169,11 @@ export default class extends EventEmitter<EventMap> {
 
     async onSystemStatus(data: { readonly state: number; }): Promise<void> {
         reporter.info('System Status', data);
-        this.emit('power', data.state === 0x02 || data.state === 0x03);
+        this.emit('power', convertAttentionState(data.state));
     }
 
     async onTVSystemStatus(data: { readonly state: number; }): Promise<void> {
         reporter.info('TV System Status', data);
-        this.emit('power', data.state === 0x02 || data.state === 0x03);
+        this.emit('power', convertAttentionState(data.state));
     }
 }

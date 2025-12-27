@@ -187,6 +187,16 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async onUpdateContentItem(message: Proto.UpdateContentItemMessage): Promise<void> {
+        const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+
+        if (!client) {
+            return;
+        }
+
+        for (const item of message.contentItems) {
+            client.updateContentItem(item);
+        }
+
         this.emit('updateContentItem', message);
     }
 

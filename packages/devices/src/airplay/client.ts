@@ -1,4 +1,5 @@
 import { Proto } from '@basmilius/apple-airplay';
+import { merge } from 'lodash-es';
 
 export default class Client {
     get bundleIdentifier(): string {
@@ -54,5 +55,21 @@ export default class Client {
 
     setSupportedCommands(supportedCommands: Proto.CommandInfo[]): void {
         this.#supportedCommands = supportedCommands;
+    }
+    
+    updateContentItem(item: Proto.ContentItem): void {
+        if (!this.#playbackQueue) {
+            return;
+        }
+        
+        const index = this.#playbackQueue.contentItems.findIndex(i => i.identifier === item.identifier);
+        if (index === -1) {
+            return;
+        }
+        
+        this.#playbackQueue.contentItems[index] = merge(
+            this.#playbackQueue.contentItems[index],
+            item
+        );
     }
 }

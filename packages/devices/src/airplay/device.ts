@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { AirPlayDataStream } from '@basmilius/apple-airplay';
+import type { AirPlayDataStream, AirPlayEventStream } from '@basmilius/apple-airplay';
 import { AirPlay, Proto } from '@basmilius/apple-airplay';
 import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult, TimingServer } from '@basmilius/apple-common';
 import { reporter } from '@basmilius/apple-common';
@@ -19,6 +19,10 @@ export default class extends EventEmitter<EventMap> {
 
     get #dataStream(): AirPlayDataStream {
         return this.#protocol.dataStream;
+    }
+
+    get #eventStream(): AirPlayEventStream {
+        return this.#protocol.eventStream;
     }
 
     get isConnected(): boolean {
@@ -167,6 +171,11 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
         await this.#protocol.setupDataStream(keys.sharedSecret);
         await this.#subscribe();
+
+        this.#dataStream.on('error', async (err: Error) => this.#onError(err));
+        this.#dataStream.on('timeout', async () => this.#onTimeout());
+        this.#eventStream.on('error', async (err: Error) => this.#onError(err));
+        this.#eventStream.on('timeout', async () => this.#onTimeout());
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 

@@ -26,8 +26,8 @@
     },
     "scripts": {
         "build": "bun -b build.ts",
-        "find": "bun src/find.ts",
-        "watch:test": "bun --watch src/test.ts"
+        "find": "bun find.ts",
+        "watch:test": "bun --watch test.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

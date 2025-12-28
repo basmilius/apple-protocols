@@ -21,5 +21,5 @@ export default function (): string {
         }
     }
 
-    return null;
+    return '00:00:00:00:00:00';
 }

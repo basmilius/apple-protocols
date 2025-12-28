@@ -11,6 +11,7 @@ type EventMap = {
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
+    readonly removeClient: [Proto.RemoveClientMessage];
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
@@ -174,6 +175,12 @@ export default class AirPlayDataStream extends Stream<EventMap> {
         reporter.raw('Player client properties', message);
 
         this.emit('playerClientProperties', message);
+    }
+
+    async #onRemoveClientMessage(message: Proto.RemoveClientMessage): Promise<void> {
+        reporter.info('Remove client', message);
+
+        this.emit('removeClient', message);
     }
 
     async #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): Promise<void> {
@@ -374,6 +381,10 @@ export default class AirPlayDataStream extends Stream<EventMap> {
 
             case Proto.ProtocolMessage_Type.SET_STATE_MESSAGE:
                 await this.#onSetStateMessage(getExtension(message, Proto.setStateMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.REMOVE_CLIENT_MESSAGE:
+                await this.#onRemoveClientMessage(getExtension(message, Proto.removeClientMessage));
                 break;
 
             case Proto.ProtocolMessage_Type.UPDATE_CLIENT_MESSAGE:

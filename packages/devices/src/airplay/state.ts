@@ -9,6 +9,7 @@ type EventMap = {
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
+    readonly removeClient: [Proto.RemoveClientMessage];
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
@@ -70,6 +71,7 @@ export default class extends EventEmitter<EventMap> {
         this.onDeviceInfo = this.onDeviceInfo.bind(this);
         this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
         this.onPlayerClientProperties = this.onPlayerClientProperties.bind(this);
+        this.onRemoveClient = this.onRemoveClient.bind(this);
         this.onSendCommandResult = this.onSendCommandResult.bind(this);
         this.onSetArtwork = this.onSetArtwork.bind(this);
         this.onSetDefaultSupportedCommands = this.onSetDefaultSupportedCommands.bind(this);
@@ -90,6 +92,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('deviceInfo', this.onDeviceInfo);
         this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
         this.#dataStream.on('playerClientProperties', this.onPlayerClientProperties);
+        this.#dataStream.on('removeClient', this.onRemoveClient);
         this.#dataStream.on('sendCommandResult', this.onSendCommandResult);
         this.#dataStream.on('setArtwork', this.onSetArtwork);
         this.#dataStream.on('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
@@ -116,6 +119,7 @@ export default class extends EventEmitter<EventMap> {
         dataStream.off('deviceInfo', this.onDeviceInfo);
         dataStream.off('originClientProperties', this.onOriginClientProperties);
         dataStream.off('playerClientProperties', this.onPlayerClientProperties);
+        dataStream.off('removeClient', this.onRemoveClient);
         dataStream.off('sendCommandResult', this.onSendCommandResult);
         dataStream.off('setArtwork', this.onSetArtwork);
         dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
@@ -150,6 +154,16 @@ export default class extends EventEmitter<EventMap> {
 
     async onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
         this.emit('playerClientProperties', message);
+    }
+
+    async onRemoveClient(message: Proto.RemoveClientMessage): Promise<void> {
+        if (!(message.client.bundleIdentifier in this.#clients)) {
+            return;
+        }
+
+        delete this.#clients[message.client.bundleIdentifier];
+
+        this.emit('clients', this.#clients);
     }
 
     async onSendCommandResult(message: Proto.SendCommandResultMessage): Promise<void> {

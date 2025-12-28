@@ -4,6 +4,7 @@ import { reporter } from '@basmilius/apple-common';
 import type { AttentionState, ButtonPressType, HidCommandKey, LaunchableApp, MediaControlCommandKey, UserAccount } from '@basmilius/apple-companion-link';
 import { CompanionLink, convertAttentionState } from '@basmilius/apple-companion-link';
 import { PROTOCOL } from './const';
+import { FEEDBACK_INTERVAL } from '../airplay/const';
 
 type EventMap = {
     connected: [];
@@ -23,6 +24,7 @@ export default class extends EventEmitter<EventMap> {
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
+    #heartbeatInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #protocol!: CompanionLink;
 
@@ -56,6 +58,8 @@ export default class extends EventEmitter<EventMap> {
 
     async disconnect(): Promise<void> {
         this.#disconnect = true;
+
+        clearInterval(this.#heartbeatInterval);
 
         await this.#unsubscribe();
         await this.#protocol.disconnect();
@@ -110,10 +114,20 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.api.switchUserAccount(accountId);
     }
 
+    async #heartbeat(): Promise<void> {
+        try {
+            await this.#protocol.api._systemInfo(this.#credentials.pairingId);
+        } catch (err) {
+            reporter.error('Heartbeat error', err);
+        }
+    }
+
     async #onClose(): Promise<void> {
         if (this.#disconnect) {
             return;
         }
+
+        clearInterval(this.#heartbeatInterval);
 
         this.emit('disconnected', true);
     }
@@ -150,6 +164,8 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.api._sessionStart();
         await this.#protocol.api._tvrcSessionStart();
         await this.#protocol.api._unsubscribe('_iMC');
+
+        this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
 
         await this.#subscribe();
     }

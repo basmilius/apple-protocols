@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { AirPlayDataStream, AirPlayEventStream } from '@basmilius/apple-airplay';
 import { AirPlay, Proto } from '@basmilius/apple-airplay';
-import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult, TimingServer } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
 import { reporter } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
@@ -187,10 +187,25 @@ export default class extends EventEmitter<EventMap> {
 
         await this.#dataStream.exchange(this.#dataStream.messages.deviceInfo(keys.pairingId));
 
-        this.#dataStream.on('deviceInfo', async () => {
-            await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
-            await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
-        });
+        const result = await Promise.race([
+            new Promise(resolve => {
+                this.#dataStream.on('deviceInfo', async () => {
+                    await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
+                    await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
+                    resolve(true);
+                });
+            }),
+            async () => {
+                await waitFor(3000);
+                return false;
+            }
+        ]);
+
+        if (!result) {
+            await this.#onError(new Error('Device did not respond in time with its info.'));
+        } else {
+            reporter.info('Device info received successfully, protocol should be ready.');
+        }
     }
 
     async #subscribe(): Promise<void> {

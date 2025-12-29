@@ -2,13 +2,13 @@ import { Chacha20, hkdf, Plist, reporter } from '@basmilius/apple-common';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 import { randomInt32 } from './utils';
-import DataStreamMessages from './dataStreamMessages';
 import Stream from './stream';
 
 const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
 
 type EventMap = {
     readonly deviceInfo: [Proto.DeviceInfoMessage];
+    readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
@@ -29,11 +29,6 @@ type EventMap = {
 };
 
 export default class AirPlayDataStream extends Stream<EventMap> {
-    get messages(): DataStreamMessages {
-        return this.#messages;
-    }
-
-    readonly #messages: DataStreamMessages;
     #buffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
     #readCount: number;
@@ -43,7 +38,6 @@ export default class AirPlayDataStream extends Stream<EventMap> {
     constructor(address: string, port: number) {
         super(address, port);
 
-        this.#messages = new DataStreamMessages();
         this.#seqno = 0x100000000n + BigInt(randomInt32());
         this.#writeCount = 0;
     }
@@ -147,6 +141,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
                 const content = Buffer.from(plist.params.data);
 
                 for (const message of await parseMessages(content)) {
+                    reporter.raw('Parsed message', message);
                     await this.#handleMessage(message);
                 }
 
@@ -163,6 +158,12 @@ export default class AirPlayDataStream extends Stream<EventMap> {
         reporter.info('Connected to device', message.name);
 
         this.emit('deviceInfo', message);
+    }
+
+    async #onDeviceInfoUpdateMessage(message: Proto.DeviceInfoMessage): Promise<void> {
+        reporter.info('Device info update', message);
+
+        this.emit('deviceInfoUpdate', message);
     }
 
     async #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): Promise<void> {
@@ -349,6 +350,10 @@ export default class AirPlayDataStream extends Stream<EventMap> {
         switch (message.type) {
             case Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE:
                 await this.#onDeviceInfoMessage(getExtension(message, Proto.deviceInfoMessage));
+                break;
+
+            case Proto.ProtocolMessage_Type.DEVICE_INFO_UPDATE_MESSAGE:
+                await this.#onDeviceInfoUpdateMessage(getExtension(message, Proto.deviceInfoMessage));
                 break;
 
             case Proto.ProtocolMessage_Type.ORIGIN_CLIENT_PROPERTIES_MESSAGE:

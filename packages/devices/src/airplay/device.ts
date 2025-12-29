@@ -1,11 +1,10 @@
 import { EventEmitter } from 'node:events';
-import type { AirPlayDataStream, AirPlayEventStream } from '@basmilius/apple-airplay';
-import { AirPlay, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
-import { reporter } from '@basmilius/apple-common';
+import { AirPlay, DataStreamMessage, Proto } from '@basmilius/apple-airplay';
+import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter, type TimingServer, waitFor } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
+import Volume from './volume';
 
 type EventMap = {
     connected: [];
@@ -15,14 +14,6 @@ type EventMap = {
 export default class extends EventEmitter<EventMap> {
     get [PROTOCOL](): AirPlay {
         return this.#protocol;
-    }
-
-    get #dataStream(): AirPlayDataStream {
-        return this.#protocol.dataStream;
-    }
-
-    get #eventStream(): AirPlayEventStream {
-        return this.#protocol.eventStream;
     }
 
     get isConnected(): boolean {
@@ -37,6 +28,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#state;
     }
 
+    get volume(): Volume {
+        return this.#volume;
+    }
+
     get timingServer(): TimingServer | undefined {
         return this.#timingServer;
     }
@@ -48,6 +43,7 @@ export default class extends EventEmitter<EventMap> {
     readonly #discoveryResult: DiscoveryResult;
     readonly #remote: Remote;
     readonly #state: State;
+    readonly #volume: Volume;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #feedbackInterval: NodeJS.Timeout;
@@ -61,6 +57,7 @@ export default class extends EventEmitter<EventMap> {
         this.#discoveryResult = discoveryResult;
         this.#remote = new Remote(this);
         this.#state = new State(this);
+        this.#volume = new Volume(this);
     }
 
     async connect(): Promise<void> {
@@ -105,15 +102,11 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async requestPlaybackQueue(length: number): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.playbackQueueRequest(0, length));
+        await this.#protocol.dataStream.exchange(DataStreamMessage.playbackQueueRequest(0, length));
     }
 
     async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.sendCommand(command, options));
-    }
-
-    async setVolume(volume: number): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.setVolume(volume));
+        await this.#protocol.dataStream.exchange(DataStreamMessage.sendCommand(command, options));
     }
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
@@ -172,26 +165,26 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.setupDataStream(keys.sharedSecret);
         await this.#subscribe();
 
-        this.#dataStream.on('error', async (err: Error) => this.#onError(err));
-        this.#dataStream.on('timeout', async () => this.#onTimeout());
-        this.#eventStream.on('error', async (err: Error) => this.#onError(err));
-        this.#eventStream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.dataStream.on('error', async (err: Error) => this.#onError(err));
+        this.#protocol.dataStream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.eventStream.on('error', async (err: Error) => this.#onError(err));
+        this.#protocol.eventStream.on('timeout', async () => this.#onTimeout());
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
         const gid = this.#discoveryResult.packet.additionals.find(a => 'rdata' in a && typeof a['rdata'] === 'object' && 'gid' in a['rdata'])?.['rdata']['gid'] as string;
 
         if (gid) {
-            await this.#dataStream.exchange(this.#dataStream.messages.configureConnection(gid));
+            await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));
         }
 
-        await this.#dataStream.exchange(this.#dataStream.messages.deviceInfo(keys.pairingId));
+        await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
 
         const result = await Promise.race([
             new Promise(resolve => {
-                this.#dataStream.on('deviceInfo', async () => {
-                    await this.#dataStream.exchange(this.#dataStream.messages.setConnectionState());
-                    await this.#dataStream.exchange(this.#dataStream.messages.clientUpdatesConfig());
+                this.#protocol.dataStream.on('deviceInfo', async () => {
+                    await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
+                    await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
                     resolve(true);
                 });
             }),

@@ -1,4 +1,4 @@
-import type { AirPlay, AirPlayDataStream } from '@basmilius/apple-airplay';
+import { type AirPlay, type AirPlayDataStream, DataStreamMessage } from '@basmilius/apple-airplay';
 import { Proto } from '@basmilius/apple-airplay';
 import { waitFor } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
@@ -98,13 +98,14 @@ export default class {
     }
 
     async longPress(usePage: number, usage: number, duration: number = 1000): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.sendHIDEvent(usePage, usage, true));
+        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, true));
         await waitFor(duration);
-        await this.#dataStream.exchange(this.#dataStream.messages.sendHIDEvent(usePage, usage, false));
+        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, false));
     }
 
     async pressAndRelease(usePage: number, usage: number): Promise<void> {
-        await this.#dataStream.exchange(this.#dataStream.messages.sendHIDEvent(usePage, usage, true));
-        await this.#dataStream.exchange(this.#dataStream.messages.sendHIDEvent(usePage, usage, false));
+        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, true));
+        await waitFor(25);
+        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, false));
     }
 }

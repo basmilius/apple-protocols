@@ -89,10 +89,6 @@ export default abstract class extends EventEmitter<EventMap> {
         await this.#airplay.sendCommand(Proto.Command.PreviousInContext);
     }
 
-    async setVolume(volume: number): Promise<void> {
-        await this.#airplay.setVolume(volume);
-    }
-
     async getCommandInfo(command: Proto.Command): Promise<Proto.CommandInfo | null> {
         const client = this.#airplay.state.nowPlayingClient;
 

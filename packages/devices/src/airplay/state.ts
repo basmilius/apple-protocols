@@ -7,6 +7,7 @@ import type Device from './device';
 type EventMap = {
     readonly clients: [Record<string, Client>];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
+    readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
@@ -43,6 +44,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
 
+    get outputDeviceUID(): string | null {
+        return this.#outputDeviceUID;
+    }
+
     get volume(): number {
         return this.#volume;
     }
@@ -58,6 +63,7 @@ export default class extends EventEmitter<EventMap> {
     readonly #device: Device;
     #clients: Record<string, Client>;
     #nowPlayingClientBundleIdentifier: string | null;
+    #outputDeviceUID: string | null;
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
@@ -69,6 +75,7 @@ export default class extends EventEmitter<EventMap> {
         this.clear();
 
         this.onDeviceInfo = this.onDeviceInfo.bind(this);
+        this.onDeviceInfoUpdate = this.onDeviceInfoUpdate.bind(this);
         this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
         this.onPlayerClientProperties = this.onPlayerClientProperties.bind(this);
         this.onRemoveClient = this.onRemoveClient.bind(this);
@@ -90,6 +97,7 @@ export default class extends EventEmitter<EventMap> {
 
     async [STATE_SUBSCRIBE_SYMBOL](): Promise<void> {
         this.#dataStream.on('deviceInfo', this.onDeviceInfo);
+        this.#dataStream.on('deviceInfoUpdate', this.onDeviceInfoUpdate);
         this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
         this.#dataStream.on('playerClientProperties', this.onPlayerClientProperties);
         this.#dataStream.on('removeClient', this.onRemoveClient);
@@ -117,6 +125,7 @@ export default class extends EventEmitter<EventMap> {
         }
 
         dataStream.off('deviceInfo', this.onDeviceInfo);
+        dataStream.off('deviceInfoUpdate', this.onDeviceInfoUpdate);
         dataStream.off('originClientProperties', this.onOriginClientProperties);
         dataStream.off('playerClientProperties', this.onPlayerClientProperties);
         dataStream.off('removeClient', this.onRemoveClient);
@@ -138,14 +147,35 @@ export default class extends EventEmitter<EventMap> {
 
     clear(): void {
         this.#clients = {};
-        this.#nowPlayingClientBundleIdentifier = undefined;
+        this.#nowPlayingClientBundleIdentifier = null;
+        this.#outputDeviceUID = null;
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
     }
 
     async onDeviceInfo(message: Proto.DeviceInfoMessage): Promise<void> {
+        if (message.clusterID) {
+            this.#outputDeviceUID = message.clusterID;
+        } else if (message.deviceUID) {
+            this.#outputDeviceUID = message.deviceUID;
+        } else if (message.uniqueIdentifier) {
+            this.#outputDeviceUID = message.uniqueIdentifier;
+        }
+
         this.emit('deviceInfo', message);
+    }
+
+    async onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): Promise<void> {
+        if (message.clusterID) {
+            this.#outputDeviceUID = message.clusterID;
+        } else if (message.deviceUID) {
+            this.#outputDeviceUID = message.deviceUID;
+        } else if (message.uniqueIdentifier) {
+            this.#outputDeviceUID = message.uniqueIdentifier;
+        }
+
+        this.emit('deviceInfoUpdate', message);
     }
 
     async onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): Promise<void> {

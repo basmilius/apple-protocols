@@ -3,6 +3,7 @@ import { Discovery, type DiscoveryResult, reporter } from '@basmilius/apple-comm
 import { redis } from 'bun';
 import { HomePodMini } from './model';
 
+// reporter.enable('error');
 reporter.all();
 
 async function main(): Promise<void> {
@@ -12,9 +13,16 @@ async function main(): Promise<void> {
         discoveryResult = JSON.parse(await redis.get('homepod'));
     } else {
         const discovery = Discovery.airplay();
-        discoveryResult = await discovery.findUntil('Woonkamer HomePod._airplay._tcp.local');
+        discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
 
         await redis.setex('homepod', 3600, JSON.stringify(discoveryResult));
+    }
+
+    function updateNowPlaying(): void {
+        const client = device.airplay.state.nowPlayingClient;
+        const item = client?.playbackQueue?.contentItems?.[0];
+
+        console.log(item?.metadata);
     }
 
     const device = new HomePodMini(discoveryResult);
@@ -27,15 +35,6 @@ async function main(): Promise<void> {
 
         main();
     });
-
-    await device.airplay.requestPlaybackQueue(1);
-
-    function updateNowPlaying(): void {
-        const client = device.airplay.state.nowPlayingClient;
-        const item = client?.playbackQueue?.contentItems?.[0];
-
-        console.log(item?.metadata);
-    }
 
     device.airplay.state.on('setState', () => {
         const client = device.airplay.state.nowPlayingClient;
@@ -81,6 +80,9 @@ async function main(): Promise<void> {
 
     device.airplay.state.on('updateContentItem', updateNowPlaying);
     device.airplay.state.on('setState', updateNowPlaying);
+
+    await device.airplay.requestPlaybackQueue(1);
+    console.log('Hi!');
 }
 
 await main();

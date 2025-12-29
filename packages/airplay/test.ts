@@ -1,6 +1,6 @@
 import { Discovery, prompt, reporter, TimingServer } from '@basmilius/apple-common';
 import { create } from '@bufbuild/protobuf';
-import { AirPlay, Proto } from './src';
+import { AirPlay, DataStreamMessage, Proto } from './src';
 
 reporter.all();
 
@@ -25,12 +25,12 @@ async function homepod(): Promise<void> {
 
     setInterval(() => protocol.feedback(), 2000);
 
-    // await protocol.dataStream.exchange(protocol.dataStream.messages.configureConnection(``));
-    await protocol.dataStream.exchange(protocol.dataStream.messages.deviceInfo(keys.pairingId));
+    // await protocol.dataStream.exchange(DataStreamMessage.configureConnection(``));
+    await protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
 
     protocol.dataStream.addListener('deviceInfo', async () => {
-        await protocol.dataStream.exchange(protocol.dataStream.messages.setConnectionState());
-        await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
+        await protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
+        await protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
 
         // await waitFor(1000);
         //
@@ -92,12 +92,12 @@ async function tv(): Promise<void> {
 
     setInterval(() => protocol.feedback(), 2000);
 
-    await protocol.dataStream.exchange(protocol.dataStream.messages.deviceInfo(keys.pairingId));
+    await protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
 
     protocol.dataStream.addListener('deviceInfo', async () => {
-        await protocol.dataStream.exchange(protocol.dataStream.messages.setConnectionState());
-        await protocol.dataStream.exchange(protocol.dataStream.messages.clientUpdatesConfig());
-        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Rewind15Seconds));
+        await protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
+        await protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
+        // await protocol.dataStream.exchange(DataStreamMessage.sendCommand(Proto.Command.Rewind15Seconds));
 
         // await waitFor(1000);
 
@@ -105,10 +105,10 @@ async function tv(): Promise<void> {
         //     stationURL: 'https://bmcdn.nl/doorbell.ogg'
         // });
 
-        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendCommand(Proto.Command.Play, options));
+        // await protocol.dataStream.exchange(DataStreamMessage.sendCommand(Proto.Command.Play, options));
 
-        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, true));
-        // await protocol.dataStream.exchange(protocol.dataStream.messages.sendButtonEvent(12, 0x40, false));
+        // await protocol.dataStream.exchange(DataStreamMessage.sendButtonEvent(12, 0x40, true));
+        // await protocol.dataStream.exchange(DataStreamMessage.sendButtonEvent(12, 0x40, false));
 
         // await waitFor(1000);
 

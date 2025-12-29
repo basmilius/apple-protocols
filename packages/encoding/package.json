@@ -1,6 +1,6 @@
 {
-    "name": "@basmilius/apple-airplay",
-    "description": "Implementation of Apple's AirPlay2 in Node.js.",
+    "name": "@basmilius/apple-encoding",
+    "description": "Common encoding utilities for Apple Protocols.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -12,9 +12,10 @@
     "keywords": [
         "apple",
         "airplay",
-        "tv",
-        "apple tv",
-        "homekit"
+        "companion link",
+        "opack",
+        "plist",
+        "tlv8"
     ],
     "files": [
         "dist",
@@ -25,10 +26,7 @@
         "provenance": true
     },
     "scripts": {
-        "build": "tsc && bun -b build.ts",
-        "find": "bun find.ts",
-        "gen:proto": "buf generate",
-        "watch:test": "bun --watch test.ts"
+        "build": "tsc && bun -b build.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -41,14 +39,11 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@bufbuild/protobuf": "^2.10.2"
+        "@plist/binary.parse": "^1.1.0",
+        "@plist/binary.serialize": "^1.1.0"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",
-        "@bufbuild/buf": "^1.61.0",
-        "@bufbuild/protoc-gen-es": "^2.10.2",
         "@types/bun": "^1.3.5"
     }
 }

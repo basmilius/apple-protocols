@@ -1,9 +1,9 @@
+import { OPack, TLV8 } from "@basmilius/apple-encoding";
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import { reporter } from './cli';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
 import { Chacha20, Curve25519, hkdf } from './crypto';
-import { OPack, TLV8 } from './encoding';
 import tweetnacl from 'tweetnacl';
 
 export class AccessoryPair {

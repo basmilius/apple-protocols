@@ -1,5 +1,6 @@
-import { Discovery, parseBinaryPlist, prompt } from '@basmilius/apple-common';
-import { CompanionLink } from './src/protocol';
+import { Discovery, prompt } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
+import { CompanionLink } from './src';
 
 const discovery = Discovery.companionLink();
 const device = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');
@@ -93,7 +94,7 @@ async function handleNowPlayingInfo({NowPlayingInfoKey}: any): Promise<void> {
     );
 
     try {
-        const nowPlaying = parseBinaryPlist(buffer) as any;
+        const nowPlaying = Plist.parse(buffer) as any;
         console.log('NowPlayingInfoKey', {nowPlaying});
     } catch (err) {
         console.error(err);

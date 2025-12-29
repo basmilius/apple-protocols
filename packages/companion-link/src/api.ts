@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto';
-import { OPack, Plist, reporter, waitFor } from '@basmilius/apple-common';
+import { reporter, waitFor } from '@basmilius/apple-common';
+import { OPack, Plist } from '@basmilius/apple-encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType, MessageType } from './messages';
 import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';

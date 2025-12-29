@@ -1,4 +1,5 @@
-import { hkdf, Plist, reporter } from '@basmilius/apple-common';
+import { hkdf, reporter } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
 import type { RTSPMethod } from './types';
 import { makeHttpRequest } from './utils';
 import Stream from './stream';

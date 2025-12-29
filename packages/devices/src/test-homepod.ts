@@ -1,5 +1,5 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { Discovery, type DiscoveryResult, reporter } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult, reporter, TimingServer } from '@basmilius/apple-common';
 import { redis } from 'bun';
 import { HomePodMini } from './model';
 
@@ -18,6 +18,9 @@ async function main(): Promise<void> {
         await redis.setex('homepod', 3600, JSON.stringify(discoveryResult));
     }
 
+    const timingServer = new TimingServer();
+    await timingServer.listen();
+
     function updateNowPlaying(): void {
         const client = device.airplay.state.nowPlayingClient;
         const item = client?.playbackQueue?.contentItems?.[0];
@@ -26,6 +29,7 @@ async function main(): Promise<void> {
     }
 
     const device = new HomePodMini(discoveryResult);
+    device.airplay.timingServer = timingServer;
     await device.connect();
 
     device.on('disconnected', unexpected => {

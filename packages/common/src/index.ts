@@ -14,12 +14,6 @@ export {
 } from './discovery';
 
 export {
-    OPack,
-    Plist,
-    TLV8
-} from './encoding';
-
-export {
     getLocalIP,
     getMacAddress,
     BaseSocket,

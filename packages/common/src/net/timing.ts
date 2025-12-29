@@ -1,6 +1,6 @@
 import { createSocket, RemoteInfo, Socket } from 'node:dgram';
+import { NTP } from '@basmilius/apple-encoding';
 import { reporter } from '../cli';
-import { decode, encode, now, toParts } from '../ntp';
 
 export default class {
     get port(): number {
@@ -38,13 +38,13 @@ export default class {
     }
 
     async #onMessage(data: Buffer, info: RemoteInfo): Promise<void> {
-        const request = decode(data);
-        const ntp = now();
-        const [receivedSeconds, receivedFraction] = toParts(ntp);
+        const request = NTP.decode(data);
+        const ntp = NTP.now();
+        const [receivedSeconds, receivedFraction] = NTP.parts(ntp);
 
         reporter.info(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
 
-        const response = encode({
+        const response = NTP.encode({
             proto: request.proto,
             type: 0x53 | 0x80,
             seqno: request.seqno,

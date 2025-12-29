@@ -1,4 +1,5 @@
-import { type DiscoveryResult, getMacAddress, Plist, reporter, TimingServer, uuid } from '@basmilius/apple-common';
+import { type DiscoveryResult, getMacAddress, reporter, TimingServer, uuid } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
 import { randomInt64 } from './utils';
 import DataStream from './dataStream';
 import EventStream from './eventStream';

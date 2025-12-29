@@ -1,4 +1,5 @@
-import { Chacha20, hkdf, Plist, reporter } from '@basmilius/apple-common';
+import { Chacha20, hkdf, reporter } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 import { randomInt32 } from './utils';

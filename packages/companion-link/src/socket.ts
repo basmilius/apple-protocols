@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
 import { Socket } from 'node:net';
-import { BaseSocket, Chacha20, OPack, reporter } from '@basmilius/apple-common';
+import { BaseSocket, Chacha20, reporter } from '@basmilius/apple-common';
+import { OPack } from '@basmilius/apple-encoding';
 import { OPackFrameTypes, PairFrameTypes } from './messages';
 
 const HEADER_BYTES = 4;

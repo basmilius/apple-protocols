@@ -25,7 +25,7 @@
         "provenance": true
     },
     "scripts": {
-        "build": "bun -b build.ts",
+        "build": "tsc && bun -b build.ts",
         "find": "bun find.ts",
         "watch:test": "bun --watch test.ts"
     },
@@ -40,7 +40,8 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*"
+        "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",

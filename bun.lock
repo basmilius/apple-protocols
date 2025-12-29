@@ -7,6 +7,7 @@
       "devDependencies": {
         "@basmilius/tools": "^2.23.0",
         "@types/bun": "^1.3.5",
+        "typescript": "^5.9.3",
       },
     },
     "packages/airplay": {
@@ -14,6 +15,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
         "@bufbuild/protobuf": "^2.10.2",
       },
       "devDependencies": {
@@ -27,8 +29,7 @@
       "name": "@basmilius/apple-common",
       "version": "0.0.0",
       "dependencies": {
-        "@plist/binary.parse": "^1.1.0",
-        "@plist/binary.serialize": "^1.1.0",
+        "@basmilius/apple-encoding": "workspace:*",
         "chacha": "^2.1.0",
         "fast-srp-hap": "^2.0.4",
         "node-dns-sd": "^1.0.1",
@@ -45,6 +46,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
       },
       "devDependencies": {
         "@basmilius/tools": "^2.23.0",
@@ -58,12 +60,25 @@
         "@basmilius/apple-airplay": "workspace:*",
         "@basmilius/apple-common": "workspace:*",
         "@basmilius/apple-companion-link": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
         "lodash-es": "^4.17.22",
       },
       "devDependencies": {
         "@basmilius/tools": "^2.23.0",
         "@types/bun": "^1.3.5",
         "@types/lodash-es": "^4.17.12",
+      },
+    },
+    "packages/encoding": {
+      "name": "@basmilius/apple-encoding",
+      "version": "0.0.0",
+      "dependencies": {
+        "@plist/binary.parse": "^1.1.0",
+        "@plist/binary.serialize": "^1.1.0",
+      },
+      "devDependencies": {
+        "@basmilius/tools": "^2.23.0",
+        "@types/bun": "^1.3.5",
       },
     },
   },
@@ -75,6 +90,8 @@
     "@basmilius/apple-companion-link": ["@basmilius/apple-companion-link@workspace:packages/companion-link"],
 
     "@basmilius/apple-devices": ["@basmilius/apple-devices@workspace:packages/devices"],
+
+    "@basmilius/apple-encoding": ["@basmilius/apple-encoding@workspace:packages/encoding"],
 
     "@basmilius/tools": ["@basmilius/tools@2.23.0", "", { "dependencies": { "oxc-transform": "^0.105.0" } }, "sha512-837S2H5m9EQQteTH3tDV0PvwvHcCVjben8sTd9SVZwxhnHng54Mb0je3yvs2pAK1Xj8W7Npn6Uku/1TGbQ9cBg=="],
 
@@ -194,10 +211,12 @@
 
     "tweetnacl": ["tweetnacl@1.0.3", "", {}, "sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw=="],
 
-    "typescript": ["typescript@5.4.5", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ=="],
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "uuid": ["uuid@13.0.0", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-XQegIaBTVUjSHliKqcnFqYypAd4S+WCYt5NIeRs6w/UAry7z8Y9j5ZwRRL4kzq9U3sD6v+85er9FvkEaBpji2w=="],
+
+    "@bufbuild/protoplugin/typescript": ["typescript@5.4.5", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ=="],
   }
 }

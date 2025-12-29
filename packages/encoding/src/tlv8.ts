@@ -1,5 +1,3 @@
-import { reporter } from '../cli';
-
 export const Flags = {
     TransientPairing: 0x10
 } as const;
@@ -11,7 +9,7 @@ export const ErrorCode = {
     MaxPeers: 0x04,
     MaxTries: 0x05,
     Unavailable: 0x06,
-    Busy: 0x07,
+    Busy: 0x07
 } as const;
 
 export const Method = {
@@ -70,8 +68,6 @@ export function bail(data: Map<number, Buffer>): never {
 
         throw new Error(`Device returned an error code: ${errorCode[0]}`);
     }
-
-    reporter.error(data);
 
     throw new Error('Invalid response');
 }

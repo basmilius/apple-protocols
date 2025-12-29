@@ -1,7 +1,7 @@
 type Packed = Uint8Array;
 type ObjectList = Packed[];
 
-class SizedInt extends Number {
+class OPackSizedInt extends Number {
     size: number;
 
     constructor(value: number, size: number) {
@@ -10,34 +10,32 @@ class SizedInt extends Number {
     }
 }
 
-const _SIZED_INT_TYPES: Record<number, typeof SizedInt> = {};
-
-export function sizedInt(value: number, size: number): SizedInt {
-    return new SizedInt(value, size);
-}
-
-class OPACKFloat {
+class OPackFloat {
     value: number;
 
     constructor(value: number) {
         this.value = value;
     }
+}
+
+class OPackInteger {
+    value: number;
+
+    constructor(value: number) {
+        this.value = value;
+    }
+}
+
+export function sizedInt(value: number, size: number): OPackSizedInt {
+    return new OPackSizedInt(value, size);
 }
 
 export function float(value: number) {
-    return new OPACKFloat(value);
-}
-
-class OPACKInt {
-    value: number;
-
-    constructor(value: number) {
-        this.value = value;
-    }
+    return new OPackFloat(value);
 }
 
 export function int(value: number) {
-    return new OPACKInt(value);
+    return new OPackInteger(value);
 }
 
 function concat(arr: Uint8Array[]): Uint8Array {
@@ -85,11 +83,11 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
 
     if (data === null || data === undefined) packed = u8(0x04);
     else if (typeof data === 'boolean') packed = u8(data ? 0x01 : 0x02);
-    else if (data instanceof OPACKFloat) {
+    else if (data instanceof OPackFloat) {
         const buf = new ArrayBuffer(8);
         new DataView(buf).setFloat64(0, data.value, true);
         packed = concat([u8(0x36), new Uint8Array(buf)]);
-    } else if (data instanceof OPACKInt) {
+    } else if (data instanceof OPackInteger) {
         const val = data.value;
         if (val < 0x28) packed = u8(0x08 + val);
         else if (val <= 0xff) packed = concatUint8Arrays([u8(0x30), uintToLEBytes(val, 1)]);
@@ -108,7 +106,7 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             else if (data <= 0xffffffff) packed = concat([u8(0x32), uintToLEBytes(data, 4)]);
             else packed = concat([u8(0x33), uintToLEBytes(data, 8)]);
         }
-    } else if (data instanceof SizedInt) {
+    } else if (data instanceof OPackSizedInt) {
         packed = concat([u8(0x30 + Math.log2(data.size)), uintToLEBytes(data.valueOf(), data.size)]);
     } else if (typeof data === 'string') {
         const b = new TextEncoder().encode(data);

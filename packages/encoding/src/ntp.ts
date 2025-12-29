@@ -12,7 +12,7 @@ export function ns(): bigint {
     return process.hrtime.bigint();
 }
 
-export function toParts(ntp: bigint): [number, number] {
+export function parts(ntp: bigint): [number, number] {
     return [
         Number(ntp >> 32n),
         Number(ntp & 0xFFFFFFFFn)

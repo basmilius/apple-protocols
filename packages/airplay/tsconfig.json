@@ -17,13 +17,14 @@
         "isolatedModules": true,
         "jsx": "react-jsx",
         "baseUrl": ".",
-        "rootDir": "src",
+        "rootDir": ".",
         "outDir": "dist",
         "declaration": true,
         "declarationDir": "dist",
         "declarationMap": true,
         "emitDeclarationOnly": true,
-        "experimentalDecorators": true
+        "experimentalDecorators": true,
+        "noEmit": true
     },
     "include": [
         "src/**/*.ts",

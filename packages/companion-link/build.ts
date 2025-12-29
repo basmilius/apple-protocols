@@ -18,6 +18,7 @@ await build({
         copy('./src/types.ts', './dist/types.d.ts')
     ],
     external: [
-        '@basmilius/apple-common'
+        '@basmilius/apple-common',
+        '@basmilius/apple-encoding'
     ]
 });

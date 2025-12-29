@@ -19,6 +19,7 @@ await build({
     ],
     external: [
         '@basmilius/apple-common',
+        '@basmilius/apple-encoding',
         '@bufbuild/protobuf'
     ]
 });

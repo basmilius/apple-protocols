@@ -17,7 +17,7 @@ await build({
         dts()
     ],
     external: [
-        '@noble/curves',
+        '@basmilius/apple-encoding',
         'chacha',
         'fast-srp-hap',
         'node-dns-sd',

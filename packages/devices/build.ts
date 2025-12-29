@@ -19,6 +19,7 @@ await build({
     external: [
         '@basmilius/apple-airplay',
         '@basmilius/apple-common',
-        '@basmilius/apple-companion-link'
+        '@basmilius/apple-companion-link',
+        '@basmilius/apple-encoding'
     ]
 });

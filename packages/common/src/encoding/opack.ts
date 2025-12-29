@@ -167,8 +167,9 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
 }
 
 /* UNPACK */
-export function decode(data: Uint8Array): [any, Uint8Array] {
-    return _unpack(data, []);
+export function decode(data: Uint8Array): any {
+    const [value] = _unpack(data, []);
+    return value;
 }
 
 function ensureAvailable(buf: Uint8Array, need: number) {
@@ -190,61 +191,57 @@ function _unpack(data: Uint8Array, objectList: any[]): [any, Uint8Array] {
     let rest: Uint8Array;
 
     // simple tokens
-    if (tag === 0x01) { value = true; rest = data.subarray(1); }
-    else if (tag === 0x02) { value = false; rest = data.subarray(1); }
-    else if (tag === 0x04) { value = null; rest = data.subarray(1); }
-    else if (tag === 0x05) {
+    if (tag === 0x01) {
+        value = true;
+        rest = data.subarray(1);
+    } else if (tag === 0x02) {
+        value = false;
+        rest = data.subarray(1);
+    } else if (tag === 0x04) {
+        value = null;
+        rest = data.subarray(1);
+    } else if (tag === 0x05) {
         value = data.subarray(1, 17);
         rest = data.subarray(17);
-    }
-    else if (tag === 0x06) {
+    } else if (tag === 0x06) {
         value = readLittleEndian(data, 1, 8);
         rest = data.subarray(9);
-    }
-    else if (tag >= 0x08 && tag <= 0x2f) {
+    } else if (tag >= 0x08 && tag <= 0x2f) {
         value = tag - 8;
         rest = data.subarray(1);
-    }
-    else if (tag === 0x35) {
+    } else if (tag === 0x35) {
         const view = new DataView(data.buffer, data.byteOffset + 1, 4);
         value = view.getFloat32(0, true);
         rest = data.subarray(5);
-    }
-    else if (tag === 0x36) {
+    } else if (tag === 0x36) {
         const view = new DataView(data.buffer, data.byteOffset + 1, 8);
         value = view.getFloat64(0, true);
         rest = data.subarray(9);
-    }
-    else if ((tag & 0xF0) === 0x30) {
+    } else if ((tag & 0xF0) === 0x30) {
         const noOfBytes = 2 ** (tag & 0xF);
         const val = readLittleEndian(data, 1, noOfBytes);
         value = sizedInt(val, noOfBytes);
         rest = data.subarray(1 + noOfBytes);
-    }
-    else if (tag >= 0x40 && tag <= 0x60) {
+    } else if (tag >= 0x40 && tag <= 0x60) {
         const length = tag - 0x40;
         value = new TextDecoder().decode(data.subarray(1, 1 + length));
         rest = data.subarray(1 + length);
-    }
-    else if (tag >= 0x61 && tag <= 0x64) {
+    } else if (tag >= 0x61 && tag <= 0x64) {
         const lenBytes = tag & 0xF;
         const length = readLittleEndian(data, 1, lenBytes);
         value = new TextDecoder().decode(data.subarray(1 + lenBytes, 1 + lenBytes + length));
         rest = data.subarray(1 + lenBytes + length);
-    }
-    else if (tag >= 0x70 && tag <= 0x90) {
+    } else if (tag >= 0x70 && tag <= 0x90) {
         const length = tag - 0x70;
         value = data.subarray(1, 1 + length);
         rest = data.subarray(1 + length);
-    }
-    else if (tag >= 0x91 && tag <= 0x94) {
+    } else if (tag >= 0x91 && tag <= 0x94) {
         const noOfBytes = 1 << ((tag & 0xF) - 1);
         const length = readLittleEndian(data, 1, noOfBytes);
         const start = 1 + noOfBytes;
         value = data.subarray(start, start + length);
         rest = data.subarray(start + length);
-    }
-    else if ((tag & 0xF0) === 0xD0) {
+    } else if ((tag & 0xF0) === 0xD0) {
         const count = tag & 0xF;
         let ptr = data.subarray(1);
         const arr: any[] = [];
@@ -265,8 +262,7 @@ function _unpack(data: Uint8Array, objectList: any[]): [any, Uint8Array] {
         value = arr;
         rest = ptr;
         addToObjectList = false;
-    }
-    else if ((tag & 0xE0) === 0xE0) {
+    } else if ((tag & 0xE0) === 0xE0) {
         const count = tag & 0xF;
         let ptr = data.subarray(1);
         const obj: Record<string, any> = {};
@@ -289,23 +285,20 @@ function _unpack(data: Uint8Array, objectList: any[]): [any, Uint8Array] {
         value = obj;
         rest = ptr;
         addToObjectList = false;
-    }
-    else if (tag >= 0xA0 && tag <= 0xC0) {
+    } else if (tag >= 0xA0 && tag <= 0xC0) {
         const idx = tag - 0xA0;
         if (idx >= objectList.length) throw new TypeError(`Reference index ${idx} out of range`);
         value = objectList[idx];
         rest = data.subarray(1);
         addToObjectList = false;
-    }
-    else if (tag >= 0xC1 && tag <= 0xC4) {
+    } else if (tag >= 0xC1 && tag <= 0xC4) {
         const len = tag - 0xC0;
         const uid = readLittleEndian(data, 1, len);
         if (uid >= objectList.length) throw new TypeError(`UID ${uid} out of range`);
         value = objectList[uid];
         rest = data.subarray(1 + len);
         addToObjectList = false;
-    }
-    else {
+    } else {
         throw new TypeError(`Unknown tag 0x${tag.toString(16)}`);
     }
 

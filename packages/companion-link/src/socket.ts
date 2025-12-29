@@ -190,7 +190,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
             return;
         }
 
-        [payload] = OPack.decode(payload);
+        payload = OPack.decode(payload);
 
         reporter.raw('Decoded OPACK', {header, payload});
 

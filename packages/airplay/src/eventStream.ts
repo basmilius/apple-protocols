@@ -1,4 +1,4 @@
-import { hkdf, parseBinaryPlist, reporter } from '@basmilius/apple-common';
+import { hkdf, Plist, reporter } from '@basmilius/apple-common';
 import type { RTSPMethod } from './types';
 import { makeHttpRequest } from './utils';
 import Stream from './stream';
@@ -91,7 +91,7 @@ export default class AirPlayEventStream extends Stream<never> {
 
         switch (key) {
             case 'POST /command':
-                const data = parseBinaryPlist(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as any;
+                const data = Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as any;
 
                 reporter.info('Received event stream request.', data);
 

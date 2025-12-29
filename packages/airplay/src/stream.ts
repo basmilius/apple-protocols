@@ -1,5 +1,5 @@
 import { Socket } from 'node:net';
-import { BaseSocket, decryptChacha20, encryptChacha20, reporter } from '@basmilius/apple-common';
+import { BaseSocket, Chacha20, reporter } from '@basmilius/apple-common';
 
 type EventMap = {
     close: [];
@@ -104,7 +104,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
             const nonce = Buffer.alloc(12);
             nonce.writeBigUInt64LE(BigInt(this.#readCount++), 4);
 
-            const plaintext = decryptChacha20(
+            const plaintext = Chacha20.decrypt(
                 this.#readKey,
                 nonce,
                 aad,
@@ -131,7 +131,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
             const nonce = Buffer.alloc(12);
             nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 4);
 
-            const encrypted = encryptChacha20(
+            const encrypted = Chacha20.encrypt(
                 this.#writeKey,
                 nonce,
                 leLength,

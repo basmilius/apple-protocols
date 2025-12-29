@@ -4,7 +4,6 @@ import { reporter } from '@basmilius/apple-common';
 import type { AttentionState, ButtonPressType, HidCommandKey, LaunchableApp, MediaControlCommandKey, UserAccount } from '@basmilius/apple-companion-link';
 import { CompanionLink, convertAttentionState } from '@basmilius/apple-companion-link';
 import { PROTOCOL } from './const';
-import { FEEDBACK_INTERVAL } from '../airplay/const';
 
 type EventMap = {
     connected: [];

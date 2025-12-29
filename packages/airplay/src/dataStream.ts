@@ -1,4 +1,4 @@
-import { decryptChacha20, encryptChacha20, hkdf, parseBinaryPlist, reporter, serializeBinaryPlist } from '@basmilius/apple-common';
+import { Chacha20, hkdf, Plist, reporter } from '@basmilius/apple-common';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 import { randomInt32 } from './utils';
@@ -69,7 +69,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
         const pbPayload = Buffer.concat([lenPrefix, Buffer.from(bytes)]);
 
         const plistPayload = Buffer.from(
-            serializeBinaryPlist({
+            Plist.serialize({
                 params: {
                     data: pbPayload.buffer.slice(pbPayload.byteOffset, pbPayload.byteOffset + pbPayload.byteLength)
                 }
@@ -120,7 +120,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
                 }
 
                 const frame = this.#buffer.subarray(DATA_HEADER_LENGTH, totalLength);
-                const plist = parseBinaryPlist(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
+                const plist = Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
                 const command = header.toString('ascii', 4, 8);
 
                 reporter.raw('Raw data received', header.toString());
@@ -295,7 +295,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             const authTag = data.subarray(offset + frameLength, end);
             offset = end;
 
-            const plaintext = decryptChacha20(
+            const plaintext = Chacha20.decrypt(
                 this.readKey,
                 nonce,
                 Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)), // same AAD = leLength
@@ -325,7 +325,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             const nonce = Buffer.alloc(12);
             nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 4);
 
-            const encrypted = encryptChacha20(
+            const encrypted = Chacha20.encrypt(
                 this.writeKey,
                 nonce,
                 leLength,
@@ -451,7 +451,7 @@ function buildReply(seqno: bigint): Buffer {
     header.writeUInt32BE(0, 28);
 
     const plist = Buffer.from(
-        serializeBinaryPlist(Buffer.alloc(0) as any)
+        Plist.serialize(Buffer.alloc(0) as any)
     );
 
     const total = header.length + plist.length;

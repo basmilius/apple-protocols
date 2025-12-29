@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { opackFloat, parseBinaryPlist, reporter, waitFor } from '@basmilius/apple-common';
+import { OPack, Plist, reporter, waitFor } from '@basmilius/apple-common';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType, MessageType } from './messages';
 import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';
@@ -76,7 +76,7 @@ export default class CompanionLinkApi {
             _c: {}
         });
 
-        return parseBinaryPlist(Buffer.from(payload['_c']['SiriRemoteInfoKey']).buffer);
+        return Plist.parse(Buffer.from(payload['_c']['SiriRemoteInfoKey']).buffer);
     }
 
     async getUserAccounts(): Promise<UserAccount[]> {
@@ -236,9 +236,9 @@ export default class CompanionLinkApi {
             _i: '_touchStart',
             _t: MessageType.Request,
             _c: {
-                _height: opackFloat(1000.0),
+                _height: OPack.float(1000.0),
                 _tFl: 0,
-                _width: opackFloat(1000.0)
+                _width: OPack.float(1000.0)
             }
         });
 

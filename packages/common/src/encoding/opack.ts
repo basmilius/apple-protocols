@@ -76,7 +76,7 @@ function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
     return out;
 }
 
-export function pack(data: any): Uint8Array {
+export function encode(data: any): Uint8Array {
     return _pack(data, []);
 }
 
@@ -167,7 +167,7 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
 }
 
 /* UNPACK */
-export function unpack(data: Uint8Array): [any, Uint8Array] {
+export function decode(data: Uint8Array): [any, Uint8Array] {
     return _unpack(data, []);
 }
 

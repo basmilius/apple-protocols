@@ -1,10 +1,10 @@
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
-import tweetnacl, { type BoxKeyPair } from 'tweetnacl';
 import { reporter } from './cli';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
-import { decryptChacha20, encryptChacha20, generateCurve25519KeyPair, generateCurve25519SharedSecKey, hkdf } from './crypto';
-import { bailTlv, decodeTlv, encodeOPack, encodeTlv, TlvFlags, TlvMethod, TlvState, TlvValue } from './encoding';
+import { Chacha20, Curve25519, hkdf } from './crypto';
+import { OPack, TLV8 } from './encoding';
+import tweetnacl from 'tweetnacl';
 
 export class AccessoryPair {
     readonly #name: string;
@@ -42,7 +42,7 @@ export class AccessoryPair {
     }
 
     async transient(): Promise<AccessoryKeys> {
-        const m1 = await this.m1([[TlvValue.Flags, TlvFlags.TransientPairing]]);
+        const m1 = await this.m1([[TLV8.Value.Flags, TLV8.Flags.TransientPairing]]);
         const m2 = await this.m2(m1);
         const m3 = await this.m3(m2);
         const m4 = await this.m4(m3);
@@ -72,15 +72,15 @@ export class AccessoryPair {
     }
 
     async m1(additionalTlv: [number, number | Buffer][] = []): Promise<PairM1> {
-        const response = await this.#requestHandler('m1', encodeTlv([
-            [TlvValue.Method, TlvMethod.PairSetup],
-            [TlvValue.State, TlvState.M1],
+        const response = await this.#requestHandler('m1', TLV8.encode([
+            [TLV8.Value.Method, TLV8.Method.PairSetup],
+            [TLV8.Value.State, TLV8.State.M1],
             ...additionalTlv
         ]));
 
         const data = tlv(response);
-        const publicKey = data.get(TlvValue.PublicKey);
-        const salt = data.get(TlvValue.Salt);
+        const publicKey = data.get(TLV8.Value.PublicKey);
+        const salt = data.get(TLV8.Value.Salt);
 
         return {publicKey, salt};
     }
@@ -98,14 +98,14 @@ export class AccessoryPair {
     }
 
     async m3(m2: PairM2): Promise<PairM3> {
-        const response = await this.#requestHandler('m3', encodeTlv([
-            [TlvValue.State, TlvState.M3],
-            [TlvValue.PublicKey, m2.publicKey],
-            [TlvValue.Proof, m2.proof]
+        const response = await this.#requestHandler('m3', TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M3],
+            [TLV8.Value.PublicKey, m2.publicKey],
+            [TLV8.Value.Proof, m2.proof]
         ]));
 
         const data = tlv(response);
-        const serverProof = data.get(TlvValue.Proof);
+        const serverProof = data.get(TLV8.Value.Proof);
 
         return {serverProof};
     }
@@ -143,25 +143,25 @@ export class AccessoryPair {
 
         const signature = tweetnacl.sign.detached(deviceInfo, this.#secretKey);
 
-        const innerTlv = encodeTlv([
-            [TlvValue.Identifier, this.#pairingId],
-            [TlvValue.PublicKey, this.#publicKey],
-            [TlvValue.Signature, Buffer.from(signature)],
-            [TlvValue.Name, Buffer.from(encodeOPack({
+        const innerTlv = TLV8.encode([
+            [TLV8.Value.Identifier, this.#pairingId],
+            [TLV8.Value.PublicKey, this.#publicKey],
+            [TLV8.Value.Signature, Buffer.from(signature)],
+            [TLV8.Value.Name, Buffer.from(OPack.encode({
                 name: this.#name
             }))]
         ]);
 
-        const {authTag, ciphertext} = encryptChacha20(sessionKey, Buffer.from('PS-Msg05'), null, innerTlv);
+        const {authTag, ciphertext} = Chacha20.encrypt(sessionKey, Buffer.from('PS-Msg05'), null, innerTlv);
         const encrypted = Buffer.concat([ciphertext, authTag]);
 
-        const response = await this.#requestHandler('m5', encodeTlv([
-            [TlvValue.State, TlvState.M5],
-            [TlvValue.EncryptedData, encrypted]
+        const response = await this.#requestHandler('m5', TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M5],
+            [TLV8.Value.EncryptedData, encrypted]
         ]));
 
         const data = tlv(response);
-        const encryptedDataRaw = data.get(TlvValue.EncryptedData);
+        const encryptedDataRaw = data.get(TLV8.Value.EncryptedData);
         const encryptedData = encryptedDataRaw.subarray(0, -16);
         const encryptedTag = encryptedDataRaw.subarray(-16);
 
@@ -173,12 +173,12 @@ export class AccessoryPair {
     }
 
     async m6(m4: PairM4, m5: PairM5): Promise<AccessoryCredentials> {
-        const data = decryptChacha20(m5.sessionKey, Buffer.from('PS-Msg06'), null, m5.data, m5.authTag);
-        const tlv = decodeTlv(data);
+        const data = Chacha20.decrypt(m5.sessionKey, Buffer.from('PS-Msg06'), null, m5.data, m5.authTag);
+        const tlv = TLV8.decode(data);
 
-        const accessoryIdentifier = tlv.get(TlvValue.Identifier);
-        const accessoryLongTermPublicKey = tlv.get(TlvValue.PublicKey);
-        const accessorySignature = tlv.get(TlvValue.Signature);
+        const accessoryIdentifier = tlv.get(TLV8.Value.Identifier);
+        const accessoryLongTermPublicKey = tlv.get(TLV8.Value.PublicKey);
+        const accessorySignature = tlv.get(TLV8.Value.Signature);
 
         const accessoryX = hkdf({
             hash: 'sha512',
@@ -209,11 +209,11 @@ export class AccessoryPair {
 }
 
 export class AccessoryVerify {
-    readonly #ephemeralKeyPair: BoxKeyPair;
+    readonly #ephemeralKeyPair: tweetnacl.BoxKeyPair;
     readonly #requestHandler: RequestHandler;
 
     constructor(requestHandler: RequestHandler) {
-        this.#ephemeralKeyPair = generateCurve25519KeyPair();
+        this.#ephemeralKeyPair = Curve25519.generateKeyPair();
         this.#requestHandler = requestHandler;
     }
 
@@ -227,14 +227,14 @@ export class AccessoryVerify {
     }
 
     async #m1(): Promise<VerifyM1> {
-        const response = await this.#requestHandler('m1', encodeTlv([
-            [TlvValue.State, TlvState.M1],
-            [TlvValue.PublicKey, Buffer.from(this.#ephemeralKeyPair.publicKey)]
+        const response = await this.#requestHandler('m1', TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M1],
+            [TLV8.Value.PublicKey, Buffer.from(this.#ephemeralKeyPair.publicKey)]
         ]));
 
         const data = tlv(response);
-        const serverPublicKey = data.get(TlvValue.PublicKey);
-        const encryptedData = data.get(TlvValue.EncryptedData);
+        const serverPublicKey = data.get(TLV8.Value.PublicKey);
+        const encryptedData = data.get(TLV8.Value.EncryptedData);
 
         return {
             encryptedData,
@@ -243,7 +243,7 @@ export class AccessoryVerify {
     }
 
     async #m2(localAccessoryIdentifier: string, longTermPublicKey: Buffer, m1: VerifyM1): Promise<VerifyM2> {
-        const sharedSecret = Buffer.from(generateCurve25519SharedSecKey(
+        const sharedSecret = Buffer.from(Curve25519.generateSharedSecKey(
             this.#ephemeralKeyPair.secretKey,
             m1.serverPublicKey
         ));
@@ -259,11 +259,11 @@ export class AccessoryVerify {
         const encryptedData = m1.encryptedData.subarray(0, -16);
         const encryptedTag = m1.encryptedData.subarray(-16);
 
-        const data = decryptChacha20(sessionKey, Buffer.from('PV-Msg02'), null, encryptedData, encryptedTag);
-        const tlv = decodeTlv(data);
+        const data = Chacha20.decrypt(sessionKey, Buffer.from('PV-Msg02'), null, encryptedData, encryptedTag);
+        const tlv = TLV8.decode(data);
 
-        const accessoryIdentifier = tlv.get(TlvValue.Identifier);
-        const accessorySignature = tlv.get(TlvValue.Signature);
+        const accessoryIdentifier = tlv.get(TLV8.Value.Identifier);
+        const accessorySignature = tlv.get(TLV8.Value.Signature);
 
         if (accessoryIdentifier.toString() !== localAccessoryIdentifier) {
             throw new Error(`Invalid accessory identifier. Expected ${accessoryIdentifier.toString()} to be ${localAccessoryIdentifier}.`);
@@ -295,17 +295,17 @@ export class AccessoryVerify {
 
         const iosDeviceSignature = Buffer.from(tweetnacl.sign.detached(iosDeviceInfo, secretKey));
 
-        const innerTlv = encodeTlv([
-            [TlvValue.Identifier, pairingId],
-            [TlvValue.Signature, iosDeviceSignature]
+        const innerTlv = TLV8.encode([
+            [TLV8.Value.Identifier, pairingId],
+            [TLV8.Value.Signature, iosDeviceSignature]
         ]);
 
-        const {authTag, ciphertext} = encryptChacha20(m2.sessionKey, Buffer.from('PV-Msg03'), null, innerTlv);
+        const {authTag, ciphertext} = Chacha20.encrypt(m2.sessionKey, Buffer.from('PV-Msg03'), null, innerTlv);
         const encrypted = Buffer.concat([ciphertext, authTag]);
 
-        await this.#requestHandler('m3', encodeTlv([
-            [TlvValue.State, TlvState.M3],
-            [TlvValue.EncryptedData, encrypted]
+        await this.#requestHandler('m3', TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M3],
+            [TLV8.Value.EncryptedData, encrypted]
         ]));
 
         return {};
@@ -322,10 +322,10 @@ export class AccessoryVerify {
 }
 
 function tlv(buffer: Buffer): Map<number, Buffer> {
-    const data = decodeTlv(buffer);
+    const data = TLV8.decode(buffer);
 
-    if (data.has(TlvValue.Error)) {
-        bailTlv(data);
+    if (data.has(TLV8.Value.Error)) {
+        TLV8.bail(data);
     }
 
     reporter.raw('Decoded TLV', data);

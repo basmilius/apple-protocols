@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { Socket } from 'node:net';
-import { BaseSocket, decodeOPack, decryptChacha20, encodeOPack, encryptChacha20, opackSizedInt, reporter } from '@basmilius/apple-common';
+import { BaseSocket, Chacha20, OPack, reporter } from '@basmilius/apple-common';
 import { OPackFrameTypes, PairFrameTypes } from './messages';
 
 const HEADER_BYTES = 4;
@@ -81,9 +81,9 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
 
     async send(type: number, obj: Record<string, unknown>): Promise<void> {
         const _x = this.#xid++;
-        obj._x ??= opackSizedInt(_x, 8);
+        obj._x ??= OPack.sizedInt(_x, 8);
 
-        let payload = Buffer.from(encodeOPack(obj));
+        let payload = Buffer.from(OPack.encode(obj));
         let payloadLength = payload.byteLength;
 
         if (this.isEncrypted && payloadLength > 0) {
@@ -100,7 +100,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
             const nonce = Buffer.alloc(12);
             nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 0);
 
-            const encrypted = encryptChacha20(this.#writeKey, nonce, header, payload);
+            const encrypted = Chacha20.encrypt(this.#writeKey, nonce, header, payload);
             data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
         } else {
             data = Buffer.concat([header, payload]);
@@ -177,7 +177,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
         const nonce = Buffer.alloc(12);
         nonce.writeBigUint64LE(BigInt(this.#readCount++), 0);
 
-        const decrypted = decryptChacha20(this.#readKey, nonce, header, ciphertext, authTag);
+        const decrypted = Chacha20.decrypt(this.#readKey, nonce, header, ciphertext, authTag);
 
         return Buffer.concat([header, decrypted, authTag]);
     }
@@ -190,7 +190,7 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
             return;
         }
 
-        [payload] = decodeOPack(payload);
+        [payload] = OPack.decode(payload);
 
         reporter.raw('Decoded OPACK', {header, payload});
 

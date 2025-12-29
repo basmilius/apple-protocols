@@ -1,4 +1,4 @@
-import { type DiscoveryResult, getMacAddress, parseBinaryPlist, reporter, serializeBinaryPlist, TimingServer, uuid } from '@basmilius/apple-common';
+import { type DiscoveryResult, getMacAddress, Plist, reporter, TimingServer, uuid } from '@basmilius/apple-common';
 import { randomInt64 } from './utils';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
@@ -66,7 +66,7 @@ export default class AirPlay {
 
     async setupDataStream(sharedSecret: Buffer): Promise<void> {
         const seed = randomInt64();
-        const request = serializeBinaryPlist({
+        const request = Plist.serialize({
             streams: [
                 {
                     controlType: 2,
@@ -84,7 +84,7 @@ export default class AirPlay {
             'Content-Type': 'application/x-apple-binary-plist'
         });
 
-        const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
+        const plist = Plist.parse(await response.arrayBuffer()) as any;
         const dataPort = plist.streams[0].dataPort & 0xFFFF;
         reporter.net(`Connecting to data stream on port ${dataPort}...`);
 
@@ -116,7 +116,7 @@ export default class AirPlay {
             body.timingProtocol = 'NTP';
         }
 
-        const request = serializeBinaryPlist(body);
+        const request = Plist.serialize(body);
         const response = await this.#rtsp.setup(`/${this.rtsp.sessionId}`, Buffer.from(request), {
             'Content-Type': 'application/x-apple-binary-plist'
         });
@@ -127,7 +127,7 @@ export default class AirPlay {
             throw new Error('Cannot setup event stream.');
         }
 
-        const plist = parseBinaryPlist(await response.arrayBuffer()) as any;
+        const plist = Plist.parse(await response.arrayBuffer()) as any;
         const eventPort = plist.eventPort & 0xFFFF;
         reporter.net(`Connecting to event stream on port ${eventPort}...`);
 

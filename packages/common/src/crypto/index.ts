@@ -1,13 +1,4 @@
-export {
-    decrypt as decryptChacha20,
-    encrypt as encryptChacha20
-} from './chacha20';
+export * as Chacha20 from './chacha20';
+export * as Curve25519 from './curve25519'
 
-export {
-    generateKeyPair as generateCurve25519KeyPair,
-    generateSharedSecKey as generateCurve25519SharedSecKey
-} from './curve25519'
-
-export {
-    default as hkdf
-} from './hkdf';
+export { default as hkdf } from './hkdf';

@@ -4,6 +4,16 @@ export const Flags = {
     TransientPairing: 0x10
 } as const;
 
+export const ErrorCode = {
+    Unknown: 0x01,
+    Authentication: 0x02,
+    BackOff: 0x03,
+    MaxPeers: 0x04,
+    MaxTries: 0x05,
+    Unavailable: 0x06,
+    Busy: 0x07,
+} as const;
+
 export const Method = {
     PairSetup: 0x00,
     PairSetupWithAuth: 0x01,
@@ -51,7 +61,14 @@ export function bail(data: Map<number, Buffer>): never {
     }
 
     if (data.has(Value.Error)) {
-        throw new Error(`Device returned an error code: ${data.get(Value.Error).readUint8()}`);
+        const errorCodeEntries = Object.entries(ErrorCode) as [string, number][];
+        const errorCode = errorCodeEntries.find(([_, code]) => code === data.get(Value.Error).readUint8());
+
+        if (!errorCode) {
+            throw new Error(`Device returned an unknown error code: ${data.get(Value.Error).readUint8()}`);
+        }
+
+        throw new Error(`Device returned an error code: ${errorCode[0]}`);
     }
 
     reporter.error(data);

@@ -3,12 +3,8 @@ export {
 } from 'uuid';
 
 export {
-    decryptChacha20,
-    encryptChacha20,
-
-    generateCurve25519SharedSecKey,
-    generateCurve25519KeyPair,
-
+    Chacha20,
+    Curve25519,
     hkdf
 } from './crypto';
 
@@ -18,22 +14,9 @@ export {
 } from './discovery';
 
 export {
-    bailTlv,
-    encodeTlv,
-    decodeTlv,
-    TlvFlags,
-    TlvMethod,
-    TlvState,
-    TlvValue,
-
-    parseBinaryPlist,
-    serializeBinaryPlist,
-
-    decodeOPack,
-    encodeOPack,
-    opackFloat,
-    opackInt,
-    opackSizedInt
+    OPack,
+    Plist,
+    TLV8
 } from './encoding';
 
 export {

@@ -18,8 +18,6 @@ await build({
     ],
     external: [
         '@noble/curves',
-        '@plist/binary.parse',
-        '@plist/binary.serialize',
         'chacha',
         'fast-srp-hap',
         'node-dns-sd',

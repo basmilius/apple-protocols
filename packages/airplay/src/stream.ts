@@ -1,5 +1,4 @@
-import { Socket } from 'node:net';
-import { BaseSocket, Chacha20, reporter } from '@basmilius/apple-common';
+import { Chacha20, ENCRYPTION, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 
 type EventMap = {
     close: [];
@@ -8,75 +7,12 @@ type EventMap = {
     timeout: [];
 };
 
-export default class AirPlayStream<TEventMap extends Record<string, any>> extends BaseSocket<EventMap & TEventMap> {
-    get isConnected(): boolean {
-        return this.#socket.readyState === 'open';
+export default class AirPlayStream<TEventMap extends Record<string, any>> extends EncryptionAwareConnection<EventMap & TEventMap> {
+    get #encryption(): EncryptionState {
+        return this[ENCRYPTION];
     }
 
-    get isEncrypted(): boolean {
-        return !!this.#readKey && !!this.#writeKey;
-    }
-
-    get socket(): Socket {
-        return this.#socket;
-    }
-
-    get readKey(): Buffer {
-        return this.#readKey;
-    }
-
-    get writeKey(): Buffer {
-        return this.#writeKey;
-    }
-
-    readonly #socket: Socket;
     #buffer: Buffer = Buffer.alloc(0);
-    #readCount: number;
-    #readKey?: Buffer;
-    #writeCount: number;
-    #writeKey?: Buffer;
-
-    constructor(address: string, port: number) {
-        super(address, port);
-
-        this.onClose = this.onClose.bind(this);
-        this.onConnect = this.onConnect.bind(this);
-        this.onData = this.onData.bind(this);
-        this.onEnd = this.onEnd.bind(this);
-        this.onError = this.onError.bind(this);
-        this.onTimeout = this.onTimeout.bind(this);
-
-        this.#socket = new Socket();
-        this.#socket.on('close', this.onClose);
-        this.#socket.on('connect', this.onConnect);
-        this.#socket.on('data', this.onData);
-        this.#socket.on('end', this.onEnd);
-        this.#socket.on('error', this.onError);
-        this.#socket.on('timeout', this.onTimeout);
-    }
-
-    async connect(): Promise<void> {
-        reporter.net(`Connecting to ${this.address}:${this.port}...`);
-
-        return await new Promise(resolve => {
-            this.#socket.connect({
-                host: this.address,
-                port: this.port,
-                keepAlive: true
-            }, resolve);
-        });
-    }
-
-    async disconnect(): Promise<void> {
-        this.#socket.destroy();
-    }
-
-    async enableEncryption(readKey: Buffer, writeKey: Buffer): Promise<void> {
-        this.#readKey = readKey;
-        this.#writeKey = writeKey;
-        this.#readCount = 0;
-        this.#writeCount = 0;
-    }
 
     async decrypt(data: Buffer): Promise<Buffer> {
         if (this.#buffer) {
@@ -102,15 +38,9 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
             const authTag = data.subarray(offset + 2 + length, offset + 2 + length + 16);
 
             const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#readCount++), 4);
+            nonce.writeBigUInt64LE(BigInt(this.#encryption.readCount++), 4);
 
-            const plaintext = Chacha20.decrypt(
-                this.#readKey,
-                nonce,
-                aad,
-                ciphertext,
-                authTag
-            );
+            const plaintext = Chacha20.decrypt(this.#encryption.readKey, nonce, aad, ciphertext, authTag);
 
             result = Buffer.concat([result, plaintext]);
             offset += totalChunkLength;
@@ -129,45 +59,14 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
             leLength.writeUInt16LE(length, 0);
 
             const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 4);
+            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 4);
 
-            const encrypted = Chacha20.encrypt(
-                this.#writeKey,
-                nonce,
-                leLength,
-                data.subarray(offset, offset + length)
-            );
+            const encrypted = Chacha20.encrypt(this.#encryption.writeKey, nonce, leLength, data.subarray(offset, offset + length));
 
             offset += length;
             result = Buffer.concat([result, leLength, encrypted.ciphertext, encrypted.authTag]);
         }
 
         return result;
-    }
-
-    async onClose(): Promise<void> {
-        await super.onClose();
-
-        reporter.net(`Connection closed from ${this.address}:${this.port}`);
-    }
-
-    async onConnect(): Promise<void> {
-        await super.onConnect();
-
-        reporter.net(`Connected to ${this.address}:${this.port}`);
-    }
-
-    async onData(buffer: Buffer): Promise<void> {
-        reporter.raw('Data frame received', buffer.toString());
-    }
-
-    async onEnd(): Promise<void> {
-        reporter.net('Connection ended');
-    }
-
-    async onError(err: Error): Promise<void> {
-        await super.onError(err);
-
-        reporter.error('Error received', err);
     }
 }

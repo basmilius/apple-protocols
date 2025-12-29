@@ -1,11 +1,14 @@
-import { Discovery, prompt } from '@basmilius/apple-common';
+import { Discovery, prompt, reporter } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { CompanionLink } from './src';
+
+reporter.all();
 
 const discovery = Discovery.companionLink();
 const device = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');
 
 const protocol = new CompanionLink(device);
+protocol.socket.debug(true);
 await protocol.connect();
 
 async function pair(): Promise<void> {

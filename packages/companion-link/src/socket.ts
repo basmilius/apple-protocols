@@ -1,27 +1,17 @@
 import { randomInt } from 'node:crypto';
-import { Socket } from 'node:net';
-import { BaseSocket, Chacha20, reporter } from '@basmilius/apple-common';
+import { Chacha20, ENCRYPTION, EncryptionAwareConnection, reporter } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
 import { OPackFrameTypes, PairFrameTypes } from './messages';
 
 const HEADER_BYTES = 4;
 
-export default class CompanionLinkSocket extends BaseSocket<Record<string, [unknown]>> {
-    get isConnected(): boolean {
-        return this.#socket.readyState === 'open';
+export default class CompanionLinkSocket extends EncryptionAwareConnection<Record<string, [unknown]>> {
+    get #encryption() {
+        return this[ENCRYPTION];
     }
 
-    get isEncrypted(): boolean {
-        return !!this.#readKey && !!this.#writeKey;
-    }
-
-    readonly #socket: Socket;
     readonly #queue: Record<number, Function> = {};
     #buffer: Buffer = Buffer.alloc(0);
-    #readCount: number;
-    #readKey?: Buffer;
-    #writeCount: number;
-    #writeKey?: Buffer;
     #xid: number;
 
     constructor(address: string, port: number) {
@@ -29,41 +19,8 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
 
         this.#xid = randomInt(0, 2 ** 16);
 
-        this.onClose = this.onClose.bind(this);
-        this.onConnect = this.onConnect.bind(this);
         this.onData = this.onData.bind(this);
-        this.onEnd = this.onEnd.bind(this);
-        this.onError = this.onError.bind(this);
-
-        this.#socket = new Socket();
-        this.#socket.on('close', this.onClose);
-        this.#socket.on('connect', this.onConnect);
-        this.#socket.on('data', this.onData);
-        this.#socket.on('end', this.onEnd);
-        this.#socket.on('error', this.onError);
-    }
-
-    async connect(): Promise<void> {
-        reporter.net(`Connecting to ${this.address}:${this.port}...`);
-
-        return await new Promise(resolve => {
-            this.#socket.connect({
-                host: this.address,
-                port: this.port,
-                keepAlive: true
-            }, resolve);
-        });
-    }
-
-    async disconnect(): Promise<void> {
-        this.#socket.destroy();
-    }
-
-    async enableEncryption(readKey: Buffer, writeKey: Buffer): Promise<void> {
-        this.#readKey = readKey;
-        this.#writeKey = writeKey;
-        this.#readCount = 0;
-        this.#writeCount = 0;
+        this.on('data', this.onData);
     }
 
     async exchange(type: number, obj: Record<string, unknown>): Promise<[number, unknown]> {
@@ -88,10 +45,10 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
         let payloadLength = payload.byteLength;
 
         if (this.isEncrypted && payloadLength > 0) {
-            payloadLength += 16;
+            payloadLength += Chacha20.CHACHA20_AUTH_TAG_LENGTH;
         }
 
-        const header = Buffer.alloc(4);
+        const header = Buffer.allocUnsafe(4);
         header.writeUint8(type, 0);
         header.writeUintBE(payloadLength, 1, 3);
 
@@ -99,34 +56,21 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
 
         if (this.isEncrypted) {
             const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 0);
+            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 0);
 
-            const encrypted = Chacha20.encrypt(this.#writeKey, nonce, header, payload);
+            const encrypted = Chacha20.encrypt(this.#encryption.writeKey, nonce, header, payload);
             data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
         } else {
             data = Buffer.concat([header, payload]);
         }
 
-        reporter.raw('Send data frame', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
+        reporter.raw('Sending data frame...', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
 
-        return new Promise((resolve, reject) => {
-            this.#socket.write(data, err => err && reject(err));
-            resolve();
-        });
-    }
-
-    async onClose(): Promise<void> {
-        await super.onClose();
-        reporter.net(`Connection closed from ${this.address}:${this.port}`);
-    }
-
-    async onConnect(): Promise<void> {
-        await super.onConnect();
-        reporter.net(`Connected to ${this.address}:${this.port}`);
+        return await this.write(data);
     }
 
     async onData(buffer: Buffer): Promise<void> {
-        // reporter.raw('Received data frame', buffer.toString('hex'));
+        reporter.raw('Received data frame', buffer.toString('hex'));
 
         this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
@@ -154,15 +98,6 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
         }
     }
 
-    async onEnd(): Promise<void> {
-        reporter.net('Connection ended');
-    }
-
-    async onError(err: Error): Promise<void> {
-        await super.onError(err);
-        reporter.error('Error received', err);
-    }
-
     async #decrypt(data: Buffer): Promise<Buffer> {
         if (!this.isEncrypted) {
             return data;
@@ -176,9 +111,9 @@ export default class CompanionLinkSocket extends BaseSocket<Record<string, [unkn
         const ciphertext = payload.subarray(0, payload.byteLength - 16);
 
         const nonce = Buffer.alloc(12);
-        nonce.writeBigUint64LE(BigInt(this.#readCount++), 0);
+        nonce.writeBigUint64LE(BigInt(this.#encryption.readCount++), 0);
 
-        const decrypted = Chacha20.decrypt(this.#readKey, nonce, header, ciphertext, authTag);
+        const decrypted = Chacha20.decrypt(this.#encryption.readKey, nonce, header, ciphertext, authTag);
 
         return Buffer.concat([header, decrypted, authTag]);
     }

@@ -1,7 +1,7 @@
 import { createCipher, createDecipher } from 'chacha';
 
-const AUTH_TAG_LENGTH = 16;
-const NONCE_LENGTH = 12;
+export const CHACHA20_AUTH_TAG_LENGTH = 16;
+export const CHACHA20_NONCE_LENGTH = 12;
 
 export function decrypt(key: Buffer, nonce: Buffer, add: Buffer | null, ciphertext: Buffer, authTag: Buffer): Buffer {
     nonce = padNonce(nonce);
@@ -34,12 +34,12 @@ export function encrypt(key: Buffer, nonce: Buffer, aad: Buffer | null, plaintex
 }
 
 export function padNonce(nonce: Buffer): Buffer {
-    if (nonce.length >= NONCE_LENGTH) {
+    if (nonce.length >= CHACHA20_NONCE_LENGTH) {
         return nonce;
     }
 
     return Buffer.concat([
-        Buffer.alloc(NONCE_LENGTH - nonce.length, 0),
+        Buffer.alloc(CHACHA20_NONCE_LENGTH - nonce.length, 0),
         nonce
     ]);
 }

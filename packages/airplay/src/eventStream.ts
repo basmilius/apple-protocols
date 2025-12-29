@@ -4,8 +4,23 @@ import type { RTSPMethod } from './types';
 import { makeHttpRequest } from './utils';
 import Stream from './stream';
 
+type Bindings = {
+    onData: (buffer: Buffer) => void;
+};
+
 export default class AirPlayEventStream extends Stream<never> {
+    readonly #bindings: Bindings;
     #buffer: Buffer = Buffer.alloc(0);
+
+    constructor(address: string, port: number) {
+        super(address, port);
+
+        this.#bindings = {
+            onData: this.#onData.bind(this)
+        };
+
+        this.on('data', this.#bindings.onData);
+    }
 
     async respond(response: Response): Promise<void> {
         const body = Buffer.from(await response.arrayBuffer());
@@ -42,7 +57,7 @@ export default class AirPlayEventStream extends Stream<never> {
             data = await this.encrypt(data);
         }
 
-        this.socket.write(data);
+        await this.write(data);
     }
 
     async setup(sharedSecret: Buffer): Promise<void> {
@@ -63,28 +78,6 @@ export default class AirPlayEventStream extends Stream<never> {
         });
 
         await this.enableEncryption(writeKey, readKey);
-    }
-
-    async onData(buffer: Buffer): Promise<void> {
-        this.#buffer = Buffer.concat([this.#buffer, buffer]);
-
-        if (this.isEncrypted) {
-            this.#buffer = await this.decrypt(this.#buffer);
-        }
-
-        // reporter.raw('Event stream received data', this.#buffer.toString());
-
-        while (this.#buffer.byteLength > 0) {
-            const result = makeHttpRequest(this.#buffer);
-
-            if (result === null) {
-                return;
-            }
-
-            this.#buffer = this.#buffer.subarray(result.requestLength);
-
-            await this.#handle(result.method, result.path, result.headers, result.body);
-        }
     }
 
     async #handle(method: RTSPMethod, path: string, headers: Record<string, string>, body: Buffer): Promise<void> {
@@ -111,6 +104,26 @@ export default class AirPlayEventStream extends Stream<never> {
             default:
                 reporter.warn('No handler for url', key);
                 break;
+        }
+    }
+
+    async #onData(buffer: Buffer): Promise<void> {
+        this.#buffer = Buffer.concat([this.#buffer, buffer]);
+
+        if (this.isEncrypted) {
+            this.#buffer = await this.decrypt(this.#buffer);
+        }
+
+        while (this.#buffer.byteLength > 0) {
+            const result = makeHttpRequest(this.#buffer);
+
+            if (result === null) {
+                return;
+            }
+
+            this.#buffer = this.#buffer.subarray(result.requestLength);
+
+            await this.#handle(result.method, result.path, result.headers, result.body);
         }
     }
 }

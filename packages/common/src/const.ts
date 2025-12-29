@@ -1,6 +1,7 @@
 export const AIRPLAY_TRANSIENT_PIN = '3939';
 
 export const HTTP_TIMEOUT = 1750;
+export const SOCKET_TIMEOUT = 10000;
 
 export const AIRPLAY_SERVICE = '_airplay._tcp.local';
 export const COMPANION_LINK_SERVICE = '_companion-link._tcp.local';

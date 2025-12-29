@@ -17,7 +17,7 @@ class Reporter {
     #enabled: DebugGroup[] = [];
 
     all(): void {
-        this.#enabled = ['error', 'info', 'net', 'raw', 'warn'] as DebugGroup[];
+        this.#enabled = ['debug', 'error', 'info', 'net', 'raw', 'warn'] as DebugGroup[];
     }
 
     disable(group: DebugGroup): void {
@@ -34,6 +34,10 @@ class Reporter {
 
     isEnabled(group: DebugGroup): boolean {
         return this.#enabled.includes(group);
+    }
+
+    debug(...data: any[]): void {
+        this.isEnabled('debug') && console.debug(`\u001b[36m[debug]\u001b[39m`, ...data);
     }
 
     error(...data: any[]): void {
@@ -60,6 +64,7 @@ class Reporter {
 export const reporter: Reporter = new Reporter();
 
 type DebugGroup =
+    | 'debug'
     | 'error'
     | 'info'
     | 'net'

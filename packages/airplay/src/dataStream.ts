@@ -1,4 +1,4 @@
-import { Chacha20, hkdf, reporter } from '@basmilius/apple-common';
+import { Chacha20, ENCRYPTION, EncryptionState, hkdf, reporter } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
@@ -6,6 +6,10 @@ import { randomInt32 } from './utils';
 import Stream from './stream';
 
 const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
+
+type Bindings = {
+    onData: (buffer: Buffer) => Promise<void>;
+};
 
 type EventMap = {
     readonly deviceInfo: [Proto.DeviceInfoMessage];
@@ -30,17 +34,25 @@ type EventMap = {
 };
 
 export default class AirPlayDataStream extends Stream<EventMap> {
+    get #encryption(): EncryptionState {
+        return this[ENCRYPTION];
+    }
+
+    readonly #bindings: Bindings;
     #buffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
-    #readCount: number;
-    #writeCount: number;
     #handler?: [Function, Function];
 
     constructor(address: string, port: number) {
         super(address, port);
 
         this.#seqno = 0x100000000n + BigInt(randomInt32());
-        this.#writeCount = 0;
+
+        this.#bindings = {
+            onData: this.#onData.bind(this)
+        };
+
+        this.on('data', this.#bindings.onData);
     }
 
     async exchange(message: Proto.ProtocolMessage): Promise<Proto.ProtocolMessage> {
@@ -55,7 +67,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
 
         reporter.raw(`[datastream] Sending reply for seqno ${seqno}.`);
 
-        this.socket.write(await this.#encrypt(rply));
+        await this.write(await this.#encrypt(rply));
     }
 
     async send(message: Proto.ProtocolMessage): Promise<void> {
@@ -77,7 +89,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
 
         reporter.raw('[datastream] Sending message.', message);
 
-        this.socket.write(encrypted);
+        await this.write(encrypted);
     }
 
     async setup(sharedSecret: Buffer, seed: bigint): Promise<void> {
@@ -98,61 +110,6 @@ export default class AirPlayDataStream extends Stream<EventMap> {
         });
 
         await this.enableEncryption(readKey, writeKey);
-    }
-
-    async onData(buffer: Buffer): Promise<void> {
-        try {
-            this.#buffer = Buffer.concat([this.#buffer, buffer]);
-            this.#buffer = await this.#decrypt(this.#buffer);
-
-            while (this.#buffer.byteLength > DATA_HEADER_LENGTH) {
-                const header = this.#buffer.subarray(0, DATA_HEADER_LENGTH);
-                const totalLength = header.readUint32BE();
-
-                if (this.#buffer.byteLength < totalLength) {
-                    reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
-                    return;
-                }
-
-                const frame = this.#buffer.subarray(DATA_HEADER_LENGTH, totalLength);
-                const plist = Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
-                const command = header.toString('ascii', 4, 8);
-
-                reporter.raw('Raw data received', header.toString());
-
-                this.#buffer = this.#buffer.subarray(totalLength);
-
-                if (!plist || !plist.params || !plist.params.data) {
-                    if (command === 'rply') {
-                        reporter.raw('Got reply...');
-                    } else if (command === 'sync') {
-                        await this.reply(parseHeaderSeqno(header));
-                    }
-
-                    if (this.#handler) {
-                        const [resolve] = this.#handler;
-                        this.#handler = undefined;
-
-                        resolve();
-                    }
-
-                    continue;
-                }
-
-                const content = Buffer.from(plist.params.data);
-
-                for (const message of await parseMessages(content)) {
-                    reporter.raw('Parsed message', message);
-                    await this.#handleMessage(message);
-                }
-
-                if (command === 'sync') {
-                    await this.reply(parseHeaderSeqno(header));
-                }
-            }
-        } catch (err) {
-            reporter.error('Error in onData', err);
-        }
     }
 
     async #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): Promise<void> {
@@ -269,10 +226,65 @@ export default class AirPlayDataStream extends Stream<EventMap> {
         this.emit('volumeDidChange', message);
     }
 
+    async #onData(buffer: Buffer): Promise<void> {
+        try {
+            this.#buffer = Buffer.concat([this.#buffer, buffer]);
+            this.#buffer = await this.#decrypt(this.#buffer);
+
+            while (this.#buffer.byteLength > DATA_HEADER_LENGTH) {
+                const header = this.#buffer.subarray(0, DATA_HEADER_LENGTH);
+                const totalLength = header.readUint32BE();
+
+                if (this.#buffer.byteLength < totalLength) {
+                    reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                    return;
+                }
+
+                const frame = this.#buffer.subarray(DATA_HEADER_LENGTH, totalLength);
+                const plist = Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
+                const command = header.toString('ascii', 4, 8);
+
+                reporter.raw('Raw data received', header.toString());
+
+                this.#buffer = this.#buffer.subarray(totalLength);
+
+                if (!plist || !plist.params || !plist.params.data) {
+                    if (command === 'rply') {
+                        reporter.raw('Got reply...');
+                    } else if (command === 'sync') {
+                        await this.reply(parseHeaderSeqno(header));
+                    }
+
+                    if (this.#handler) {
+                        const [resolve] = this.#handler;
+                        this.#handler = undefined;
+
+                        resolve();
+                    }
+
+                    continue;
+                }
+
+                const content = Buffer.from(plist.params.data);
+
+                for (const message of await parseMessages(content)) {
+                    reporter.raw('Parsed message', message);
+                    await this.#handleMessage(message);
+                }
+
+                if (command === 'sync') {
+                    await this.reply(parseHeaderSeqno(header));
+                }
+            }
+        } catch (err) {
+            reporter.error('Error in onData', err);
+        }
+    }
+
     async #decrypt(data: Buffer): Promise<Buffer> {
         const result: Buffer[] = [];
         let offset = 0;
-        let readCount = this.#readCount ?? 0;
+        let readCount = this.#encryption.readCount ?? 0;
 
         while (offset < data.length) {
             if (offset + 2 > data.length) {
@@ -298,7 +310,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             offset = end;
 
             const plaintext = Chacha20.decrypt(
-                this.readKey,
+                this.#encryption.readKey,
                 nonce,
                 Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)), // same AAD = leLength
                 ciphertext,
@@ -308,7 +320,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             result.push(plaintext);
         }
 
-        this.#readCount = readCount;
+        this.#encryption.readCount = readCount;
 
         return Buffer.concat(result);
     }
@@ -325,10 +337,10 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             leLength.writeUInt16LE(frame.length, 0);
 
             const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#writeCount++), 4);
+            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 4);
 
             const encrypted = Chacha20.encrypt(
-                this.writeKey,
+                this.#encryption.writeKey,
                 nonce,
                 leLength,
                 frame

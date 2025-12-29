@@ -3,6 +3,13 @@ import type { RTSPMethod } from './types';
 import { makeHttpHeader, makeHttpResponse } from './utils';
 import Stream from './stream';
 
+type Bindings = {
+    onClose: () => void;
+    onData: (buffer: Buffer) => void;
+    onError: (err: Error) => void;
+    onTimeout: () => void;
+};
+
 export default class AirPlayRTSP extends Stream<{}> {
     get activeRemote(): string {
         return this.#activeRemote;
@@ -17,6 +24,7 @@ export default class AirPlayRTSP extends Stream<{}> {
     }
 
     readonly #activeRemote: string;
+    readonly #bindings: Bindings;
     readonly #dacpId: string;
     readonly #sessionId: string;
     #buffer: Buffer = Buffer.alloc(0);
@@ -31,6 +39,19 @@ export default class AirPlayRTSP extends Stream<{}> {
         this.#activeRemote = Math.floor(Math.random() * 2 ** 32).toString(10);
         this.#dacpId = Math.floor(Math.random() * 2 ** 64).toString(16).toUpperCase();
         this.#sessionId = Math.floor(Math.random() * 2 ** 32).toString(10);
+
+        this.#bindings = {
+            onClose: this.#onClose.bind(this),
+            onData: this.#onData.bind(this),
+            onError: this.#onError.bind(this),
+            onTimeout: this.#onTimeout.bind(this)
+        };
+
+        this.on('close', this.#bindings.onClose);
+        this.on('data', this.#bindings.onData);
+        this.on('error', this.#bindings.onError);
+        this.on('timeout', this.#bindings.onTimeout);
+
     }
 
     async get(path: string, headers: HeadersInit = {}): Promise<Response> {
@@ -47,41 +68,6 @@ export default class AirPlayRTSP extends Stream<{}> {
 
     async setup(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}): Promise<Response> {
         return await this.#request('SETUP', path, body, headers);
-    }
-
-    async onClose(): Promise<void> {
-        await super.onClose();
-        await this.#handle(undefined, new Error('Connection closed.'));
-    }
-
-    async onData(buffer: Buffer): Promise<void> {
-        this.#buffer = Buffer.concat([this.#buffer, buffer]);
-
-        if (this.isEncrypted) {
-            this.#buffer = await this.decrypt(this.#buffer);
-        }
-
-        while (this.#buffer.byteLength > 0) {
-            const result = makeHttpResponse(this.#buffer);
-
-            if (result === null) {
-                return;
-            }
-
-            this.#buffer = this.#buffer.subarray(result.responseLength);
-
-            await this.#handle(result.response, undefined);
-        }
-    }
-
-    async onError(err: Error): Promise<void> {
-        await super.onError(err);
-        await this.#handle(undefined, err);
-    }
-
-    async onTimeout(): Promise<void> {
-        await super.onTimeout();
-        await this.#handle(undefined, new Error('Request timed out.'));
     }
 
     async #handle(data: unknown, err?: Error): Promise<void> {
@@ -148,7 +134,39 @@ export default class AirPlayRTSP extends Stream<{}> {
 
             timer = setTimeout(() => reject(new Error('Request timed out')), HTTP_TIMEOUT);
 
-            this.socket.write(data);
+            await this.write(data);
         });
+    }
+
+    async #onClose(): Promise<void> {
+        await this.#handle(undefined, new Error('Connection closed.'));
+    }
+
+    async #onData(buffer: Buffer): Promise<void> {
+        this.#buffer = Buffer.concat([this.#buffer, buffer]);
+
+        if (this.isEncrypted) {
+            this.#buffer = await this.decrypt(this.#buffer);
+        }
+
+        while (this.#buffer.byteLength > 0) {
+            const result = makeHttpResponse(this.#buffer);
+
+            if (result === null) {
+                return;
+            }
+
+            this.#buffer = this.#buffer.subarray(result.responseLength);
+
+            await this.#handle(result.response, undefined);
+        }
+    }
+
+    async #onError(err: Error): Promise<void> {
+        await this.#handle(undefined, err);
+    }
+
+    async #onTimeout(): Promise<void> {
+        await this.#handle(undefined, new Error('Request timed out.'));
     }
 }

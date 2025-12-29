@@ -16,7 +16,6 @@ export {
 export {
     getLocalIP,
     getMacAddress,
-    BaseSocket,
     TimingServer
 } from './net';
 
@@ -26,6 +25,12 @@ export {
     cli,
     reporter
 } from './cli';
+
+export {
+    Connection,
+    EncryptionAwareConnection,
+    EncryptionState
+} from './connection';
 
 export {
     AIRPLAY_SERVICE,
@@ -41,6 +46,10 @@ export {
     AccessoryPair,
     AccessoryVerify
 } from './pairing';
+
+export {
+    ENCRYPTION
+} from './symbols';
 
 export {
     uint16ToBE,

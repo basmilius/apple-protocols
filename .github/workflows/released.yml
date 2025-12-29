@@ -33,6 +33,7 @@ jobs:
 
             -   name: 🔨 Build
                 run: |
+                    bun --cwd packages/encoding build
                     bun --cwd packages/common build
                     bun --cwd packages/airplay build
                     bun --cwd packages/companion-link build
@@ -40,6 +41,7 @@ jobs:
 
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
                 run: |
+                    bun publish --cwd packages/encoding --access public
                     bun publish --cwd packages/common --access public
                     bun publish --cwd packages/airplay --access public
                     bun publish --cwd packages/companion-link --access public

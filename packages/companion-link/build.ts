@@ -12,6 +12,7 @@ const minify = !('NOMINIFY' in process.env);
 await build({
     entrypoints: ['src/index.ts'],
     minify,
+    sourcemap: 'none',
     plugins: [
         dts(),
         copy('./src/types.ts', './dist/types.d.ts')

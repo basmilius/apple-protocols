@@ -246,7 +246,6 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         this.emit('error', err);
 
         if (this.#state === 'connecting') {
-            this.#cleanup();
             this.#scheduleRetry(err);
         } else {
             this.#state = 'failed';
@@ -262,7 +261,6 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         this.emit('error', err);
 
         if (this.#state === 'connecting') {
-            this.#cleanup();
             this.#scheduleRetry(err);
         } else {
             this.#state = 'failed';

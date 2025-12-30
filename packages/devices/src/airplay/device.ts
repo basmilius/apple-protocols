@@ -162,8 +162,7 @@ export default class extends EventEmitter<EventMap> {
         }
 
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
-        await this.#protocol.setupDataStream(keys.sharedSecret);
-        await this.#subscribe();
+        await this.#protocol.setupDataStream(keys.sharedSecret, async () => await this.#subscribe());
 
         this.#protocol.dataStream.on('error', async (err: Error) => this.#onError(err));
         this.#protocol.dataStream.on('timeout', async () => this.#onTimeout());

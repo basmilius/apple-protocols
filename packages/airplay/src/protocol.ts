@@ -66,7 +66,7 @@ export default class AirPlay {
         await this.#rtsp.post('/feedback', undefined, undefined, 1900);
     }
 
-    async setupDataStream(sharedSecret: Buffer): Promise<void> {
+    async setupDataStream(sharedSecret: Buffer, onBeforeConnect?: () => Promise<void>): Promise<void> {
         const seed = randomInt64();
         const request = Plist.serialize({
             streams: [
@@ -92,6 +92,7 @@ export default class AirPlay {
 
         this.#dataStream = new DataStream(this.#rtsp.address, dataPort);
         await this.#dataStream.setup(sharedSecret, seed);
+        await onBeforeConnect?.();
         await this.#dataStream.connect();
     }
 

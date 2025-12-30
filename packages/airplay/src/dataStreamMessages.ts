@@ -85,6 +85,10 @@ export function deviceInfo(pairingId: Buffer): Proto.ProtocolMessage {
     return protocolMessage;
 }
 
+export function getState(): Proto.ProtocolMessage {
+    return protocol(Proto.ProtocolMessage_Type.GET_STATE_MESSAGE);
+}
+
 export function getVolume(outputDeviceUID: string): Proto.ProtocolMessage {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_VOLUME_MESSAGE);
     const message = create(Proto.GetVolumeMessageSchema, {

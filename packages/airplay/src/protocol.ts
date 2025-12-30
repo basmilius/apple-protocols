@@ -99,18 +99,15 @@ export default class AirPlay {
         const body: Record<string, string | boolean | number> = {
             deviceID: pairingId.toString(),
             macAddress: getMacAddress().toUpperCase(),
-            name: 'iPhone van Bas',
+            name: 'Homey Pro',
             model: 'iPhone16,2',
             osBuildVersion: '23C5027f',
             osName: 'iPhone OS',
             osVersion: '26.2',
-            sourceVersion: '925.3.2',
+            sourceVersion: '550.10',
             sessionUUID: this.#sessionUUID,
-            sessionCorrelationUUID: uuid().toUpperCase(),
             timingProtocol: 'None',
-            isRemoteControlOnly: true,
-            statsCollectionEnabled: false,
-            updateSessionRequest: false
+            isRemoteControlOnly: true
         };
 
         if (this.#timingServer) {

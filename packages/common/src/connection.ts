@@ -204,6 +204,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
         if (this.#state !== 'closing') {
             this.#state = 'disconnected';
+            reporter.net(`Connection closed (${hadError ? 'with error' : 'normally'}).`);
         }
 
         this.emit('close', hadError);

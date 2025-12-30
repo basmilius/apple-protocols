@@ -62,7 +62,8 @@ export default class AirPlay {
     }
 
     async feedback(): Promise<void> {
-        await this.#rtsp.post('/feedback');
+        // note: Default feedback interval is 2s, so a timeout of 1.9s should be fine.
+        await this.#rtsp.post('/feedback', undefined, undefined, 1900);
     }
 
     async setupDataStream(sharedSecret: Buffer): Promise<void> {

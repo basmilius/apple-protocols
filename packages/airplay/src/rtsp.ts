@@ -54,20 +54,20 @@ export default class AirPlayRTSP extends Stream<{}> {
 
     }
 
-    async get(path: string, headers: HeadersInit = {}): Promise<Response> {
-        return await this.#request('GET', path, null, headers);
+    async get(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.#request('GET', path, null, headers, timeout);
     }
 
-    async post(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}): Promise<Response> {
-        return await this.#request('POST', path, body, headers);
+    async post(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.#request('POST', path, body, headers, timeout);
     }
 
-    async record(path: string, headers: HeadersInit = {}): Promise<Response> {
-        return await this.#request('RECORD', path, null, headers);
+    async record(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.#request('RECORD', path, null, headers, timeout);
     }
 
-    async setup(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}): Promise<Response> {
-        return await this.#request('SETUP', path, body, headers);
+    async setup(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.#request('SETUP', path, body, headers, timeout);
     }
 
     async #handle(data: unknown, err?: Error): Promise<void> {
@@ -82,7 +82,7 @@ export default class AirPlayRTSP extends Stream<{}> {
         this.#requesting = false;
     }
 
-    async #request(method: RTSPMethod, path: string, body: Buffer | string | null, headers: HeadersInit): Promise<Response> {
+    async #request(method: RTSPMethod, path: string, body: Buffer | string | null, headers: HeadersInit, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         if (!this.isConnected) {
             return Promise.reject(new Error('Accessory not connected.'));
         }
@@ -132,7 +132,7 @@ export default class AirPlayRTSP extends Stream<{}> {
                 clearTimeout(timer);
             };
 
-            timer = setTimeout(() => reject(new Error('Request timed out')), HTTP_TIMEOUT);
+            timer = setTimeout(() => reject(new Error('Request timed out')), timeout);
 
             await this.write(data);
         });

@@ -39,7 +39,7 @@
     },
     "dependencies": {
         "@basmilius/apple-encoding": "workspace:*",
-        "chacha": "^2.1.0",
+        "@stablelib/chacha20poly1305": "^2.0.1",
         "fast-srp-hap": "^2.0.4",
         "node-dns-sd": "^1.0.1",
         "tweetnacl": "^1.0.3",

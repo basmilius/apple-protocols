@@ -296,9 +296,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             const frameLength = data.readUInt16LE(offset);
             offset += 2;
 
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(readCount++), 4);
-
+            const nonce = this.nonce(readCount++);
             const end = offset + frameLength + 16;
 
             if (end > data.length) {
@@ -337,9 +335,7 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             const leLength = Buffer.alloc(2);
             leLength.writeUInt16LE(frame.length, 0);
 
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 4);
-
+            const nonce = this.nonce(this.#encryption.writeCount++);
             const encrypted = Chacha20.encrypt(
                 this.#encryption.writeKey,
                 nonce,

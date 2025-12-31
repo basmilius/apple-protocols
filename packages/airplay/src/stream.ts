@@ -37,9 +37,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
             const ciphertext = data.subarray(offset + 2, offset + 2 + length);
             const authTag = data.subarray(offset + 2 + length, offset + 2 + length + 16);
 
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#encryption.readCount++), 4);
-
+            const nonce = this.nonce(this.#encryption.readCount++);
             const plaintext = Chacha20.decrypt(this.#encryption.readKey, nonce, aad, ciphertext, authTag);
 
             result = Buffer.concat([result, plaintext]);
@@ -58,9 +56,7 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
             const leLength = Buffer.alloc(2);
             leLength.writeUInt16LE(length, 0);
 
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 4);
-
+            const nonce = this.nonce(this.#encryption.writeCount++);
             const encrypted = Chacha20.encrypt(this.#encryption.writeKey, nonce, leLength, data.subarray(offset, offset + length));
 
             offset += length;
@@ -68,5 +64,13 @@ export default class AirPlayStream<TEventMap extends Record<string, any>> extend
         }
 
         return result;
+    }
+
+    nonce(counter: number): Buffer {
+        const nonceArray = new Uint8Array(12);
+        const view = new DataView(nonceArray.buffer);
+        view.setBigUint64(4, BigInt(counter), true);
+
+        return Buffer.from(nonceArray);
     }
 }

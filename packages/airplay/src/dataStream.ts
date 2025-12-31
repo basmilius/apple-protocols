@@ -277,7 +277,8 @@ export default class AirPlayDataStream extends Stream<EventMap> {
                 }
             }
         } catch (err) {
-            reporter.error('Error in onData', err);
+            reporter.error('Error in data stream onData()', err);
+            this.emit('error', err);
         }
     }
 

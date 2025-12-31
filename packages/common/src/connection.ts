@@ -5,6 +5,11 @@ import { SOCKET_TIMEOUT } from './const';
 import { ENCRYPTION } from './symbols';
 import type { ConnectionState, EventMap } from './types';
 
+const NOOP_PROMISE_HANDLER = {
+    resolve: () => {},
+    reject: (_: Error) => {}
+} as const;
+
 type ConnectionEventMap = {
     close: [hadError: boolean];
     connect: [];
@@ -182,7 +187,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         this.#retryAttempt++;
         reporter.net(`Retry attempt ${this.#retryAttempt} / ${this.#retryAttempts} in ${this.#retryInterval}ms...`);
 
-        const {resolve, reject} = this.#connectPromise!;
+        const {resolve, reject} = this.#connectPromise ?? NOOP_PROMISE_HANDLER;
         this.#cleanup();
 
         this.#retryTimeout = setTimeout(async () => {

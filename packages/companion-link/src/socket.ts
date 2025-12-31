@@ -74,27 +74,32 @@ export default class CompanionLinkSocket extends EncryptionAwareConnection<Recor
 
         this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
-        while (this.#buffer.byteLength >= HEADER_BYTES) {
-            const header = this.#buffer.subarray(0, HEADER_BYTES);
-            const payloadLength = header.readUintBE(1, 3);
-            const totalLength = HEADER_BYTES + payloadLength;
+        try {
+            while (this.#buffer.byteLength >= HEADER_BYTES) {
+                const header = this.#buffer.subarray(0, HEADER_BYTES);
+                const payloadLength = header.readUintBE(1, 3);
+                const totalLength = HEADER_BYTES + payloadLength;
 
-            if (this.#buffer.byteLength < totalLength) {
-                reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
-                return;
+                if (this.#buffer.byteLength < totalLength) {
+                    reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                    return;
+                }
+
+                reporter.raw(`Frame found length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+
+                const frame = Buffer.from(this.#buffer.subarray(0, totalLength));
+                this.#buffer = this.#buffer.subarray(totalLength);
+
+                reporter.raw(`Handle frame, ${this.#buffer.byteLength} bytes left...`);
+
+                const data = await this.#decrypt(frame);
+                let payload = data.subarray(4, totalLength);
+
+                await this.#handle(header, payload);
             }
-
-            reporter.raw(`Frame found length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
-
-            const frame = Buffer.from(this.#buffer.subarray(0, totalLength));
-            this.#buffer = this.#buffer.subarray(totalLength);
-
-            reporter.raw(`Handle frame, ${this.#buffer.byteLength} bytes left...`);
-
-            const data = await this.#decrypt(frame);
-            let payload = data.subarray(4, totalLength);
-
-            await this.#handle(header, payload);
+        } catch (err) {
+            reporter.error('Error in Companion Link onData handler', err);
+            this.emit('error', err);
         }
     }
 

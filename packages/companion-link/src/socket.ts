@@ -66,7 +66,12 @@ export default class CompanionLinkSocket extends EncryptionAwareConnection<Recor
 
         reporter.raw('Sending data frame...', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
 
-        return await this.write(data);
+        try {
+            return await this.write(data);
+        } catch (err) {
+            reporter.error('Error in Companion Link send()', err);
+            this.emit('error', err);
+        }
     }
 
     async onData(buffer: Buffer): Promise<void> {

@@ -55,7 +55,7 @@ export default class extends EventEmitter<EventMap> {
         this.emit('connected');
     }
 
-    async disconnect(): Promise<void> {
+    async disconnect(emit: boolean = true): Promise<void> {
         this.#disconnect = true;
 
         clearInterval(this.#heartbeatInterval);
@@ -63,12 +63,14 @@ export default class extends EventEmitter<EventMap> {
         await this.#unsubscribe();
         await this.#protocol.disconnect();
 
-        this.emit('disconnected', false);
+        if (emit) {
+            this.emit('disconnected', false);
+        }
     }
 
-    async disconnectSafely(): Promise<void> {
+    async disconnectSafely(emit: boolean = true): Promise<void> {
         try {
-            await this.disconnect();
+            await this.disconnect(emit);
         } catch (_) {
         }
     }
@@ -134,10 +136,7 @@ export default class extends EventEmitter<EventMap> {
     async #onError(err: Error): Promise<void> {
         reporter.error('Companion Link error', err);
 
-        try {
-            await this.disconnect();
-        } catch (_) {
-        }
+        await this.disconnectSafely(false);
 
         this.emit('disconnected', true);
     }
@@ -145,7 +144,7 @@ export default class extends EventEmitter<EventMap> {
     async #onTimeout(): Promise<void> {
         reporter.error('Companion Link timeout');
 
-        await this.disconnectSafely();
+        await this.disconnectSafely(false);
 
         this.emit('disconnected', true);
     }

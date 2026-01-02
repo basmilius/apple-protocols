@@ -42,7 +42,24 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     get state(): ConnectionState {
-        return this.#state;
+        if (this.#state === 'closing' || this.#state === 'failed') {
+            return this.#state;
+        }
+
+        if (!this.#socket) {
+            return 'disconnected';
+        }
+
+        switch (this.#socket.readyState) {
+            case 'opening':
+                return 'connecting';
+
+            case 'open':
+                return 'connected';
+
+            default:
+                return this.#state;
+        }
     }
 
     readonly #address: string;
@@ -131,8 +148,9 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     async write(data: Buffer | Uint8Array): Promise<void> {
-        if (!this.#socket || this.#state !== 'connected') {
-            throw new Error('Cannot write to a disconnected connection.');
+       if (!this.#socket || this.state !== 'connected') {
+            this.emit('error', new Error('Cannot write to a disconnected connection.'));
+            return;
         }
 
         return new Promise((resolve, reject) => {
@@ -166,6 +184,11 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     #cleanup(): void {
+        if (this.#retryTimeout) {
+            clearTimeout(this.#retryTimeout);
+            this.#retryTimeout = undefined;
+        }
+
         if (this.#socket) {
             this.#socket.removeAllListeners();
             this.#socket.destroy();

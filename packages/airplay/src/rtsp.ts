@@ -30,8 +30,9 @@ export default class AirPlayRTSP extends Stream<{}> {
     #buffer: Buffer = Buffer.alloc(0);
     #cseq: number = 0;
     #requesting: boolean = false;
-    #reject: Function;
-    #resolve: Function;
+    #requestTimer?: NodeJS.Timeout;
+    #reject?: (reason: Error) => void;
+    #resolve?: (response: Response) => void;
 
     constructor(address: string, port: number) {
         super(address, port);
@@ -70,7 +71,12 @@ export default class AirPlayRTSP extends Stream<{}> {
         return await this.#request('SETUP', path, body, headers, timeout);
     }
 
-    async #handle(data: unknown, err?: Error): Promise<void> {
+    async #handle(data: Response, err?: Error): Promise<void> {
+        if (this.#requestTimer) {
+            clearTimeout(this.#requestTimer);
+            this.#requestTimer = undefined;
+        }
+
         if (err) {
             this.#reject?.(err);
         } else {
@@ -120,25 +126,18 @@ export default class AirPlayRTSP extends Stream<{}> {
         }
 
         return new Promise(async (resolve, reject) => {
-            let timer: any;
+            this.#reject = reject;
+            this.#resolve = resolve;
 
-            this.#reject = (reason: Error): void => {
-                reject(reason);
-                clearTimeout(timer);
-            };
+            this.#requestTimer = setTimeout(() => this.#handle(undefined, new Error('Request timed out')), timeout);
 
-            this.#resolve = (response: Response): void => {
-                resolve(response);
-                clearTimeout(timer);
-            };
-
-            timer = setTimeout(() => reject(new Error('Request timed out')), timeout);
-
-            await this.write(data);
+            await this.write(data).catch(err => this.#handle(undefined, err));
         });
     }
 
     async #onClose(): Promise<void> {
+        this.#buffer = Buffer.alloc(0);
+
         await this.#handle(undefined, new Error('Connection closed.'));
     }
 

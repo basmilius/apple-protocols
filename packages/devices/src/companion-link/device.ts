@@ -16,6 +16,14 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol;
     }
 
+    get discoveryResult(): DiscoveryResult {
+        return this.#discoveryResult;
+    }
+
+    set discoveryResult(discoveryResult: DiscoveryResult) {
+        this.#discoveryResult = discoveryResult;
+    }
+
     get isConnected(): boolean {
         return this.#protocol?.socket?.isConnected ?? false;
     }
@@ -77,10 +85,6 @@ export default class extends EventEmitter<EventMap> {
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
         this.#credentials = credentials;
-    }
-
-    async setDiscoveryResult(discoveryResult: DiscoveryResult): Promise<void> {
-        this.#discoveryResult = discoveryResult;
     }
 
     async getAttentionState(): Promise<AttentionState> {

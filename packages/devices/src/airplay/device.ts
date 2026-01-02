@@ -16,6 +16,14 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol;
     }
 
+    get discoveryResult(): DiscoveryResult {
+        return this.#discoveryResult;
+    }
+
+    set discoveryResult(discoveryResult: DiscoveryResult) {
+        this.#discoveryResult = discoveryResult;
+    }
+
     get isConnected(): boolean {
         return this.#protocol?.rtsp?.isConnected ?? false;
     }
@@ -40,12 +48,12 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
-    readonly #discoveryResult: DiscoveryResult;
     readonly #remote: Remote;
     readonly #state: State;
     readonly #volume: Volume;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
+    #discoveryResult: DiscoveryResult;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #protocol!: AirPlay;

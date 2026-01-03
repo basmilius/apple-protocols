@@ -272,7 +272,11 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     #onError(err: Error): void {
         reporter.error(`Connection error: ${err.message}`);
 
-        this.emit('error', err);
+        if (this.listenerCount('error') > 0) {
+            this.emit('error', err);
+        } else {
+            reporter.warn('No error handler registered. This is likely a bug.', this.constructor.name, '#onError');
+        }
 
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);

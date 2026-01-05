@@ -53,7 +53,7 @@ export default class AirPlayPairing {
         });
 
         if (response.status !== 200) {
-            throw new Error('Cannot start pairing session.');
+            throw new Error(`Cannot start pairing session. ${response.status} ${response.statusText} ${await response.text()}`);
         }
     }
 

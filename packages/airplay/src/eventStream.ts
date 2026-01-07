@@ -108,22 +108,27 @@ export default class AirPlayEventStream extends Stream<never> {
     }
 
     async #onData(buffer: Buffer): Promise<void> {
-        this.#buffer = Buffer.concat([this.#buffer, buffer]);
+        try {
+            this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
-        if (this.isEncrypted) {
-            this.#buffer = await this.decrypt(this.#buffer);
-        }
-
-        while (this.#buffer.byteLength > 0) {
-            const result = makeHttpRequest(this.#buffer);
-
-            if (result === null) {
-                return;
+            if (this.isEncrypted) {
+                this.#buffer = await this.decrypt(this.#buffer);
             }
 
-            this.#buffer = this.#buffer.subarray(result.requestLength);
+            while (this.#buffer.byteLength > 0) {
+                const result = makeHttpRequest(this.#buffer);
 
-            await this.#handle(result.method, result.path, result.headers, result.body);
+                if (result === null) {
+                    return;
+                }
+
+                this.#buffer = this.#buffer.subarray(result.requestLength);
+
+                await this.#handle(result.method, result.path, result.headers, result.body);
+            }
+        } catch (err) {
+            reporter.error('Error in event stream #onData()', err);
+            this.emit('error', err);
         }
     }
 }

@@ -1,13 +1,8 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryVerify, hkdf } from '@basmilius/apple-common';
 import { FrameType } from './messages';
 import type Protocol from './protocol';
-import type Socket from './socket';
 
 export default class CompanionLinkVerify {
-    get socket(): Socket {
-        return this.#protocol.socket;
-    }
-
     readonly #internal: AccessoryVerify;
     readonly #protocol: Protocol;
 
@@ -45,7 +40,7 @@ export default class CompanionLinkVerify {
 
     async #request(step: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
         const frameType = step === 'm1' ? FrameType.PV_Start : FrameType.PV_Next;
-        const [, response] = await this.socket.exchange(frameType, {
+        const [, response] = await this.#protocol.socket.exchange(frameType, {
             _pd: data,
             _auTy: 4
         });

@@ -291,7 +291,6 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         const err = new Error('Connection timed out.');
 
         this.emit('timeout');
-        this.emit('error', err);
 
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);

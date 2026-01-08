@@ -147,9 +147,9 @@ export class AccessoryPair {
             [TLV8.Value.Identifier, this.#pairingId],
             [TLV8.Value.PublicKey, this.#publicKey],
             [TLV8.Value.Signature, Buffer.from(signature)],
-            [TLV8.Value.Name, Buffer.from(OPack.encode({
+            [TLV8.Value.Name, OPack.encode({
                 name: this.#name
-            }))]
+            })]
         ]);
 
         const {authTag, ciphertext} = Chacha20.encrypt(sessionKey, Buffer.from('PS-Msg05'), null, innerTlv);

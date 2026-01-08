@@ -88,40 +88,40 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async getAttentionState(): Promise<AttentionState> {
-        return await this.#protocol.api.getAttentionState();
+        return await this.#protocol.getAttentionState();
     }
 
     async getLaunchableApps(): Promise<LaunchableApp[]> {
-        return await this.#protocol.api.getLaunchableApps();
+        return await this.#protocol.getLaunchableApps();
     }
 
     async getUserAccounts(): Promise<UserAccount[]> {
-        return await this.#protocol.api.getUserAccounts();
+        return await this.#protocol.getUserAccounts();
     }
 
     async launchApp(bundleId: string): Promise<void> {
-        await this.#protocol.api.launchApp(bundleId);
+        await this.#protocol.launchApp(bundleId);
     }
 
     async launchUrl(url: string): Promise<void> {
-        await this.#protocol.api.launchUrl(url);
+        await this.#protocol.launchUrl(url);
     }
 
     async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<void> {
-        await this.#protocol.api.mediaControlCommand(command, content);
+        await this.#protocol.mediaControlCommand(command, content);
     }
 
     async pressButton(command: HidCommandKey, type?: ButtonPressType, holdDelayMs?: number): Promise<void> {
-        await this.#protocol.api.pressButton(command, type, holdDelayMs);
+        await this.#protocol.pressButton(command, type, holdDelayMs);
     }
 
     async switchUserAccount(accountId: string): Promise<void> {
-        await this.#protocol.api.switchUserAccount(accountId);
+        await this.#protocol.switchUserAccount(accountId);
     }
 
     async #heartbeat(): Promise<void> {
         try {
-            await this.#protocol.api._systemInfo(this.#credentials.pairingId);
+            await this.#protocol._systemInfo(this.#credentials.pairingId);
         } catch (err) {
             reporter.error('Heartbeat error', err);
         }
@@ -161,11 +161,11 @@ export default class extends EventEmitter<EventMap> {
             keys.controllerToAccessoryKey
         );
 
-        await this.#protocol.api._systemInfo(this.#credentials.pairingId);
-        await this.#protocol.api._touchStart();
-        await this.#protocol.api._sessionStart();
-        await this.#protocol.api._tvrcSessionStart();
-        await this.#protocol.api._unsubscribe('_iMC');
+        await this.#protocol._systemInfo(this.#credentials.pairingId);
+        await this.#protocol._touchStart();
+        await this.#protocol._sessionStart();
+        await this.#protocol._tvrcSessionStart();
+        await this.#protocol._unsubscribe('_iMC');
 
         this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
 
@@ -173,16 +173,16 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #subscribe(): Promise<void> {
-        await this.#protocol.api._subscribe('SystemStatus', this.onSystemStatus);
-        await this.#protocol.api._subscribe('TVSystemStatus', this.onTVSystemStatus);
+        await this.#protocol._subscribe('SystemStatus', this.onSystemStatus);
+        await this.#protocol._subscribe('TVSystemStatus', this.onTVSystemStatus);
 
         const state = await this.getAttentionState();
         this.emit('power', state);
     }
 
     async #unsubscribe(): Promise<void> {
-        await this.#protocol.api._unsubscribe('SystemStatus', this.onSystemStatus);
-        await this.#protocol.api._unsubscribe('TVSystemStatus', this.onTVSystemStatus);
+        await this.#protocol._unsubscribe('SystemStatus', this.onSystemStatus);
+        await this.#protocol._unsubscribe('TVSystemStatus', this.onTVSystemStatus);
     }
 
     async onSystemStatus(data: { readonly state: number; }): Promise<void> {

@@ -72,7 +72,7 @@ export function bail(data: Map<number, Buffer>): never {
     throw new Error('Invalid response');
 }
 
-export function encode(entries: [number, number | Buffer][]): Buffer {
+export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffer {
     const chunks: number[] = [];
 
     for (const [type, valueRaw] of entries) {
@@ -80,6 +80,8 @@ export function encode(entries: [number, number | Buffer][]): Buffer {
 
         if (typeof valueRaw === 'number') {
             value = Buffer.from([valueRaw]);
+        } else if (valueRaw instanceof Uint8Array) {
+            value = Buffer.from(valueRaw);
         } else {
             value = valueRaw;
         }

@@ -142,22 +142,27 @@ export default class AirPlayRTSP extends Stream<{}> {
     }
 
     async #onData(buffer: Buffer): Promise<void> {
-        this.#buffer = Buffer.concat([this.#buffer, buffer]);
+        try {
+            this.#buffer = Buffer.concat([this.#buffer, buffer]);
 
-        if (this.isEncrypted) {
-            this.#buffer = await this.decrypt(this.#buffer);
-        }
-
-        while (this.#buffer.byteLength > 0) {
-            const result = makeHttpResponse(this.#buffer);
-
-            if (result === null) {
-                return;
+            if (this.isEncrypted) {
+                this.#buffer = await this.decrypt(this.#buffer);
             }
 
-            this.#buffer = this.#buffer.subarray(result.responseLength);
+            while (this.#buffer.byteLength > 0) {
+                const result = makeHttpResponse(this.#buffer);
 
-            await this.#handle(result.response, undefined);
+                if (result === null) {
+                    return;
+                }
+
+                this.#buffer = this.#buffer.subarray(result.responseLength);
+
+                await this.#handle(result.response, undefined);
+            }
+        } catch (err) {
+            reporter.error('Error in rtsp #onData()', err);
+            this.emit('error', err);
         }
     }
 

@@ -20,6 +20,10 @@ export function parts(ntp: bigint): [number, number] {
 }
 
 export function decode(buffer: Buffer): PacketFields {
+    if (buffer.length < 24) {
+        throw new RangeError(`NTP packet too small: expected at least 24 bytes, got ${buffer.length}`);
+    }
+
     return {
         proto: buffer.readUInt8(0),
         type: buffer.readUInt8(1),
@@ -29,8 +33,8 @@ export function decode(buffer: Buffer): PacketFields {
         reftime_frac: buffer.readUInt32BE(12),
         recvtime_sec: buffer.readUInt32BE(16),
         recvtime_frac: buffer.readUInt32BE(20),
-        sendtime_sec: buffer.readUInt32BE(24),
-        sendtime_frac: buffer.readUInt32BE(28)
+        sendtime_sec: buffer.length >= 28 ? buffer.readUInt32BE(24) : 0,
+        sendtime_frac: buffer.length >= 32 ? buffer.readUInt32BE(28) : 0
     };
 }
 

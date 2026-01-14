@@ -38,25 +38,29 @@ export default class {
     }
 
     async #onMessage(data: Buffer, info: RemoteInfo): Promise<void> {
-        const request = NTP.decode(data);
-        const ntp = NTP.now();
-        const [receivedSeconds, receivedFraction] = NTP.parts(ntp);
+        try {
+            const request = NTP.decode(data);
+            const ntp = NTP.now();
+            const [receivedSeconds, receivedFraction] = NTP.parts(ntp);
 
-        reporter.info(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
+            reporter.info(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
 
-        const response = NTP.encode({
-            proto: request.proto,
-            type: 0x53 | 0x80,
-            seqno: request.seqno,
-            padding: 0,
-            reftime_sec: request.sendtime_sec,
-            reftime_frac: request.sendtime_frac,
-            recvtime_sec: receivedSeconds,
-            recvtime_frac: receivedFraction,
-            sendtime_sec: receivedSeconds,
-            sendtime_frac: receivedFraction
-        });
+            const response = NTP.encode({
+                proto: request.proto,
+                type: 0x53 | 0x80,
+                seqno: request.seqno,
+                padding: 0,
+                reftime_sec: request.sendtime_sec,
+                reftime_frac: request.sendtime_frac,
+                recvtime_sec: receivedSeconds,
+                recvtime_frac: receivedFraction,
+                sendtime_sec: receivedSeconds,
+                sendtime_frac: receivedFraction
+            });
 
-        this.#socket.send(response, info.port, info.address);
+            this.#socket.send(response, info.port, info.address);
+        } catch (err) {
+            reporter.warn(`Timing server received malformed packet (${data.length} bytes) from ${info.address}:${info.port}`, err);
+        }
     }
 }

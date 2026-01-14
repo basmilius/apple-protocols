@@ -212,6 +212,10 @@ export default class CompanionLink {
     }
 
     async _unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
+        if (!this.socket.isConnected) {
+            return;
+        }
+
         if (fn) {
             this.#socket.off(event, fn);
         }

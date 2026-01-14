@@ -76,9 +76,9 @@ async function tv(): Promise<void> {
     const keys = await protocol.verify.start({
         accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
         accessoryLongTermPublicKey: Buffer.from('cfb3fb0e0eb494d9058d5051c94400b35251e3faad66542b9551a1496570628d', 'hex'),
-        pairingId: Buffer.from('38393044453445352d463738442d344131332d393231392d434231433237304438323341', 'hex'),
-        publicKey: Buffer.from('a3dfd6e3956006afd91204d68ddf9c26c7d9d77eee5506c69e7fe3af1288d0f4', 'hex'),
-        secretKey: Buffer.from('6961e16b52f5f0be1b7723c9436356d498b4f9629f0227706a1465c5d18dbf0ba3dfd6e3956006afd91204d68ddf9c26c7d9d77eee5506c69e7fe3af1288d0f4', 'hex')
+        pairingId: Buffer.from('32373938444337422d433646352d343643332d384346382d323034443938353338333734', 'hex'),
+        publicKey: Buffer.from('385ae55433ebee4acfba7b1a12ce1cccafea37bd49f86b21691741a647a071ec', 'hex'),
+        secretKey: Buffer.from('0be84946aabcca3c99471791b32a64b83eb5c4f8edb62e1535c69507d7720296385ae55433ebee4acfba7b1a12ce1cccafea37bd49f86b21691741a647a071ec', 'hex')
     });
 
     await protocol.rtsp.enableEncryption(

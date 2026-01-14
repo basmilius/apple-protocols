@@ -181,8 +181,11 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #unsubscribe(): Promise<void> {
-        await this.#protocol._unsubscribe('SystemStatus', this.onSystemStatus);
-        await this.#protocol._unsubscribe('TVSystemStatus', this.onTVSystemStatus);
+        try {
+            await this.#protocol._unsubscribe('SystemStatus', this.onSystemStatus);
+            await this.#protocol._unsubscribe('TVSystemStatus', this.onTVSystemStatus);
+        } catch (_) {
+        }
     }
 
     async onSystemStatus(data: { readonly state: number; }): Promise<void> {

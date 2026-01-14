@@ -1,8 +1,11 @@
 import { Discovery, type DiscoveryResult, reporter } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
 import { redis } from 'bun';
 import { AppleTV } from './model';
 
-reporter.all();
+reporter.enable('error');
+reporter.enable('warn');
+// reporter.all();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
@@ -32,6 +35,14 @@ async function main(): Promise<void> {
 
     device.airplay.state.on('setState', async evt => {
         console.log('setState', evt.playerPath.client.bundleIdentifier, evt.playbackState, device.airplay.state.nowPlayingClient?.playbackQueue?.contentItems?.[0]?.metadata?.title);
+
+        const npid = evt.playbackQueue?.contentItems?.[0]?.metadata?.nowPlayingInfoData;
+
+        if (npid) {
+            const plist = Plist.parse(Buffer.from(npid).buffer);
+            console.log('setState', evt.playerPath.client.bundleIdentifier, plist);
+            console.log('setState', evt.playerPath.client.bundleIdentifier, evt.playbackQueue?.contentItems?.[0]);
+        }
     });
 
     await device.connect(credentials);

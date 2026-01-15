@@ -98,8 +98,6 @@ export default class extends EventEmitter<EventMap> {
 
         await this.#unsubscribe();
         await this.#protocol.disconnect();
-
-        this.emit('disconnected', false);
     }
 
     async disconnectSafely(): Promise<void> {
@@ -136,7 +134,7 @@ export default class extends EventEmitter<EventMap> {
 
         clearInterval(this.#feedbackInterval);
 
-        this.emit('disconnected', true);
+        this.emit('disconnected', false);
     }
 
     async #onError(err: Error): Promise<void> {

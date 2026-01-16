@@ -128,11 +128,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onClose(): Promise<void> {
-        if (this.#disconnect) {
-            return;
-        }
-
-        clearInterval(this.#feedbackInterval);
+        await this.disconnectSafely();
 
         this.emit('disconnected', false);
     }

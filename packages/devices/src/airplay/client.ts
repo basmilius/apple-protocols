@@ -49,6 +49,10 @@ export default class Client {
     }
 
     setPlaybackState(playbackState: Proto.PlaybackState_Enum, playbackStateTimestamp: number): void {
+        if (playbackStateTimestamp < this.#playbackStateTimestamp) {
+            return;
+        }
+
         this.#playbackState = playbackState;
         this.#playbackStateTimestamp = playbackStateTimestamp;
     }

@@ -5,6 +5,7 @@ import { AppleTV } from './model';
 
 reporter.enable('error');
 reporter.enable('warn');
+reporter.enable('net');
 // reporter.all();
 
 const credentials = {

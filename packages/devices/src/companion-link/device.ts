@@ -124,25 +124,24 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onClose(): Promise<void> {
-        await this.disconnectSafely();
+        reporter.net('#onClose() called on companion link device.');
 
-        this.emit('disconnected', false);
+        if (!this.#disconnect) {
+            await this.disconnectSafely();
+            this.emit('disconnected', true);
+        } else {
+            this.emit('disconnected', false);
+        }
     }
 
     async #onError(err: Error): Promise<void> {
         reporter.error('Companion Link error', err);
-
-        await this.disconnectSafely();
-
-        this.emit('disconnected', true);
     }
 
     async #onTimeout(): Promise<void> {
         reporter.error('Companion Link timeout');
 
-        await this.disconnectSafely();
-
-        this.emit('disconnected', true);
+        await this.#protocol.socket.destroy();
     }
 
     async #setup(): Promise<void> {

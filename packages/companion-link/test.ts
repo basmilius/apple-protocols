@@ -41,11 +41,12 @@ async function verify(): Promise<void> {
     );
 
     await protocol._systemInfo(credentials.pairingId);
-    await protocol._touchStart();
     await protocol._sessionStart();
     await protocol._tvrcSessionStart();
-
+    await protocol._touchStart();
+    await protocol._tiStart();
     await protocol._unsubscribe('_iMC');
+
     await protocol._subscribe('TVSystemStatus', evt => console.debug(evt));
 
     // await protocol._subscribe('NowPlayingInfo', handleNowPlayingInfo);

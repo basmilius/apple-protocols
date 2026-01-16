@@ -153,9 +153,10 @@ export default class extends EventEmitter<EventMap> {
         );
 
         await this.#protocol._systemInfo(this.#credentials.pairingId);
-        await this.#protocol._touchStart();
         await this.#protocol._sessionStart();
         await this.#protocol._tvrcSessionStart();
+        await this.#protocol._touchStart();
+        await this.#protocol._tiStart();
         await this.#protocol._unsubscribe('_iMC');
 
         this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);

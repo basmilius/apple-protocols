@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+message AnimatedArtwork {
+    optional string type = 1;
+    optional bytes assetFileURLData = 2;
+}
+
+message DataArtwork {
+    optional string type = 1;
+    optional bytes imageData = 2;
+}
+
+message RemoteArtwork {
+    optional string type = 1;
+    optional string artworkURLString = 2;
+    optional bytes artworkURLTemplateData = 3;
+}

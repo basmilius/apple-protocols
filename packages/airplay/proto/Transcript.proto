@@ -1,0 +1,10 @@
+syntax = "proto2";
+
+message TranscriptAlignment {
+    optional fixed64 playerStartTime = 1;
+    optional fixed64 playerEndTime = 2;
+    optional fixed64 referenceStartTime = 3;
+    optional fixed64 referenceEndTime = 4;
+    optional bool matchedBeginning = 5;
+    optional bool matchedEnd = 6;
+}

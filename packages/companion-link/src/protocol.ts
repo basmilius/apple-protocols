@@ -233,9 +233,11 @@ export default class CompanionLink {
         const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
             _i: '_sessionStart',
             _t: MessageType.Request,
+            _btHP: false,
             _c: {
                 _srvT: 'com.apple.tvremoteservices',
-                _sid: randomInt(0, 2 ** 32 - 1)
+                _sid: randomInt(0, 2 ** 32 - 1),
+                _btHP: false,
             }
         });
 
@@ -246,18 +248,60 @@ export default class CompanionLink {
         const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
             _i: '_systemInfo',
             _t: MessageType.Request,
+            _btHP: false,
             _c: {
                 _bf: 0,
                 _cf: 512,
                 _clFl: 128,
-                _i: 'cafecafecafe',
+                _i: 'b561af32aea6',
                 _idsID: pairingId.toString(),
-                _pubID: 'FF:70:79:61:74:76',
-                _sf: 256,
-                _sv: '170.18',
-                model: 'iPhone10,6',
-                name: 'Bas Companion Link'
+                _pubID: 'DA:6D:1E:D8:A0:4F',
+                _sf: 1099511628032,
+                _sv: '715.2',
+                model: 'iPhone16,2',
+                name: 'AP Companion Link',
+                _lP: 50402,
+                _dC: '1',
+                _stA: [
+                    "com.apple.sharingd.AirDrop",
+                    "SymptomNetworkDiagnostics",
+                    "com.apple.photosface.network-service",
+                    "com.apple.ApplicationService.chrono",
+                    "com.apple.DDUI-Picker",
+                    "com.apple.biomesyncd.cascade.rapport",
+                    "com.apple.SeymourSession",
+                    "com.apple.workflow.remotewidgets",
+                    "com.apple.ApplicationService.chrono",
+                    "SCD.MessageCenter.remoteIntelligence",
+                    "DeviceSharingDaemonApplicationService",
+                    "com.apple.biomesyncd.rapport",
+                    "com.apple.devicediscoveryui.rapportwake",
+                    "com.apple.healthd.rapport",
+                    "com.apple.dropin.setup",
+                    "com.apple.coreduet.sync",
+                    "com.apple.siri.wakeup",
+                    "com.apple.wifivelocityd.rapportWake",
+                    "com.apple.Seymour",
+                    "CPSRemoteLLM",
+                    "com.apple.networkrelay.on-demand-setup",
+                    "com.apple.home.messaging",
+                    "com.apple.accessibility.axremoted.rapportWake",
+                    "com.apple.continuitycapture.sideband",
+                    "com.apple.announce",
+                    "com.apple.coreidv.coreidvd.handoff"
+                ]
             }
+        });
+
+        return objectOrFail(payload);
+    }
+
+    async _tiStart(): Promise<object> {
+        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+            _i: '_tiStart',
+            _t: MessageType.Request,
+            _btHP: false,
+            _c: {}
         });
 
         return objectOrFail(payload);
@@ -267,6 +311,7 @@ export default class CompanionLink {
         const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
             _i: '_touchStart',
             _t: MessageType.Request,
+            _btHP: false,
             _c: {
                 _height: OPack.float(1000.0),
                 _tFl: 0,

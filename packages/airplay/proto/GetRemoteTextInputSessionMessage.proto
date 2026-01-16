@@ -3,7 +3,7 @@ syntax = "proto2";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
-  optional GetRemoteTextInputSessionMessage getRemoteTextInputSessionMessage = 72;
+    optional GetRemoteTextInputSessionMessage getRemoteTextInputSessionMessage = 72;
 }
 
 message GetRemoteTextInputSessionMessage {

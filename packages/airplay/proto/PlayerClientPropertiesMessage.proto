@@ -4,10 +4,10 @@ import "ProtocolMessage.proto";
 import "PlayerPath.proto";
 
 extend ProtocolMessage {
-  optional PlayerClientPropertiesMessage playerClientPropertiesMessage = 86;
+    optional PlayerClientPropertiesMessage playerClientPropertiesMessage = 86;
 }
 
 message PlayerClientPropertiesMessage {
-  optional PlayerPath playerPath = 1;
-  optional double lastPlayingTimestamp = 2;
+    optional PlayerPath playerPath = 1;
+    optional double lastPlayingTimestamp = 2;
 }

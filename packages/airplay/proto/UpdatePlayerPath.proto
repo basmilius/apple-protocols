@@ -4,9 +4,9 @@ import "ProtocolMessage.proto";
 import "PlayerPath.proto";
 
 extend ProtocolMessage {
-  optional UpdatePlayerMessage updatePlayerMessage = 62;
+    optional UpdatePlayerMessage updatePlayerMessage = 62;
 }
 
 message UpdatePlayerMessage {
-  optional PlayerPath playerPath = 1;
+    optional PlayerPath playerPath = 1;
 }

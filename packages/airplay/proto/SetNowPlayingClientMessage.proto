@@ -4,9 +4,9 @@ import "ProtocolMessage.proto";
 import "NowPlayingClient.proto";
 
 extend ProtocolMessage {
-  optional SetNowPlayingClientMessage setNowPlayingClientMessage = 50;
+    optional SetNowPlayingClientMessage setNowPlayingClientMessage = 50;
 }
 
 message SetNowPlayingClientMessage {
-  optional NowPlayingClient client = 1;
+    optional NowPlayingClient client = 1;
 }

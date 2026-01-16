@@ -3,9 +3,9 @@ syntax = "proto2";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
-  optional RemoveEndpointsMessage removeEndpointsMessage = 84;
+    optional RemoveEndpointsMessage removeEndpointsMessage = 84;
 }
 
 message RemoveEndpointsMessage {
-  repeated string endpointUIDs = 1;
+    repeated string endpointUIDs = 1;
 }

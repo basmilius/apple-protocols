@@ -1,0 +1,22 @@
+syntax = "proto2";
+
+message Dictionary {
+    repeated KeyValuePair pairs = 1;
+}
+
+message KeyValuePair {
+    optional string key = 1;
+    optional Value value = 2;
+}
+
+message Value {
+    optional string stringValue = 1;
+    optional int64 int64Value = 2;
+    optional float floatValue = 3;
+    optional double doubleValue = 4;
+    optional bytes dataValue = 5;
+    optional bool boolValue = 6;
+    optional string dateValue = 7;
+    repeated Value arrayValue = 8;
+    optional Dictionary dictionaryValue = 9;
+}

@@ -4,9 +4,9 @@ import "ProtocolMessage.proto";
 import "PlayerPath.proto";
 
 extend ProtocolMessage {
-  optional RemovePlayerMessage removePlayerMessage = 58;
+    optional RemovePlayerMessage removePlayerMessage = 58;
 }
 
 message RemovePlayerMessage {
-  optional PlayerPath playerPath = 1;
+    optional PlayerPath playerPath = 1;
 }

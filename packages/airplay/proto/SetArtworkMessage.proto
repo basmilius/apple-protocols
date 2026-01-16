@@ -3,9 +3,9 @@ syntax = "proto2";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
-  optional SetArtworkMessage setArtworkMessage = 10;
+    optional SetArtworkMessage setArtworkMessage = 10;
 }
 
 message SetArtworkMessage {
-  optional bytes jpegData = 1;
+    optional bytes jpegData = 1;
 }

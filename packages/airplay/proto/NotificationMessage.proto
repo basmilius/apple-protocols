@@ -1,12 +1,14 @@
 syntax = "proto2";
 
+import "PlayerPath.proto";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
-  optional NotificationMessage notificationMessage = 16;
+    optional NotificationMessage notificationMessage = 16;
 }
 
 message NotificationMessage {
-  repeated string notification = 1;
-  repeated bytes userInfo = 2;
+    optional string notification = 1;
+    optional bytes userInfo = 2;
+    repeated PlayerPath playerPath = 3;
 }

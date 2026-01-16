@@ -3,6 +3,6 @@ syntax = "proto2";
 import "AudioFormatSettingsMessage.proto";
 
 message VoiceInputDeviceDescriptor {
-  optional AudioFormatSettings defaultFormat = 1;
-  repeated AudioFormatSettings supportedFormats = 2;
+    optional AudioFormatSettings defaultFormat = 1;
+    repeated AudioFormatSettings supportedFormats = 2;
 }

@@ -5,10 +5,10 @@ import "ContentItem.proto";
 import "PlayerPath.proto";
 
 extend ProtocolMessage {
-  optional UpdateContentItemArtworkMessage updateContentItemArtworkMessage = 61;
+    optional UpdateContentItemArtworkMessage updateContentItemArtworkMessage = 61;
 }
 
 message UpdateContentItemArtworkMessage {
-  repeated ContentItem contentItems = 1;
-  optional PlayerPath playerPath = 2;
+    repeated ContentItem contentItems = 1;
+    optional PlayerPath playerPath = 2;
 }

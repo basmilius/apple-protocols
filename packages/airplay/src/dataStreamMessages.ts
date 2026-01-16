@@ -11,7 +11,7 @@ export function protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.Erro
     });
 }
 
-export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = true): Proto.ProtocolMessage {
+export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = true, systemEndpointUpdates: boolean = true): Proto.ProtocolMessage {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.CLIENT_UPDATES_CONFIG_MESSAGE);
     const message = create(Proto.ClientUpdatesConfigMessageSchema, {
         artworkUpdates,
@@ -19,7 +19,7 @@ export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUp
         volumeUpdates,
         keyboardUpdates,
         outputDeviceUpdates,
-        Unknown1: false
+        systemEndpointUpdates
     });
 
     setExtension(protocolMessage, Proto.clientUpdatesConfigMessage, message);
@@ -48,7 +48,7 @@ export function deviceInfo(pairingId: Buffer): Proto.ProtocolMessage {
         applicationBundleIdentifier: 'com.apple.TVRemote',
         applicationBundleVersion: '344.28',
         protocolVersion: 1,
-        lastSupportedMessageType: 108,
+        lastSupportedMessageType: 129,
         supportsSystemPairing: true,
         allowsPairing: true,
         systemMediaApplication: 'com.apple.TVMusic',
@@ -57,7 +57,7 @@ export function deviceInfo(pairingId: Buffer): Proto.ProtocolMessage {
         supportsExtendedMotion: true,
         sharedQueueVersion: 2,
         deviceClass: Proto.DeviceClass_Enum.iPhone,
-        logicalDeviceCount: 1,
+        logicalDeviceCount: 1
         // managedConfigDeviceID: 'c4:c1:7d:93:d2:13',
         // isProxyGroupPlayer: false,
         // groupUID: uuid().toUpperCase(),
@@ -86,7 +86,12 @@ export function deviceInfo(pairingId: Buffer): Proto.ProtocolMessage {
 }
 
 export function getState(): Proto.ProtocolMessage {
-    return protocol(Proto.ProtocolMessage_Type.GET_STATE_MESSAGE);
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_STATE_MESSAGE);
+    const message = create(Proto.GetStateMessageSchema, {});
+
+    setExtension(protocolMessage, Proto.getStateMessage, message);
+
+    return protocolMessage;
 }
 
 export function getVolume(outputDeviceUID: string): Proto.ProtocolMessage {
@@ -100,7 +105,29 @@ export function getVolume(outputDeviceUID: string): Proto.ProtocolMessage {
     return protocolMessage;
 }
 
-export function playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = true): Proto.ProtocolMessage {
+export function getVolumeMuted(outputDeviceUID: string): Proto.ProtocolMessage {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_VOLUME_MUTED_MESSAGE);
+    const message = create(Proto.GetVolumeMutedMessageSchema, {
+        outputDeviceUID
+    });
+
+    setExtension(protocolMessage, Proto.getVolumeMutedMessage, message);
+
+    return protocolMessage;
+}
+
+export function notification(notification: string): Proto.ProtocolMessage {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.NOTIFICATION_MESSAGE);
+    const message = create(Proto.NotificationMessageSchema, {
+        notification
+    });
+
+    setExtension(protocolMessage, Proto.notificationMessage, message);
+
+    return protocolMessage;
+}
+
+export function playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = false): Proto.ProtocolMessage {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
     const message = create(Proto.PlaybackQueueRequestMessageSchema, {
         location,
@@ -110,9 +137,17 @@ export function playbackQueueRequest(location: number, length: number, includeMe
         artworkHeight: 600,
         artworkWidth: 600,
         includeInfo: true,
-        includeLyrics: true,
-        includeSections: true,
-        returnContentItemAssetsInUserCompletion: true
+        includeLyrics: false,
+        includeSections: false,
+        includeAlignments: false,
+        includeAvailableArtworkFormats: true,
+        includeParticipants: false,
+        isLegacyNowPlayingInfoRequest: false,
+        returnContentItemAssetsInUserCompletion: true,
+        requestedAnimatedArtworkAssetURLFormats: [
+            'MRContentItemAnimatedArtworkFormatSquare',
+            'MRContentItemAnimatedArtworkFormatTall'
+        ]
     });
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);
@@ -176,6 +211,15 @@ export function setConnectionState(state: Proto.SetConnectionStateMessage_Connec
     return protocolMessage;
 }
 
+export function setReadyState(): Proto.ProtocolMessage {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_READY_STATE_MESSAGE);
+    const message = create(Proto.SetReadyStateMessageSchema, {});
+
+    setExtension(protocolMessage, Proto.readyStateMessage, message);
+
+    return protocolMessage;
+}
+
 export function setVolume(outputDeviceUID: string, volume: number): Proto.ProtocolMessage {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MESSAGE);
     const message = create(Proto.SetVolumeMessageSchema, {
@@ -184,6 +228,18 @@ export function setVolume(outputDeviceUID: string, volume: number): Proto.Protoc
     });
 
     setExtension(protocolMessage, Proto.setVolumeMessage, message);
+
+    return protocolMessage;
+}
+
+export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): Proto.ProtocolMessage {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MUTED_MESSAGE);
+    const message = create(Proto.SetVolumeMutedMessageSchema, {
+        outputDeviceUID,
+        isMuted
+    });
+
+    setExtension(protocolMessage, Proto.setVolumeMutedMessage, message);
 
     return protocolMessage;
 }

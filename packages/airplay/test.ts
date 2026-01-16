@@ -1,6 +1,5 @@
-import { Discovery, prompt, reporter, TimingServer } from '@basmilius/apple-common';
-import { create } from '@bufbuild/protobuf';
-import { AirPlay, DataStreamMessage, Proto } from './src';
+import { Discovery, prompt, reporter, TimingServer, waitFor } from '@basmilius/apple-common';
+import { AirPlay, DataStreamMessage } from './src';
 
 reporter.all();
 
@@ -19,7 +18,6 @@ async function homepod(): Promise<void> {
         keys.controllerToAccessoryKey
     );
 
-    await protocol.setupTimingServer(new TimingServer());
     await protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
     await protocol.setupDataStream(keys.sharedSecret);
 
@@ -31,6 +29,7 @@ async function homepod(): Promise<void> {
     protocol.dataStream.addListener('deviceInfo', async () => {
         await protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
         await protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
+        await protocol.dataStream.exchange(DataStreamMessage.setReadyState());
 
         // await waitFor(1000);
         //
@@ -86,7 +85,6 @@ async function tv(): Promise<void> {
         keys.controllerToAccessoryKey
     );
 
-    await protocol.setupTimingServer(new TimingServer());
     await protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
     await protocol.setupDataStream(keys.sharedSecret);
 
@@ -94,12 +92,34 @@ async function tv(): Promise<void> {
 
     await protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
 
-    protocol.dataStream.addListener('deviceInfo', async () => {
+    protocol.dataStream.addListener('deviceInfo', async message => {
+        let outputUID: string;
+
+        if (message.clusterID) {
+            outputUID = message.clusterID;
+        } else if (message.deviceUID) {
+            outputUID = message.deviceUID;
+        } else if (message.uniqueIdentifier) {
+            outputUID = message.uniqueIdentifier;
+        } else {
+            outputUID = 'unknown';
+        }
+
         await protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
         await protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
+        await protocol.dataStream.exchange(DataStreamMessage.getVolume(outputUID));
         // await protocol.dataStream.exchange(DataStreamMessage.sendCommand(Proto.Command.Rewind15Seconds));
 
         // await waitFor(1000);
+
+        // await waitFor(3000);
+
+        // await protocol.dataStream.exchange(DataStreamMessage.getVolumeMuted(outputUID));
+        // await protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(outputUID, true));
+
+        // await waitFor(1000);
+
+        // await protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(outputUID, false));
 
         // const options = create(Proto.CommandOptionsSchema, {
         //     stationURL: 'https://bmcdn.nl/doorbell.ogg'

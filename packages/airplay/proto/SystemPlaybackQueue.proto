@@ -1,0 +1,25 @@
+syntax = "proto2";
+
+message SystemPlaybackQueue {
+    optional int32 type = 1;
+    optional int32 replaceIntent = 2;
+    optional bool isRequestingImmediatePlayback = 3;
+    optional string featureName = 4;
+    optional SystemPlaybackCustomData customData = 6;
+    optional SystemPlaybackGenericTracklistQueue tracklist = 7;
+    optional bytes userInfo = 8;
+    optional bytes metrics = 9;
+}
+
+message SystemPlaybackCustomData {
+    optional string identifier = 1;
+    optional bytes data = 2;
+}
+
+message SystemPlaybackGenericTracklistQueue {
+    optional string firstTrackIdentifier = 1;
+    optional string trackIdentifiers = 2;
+    optional bytes collectionIdentifierSet = 3;
+    optional uint32 shuffleMode = 4;
+    optional uint32 repeatMode = 5;
+}

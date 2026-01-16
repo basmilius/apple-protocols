@@ -4,9 +4,9 @@ import "ProtocolMessage.proto";
 import "NowPlayingClient.proto";
 
 extend ProtocolMessage {
-  optional RemoveClientMessage removeClientMessage = 57;
+    optional RemoveClientMessage removeClientMessage = 57;
 }
 
 message RemoveClientMessage {
-  optional NowPlayingClient client = 1;
+    optional NowPlayingClient client = 1;
 }

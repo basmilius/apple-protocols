@@ -1,15 +1,20 @@
 syntax = "proto2";
 
 import "ContentItem.proto";
+import "Dictionary.proto";
 import "PlaybackQueueContext.proto";
 import "PlayerPath.proto";
 
 message PlaybackQueue {
-  optional int32 location = 1;
-  repeated ContentItem contentItems = 2;
-  optional PlaybackQueueContext context = 3;
-  optional string requestId = 4;
-  optional PlayerPath resolvedPlayerPath = 5;
-  optional bool sendingPlaybackQueueTransaction = 6;
-  optional string queueIdentifier = 7;
+    optional int32 location = 1;
+    repeated ContentItem contentItems = 2;
+    optional PlaybackQueueContext context = 3;
+    optional string requestId = 4;
+    optional PlayerPath resolvedPlayerPath = 5;
+    optional bool sendingPlaybackQueueTransaction = 6;
+    optional string queueIdentifier = 7;
+    repeated ContentItem participants = 8;
+    repeated string homeUserIdentifiers = 9;
+    optional Dictionary properties = 10;
+    optional Dictionary auxiliaryNowPlayingInfo = 11;
 }

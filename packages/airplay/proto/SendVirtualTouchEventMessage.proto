@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+    optional SendVirtualTouchEventMessage sendVirtualTouchEventMessage = 15;
+}
+
+message SendVirtualTouchEventMessage {
+    optional uint64 virtualDeviceID = 1;
+    optional VirtualTouchEvent event = 2;
+}
+
+message VirtualTouchEvent {
+    optional uint64 x = 1;
+    optional uint64 y = 2;
+    optional uint32 phase = 3;
+    optional uint32 finger = 4;
+}

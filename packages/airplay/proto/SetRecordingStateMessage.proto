@@ -3,15 +3,15 @@ syntax = "proto2";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
-  optional SetRecordingStateMessage setRecordingStateMessage = 35;
+    optional SetRecordingStateMessage setRecordingStateMessage = 35;
 }
 
 message SetRecordingStateMessage {
-  enum RecordingState {
-    Unknown = 0;
-    Recording = 1;
-    NotRecording = 2;    
-  }
+    enum RecordingState {
+        Unknown = 0;
+        Recording = 1;
+        NotRecording = 2;
+    }
 
-  optional RecordingState state = 1;
+    optional RecordingState state = 1;
 }

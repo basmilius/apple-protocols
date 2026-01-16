@@ -3,16 +3,16 @@ syntax = "proto2";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
-  optional SetConnectionStateMessage setConnectionStateMessage = 42;
+    optional SetConnectionStateMessage setConnectionStateMessage = 42;
 }
 
 message SetConnectionStateMessage {
-  enum ConnectionState {
-    None = 0;
-    Connecting = 1;
-    Connected = 2;
-    Disconnected = 3;
-  }
+    enum ConnectionState {
+        None = 0;
+        Connecting = 1;
+        Connected = 2;
+        Disconnected = 3;
+    }
 
-  optional ConnectionState state = 1;
+    optional ConnectionState state = 1;
 }

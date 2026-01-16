@@ -5,7 +5,7 @@ import "ProtocolMessage.proto";
 import "PlayerPath.proto";
 
 extend ProtocolMessage {
-  optional TransactionMessage transactionMessage = 38;
+    optional TransactionMessage transactionMessage = 38;
 }
 
 message TransactionMessage {

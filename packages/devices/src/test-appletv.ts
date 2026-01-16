@@ -6,7 +6,7 @@ import { AppleTV } from './model';
 reporter.enable('error');
 reporter.enable('warn');
 reporter.enable('net');
-// reporter.all();
+reporter.all();
 
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',

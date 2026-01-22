@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { type DiscoveryResult, reporter, waitFor } from '@basmilius/apple-common';
 import { OPack, Plist } from '@basmilius/apple-encoding';
 import { FrameType, MessageType } from './messages';
@@ -253,7 +253,7 @@ export default class CompanionLink {
                 _bf: 0,
                 _cf: 512,
                 _clFl: 128,
-                _i: 'b561af32aea6',
+                _i: randomBytes(6).toString('hex'),
                 _idsID: pairingId.toString(),
                 _pubID: 'DA:6D:1E:D8:A0:4F',
                 _sf: 1099511628032,

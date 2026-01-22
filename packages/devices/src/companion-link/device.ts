@@ -157,7 +157,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol._tvrcSessionStart();
         await this.#protocol._touchStart();
         await this.#protocol._tiStart();
-        await this.#protocol._unsubscribe('_iMC');
+        await this.#protocol._subscribe('_iMC', evt => reporter.info('iMC', evt));
 
         this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
 

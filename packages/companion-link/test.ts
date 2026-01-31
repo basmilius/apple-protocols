@@ -46,8 +46,9 @@ async function verify(): Promise<void> {
     await protocol._touchStart();
     await protocol._tiStart();
 
-    await protocol._subscribe('_iMC', evt => console.debug('_iMC', evt));
-    await protocol._subscribe('TVSystemStatus', evt => console.debug(evt));
+    await protocol._unsubscribe('_iMC');
+    await protocol._subscribe('SystemStatus', evt => console.debug('SystemStatus', evt));
+    await protocol._subscribe('TVSystemStatus', evt => console.debug('TVSystemStatus', evt));
 
     // await protocol._subscribe('NowPlayingInfo', handleNowPlayingInfo);
     // await protocol.fetchNowPlayingInfo();

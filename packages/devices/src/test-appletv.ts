@@ -46,6 +46,8 @@ async function main(): Promise<void> {
         }
     });
 
+    device.companionLink.on('power', state => console.log('power', state));
+
     await device.connect(credentials);
 }
 

@@ -1,4 +1,4 @@
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { type DiscoveryResult, reporter, waitFor } from '@basmilius/apple-common';
 import { OPack, Plist } from '@basmilius/apple-encoding';
 import { FrameType, MessageType } from './messages';
@@ -237,7 +237,7 @@ export default class CompanionLink {
             _c: {
                 _srvT: 'com.apple.tvremoteservices',
                 _sid: randomInt(0, 2 ** 32 - 1),
-                _btHP: false,
+                _btHP: false
             }
         });
 
@@ -253,7 +253,7 @@ export default class CompanionLink {
                 _bf: 0,
                 _cf: 512,
                 _clFl: 128,
-                _i: randomBytes(6).toString('hex'),
+                _i: 'b561af32aea6',
                 _idsID: pairingId.toString(),
                 _pubID: 'DA:6D:1E:D8:A0:4F',
                 _sf: 1099511628032,
@@ -263,32 +263,32 @@ export default class CompanionLink {
                 _lP: 50402,
                 _dC: '1',
                 _stA: [
-                    "com.apple.sharingd.AirDrop",
-                    "SymptomNetworkDiagnostics",
-                    "com.apple.photosface.network-service",
-                    "com.apple.ApplicationService.chrono",
-                    "com.apple.DDUI-Picker",
-                    "com.apple.biomesyncd.cascade.rapport",
-                    "com.apple.SeymourSession",
-                    "com.apple.workflow.remotewidgets",
-                    "com.apple.ApplicationService.chrono",
-                    "SCD.MessageCenter.remoteIntelligence",
-                    "DeviceSharingDaemonApplicationService",
-                    "com.apple.biomesyncd.rapport",
-                    "com.apple.devicediscoveryui.rapportwake",
-                    "com.apple.healthd.rapport",
-                    "com.apple.dropin.setup",
-                    "com.apple.coreduet.sync",
-                    "com.apple.siri.wakeup",
-                    "com.apple.wifivelocityd.rapportWake",
-                    "com.apple.Seymour",
-                    "CPSRemoteLLM",
-                    "com.apple.networkrelay.on-demand-setup",
-                    "com.apple.home.messaging",
-                    "com.apple.accessibility.axremoted.rapportWake",
-                    "com.apple.continuitycapture.sideband",
-                    "com.apple.announce",
-                    "com.apple.coreidv.coreidvd.handoff"
+                    'com.apple.sharingd.AirDrop',
+                    'SymptomNetworkDiagnostics',
+                    'com.apple.photosface.network-service',
+                    'com.apple.ApplicationService.chrono',
+                    'com.apple.DDUI-Picker',
+                    'com.apple.biomesyncd.cascade.rapport',
+                    'com.apple.SeymourSession',
+                    'com.apple.workflow.remotewidgets',
+                    'com.apple.ApplicationService.chrono',
+                    'SCD.MessageCenter.remoteIntelligence',
+                    'DeviceSharingDaemonApplicationService',
+                    'com.apple.biomesyncd.rapport',
+                    'com.apple.devicediscoveryui.rapportwake',
+                    'com.apple.healthd.rapport',
+                    'com.apple.dropin.setup',
+                    'com.apple.coreduet.sync',
+                    'com.apple.siri.wakeup',
+                    'com.apple.wifivelocityd.rapportWake',
+                    'com.apple.Seymour',
+                    'CPSRemoteLLM',
+                    'com.apple.networkrelay.on-demand-setup',
+                    'com.apple.home.messaging',
+                    'com.apple.accessibility.axremoted.rapportWake',
+                    'com.apple.continuitycapture.sideband',
+                    'com.apple.announce',
+                    'com.apple.coreidv.coreidvd.handoff'
                 ]
             }
         });

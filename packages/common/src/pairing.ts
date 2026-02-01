@@ -1,12 +1,36 @@
-import { OPack, TLV8 } from "@basmilius/apple-encoding";
+import { OPack, TLV8 } from '@basmilius/apple-encoding';
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
-import { reporter } from './cli';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
+import type { Context } from './context';
 import { Chacha20, Curve25519, hkdf } from './crypto';
 import tweetnacl from 'tweetnacl';
 
-export class AccessoryPair {
+abstract class BasePairing {
+    get context(): Context {
+        return this.#context;
+    }
+
+    readonly #context: Context;
+
+    constructor(context: Context) {
+        this.#context = context;
+    }
+
+    tlv(buffer: Buffer): Map<number, Buffer> {
+        const data = TLV8.decode(buffer);
+
+        if (data.has(TLV8.Value.Error)) {
+            TLV8.bail(data);
+        }
+
+        this.#context.logger.raw('Decoded TLV', data);
+
+        return data;
+    }
+}
+
+export class AccessoryPair extends BasePairing {
     readonly #name: string;
     readonly #pairingId: Buffer;
     readonly #requestHandler: RequestHandler;
@@ -14,7 +38,9 @@ export class AccessoryPair {
     #secretKey: Buffer;
     #srp: SrpClient;
 
-    constructor(requestHandler: RequestHandler) {
+    constructor(context: Context, requestHandler: RequestHandler) {
+        super(context);
+
         this.#name = 'basmilius/apple-protocols';
         this.#pairingId = Buffer.from(uuid().toUpperCase());
         this.#requestHandler = requestHandler;
@@ -78,7 +104,7 @@ export class AccessoryPair {
             ...additionalTlv
         ]));
 
-        const data = tlv(response);
+        const data = this.tlv(response);
         const publicKey = data.get(TLV8.Value.PublicKey);
         const salt = data.get(TLV8.Value.Salt);
 
@@ -104,7 +130,7 @@ export class AccessoryPair {
             [TLV8.Value.Proof, m2.proof]
         ]));
 
-        const data = tlv(response);
+        const data = this.tlv(response);
         const serverProof = data.get(TLV8.Value.Proof);
 
         return {serverProof};
@@ -160,7 +186,7 @@ export class AccessoryPair {
             [TLV8.Value.EncryptedData, encrypted]
         ]));
 
-        const data = tlv(response);
+        const data = this.tlv(response);
         const encryptedDataRaw = data.get(TLV8.Value.EncryptedData);
         const encryptedData = encryptedDataRaw.subarray(0, -16);
         const encryptedTag = encryptedDataRaw.subarray(-16);
@@ -208,11 +234,13 @@ export class AccessoryPair {
     }
 }
 
-export class AccessoryVerify {
+export class AccessoryVerify extends BasePairing {
     readonly #ephemeralKeyPair: tweetnacl.BoxKeyPair;
     readonly #requestHandler: RequestHandler;
 
-    constructor(requestHandler: RequestHandler) {
+    constructor(context: Context, requestHandler: RequestHandler) {
+        super(context);
+
         this.#ephemeralKeyPair = Curve25519.generateKeyPair();
         this.#requestHandler = requestHandler;
     }
@@ -232,7 +260,7 @@ export class AccessoryVerify {
             [TLV8.Value.PublicKey, Buffer.from(this.#ephemeralKeyPair.publicKey)]
         ]));
 
-        const data = tlv(response);
+        const data = this.tlv(response);
         const serverPublicKey = data.get(TLV8.Value.PublicKey);
         const encryptedData = data.get(TLV8.Value.EncryptedData);
 
@@ -319,18 +347,6 @@ export class AccessoryVerify {
             sharedSecret: m2.sharedSecret
         };
     }
-}
-
-function tlv(buffer: Buffer): Map<number, Buffer> {
-    const data = TLV8.decode(buffer);
-
-    if (data.has(TLV8.Value.Error)) {
-        TLV8.bail(data);
-    }
-
-    reporter.raw('Decoded TLV', data);
-
-    return data;
 }
 
 type RequestHandler = (step: 'm1' | 'm3' | 'm5', data: Buffer) => Promise<Buffer>;

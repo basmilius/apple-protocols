@@ -15,15 +15,13 @@ export {
 
 export {
     getLocalIP,
-    getMacAddress,
-    TimingServer
+    getMacAddress
 } from './net';
 
 export {
     prompt,
     waitFor,
-    cli,
-    reporter
+    cli
 } from './cli';
 
 export {
@@ -31,6 +29,10 @@ export {
     EncryptionAwareConnection,
     EncryptionState
 } from './connection';
+
+export {
+    Context
+} from './context';
 
 export {
     AIRPLAY_SERVICE,
@@ -48,10 +50,27 @@ export {
 } from './pairing';
 
 export {
+    type Logger,
+    type Reporter,
+    reporter
+} from './reporter';
+
+export {
     ENCRYPTION
 } from './symbols';
 
 export {
+    TimingServer
+} from './timing';
+
+export {
+    randomInt32,
+    randomInt64,
     uint16ToBE,
     uint53ToLE
 } from './utils';
+
+export type {
+    ConnectionState,
+    EventMap
+} from './types';

@@ -1,16 +1,18 @@
 import { createSocket, RemoteInfo, Socket } from 'node:dgram';
 import { NTP } from '@basmilius/apple-encoding';
-import { reporter } from '../cli';
+import { Logger } from './reporter';
 
-export default class {
+export class TimingServer {
     get port(): number {
         return this.#port;
     }
 
+    readonly #logger: Logger;
     readonly #socket: Socket;
     #port: number = 0;
 
     constructor() {
+        this.#logger = new Logger('timing-server');
         this.#socket = createSocket('udp4');
         this.#socket.on('error', err => this.#onError(err));
         this.#socket.on('message', (data, info) => this.#onMessage(data, info));
@@ -29,7 +31,7 @@ export default class {
     }
 
     async #onError(err: Error): Promise<void> {
-        reporter.error('Timing server error', err);
+        this.#logger.error('Timing server error', err);
     }
 
     async #onListening(): Promise<void> {
@@ -43,7 +45,7 @@ export default class {
             const ntp = NTP.now();
             const [receivedSeconds, receivedFraction] = NTP.parts(ntp);
 
-            reporter.info(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
+            this.#logger.info(`Timing server ntp=${ntp} receivedSeconds=${receivedSeconds} receivedFraction=${receivedFraction}`);
 
             const response = NTP.encode({
                 proto: request.proto,
@@ -60,7 +62,7 @@ export default class {
 
             this.#socket.send(response, info.port, info.address);
         } catch (err) {
-            reporter.warn(`Timing server received malformed packet (${data.length} bytes) from ${info.address}:${info.port}`, err);
+            this.#logger.warn(`Timing server received malformed packet (${data.length} bytes) from ${info.address}:${info.port}`, err);
         }
     }
 }

@@ -1,3 +1,13 @@
+import { randomBytes } from 'node:crypto';
+
+export function randomInt32(): number {
+    return randomBytes(4).readUInt32BE(0);
+}
+
+export function randomInt64(): bigint {
+    return randomBytes(8).readBigUint64LE(0);
+}
+
 export function uint16ToBE(value: number): Buffer {
     const buffer = Buffer.alloc(2);
     buffer.writeUInt16BE(value, 0);

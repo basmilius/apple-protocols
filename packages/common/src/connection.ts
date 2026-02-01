@@ -1,13 +1,15 @@
 import { EventEmitter } from 'node:events';
 import { Socket } from 'node:net';
-import { reporter } from './cli';
 import { SOCKET_TIMEOUT } from './const';
+import type { Context } from './context';
 import { ENCRYPTION } from './symbols';
 import type { ConnectionState, EventMap } from './types';
 
 const NOOP_PROMISE_HANDLER = {
-    resolve: () => {},
-    reject: (_: Error) => {}
+    resolve: () => {
+    },
+    reject: (_: Error) => {
+    }
 } as const;
 
 type ConnectionEventMap = {
@@ -31,6 +33,10 @@ type Bindings = {
 export class Connection<TEventMap extends EventMap> extends EventEmitter<ConnectionEventMap | TEventMap> {
     get address(): string {
         return this.#address;
+    }
+
+    get context(): Context {
+        return this.#context;
     }
 
     get port(): number {
@@ -65,6 +71,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     readonly #address: string;
     readonly #port: number;
     readonly #bindings: Bindings;
+    readonly #context: Context;
     #debug: boolean = false;
     #retryAttempt: number = 0;
     #retryAttempts: number = 3;
@@ -79,11 +86,12 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         reject: (err: Error) => void;
     };
 
-    constructor(address: string, port: number) {
+    constructor(context: Context, address: string, port: number) {
         super();
 
         this.#address = address;
         this.#port = port;
+        this.#context = context;
 
         this.#bindings = {
             onClose: this.#onClose.bind(this),
@@ -152,7 +160,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     async write(data: Buffer | Uint8Array): Promise<void> {
-       if (!this.#socket || this.state !== 'connected') {
+        if (!this.#socket || this.state !== 'connected') {
             this.emit('error', new Error('Cannot write to a disconnected connection.'));
             return;
         }
@@ -177,7 +185,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#socket.on('error', this.#bindings.onError);
             this.#socket.on('timeout', this.#bindings.onTimeout);
 
-            reporter.net(`Connecting to ${this.#address}:${this.#port}...`);
+            this.#context.logger.net(`Connecting to ${this.#address}:${this.#port}...`);
 
             this.#socket.connect({
                 host: this.#address,
@@ -212,7 +220,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         }
 
         this.#retryAttempt++;
-        reporter.net(`Retry attempt ${this.#retryAttempt} / ${this.#retryAttempts} in ${this.#retryInterval}ms...`);
+        this.#context.logger.net(`Retry attempt ${this.#retryAttempt} / ${this.#retryAttempts} in ${this.#retryInterval}ms...`);
 
         const {resolve, reject} = this.#connectPromise ?? NOOP_PROMISE_HANDLER;
         this.#cleanup();
@@ -236,7 +244,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
         if (this.#state !== 'closing') {
             this.#state = 'disconnected';
-            reporter.net(`Connection closed (${hadError ? 'with error' : 'normally'}).`);
+            this.#context.logger.net(`Connection closed (${hadError ? 'with error' : 'normally'}).`);
         }
 
         this.emit('close', hadError);
@@ -261,9 +269,9 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     #onData(data: Buffer): void {
         if (this.#debug) {
             const cutoff = Math.min(data.byteLength, 64);
-            reporter.debug(`Received ${data.byteLength} bytes of data.`);
-            reporter.debug(`hex=${data.subarray(0, cutoff).toString('hex')}`);
-            reporter.debug(`ascii=${data.toString('ascii').replace(/[^\x20-\x7E]/g, '.').substring(0, cutoff)}`);
+            this.#context.logger.debug(`Received ${data.byteLength} bytes of data.`);
+            this.#context.logger.debug(`hex=${data.subarray(0, cutoff).toString('hex')}`);
+            this.#context.logger.debug(`ascii=${data.toString('ascii').replace(/[^\x20-\x7E]/g, '.').substring(0, cutoff)}`);
         }
 
         this.emit('data', data);
@@ -274,12 +282,12 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     #onError(err: Error): void {
-        reporter.error(`Connection error: ${err.message}`);
+        this.#context.logger.error(`Connection error: ${err.message}`);
 
         if (this.listenerCount('error') > 0) {
             this.emit('error', err);
         } else {
-            reporter.warn('No error handler registered. This is likely a bug.', this.constructor.name, '#onError');
+            this.#context.logger.warn('No error handler registered. This is likely a bug.', this.constructor.name, '#onError');
         }
 
         if (this.#state === 'connecting') {
@@ -290,7 +298,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     #onTimeout(): void {
-        reporter.error('Connection timed out.');
+        this.#context.logger.error('Connection timed out.');
 
         const err = new Error('Connection timed out.');
 
@@ -312,7 +320,7 @@ export class EncryptionAwareConnection<TEventMap extends EventMap> extends Conne
 
     [ENCRYPTION]?: EncryptionState;
 
-    async enableEncryption(readKey: Buffer, writeKey: Buffer): Promise<void> {
+    enableEncryption(readKey: Buffer, writeKey: Buffer): void {
         this[ENCRYPTION] = new EncryptionState(readKey, writeKey);
     }
 }

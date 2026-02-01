@@ -63,10 +63,14 @@ export default class Protocol {
 
     async destroy(): Promise<void> {
         await this.#controlStream.destroy();
+        await this.#dataStream?.destroy();
+        await this.#eventStream?.destroy();
     }
 
     async disconnect(): Promise<void> {
-        await this.#dataStream.disconnect();
+        await this.#controlStream.disconnect();
+        await this.#dataStream?.disconnect();
+        await this.#eventStream?.disconnect();
     }
 
     async feedback(): Promise<void> {

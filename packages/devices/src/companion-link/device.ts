@@ -1,8 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult } from '@basmilius/apple-common';
-import { reporter } from '@basmilius/apple-common';
-import type { AttentionState, ButtonPressType, HidCommandKey, LaunchableApp, MediaControlCommandKey, UserAccount } from '@basmilius/apple-companion-link';
-import { CompanionLink, convertAttentionState } from '@basmilius/apple-companion-link';
+import { type AttentionState, type ButtonPressType, convertAttentionState, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type UserAccount } from '@basmilius/apple-companion-link';
 import { PROTOCOL } from './const';
 
 type EventMap = {
@@ -12,7 +10,7 @@ type EventMap = {
 };
 
 export default class extends EventEmitter<EventMap> {
-    get [PROTOCOL](): CompanionLink {
+    get [PROTOCOL](): Protocol {
         return this.#protocol;
     }
 
@@ -25,19 +23,21 @@ export default class extends EventEmitter<EventMap> {
     }
 
     get isConnected(): boolean {
-        return this.#protocol?.socket?.isConnected ?? false;
+        return this.#protocol?.stream?.isConnected ?? false;
     }
 
+    readonly #deviceId: string;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
     #heartbeatInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
-    #protocol!: CompanionLink;
+    #protocol!: Protocol;
 
-    constructor(discoveryResult: DiscoveryResult) {
+    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
         super();
 
+        this.#deviceId = deviceId;
         this.#discoveryResult = discoveryResult;
 
         this.onSystemStatus = this.onSystemStatus.bind(this);
@@ -50,10 +50,10 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.#disconnect = false;
-        this.#protocol = new CompanionLink(this.#discoveryResult);
-        this.#protocol.socket.on('close', async () => this.#onClose());
-        this.#protocol.socket.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.socket.on('timeout', async () => this.#onTimeout());
+        this.#protocol = new Protocol(this.#deviceId, this.#discoveryResult);
+        this.#protocol.stream.on('close', async () => this.#onClose());
+        this.#protocol.stream.on('error', async (err: Error) => this.#onError(err));
+        this.#protocol.stream.on('timeout', async () => this.#onTimeout());
 
         await this.#protocol.connect();
         this.#keys = await this.#protocol.verify.start(this.#credentials);
@@ -119,12 +119,12 @@ export default class extends EventEmitter<EventMap> {
         try {
             await this.#protocol._systemInfo(this.#credentials.pairingId);
         } catch (err) {
-            reporter.error('Heartbeat error', err);
+            this.#protocol.context.logger.error('Heartbeat error', err);
         }
     }
 
     async #onClose(): Promise<void> {
-        reporter.net('#onClose() called on companion link device.');
+        this.#protocol.context.logger.net('#onClose() called on companion link device.');
 
         if (!this.#disconnect) {
             await this.disconnectSafely();
@@ -135,19 +135,19 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onError(err: Error): Promise<void> {
-        reporter.error('Companion Link error', err);
+        this.#protocol.context.logger.error('Companion Link error', err);
     }
 
     async #onTimeout(): Promise<void> {
-        reporter.error('Companion Link timeout');
+        this.#protocol.context.logger.error('Companion Link timeout');
 
-        await this.#protocol.socket.destroy();
+        await this.#protocol.stream.destroy();
     }
 
     async #setup(): Promise<void> {
         const keys = this.#keys;
 
-        await this.#protocol.socket.enableEncryption(
+        this.#protocol.stream.enableEncryption(
             keys.accessoryToControllerKey,
             keys.controllerToAccessoryKey
         );
@@ -181,12 +181,12 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async onSystemStatus(data: { readonly state: number; }): Promise<void> {
-        reporter.info('System Status', data);
+        this.#protocol.context.logger.info('System Status', data);
         this.emit('power', convertAttentionState(data.state));
     }
 
     async onTVSystemStatus(data: { readonly state: number; }): Promise<void> {
-        reporter.info('TV System Status', data);
+        this.#protocol.context.logger.info('TV System Status', data);
         this.emit('power', convertAttentionState(data.state));
     }
 }

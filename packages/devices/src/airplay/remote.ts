@@ -1,15 +1,14 @@
-import { type AirPlay, type AirPlayDataStream, DataStreamMessage } from '@basmilius/apple-airplay';
-import { Proto } from '@basmilius/apple-airplay';
+import { type DataStream, DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
 import { waitFor } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 import type Device from './device';
 
 export default class {
-    get #dataStream(): AirPlayDataStream {
+    get #dataStream(): DataStream {
         return this.#protocol.dataStream;
     }
 
-    get #protocol(): AirPlay {
+    get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
 

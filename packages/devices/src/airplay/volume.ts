@@ -1,5 +1,4 @@
-import { AirPlay, DataStreamMessage, Proto } from '@basmilius/apple-airplay';
-import { reporter } from '@basmilius/apple-common';
+import { DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
 import { PROTOCOL } from './const';
 import type Device from './device';
 import type State from './state';
@@ -7,7 +6,7 @@ import type State from './state';
 const VOLUME_STEP = 0.05; // 5%
 
 export default class {
-    get #airplay(): AirPlay {
+    get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
 
@@ -60,7 +59,7 @@ export default class {
             throw new Error('No output device active.');
         }
 
-        const response = await this.#airplay.dataStream.exchange(DataStreamMessage.getVolume(this.#state.outputDeviceUID));
+        const response = await this.#protocol.dataStream.exchange(DataStreamMessage.getVolume(this.#state.outputDeviceUID));
 
         if (response.type === Proto.ProtocolMessage_Type.GET_VOLUME_RESULT_MESSAGE) {
             const message = DataStreamMessage.getExtension(response, Proto.getVolumeResultMessage);
@@ -82,8 +81,8 @@ export default class {
 
         volume = Math.min(1, Math.max(0, volume));
 
-        reporter.info(`Setting volume to ${volume} for device ${this.#state.outputDeviceUID}`);
+        this.#protocol.context.logger.info(`Setting volume to ${volume} for device ${this.#state.outputDeviceUID}`);
 
-        await this.#airplay.dataStream.exchange(DataStreamMessage.setVolume(this.#state.outputDeviceUID, volume));
+        await this.#protocol.dataStream.exchange(DataStreamMessage.setVolume(this.#state.outputDeviceUID, volume));
     }
 }

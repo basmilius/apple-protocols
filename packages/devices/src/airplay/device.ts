@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { AirPlay, DataStreamMessage, Proto } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, reporter, type TimingServer, waitFor } from '@basmilius/apple-common';
+import { DataStreamMessage, Proto, Protocol } from '@basmilius/apple-airplay';
+import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -12,7 +12,7 @@ type EventMap = {
 };
 
 export default class extends EventEmitter<EventMap> {
-    get [PROTOCOL](): AirPlay {
+    get [PROTOCOL](): Protocol {
         return this.#protocol;
     }
 
@@ -25,7 +25,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     get isConnected(): boolean {
-        return this.#protocol?.rtsp?.isConnected ?? false;
+        return this.#protocol?.controlStream?.isConnected ?? false;
     }
 
     get remote(): Remote {
@@ -48,6 +48,7 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
+    readonly #deviceId: string;
     readonly #remote: Remote;
     readonly #state: State;
     readonly #volume: Volume;
@@ -56,12 +57,13 @@ export default class extends EventEmitter<EventMap> {
     #discoveryResult: DiscoveryResult;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
-    #protocol!: AirPlay;
+    #protocol!: Protocol;
     #timingServer?: TimingServer;
 
-    constructor(discoveryResult: DiscoveryResult) {
+    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
         super();
 
+        this.#deviceId = deviceId;
         this.#discoveryResult = discoveryResult;
         this.#remote = new Remote(this);
         this.#state = new State(this);
@@ -72,10 +74,10 @@ export default class extends EventEmitter<EventMap> {
         this.#disconnect = false;
         this.#state.clear();
 
-        this.#protocol = new AirPlay(this.#discoveryResult);
-        this.#protocol.rtsp.on('close', async () => this.#onClose());
-        this.#protocol.rtsp.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.rtsp.on('timeout', async () => this.#onTimeout());
+        this.#protocol = new Protocol(this.#deviceId, this.#discoveryResult);
+        this.#protocol.controlStream.on('close', async () => this.#onClose());
+        this.#protocol.controlStream.on('error', async (err: Error) => this.#onError(err));
+        this.#protocol.controlStream.on('timeout', async () => this.#onTimeout());
 
         await this.#protocol.connect();
 
@@ -124,12 +126,12 @@ export default class extends EventEmitter<EventMap> {
             await this.#protocol.feedback();
             await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState(Proto.SetConnectionStateMessage_ConnectionState.Connected));
         } catch (err) {
-            reporter.error('Feedback error', err);
+            this.#protocol.context.logger.error('Feedback error', err);
         }
     }
 
     async #onClose(): Promise<void> {
-        reporter.net('#onClose() called on airplay device.');
+        this.#protocol.context.logger.net('#onClose() called on airplay device.');
 
         if (!this.#disconnect) {
             await this.disconnectSafely();
@@ -140,31 +142,31 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #onError(err: Error): Promise<void> {
-        reporter.error('AirPlay error', err);
+        this.#protocol.context.logger.error('AirPlay error', err);
     }
 
     async #onTimeout(): Promise<void> {
-        reporter.error('AirPlay timeout');
+        this.#protocol.context.logger.error('AirPlay timeout');
 
-        await this.#protocol.rtsp.destroy();
+        await this.#protocol.controlStream.destroy();
     }
 
     async #setup(): Promise<void> {
         const keys = this.#keys;
 
-        await this.#protocol.rtsp.enableEncryption(
+        this.#protocol.controlStream.enableEncryption(
             keys.accessoryToControllerKey,
             keys.controllerToAccessoryKey
         );
 
-        await this.#unsubscribe();
+        this.#unsubscribe();
 
         if (this.#timingServer) {
-            await this.#protocol.setupTimingServer(this.#timingServer);
+            this.#protocol.useTimingServer(this.#timingServer);
         }
 
         await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
-        await this.#protocol.setupDataStream(keys.sharedSecret, async () => await this.#subscribe());
+        await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
         this.#protocol.dataStream.on('error', async (err: Error) => this.#onError(err));
         this.#protocol.dataStream.on('timeout', async () => this.#onTimeout());
@@ -201,19 +203,19 @@ export default class extends EventEmitter<EventMap> {
         if (!result) {
             await this.#onError(new Error('Device did not respond in time with its info.'));
         } else {
-            reporter.info('Device info received successfully, protocol should be ready.');
+            this.#protocol.context.logger.info('Device info received successfully, protocol should be ready.');
         }
     }
 
-    async #subscribe(): Promise<void> {
-        await this.#state[STATE_SUBSCRIBE_SYMBOL]();
+    #subscribe(): void {
+        this.#state[STATE_SUBSCRIBE_SYMBOL]();
     }
 
-    async #unsubscribe(): Promise<void> {
+    #unsubscribe(): void {
         try {
-            await this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
+            this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
         } catch (err) {
-            reporter.error('State unsubscribe error', err);
+            this.#protocol.context.logger.error('State unsubscribe error', err);
         }
     }
 }

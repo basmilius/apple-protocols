@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { Proto } from '@basmilius/apple-airplay';
 import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
+import * as AirPlay from '@basmilius/apple-airplay';
 import { AirPlayDevice } from '../airplay';
 import { CompanionLinkDevice } from '../companion-link';
 
@@ -22,6 +22,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#airplay.state.nowPlayingClient?.bundleIdentifier ?? null;
     }
 
+    get deviceId(): string {
+        return this.#deviceId;
+    }
+
     get displayName(): string | null {
         return this.#airplay.state.nowPlayingClient?.displayName ?? null;
     }
@@ -31,15 +35,15 @@ export default class extends EventEmitter<EventMap> {
     }
 
     get isPlaying(): boolean {
-        return this.playbackState === Proto.PlaybackState_Enum.Playing;
+        return this.playbackState === AirPlay.Proto.PlaybackState_Enum.Playing;
     }
 
-    get playbackQueue(): Proto.PlaybackQueue | null {
+    get playbackQueue(): AirPlay.Proto.PlaybackQueue | null {
         return this.#airplay.state.nowPlayingClient?.playbackQueue ?? null;
     }
 
-    get playbackState(): Proto.PlaybackState_Enum {
-        return this.#airplay.state.nowPlayingClient?.playbackState ?? Proto.PlaybackState_Enum.Unknown;
+    get playbackState(): AirPlay.Proto.PlaybackState_Enum {
+        return this.#airplay.state.nowPlayingClient?.playbackState ?? AirPlay.Proto.PlaybackState_Enum.Unknown;
     }
 
     get playbackStateTimestamp(): number {
@@ -48,13 +52,15 @@ export default class extends EventEmitter<EventMap> {
 
     readonly #airplay: AirPlayDevice;
     readonly #companionLink: CompanionLinkDevice;
+    readonly #deviceId: string;
     #disconnect: boolean = false;
 
-    constructor(airplayDiscoveryResult: DiscoveryResult, companionLinkDiscoveryResult: DiscoveryResult) {
+    constructor(deviceId: string, airplayDiscoveryResult: DiscoveryResult, companionLinkDiscoveryResult: DiscoveryResult) {
         super();
 
-        this.#airplay = new AirPlayDevice(airplayDiscoveryResult);
-        this.#companionLink = new CompanionLinkDevice(companionLinkDiscoveryResult);
+        this.#deviceId = deviceId;
+        this.#airplay = new AirPlayDevice(this.#deviceId, airplayDiscoveryResult);
+        this.#companionLink = new CompanionLinkDevice(this.#deviceId, companionLinkDiscoveryResult);
 
         this.#airplay.on('connected', () => this.#onConnected());
         this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
@@ -86,27 +92,27 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async pause(): Promise<void> {
-        await this.#airplay.sendCommand(Proto.Command.Pause);
+        await this.#airplay.sendCommand(AirPlay.Proto.Command.Pause);
     }
 
     async playPause(): Promise<void> {
-        await this.#airplay.sendCommand(Proto.Command.TogglePlayPause);
+        await this.#airplay.sendCommand(AirPlay.Proto.Command.TogglePlayPause);
     }
 
     async play(): Promise<void> {
-        await this.#airplay.sendCommand(Proto.Command.Play);
+        await this.#airplay.sendCommand(AirPlay.Proto.Command.Play);
     }
 
     async stop(): Promise<void> {
-        await this.#airplay.sendCommand(Proto.Command.Stop);
+        await this.#airplay.sendCommand(AirPlay.Proto.Command.Stop);
     }
 
     async next(): Promise<void> {
-        await this.#airplay.sendCommand(Proto.Command.NextInContext);
+        await this.#airplay.sendCommand(AirPlay.Proto.Command.NextInContext);
     }
 
     async previous(): Promise<void> {
-        await this.#airplay.sendCommand(Proto.Command.PreviousInContext);
+        await this.#airplay.sendCommand(AirPlay.Proto.Command.PreviousInContext);
     }
 
     async volumeDown(): Promise<void> {
@@ -121,7 +127,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#airplay.remote.volumeUp();
     }
 
-    async getCommandInfo(command: Proto.Command): Promise<Proto.CommandInfo | null> {
+    async getCommandInfo(command: AirPlay.Proto.Command): Promise<AirPlay.Proto.CommandInfo | null> {
         const client = this.#airplay.state.nowPlayingClient;
 
         if (!client) {
@@ -131,7 +137,7 @@ export default class extends EventEmitter<EventMap> {
         return client.supportedCommands.find(c => c.command === command) ?? null;
     }
 
-    async isCommandSupported(command: Proto.Command): Promise<boolean> {
+    async isCommandSupported(command: AirPlay.Proto.Command): Promise<boolean> {
         const client = this.#airplay.state.nowPlayingClient;
 
         if (!client) {

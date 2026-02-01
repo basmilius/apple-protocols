@@ -14,8 +14,7 @@ await build({
     minify,
     sourcemap: 'none',
     plugins: [
-        dts(),
-        copy('./src/types.ts', './dist/types.d.ts')
+        dts()
     ],
     external: [
         '@basmilius/apple-common',

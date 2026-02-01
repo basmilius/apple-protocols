@@ -28,7 +28,7 @@ async function main(): Promise<void> {
         console.log(item?.metadata);
     }
 
-    const device = new HomePodMini(discoveryResult);
+    const device = new HomePodMini('Slaapkamer HomePod.local', discoveryResult);
     device.airplay.timingServer = timingServer;
     await device.connect();
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { type AirPlay, type AirPlayDataStream, Proto } from '@basmilius/apple-airplay';
+import { type DataStream, Proto, type Protocol } from '@basmilius/apple-airplay';
 import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Client from './client';
 import type Device from './device';
@@ -28,11 +28,11 @@ type EventMap = {
 };
 
 export default class extends EventEmitter<EventMap> {
-    get #dataStream(): AirPlayDataStream {
+    get #dataStream(): DataStream {
         return this.#protocol.dataStream;
     }
 
-    get #protocol(): AirPlay {
+    get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
 
@@ -95,7 +95,7 @@ export default class extends EventEmitter<EventMap> {
         this.onVolumeDidChange = this.onVolumeDidChange.bind(this);
     }
 
-    async [STATE_SUBSCRIBE_SYMBOL](): Promise<void> {
+    [STATE_SUBSCRIBE_SYMBOL](): void {
         this.#dataStream.on('deviceInfo', this.onDeviceInfo);
         this.#dataStream.on('deviceInfoUpdate', this.onDeviceInfoUpdate);
         this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
@@ -117,7 +117,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('volumeDidChange', this.onVolumeDidChange);
     }
 
-    async [STATE_UNSUBSCRIBE_SYMBOL](): Promise<void> {
+    [STATE_UNSUBSCRIBE_SYMBOL](): void {
         const dataStream = this.#dataStream;
 
         if (!dataStream) {
@@ -154,7 +154,7 @@ export default class extends EventEmitter<EventMap> {
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
     }
 
-    async onDeviceInfo(message: Proto.DeviceInfoMessage): Promise<void> {
+    onDeviceInfo(message: Proto.DeviceInfoMessage): void {
         if (message.clusterID) {
             this.#outputDeviceUID = message.clusterID;
         } else if (message.deviceUID) {
@@ -166,7 +166,7 @@ export default class extends EventEmitter<EventMap> {
         this.emit('deviceInfo', message);
     }
 
-    async onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): Promise<void> {
+    onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
         if (message.clusterID) {
             this.#outputDeviceUID = message.clusterID;
         } else if (message.deviceUID) {
@@ -178,15 +178,15 @@ export default class extends EventEmitter<EventMap> {
         this.emit('deviceInfoUpdate', message);
     }
 
-    async onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): Promise<void> {
+    onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): void {
         this.emit('originClientProperties', message);
     }
 
-    async onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
+    onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): void {
         this.emit('playerClientProperties', message);
     }
 
-    async onRemoveClient(message: Proto.RemoveClientMessage): Promise<void> {
+    onRemoveClient(message: Proto.RemoveClientMessage): void {
         if (!(message.client.bundleIdentifier in this.#clients)) {
             return;
         }
@@ -196,29 +196,29 @@ export default class extends EventEmitter<EventMap> {
         this.emit('clients', this.#clients);
     }
 
-    async onSendCommandResult(message: Proto.SendCommandResultMessage): Promise<void> {
+    onSendCommandResult(message: Proto.SendCommandResultMessage): void {
         this.emit('sendCommandResult', message);
     }
 
-    async onSetArtwork(message: Proto.SetArtworkMessage): Promise<void> {
+    onSetArtwork(message: Proto.SetArtworkMessage): void {
         this.emit('setArtwork', message);
     }
 
-    async onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
+    onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
         this.emit('setDefaultSupportedCommands', message);
     }
 
-    async onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): Promise<void> {
+    onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
         this.emit('setNowPlayingClient', message);
     }
 
-    async onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
+    onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
         this.emit('setNowPlayingPlayer', message);
     }
 
-    async onSetState(message: Proto.SetStateMessage): Promise<void> {
+    onSetState(message: Proto.SetStateMessage): void {
         const client = this.#client(message.playerPath.client.bundleIdentifier, message.displayName);
 
         if (message.playbackState) {
@@ -236,7 +236,7 @@ export default class extends EventEmitter<EventMap> {
         this.emit('setState', message);
     }
 
-    async onUpdateContentItem(message: Proto.UpdateContentItemMessage): Promise<void> {
+    onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
         const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
 
         if (!client) {
@@ -250,39 +250,39 @@ export default class extends EventEmitter<EventMap> {
         this.emit('updateContentItem', message);
     }
 
-    async onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): Promise<void> {
+    onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
         this.emit('updateContentItemArtwork', message);
     }
 
-    async onUpdatePlayer(message: Proto.UpdatePlayerMessage): Promise<void> {
+    onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
         this.emit('updatePlayer', message);
     }
 
-    async onUpdateClient(message: Proto.UpdateClientMessage): Promise<void> {
+    onUpdateClient(message: Proto.UpdateClientMessage): void {
         this.#client(message.client.bundleIdentifier, message.client.displayName);
 
         this.emit('clients', this.#clients);
     }
 
-    async onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
+    onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
         this.emit('updateOutputDevice', message);
     }
 
-    async onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {
+    onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): void {
         this.#volumeAvailable = message.volumeControlAvailable;
         this.#volumeCapabilities = message.volumeCapabilities;
 
         this.emit('volumeControlAvailability', message.volumeControlAvailable, message.volumeCapabilities);
     }
 
-    async onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): Promise<void> {
+    onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
         this.#volumeAvailable = message.capabilities.volumeControlAvailable;
         this.#volumeCapabilities = message.capabilities.volumeCapabilities;
 
         this.emit('volumeControlCapabilitiesDidChange', message.capabilities.volumeControlAvailable, message.capabilities.volumeCapabilities);
     }
 
-    async onVolumeDidChange(message: Proto.VolumeDidChangeMessage): Promise<void> {
+    onVolumeDidChange(message: Proto.VolumeDidChangeMessage): void {
         this.#volume = message.volume;
 
         this.emit('volumeDidChange', message.volume);

@@ -63,7 +63,7 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE] = [Proto.volumeDidChangeMessage, this.#onVolumeDidChangeMessage.bind(this)];
     }
 
-    async exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<void> {
+    async exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<Proto.ProtocolMessage> {
         return new Promise(async (resolve, reject) => {
             this.#handler = [resolve, reject];
             await this.send(message);

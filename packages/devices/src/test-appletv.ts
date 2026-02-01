@@ -20,7 +20,7 @@ async function main(): Promise<void> {
     const airplayDiscoveryResult = await airplay();
     const companionLinkDiscoveryResult = await companionLink();
 
-    const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
+    const device = new AppleTV('Woonkamer TV.local', airplayDiscoveryResult, companionLinkDiscoveryResult);
 
     device.airplay.on('disconnected', unexpected => {
         if (!unexpected) {

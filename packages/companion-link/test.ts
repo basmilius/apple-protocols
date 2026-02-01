@@ -1,14 +1,13 @@
 import { Discovery, prompt, reporter } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
-import { CompanionLink } from './src';
+import * as CompanionLink from './src';
 
 reporter.all();
 
 const discovery = Discovery.companionLink();
 const device = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');
 
-const protocol = new CompanionLink(device);
-protocol.socket.debug(true);
+const protocol = new CompanionLink.Protocol('Woonkamer TV._companion-link._tcp.local', device);
 await protocol.connect();
 
 async function pair(): Promise<void> {
@@ -35,7 +34,7 @@ async function verify(): Promise<void> {
 
     const keys = await protocol.verify.start(credentials);
 
-    await protocol.socket.enableEncryption(
+    protocol.stream.enableEncryption(
         keys.accessoryToControllerKey,
         keys.controllerToAccessoryKey
     );
@@ -50,7 +49,7 @@ async function verify(): Promise<void> {
     await protocol._subscribe('SystemStatus', evt => console.debug('SystemStatus', evt));
     await protocol._subscribe('TVSystemStatus', evt => console.debug('TVSystemStatus', evt));
 
-    // await protocol._subscribe('NowPlayingInfo', handleNowPlayingInfo);
+    // await protocol._subscribe('NowPlayingInfo', evt => console.debug(evt));
     // await protocol.fetchNowPlayingInfo();
 
     // await protocol._subscribe('SupportedActions', evt => console.debug(evt));
@@ -90,40 +89,6 @@ async function verify(): Promise<void> {
     // await protocol.pressButton('Screensaver');
 
     // await protocol.launchUrl('https://play.hbomax.com/video/watch/330677a5-aff2-4270-b19e-d67b021adfaf/be45824d-2c34-4d7f-9fac-2380c8e46123');
-}
-
-async function handleNowPlayingInfo({NowPlayingInfoKey}: any): Promise<void> {
-    const buffer = NowPlayingInfoKey.buffer.slice(
-        NowPlayingInfoKey.byteOffset,
-        NowPlayingInfoKey.byteOffset + NowPlayingInfoKey.byteLength
-    );
-
-    try {
-        const nowPlaying = Plist.parse(buffer) as any;
-        console.log('NowPlayingInfoKey', {nowPlaying});
-    } catch (err) {
-        console.error(err);
-        // console.error(Buffer.from(buffer).toString());
-    }
-
-    // if (!nowPlaying.$objects[15]) {
-    //     try {
-    //         await write('./artwork.png', nowPlaying.$objects[14]);
-    //     } catch (_) {
-    //     }
-    // }
-    //
-    // if (nowPlaying.$objects[4]) {
-    //     console.debug(`Now playing ${nowPlaying.$objects[8]} on Apple TV.`);
-    // } else {
-    //     console.debug('Not playing?');
-    // }
-    //
-    // // console.debug(nowPlaying);
-    // // console.debug('Keys', nowPlaying.$objects[1]);
-    // // console.debug('Image data is placeholder', nowPlaying.$objects[15]);
-    // // console.debug('metadata', nowPlaying.$objects[6]);
-    // console.debug('playback state', nowPlaying.$objects[4]);
 }
 
 // await pair();

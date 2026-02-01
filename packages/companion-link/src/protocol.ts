@@ -1,53 +1,62 @@
 import { randomInt } from 'node:crypto';
-import { type DiscoveryResult, reporter, waitFor } from '@basmilius/apple-common';
+import { COMPANION_LINK_SERVICE, Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
 import { OPack, Plist } from '@basmilius/apple-encoding';
-import { FrameType, MessageType } from './messages';
+import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
+import { FrameType, MessageType } from './frame';
+import { Pairing, Verify } from './pairing';
 import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';
 import { convertAttentionState } from './utils';
-import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
-import Pairing from './pairing';
-import Socket from './socket';
-import Verify from './verify';
+import Stream from './stream';
 
-export default class CompanionLink {
-    get device(): DiscoveryResult {
-        return this.#device;
+export default class Protocol {
+    get context(): Context {
+        return this.#context;
     }
 
-    get socket(): Socket {
-        return this.#socket;
+    get discoveryResult(): DiscoveryResult {
+        return this.#discoveryResult;
     }
 
     get pairing(): Pairing {
         return this.#pairing;
     }
 
+    get stream(): Stream {
+        return this.#stream;
+    }
+
     get verify(): Verify {
         return this.#verify;
     }
 
-    readonly #device: DiscoveryResult;
-    readonly #socket: Socket;
+    readonly #context: Context;
+    readonly #discoveryResult: DiscoveryResult;
     readonly #pairing: Pairing;
+    readonly #stream: Stream;
     readonly #verify: Verify;
 
-    constructor(device: DiscoveryResult) {
-        this.#device = device;
-        this.#socket = new Socket(device.address, device.service.port);
+    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
+        this.#context = new Context(deviceId.replace(`.${COMPANION_LINK_SERVICE}`, '').replace('.local', ''));
+        this.#discoveryResult = discoveryResult;
+        this.#stream = new Stream(this.#context, discoveryResult.address, discoveryResult.service.port);
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
     }
 
     async connect(): Promise<void> {
-        await this.#socket.connect();
+        await this.#stream.connect();
+    }
+
+    async destroy(): Promise<void> {
+        await this.#stream.destroy();
     }
 
     async disconnect(): Promise<void> {
-        await this.#socket.disconnect();
+        await this.#stream.disconnect();
     }
 
     async fetchMediaControlStatus(): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchMediaControlStatus',
             _t: MessageType.Request,
             _c: {}
@@ -55,7 +64,7 @@ export default class CompanionLink {
     }
 
     async fetchNowPlayingInfo(): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchCurrentNowPlayingInfoEvent',
             _t: MessageType.Request,
             _c: {}
@@ -63,7 +72,7 @@ export default class CompanionLink {
     }
 
     async fetchSupportedActions(): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchSupportedActionsEvent',
             _t: MessageType.Request,
             _c: {}
@@ -71,7 +80,7 @@ export default class CompanionLink {
     }
 
     async getAttentionState(): Promise<AttentionState> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchAttentionState',
             _t: MessageType.Request,
             _c: {}
@@ -83,7 +92,7 @@ export default class CompanionLink {
     }
 
     async getLaunchableApps(): Promise<LaunchableApp[]> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchLaunchableApplicationsEvent',
             _t: MessageType.Request,
             _c: {}
@@ -98,7 +107,7 @@ export default class CompanionLink {
     }
 
     async getSiriRemoteInfo(): Promise<any> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchSiriRemoteInfo',
             _t: MessageType.Request,
             _c: {}
@@ -108,7 +117,7 @@ export default class CompanionLink {
     }
 
     async getUserAccounts(): Promise<UserAccount[]> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'FetchUserAccountsEvent',
             _t: MessageType.Request,
             _c: {}
@@ -123,7 +132,7 @@ export default class CompanionLink {
     }
 
     async hidCommand(command: HidCommandKey, down = false): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_hidC',
             _t: MessageType.Request,
             _c: {
@@ -134,7 +143,7 @@ export default class CompanionLink {
     }
 
     async launchApp(bundleId: string): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_launchApp',
             _t: MessageType.Request,
             _c: {
@@ -144,7 +153,7 @@ export default class CompanionLink {
     }
 
     async launchUrl(url: string): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_launchApp',
             _t: MessageType.Request,
             _c: {
@@ -154,7 +163,7 @@ export default class CompanionLink {
     }
 
     async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<object> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_mcc',
             _t: MessageType.Request,
             _c: {
@@ -190,7 +199,7 @@ export default class CompanionLink {
     }
 
     async switchUserAccount(accountId: string): Promise<void> {
-        await this.#socket.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'SwitchUserAccountEvent',
             _t: MessageType.Request,
             _c: {
@@ -200,9 +209,9 @@ export default class CompanionLink {
     }
 
     async _subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
-        this.#socket.on(event, fn);
+        this.#stream.on(event, fn);
 
-        await this.#socket.send(FrameType.E_OPACK, {
+        await this.#stream.send(FrameType.E_OPACK, {
             _i: '_interest',
             _t: MessageType.Event,
             _c: {
@@ -212,15 +221,15 @@ export default class CompanionLink {
     }
 
     async _unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
-        if (!this.socket.isConnected) {
+        if (!this.#stream.isConnected) {
             return;
         }
 
         if (fn) {
-            this.#socket.off(event, fn);
+            this.#stream.off(event, fn);
         }
 
-        await this.#socket.send(FrameType.E_OPACK, {
+        await this.#stream.send(FrameType.E_OPACK, {
             _i: '_interest',
             _t: MessageType.Event,
             _c: {
@@ -230,7 +239,7 @@ export default class CompanionLink {
     }
 
     async _sessionStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_sessionStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -245,7 +254,7 @@ export default class CompanionLink {
     }
 
     async _systemInfo(pairingId: Buffer): Promise<object> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_systemInfo',
             _t: MessageType.Request,
             _btHP: false,
@@ -297,7 +306,7 @@ export default class CompanionLink {
     }
 
     async _tiStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_tiStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -308,7 +317,7 @@ export default class CompanionLink {
     }
 
     async _touchStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: '_touchStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -323,7 +332,7 @@ export default class CompanionLink {
     }
 
     async _tvrcSessionStart(): Promise<object> {
-        const [, payload] = await this.#socket.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
             _i: 'TVRCSessionStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -339,8 +348,6 @@ function objectOrFail<T = object>(obj: unknown): T {
     if (typeof obj === 'object') {
         return obj as T;
     }
-
-    reporter.error('Expected an object.', {obj});
 
     throw new Error('Expected an object.');
 }

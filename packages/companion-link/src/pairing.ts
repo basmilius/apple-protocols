@@ -1,18 +1,23 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair } from '@basmilius/apple-common';
-import { FrameType } from './messages';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, hkdf } from '@basmilius/apple-common';
+import { FrameType } from './frame';
 import type Protocol from './protocol';
+import type Stream from './stream';
 
-export default class CompanionLinkPairing {
+export class Pairing {
     get internal(): AccessoryPair {
         return this.#internal;
     }
 
+    get stream(): Stream {
+        return this.#stream;
+    }
+
     readonly #internal: AccessoryPair;
-    readonly #protocol: Protocol;
+    readonly #stream: Stream;
 
     constructor(protocol: Protocol) {
-        this.#internal = new AccessoryPair(this.#request.bind(this));
-        this.#protocol = protocol;
+        this.#internal = new AccessoryPair(protocol.context, this.#request.bind(this));
+        this.#stream = protocol.stream;
     }
 
     async start(): Promise<void> {
@@ -29,9 +34,68 @@ export default class CompanionLinkPairing {
 
     async #request(step: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
         const frameType = step === 'm1' ? FrameType.PS_Start : FrameType.PS_Next;
-        const [, response] = await this.#protocol.socket.exchange(frameType, {
+        const [, response] = await this.#stream.exchange(frameType, {
             _pd: data,
             _pwTy: 1
+        });
+
+        if (typeof response !== 'object' || response === null) {
+            throw new Error('Invalid response from receiver.');
+        }
+
+        return response['_pd'];
+    }
+}
+
+export class Verify {
+    get internal(): AccessoryVerify {
+        return this.#internal;
+    }
+
+    get stream(): Stream {
+        return this.#stream;
+    }
+
+    readonly #internal: AccessoryVerify;
+    readonly #stream: Stream;
+
+    constructor(protocol: Protocol) {
+        this.#internal = new AccessoryVerify(protocol.context, this.#request.bind(this));
+        this.#stream = protocol.stream;
+    }
+
+    async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
+        const keys = await this.#internal.start(credentials);
+
+        const accessoryToControllerKey = hkdf({
+            hash: 'sha512',
+            key: keys.sharedSecret,
+            length: 32,
+            salt: Buffer.alloc(0),
+            info: Buffer.from('ServerEncrypt-main')
+        });
+
+        const controllerToAccessoryKey = hkdf({
+            hash: 'sha512',
+            key: keys.sharedSecret,
+            length: 32,
+            salt: Buffer.alloc(0),
+            info: Buffer.from('ClientEncrypt-main')
+        });
+
+        return {
+            accessoryToControllerKey,
+            controllerToAccessoryKey,
+            pairingId: keys.pairingId,
+            sharedSecret: keys.sharedSecret
+        };
+    }
+
+    async #request(step: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
+        const frameType = step === 'm1' ? FrameType.PV_Start : FrameType.PV_Next;
+        const [, response] = await this.#stream.exchange(frameType, {
+            _pd: data,
+            _auTy: 4
         });
 
         if (typeof response !== 'object' || response === null) {

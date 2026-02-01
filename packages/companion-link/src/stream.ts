@@ -1,12 +1,12 @@
 import { randomInt } from 'node:crypto';
-import { Chacha20, ENCRYPTION, EncryptionAwareConnection, reporter } from '@basmilius/apple-common';
+import { Chacha20, type Context, ENCRYPTION, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
-import { OPackFrameTypes, PairFrameTypes } from './messages';
+import { OPackFrameTypes, PairFrameTypes } from './frame';
 
-const HEADER_BYTES = 4;
+const HEADER_SIZE = 4;
 
-export default class CompanionLinkSocket extends EncryptionAwareConnection<Record<string, [unknown]>> {
-    get #encryption() {
+export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
+    get #encryptionState(): EncryptionState {
         return this[ENCRYPTION];
     }
 
@@ -14,13 +14,12 @@ export default class CompanionLinkSocket extends EncryptionAwareConnection<Recor
     #buffer: Buffer = Buffer.alloc(0);
     #xid: number;
 
-    constructor(address: string, port: number) {
-        super(address, port);
+    constructor(context: Context, address: string, port: number) {
+        super(context, address, port);
 
         this.#xid = randomInt(0, 2 ** 16);
 
-        this.onData = this.onData.bind(this);
-        this.on('data', this.onData);
+        this.on('data', this.#onData.bind(this));
     }
 
     async exchange(type: number, obj: Record<string, unknown>): Promise<[number, unknown]> {
@@ -56,63 +55,59 @@ export default class CompanionLinkSocket extends EncryptionAwareConnection<Recor
 
         if (this.isEncrypted) {
             const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 0);
+            nonce.writeBigUInt64LE(BigInt(this.#encryptionState.writeCount++), 0);
 
-            const encrypted = Chacha20.encrypt(this.#encryption.writeKey, nonce, header, payload);
+            const encrypted = Chacha20.encrypt(this.#encryptionState.writeKey, nonce, header, payload);
             data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
         } else {
             data = Buffer.concat([header, payload]);
         }
 
-        reporter.raw('Sending data frame...', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
+        this.context.logger.raw('[companion-link]', 'Sending data frame', this.isEncrypted, Buffer.from(data).toString('hex'), obj);
 
         try {
             return await this.write(data);
         } catch (err) {
-            reporter.error('Error in Companion Link send()', err);
+            this.context.logger.error('[companion-link]', 'Error in Companion Link send()', err);
             this.emit('error', err);
         }
     }
 
-    async onData(buffer: Buffer): Promise<void> {
-        reporter.raw('Received data frame', buffer.toString('hex'));
-
-        this.#buffer = Buffer.concat([this.#buffer, buffer]);
+    async #onData(data: Buffer): Promise<void> {
+        this.#buffer = Buffer.concat([this.#buffer, data]);
 
         try {
-            while (this.#buffer.byteLength >= HEADER_BYTES) {
-                const header = this.#buffer.subarray(0, HEADER_BYTES);
+            while (this.#buffer.byteLength >= HEADER_SIZE) {
+                const header = this.#buffer.subarray(0, HEADER_SIZE);
                 const payloadLength = header.readUintBE(1, 3);
-                const totalLength = HEADER_BYTES + payloadLength;
+                const totalLength = HEADER_SIZE + payloadLength;
 
                 if (this.#buffer.byteLength < totalLength) {
-                    reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                    this.context.logger.warn('[companion-link]', `Data packet is too short needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
                     return;
                 }
 
-                reporter.raw(`Frame found length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                this.context.logger.raw('[companion-link]', `Received frame length=${totalLength} availableLength=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
 
-                const frame = Buffer.from(this.#buffer.subarray(0, totalLength));
+                let frame: Buffer = Buffer.from(this.#buffer.subarray(0, totalLength));
                 this.#buffer = this.#buffer.subarray(totalLength);
 
-                reporter.raw(`Handle frame, ${this.#buffer.byteLength} bytes left...`);
+                this.context.logger.raw('[companion-link]', `Handle frame, ${this.#buffer.byteLength} bytes left...`);
 
-                const data = await this.#decrypt(frame);
-                let payload = data.subarray(4, totalLength);
+                if (this.isEncrypted) {
+                    frame = this.#decrypt(frame);
+                }
 
-                await this.#handle(header, payload);
+                const payload = frame.subarray(HEADER_SIZE, totalLength);
+                this.#handle(header, payload);
             }
         } catch (err) {
-            reporter.error('Error in Companion Link onData handler', err);
+            this.context.logger.error('[companion-link]', '#onData()', err);
             this.emit('error', err);
         }
     }
 
-    async #decrypt(data: Buffer): Promise<Buffer> {
-        if (!this.isEncrypted) {
-            return data;
-        }
-
+    #decrypt(data: Buffer): Buffer {
         const header = data.subarray(0, 4);
         const payloadLength = header.readUintBE(1, 3);
 
@@ -121,24 +116,24 @@ export default class CompanionLinkSocket extends EncryptionAwareConnection<Recor
         const ciphertext = payload.subarray(0, payload.byteLength - 16);
 
         const nonce = Buffer.alloc(12);
-        nonce.writeBigUint64LE(BigInt(this.#encryption.readCount++), 0);
+        nonce.writeBigUint64LE(BigInt(this.#encryptionState.readCount++), 0);
 
-        const decrypted = Chacha20.decrypt(this.#encryption.readKey, nonce, header, ciphertext, authTag);
+        const decrypted = Chacha20.decrypt(this.#encryptionState.readKey, nonce, header, ciphertext, authTag);
 
         return Buffer.concat([header, decrypted, authTag]);
     }
 
-    async #handle(header: Buffer, payload: Buffer): Promise<void> {
+    #handle(header: Buffer, payload: Buffer): void {
         const type = header.readInt8();
 
         if (!OPackFrameTypes.includes(type)) {
-            reporter.warn('Packet not handled, no opack frame.');
+            this.context.logger.warn('[companion-link]', 'Packet not handled, no opack frame.');
             return;
         }
 
         payload = OPack.decode(payload);
 
-        reporter.raw('Decoded OPACK', {header, payload});
+        this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
 
         if ('_x' in payload) {
             const _x = (payload as any)._x;
@@ -166,7 +161,7 @@ export default class CompanionLinkSocket extends EncryptionAwareConnection<Recor
 
             delete this.#queue[_x];
         } else {
-            reporter.warn('No handler for message', [header, payload]);
+            this.context.logger.warn('[companion-link]', 'No handler for message', [header, payload]);
         }
     }
 }

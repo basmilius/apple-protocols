@@ -1,157 +1,128 @@
-import { randomBytes } from 'node:crypto';
-import type { RTSPMethod } from './types';
+import { Plist } from '@basmilius/apple-encoding';
+import { fromBinary } from '@bufbuild/protobuf';
+import * as Proto from './proto';
 
-export function makeHttpHeader(method: RTSPMethod, path: string, headers: HeadersInit, cseq: number): string {
-    const lines = [];
-    lines.push(`${method} ${path} RTSP/1.0`);
-    lines.push(`CSeq: ${cseq}`);
-    lines.push('User-Agent: AirPlay/320.20');
-    lines.push('X-Apple-ProtocolVersion: 1');
-    lines.push('X-ProtocolVersion: 1');
-
-    for (const [name, value] of Object.entries(headers)) {
-        lines.push(`${name}: ${value}`);
-    }
-
-    lines.push('');
-    lines.push('');
-
-    return lines.join('\r\n');
+export function generateActiveRemoteId(): string {
+    return Math.floor(Math.random() * 2 ** 32).toString(10);
 }
 
-export function makeHttpRequest(buffer: Buffer): HttpRequest | null {
-    const headerLength = buffer.indexOf('\r\n\r\n');
-    const {headers, method, path} = parseRequestHeaders(buffer.subarray(0, headerLength));
-
-    let contentLength = headers['Content-Length'] ? Number(headers['Content-Length']) : 0;
-
-    if (isNaN(contentLength)) {
-        contentLength = 0;
-    }
-
-    const requestLength = headerLength + 4 + contentLength;
-
-    if (buffer.byteLength < requestLength) {
-        return null;
-    }
-
-    const body = buffer.subarray(headerLength + 4, requestLength);
-
-    return {
-        headers,
-        method,
-        path,
-        body,
-        requestLength
-    };
+export function generateDacpId(): string {
+    return Math.floor(Math.random() * 2 ** 64).toString(16).toUpperCase();
 }
 
-export function makeHttpResponse(buffer: Buffer): HttpResponse | null {
-    const headerLength = buffer.indexOf('\r\n\r\n');
-    const {headers, status, statusText} = parseResponseHeaders(buffer.subarray(0, headerLength));
+export function generateSessionId(): string {
+    return Math.floor(Math.random() * 2 ** 32).toString(10);
+}
 
-    let contentLength = headers['Content-Length'] ? Number(headers['Content-Length']) : 0;
+export function nonce(counter: number): Buffer {
+    const nonceArray = new Uint8Array(12);
+    const view = new DataView(nonceArray.buffer);
+    view.setBigUint64(4, BigInt(counter), true);
 
-    if (isNaN(contentLength)) {
-        contentLength = 0;
+    return Buffer.from(nonceArray);
+}
+
+export function buildHeader(totalSize: number, seqno: bigint): Buffer {
+    const buf = Buffer.alloc(32);
+
+    buf.writeUInt32BE(totalSize, 0);
+    buf.write('sync', 4, 'ascii');
+    buf.fill(0, 8, 16);
+    buf.write('comm', 16, 'ascii');
+    buf.writeBigUInt64BE(seqno, 20);
+    buf.writeUInt32BE(0, 28);
+
+    return buf;
+}
+
+export function buildReply(seqno: bigint): Buffer {
+    const header = Buffer.alloc(32);
+    header.writeUInt32BE(0, 0); // placeholder
+    header.write('rply', 4, 'ascii');
+    header.fill(0, 8, 16);
+    header.writeBigUInt64BE(seqno, 20);
+    header.writeUInt32BE(0, 28);
+
+    const plist = Buffer.from(
+        Plist.serialize(Buffer.alloc(0) as any)
+    );
+
+    const total = header.length + plist.length;
+    header.writeUInt32BE(total, 0);
+
+    return Buffer.concat([header, plist]);
+}
+
+export function encodeVarint(value: number): Uint8Array {
+    if (value < 0) {
+        throw new RangeError('Varint only supports non-negative integers');
     }
 
-    const responseLength = headerLength + 4 + contentLength;
-
-    // not enough data yet
-    if (buffer.byteLength < responseLength) {
-        return null;
+    const bytes: number[] = [];
+    while (value > 127) {
+        bytes.push((value & 0x7f) | 0x80);
+        value >>>= 7;
     }
 
-    const body = buffer.subarray(headerLength + 4, responseLength);
-    const response = new Response(body as unknown as ReadableStream, {
-        status,
-        statusText,
-        headers
-    });
+    bytes.push(value);
 
-    return {
-        response,
-        responseLength
-    };
+    return Uint8Array.from(bytes);
 }
 
-export function randomInt32(): number {
-    return randomBytes(4).readUInt32BE(0);
+export function parseHeaderSeqno(header: Buffer): bigint {
+    if (header.length < 28) {
+        throw new Error('Header too short');
+    }
+
+    return header.readBigUInt64BE(20);
 }
 
-export function randomInt64(): bigint {
-    return randomBytes(8).readBigUint64LE(0);
-}
+export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
+    const messages: Proto.ProtocolMessage[] = [];
+    let offset = 0;
 
-function parseHeaders(lines: string[]): Record<string, string> {
-    const headers: Record<string, string> = {};
+    while (offset < content.length) {
+        const firstByte = content[offset];
 
-    for (let i = 0; i < lines.length; i++) {
-        const colon = lines[i].indexOf(':');
-
-        if (colon <= 0) {
-            continue;
+        if (firstByte === 0x08) {
+            const message = content.subarray(offset);
+            const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
+            messages.push(decoded);
+            break;
         }
 
-        const name = lines[i].substring(0, colon).trim();
-        headers[name] = lines[i].substring(colon + 1).trim();
+        const [length, variantLen] = readVariant(content, offset);
+        offset += variantLen;
+
+        if (offset + length > content.length) {
+            break;
+        }
+
+        const message = content.subarray(offset, offset + length);
+        offset += length;
+
+        const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
+        messages.push(decoded);
     }
 
-    return headers;
+    return messages;
 }
 
-function parseRequestHeaders(buffer: Buffer): HttpRequestHeader {
-    const lines = buffer.toString('utf8').split('\r\n');
+export function readVariant(buf: Buffer, offset = 0): [number, number] {
+    let result = 0;
+    let shift = 0;
+    let bytesRead = 0;
 
-    const rawRequest = lines[0].match(/^(\S+)\s+(\S+)\s+RTSP\/1\.0$/);
-    const method = rawRequest[1] as RTSPMethod;
-    const path = rawRequest[2];
-    const headers: Record<string, string> = parseHeaders(lines.slice(1));
+    while (true) {
+        const byte = buf[offset + bytesRead++];
+        result |= (byte & 0x7f) << shift;
 
-    return {
-        headers,
-        method,
-        path
-    };
+        if ((byte & 0x80) === 0) {
+            break;
+        }
+
+        shift += 7;
+    }
+
+    return [result, bytesRead];
 }
-
-function parseResponseHeaders(buffer: Buffer): HttpResponseHeader {
-    const lines = buffer.toString('utf8').split('\r\n');
-
-    const rawStatus = lines[0].match(/(HTTP|RTSP)\/[\d.]+\s+(\d+)\s+(.+)/);
-    const status = Number(rawStatus[2]);
-    const statusText = rawStatus[3];
-    const headers: Record<string, string> = parseHeaders(lines.slice(1));
-
-    return {
-        headers,
-        status,
-        statusText
-    };
-}
-
-type HttpRequestHeader = {
-    readonly headers: Record<string, string>;
-    readonly method: RTSPMethod;
-    readonly path: string;
-};
-
-type HttpResponseHeader = {
-    readonly headers: Record<string, string>;
-    readonly status: number;
-    readonly statusText: string;
-};
-
-type HttpRequest = {
-    readonly headers: Record<string, string>;
-    readonly method: RTSPMethod;
-    readonly path: string;
-    readonly body: Buffer;
-    readonly requestLength: number;
-};
-
-type HttpResponse = {
-    readonly response: Response;
-    readonly responseLength: number;
-};

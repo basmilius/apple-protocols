@@ -1,11 +1,9 @@
-export type { default as AirPlayDataStream } from './dataStream';
-export type { default as AirPlayEventStream } from './eventStream';
-export type { default as AirPlayPairing } from './pairing';
-export type { default as AirPlayRTSP } from './rtsp';
-export type { default as AirPlayStream } from './stream';
-export type { default as AirPlayVerify } from './verify';
+export { default as BaseStream } from './baseStream';
+export { default as ControlStream } from './controlStream';
+export { default as DataStream } from './dataStream';
+export { default as EventStream } from './eventStream';
+export { default as Protocol } from './protocol';
+export { Pairing, Verify } from './pairing';
 
 export * as DataStreamMessage from './dataStreamMessages';
 export * as Proto from './proto';
-
-export { default as AirPlay } from './protocol';

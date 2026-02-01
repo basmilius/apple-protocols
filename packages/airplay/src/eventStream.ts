@@ -1,25 +1,14 @@
-import { hkdf, reporter } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
-import type { RTSPMethod } from './types';
-import { makeHttpRequest } from './utils';
-import Stream from './stream';
+import { type Context, hkdf } from '@basmilius/apple-common';
+import { Plist, RTSP } from '@basmilius/apple-encoding';
+import BaseStream from './baseStream';
 
-type Bindings = {
-    onData: (buffer: Buffer) => void;
-};
-
-export default class AirPlayEventStream extends Stream<never> {
-    readonly #bindings: Bindings;
+export default class EventStream extends BaseStream {
     #buffer: Buffer = Buffer.alloc(0);
 
-    constructor(address: string, port: number) {
-        super(address, port);
+    constructor(context: Context, address: string, port: number) {
+        super(context, address, port);
 
-        this.#bindings = {
-            onData: this.#onData.bind(this)
-        };
-
-        this.on('data', this.#bindings.onData);
+        this.on('data', this.#onData.bind(this));
     }
 
     async respond(response: Response): Promise<void> {
@@ -54,13 +43,13 @@ export default class AirPlayEventStream extends Stream<never> {
         }
 
         if (this.isEncrypted) {
-            data = await this.encrypt(data);
+            data = this.encrypt(data);
         }
 
         await this.write(data);
     }
 
-    async setup(sharedSecret: Buffer): Promise<void> {
+    setup(sharedSecret: Buffer): void {
         const readKey = hkdf({
             hash: 'sha512',
             key: sharedSecret,
@@ -77,17 +66,17 @@ export default class AirPlayEventStream extends Stream<never> {
             info: Buffer.from('Events-Write-Encryption-Key')
         });
 
-        await this.enableEncryption(writeKey, readKey);
+        this.enableEncryption(writeKey, readKey);
     }
 
-    async #handle(method: RTSPMethod, path: string, headers: Record<string, string>, body: Buffer): Promise<void> {
+    async #handle(method: RTSP.Method, path: string, headers: HeadersInit, body: Buffer): Promise<void> {
         const key = `${method} ${path}`;
 
         switch (key) {
             case 'POST /command':
                 const data = Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as any;
 
-                reporter.info('Received event stream request.', data);
+                this.context.logger.info('[event]', 'Received event stream request.', data);
 
                 const response = new Response(null, {
                     status: 200,
@@ -102,32 +91,37 @@ export default class AirPlayEventStream extends Stream<never> {
                 break;
 
             default:
-                reporter.warn('No handler for url', key);
+                this.context.logger.warn('[event]', 'No handler for url', key);
                 break;
         }
     }
 
-    async #onData(buffer: Buffer): Promise<void> {
+    async #onData(data: Buffer): Promise<void> {
         try {
-            this.#buffer = Buffer.concat([this.#buffer, buffer]);
+            this.#buffer = Buffer.concat([this.#buffer, data]);
 
             if (this.isEncrypted) {
-                this.#buffer = await this.decrypt(this.#buffer);
+                const decrypted = this.decrypt(this.#buffer);
+
+                if (!decrypted) {
+                    return;
+                }
+
+                this.#buffer = decrypted;
             }
 
             while (this.#buffer.byteLength > 0) {
-                const result = makeHttpRequest(this.#buffer);
+                const result = RTSP.makeRequest(this.#buffer);
 
                 if (result === null) {
                     return;
                 }
 
                 this.#buffer = this.#buffer.subarray(result.requestLength);
-
                 await this.#handle(result.method, result.path, result.headers, result.body);
             }
         } catch (err) {
-            reporter.error('Error in event stream #onData()', err);
+            this.context.logger.error('[event]', '#onData()', err);
             this.emit('error', err);
         }
     }

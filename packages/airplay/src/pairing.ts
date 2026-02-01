@@ -1,23 +1,23 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, hkdf } from '@basmilius/apple-common';
+import type ControlStream from './controlStream';
 import type Protocol from './protocol';
-import type RTSP from './rtsp';
 
-export default class AirPlayPairing {
+export class Pairing {
+    get controlStream(): ControlStream {
+        return this.#controlStream;
+    }
+
     get internal(): AccessoryPair {
         return this.#internal;
     }
 
-    get rtsp(): RTSP {
-        return this.#protocol.rtsp;
-    }
-
+    readonly #controlStream: ControlStream;
     readonly #internal: AccessoryPair;
-    readonly #protocol: Protocol;
     #hkp: 3 | 4;
 
     constructor(protocol: Protocol) {
-        this.#internal = new AccessoryPair(this.#request.bind(this));
-        this.#protocol = protocol;
+        this.#controlStream = protocol.controlStream;
+        this.#internal = new AccessoryPair(protocol.context, this.#request.bind(this));
     }
 
     async start(): Promise<void> {
@@ -47,7 +47,7 @@ export default class AirPlayPairing {
     }
 
     async #pinStart(): Promise<void> {
-        const response = await this.rtsp.post('/pair-pin-start', null, {
+        const response = await this.#controlStream.post('/pair-pin-start', null, {
             'Content-Type': 'application/octet-stream',
             'X-Apple-HKP': this.#hkp.toString()
         });
@@ -58,9 +58,63 @@ export default class AirPlayPairing {
     }
 
     async #request(_: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
-        const response = await this.rtsp.post('/pair-setup', data, {
+        const response = await this.#controlStream.post('/pair-setup', data, {
             'Content-Type': 'application/octet-stream',
             'X-Apple-HKP': this.#hkp.toString()
+        });
+
+        return Buffer.from(await response.arrayBuffer());
+    }
+}
+
+export class Verify {
+    get controlStream(): ControlStream {
+        return this.#controlStream;
+    }
+
+    get internal(): AccessoryVerify {
+        return this.#internal;
+    }
+
+    readonly #controlStream: ControlStream;
+    readonly #internal: AccessoryVerify;
+
+    constructor(protocol: Protocol) {
+        this.#controlStream = protocol.controlStream;
+        this.#internal = new AccessoryVerify(protocol.context, this.#request.bind(this));
+    }
+
+    async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
+        const keys = await this.#internal.start(credentials);
+
+        const accessoryToControllerKey = hkdf({
+            hash: 'sha512',
+            key: keys.sharedSecret,
+            length: 32,
+            salt: Buffer.from('Control-Salt'),
+            info: Buffer.from('Control-Read-Encryption-Key')
+        });
+
+        const controllerToAccessoryKey = hkdf({
+            hash: 'sha512',
+            key: keys.sharedSecret,
+            length: 32,
+            salt: Buffer.from('Control-Salt'),
+            info: Buffer.from('Control-Write-Encryption-Key')
+        });
+
+        return {
+            accessoryToControllerKey,
+            controllerToAccessoryKey,
+            pairingId: keys.pairingId,
+            sharedSecret: keys.sharedSecret
+        };
+    }
+
+    async #request(_: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
+        const response = await this.controlStream.post('/pair-verify', data, {
+            'Content-Type': 'application/octet-stream',
+            'X-Apple-HKP': '3'
         });
 
         return Buffer.from(await response.arrayBuffer());

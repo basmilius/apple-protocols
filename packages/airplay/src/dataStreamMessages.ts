@@ -11,7 +11,7 @@ export function protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.Erro
     });
 }
 
-export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = true, systemEndpointUpdates: boolean = true): Proto.ProtocolMessage {
+export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = true, systemEndpointUpdates: boolean = true): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.CLIENT_UPDATES_CONFIG_MESSAGE);
     const message = create(Proto.ClientUpdatesConfigMessageSchema, {
         artworkUpdates,
@@ -24,10 +24,13 @@ export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUp
 
     setExtension(protocolMessage, Proto.clientUpdatesConfigMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.clientUpdatesConfigMessage
+    ];
 }
 
-export function configureConnection(groupId: string): Proto.ProtocolMessage {
+export function configureConnection(groupId: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE);
     const message = create(Proto.ConfigureConnectionMessageSchema, {
         groupID: groupId
@@ -35,10 +38,13 @@ export function configureConnection(groupId: string): Proto.ProtocolMessage {
 
     setExtension(protocolMessage, Proto.configureConnectionMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.configureConnectionMessage
+    ];
 }
 
-export function deviceInfo(pairingId: Buffer): Proto.ProtocolMessage {
+export function deviceInfo(pairingId: Buffer): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE);
     const message = create(Proto.DeviceInfoMessageSchema, {
         uniqueIdentifier: pairingId.toString(),
@@ -82,19 +88,25 @@ export function deviceInfo(pairingId: Buffer): Proto.ProtocolMessage {
 
     setExtension(protocolMessage, Proto.deviceInfoMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.deviceInfoMessage
+    ];
 }
 
-export function getState(): Proto.ProtocolMessage {
+export function getState(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_STATE_MESSAGE);
     const message = create(Proto.GetStateMessageSchema, {});
 
     setExtension(protocolMessage, Proto.getStateMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.getStateMessage
+    ];
 }
 
-export function getVolume(outputDeviceUID: string): Proto.ProtocolMessage {
+export function getVolume(outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_VOLUME_MESSAGE);
     const message = create(Proto.GetVolumeMessageSchema, {
         outputDeviceUID
@@ -102,10 +114,13 @@ export function getVolume(outputDeviceUID: string): Proto.ProtocolMessage {
 
     setExtension(protocolMessage, Proto.getVolumeMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.getVolumeMessage
+    ];
 }
 
-export function getVolumeMuted(outputDeviceUID: string): Proto.ProtocolMessage {
+export function getVolumeMuted(outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_VOLUME_MUTED_MESSAGE);
     const message = create(Proto.GetVolumeMutedMessageSchema, {
         outputDeviceUID
@@ -113,10 +128,13 @@ export function getVolumeMuted(outputDeviceUID: string): Proto.ProtocolMessage {
 
     setExtension(protocolMessage, Proto.getVolumeMutedMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.getVolumeMutedMessage
+    ];
 }
 
-export function notification(notification: string): Proto.ProtocolMessage {
+export function notification(notification: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.NOTIFICATION_MESSAGE);
     const message = create(Proto.NotificationMessageSchema, {
         notification
@@ -124,10 +142,13 @@ export function notification(notification: string): Proto.ProtocolMessage {
 
     setExtension(protocolMessage, Proto.notificationMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.notificationMessage
+    ];
 }
 
-export function playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = false): Proto.ProtocolMessage {
+export function playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = false): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
     const message = create(Proto.PlaybackQueueRequestMessageSchema, {
         location,
@@ -152,10 +173,13 @@ export function playbackQueueRequest(location: number, length: number, includeMe
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.playbackQueueRequestMessage
+    ];
 }
 
-export function sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): Proto.ProtocolMessage {
+export function sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_BUTTON_EVENT_MESSAGE);
     const message = create(Proto.SendButtonEventMessageSchema, {
         usagePage,
@@ -165,10 +189,13 @@ export function sendButtonEvent(usagePage: number, usage: number, buttonDown: bo
 
     setExtension(protocolMessage, Proto.sendButtonEventMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.sendButtonEventMessage
+    ];
 }
 
-export function sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Proto.ProtocolMessage {
+export function sendCommand(command: Proto.Command, options?: Proto.CommandOptions): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_COMMAND_MESSAGE);
     const message = create(Proto.SendCommandMessageSchema, {
         command,
@@ -177,10 +204,13 @@ export function sendCommand(command: Proto.Command, options?: Proto.CommandOptio
 
     setExtension(protocolMessage, Proto.sendCommandMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.sendCommandMessage
+    ];
 }
 
-export function sendHIDEvent(usePage: number, usage: number, down: boolean): Proto.ProtocolMessage {
+export function sendHIDEvent(usePage: number, usage: number, down: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_HID_EVENT_MESSAGE);
     const message = create(Proto.SendHIDEventMessageSchema, {
         hidEventData: Buffer.concat([
@@ -197,10 +227,13 @@ export function sendHIDEvent(usePage: number, usage: number, down: boolean): Pro
 
     setExtension(protocolMessage, Proto.sendHIDEventMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.sendHIDEventMessage
+    ];
 }
 
-export function setConnectionState(state: Proto.SetConnectionStateMessage_ConnectionState = Proto.SetConnectionStateMessage_ConnectionState.Connected): Proto.ProtocolMessage {
+export function setConnectionState(state: Proto.SetConnectionStateMessage_ConnectionState = Proto.SetConnectionStateMessage_ConnectionState.Connected): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_CONNECTION_STATE_MESSAGE);
     const message = create(Proto.SetConnectionStateMessageSchema, {
         state
@@ -208,19 +241,25 @@ export function setConnectionState(state: Proto.SetConnectionStateMessage_Connec
 
     setExtension(protocolMessage, Proto.setConnectionStateMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.setConnectionStateMessage
+    ];
 }
 
-export function setReadyState(): Proto.ProtocolMessage {
+export function setReadyState(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_READY_STATE_MESSAGE);
     const message = create(Proto.SetReadyStateMessageSchema, {});
 
     setExtension(protocolMessage, Proto.readyStateMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.readyStateMessage
+    ];
 }
 
-export function setVolume(outputDeviceUID: string, volume: number): Proto.ProtocolMessage {
+export function setVolume(outputDeviceUID: string, volume: number): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MESSAGE);
     const message = create(Proto.SetVolumeMessageSchema, {
         outputDeviceUID,
@@ -229,10 +268,13 @@ export function setVolume(outputDeviceUID: string, volume: number): Proto.Protoc
 
     setExtension(protocolMessage, Proto.setVolumeMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.setVolumeMessage
+    ];
 }
 
-export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): Proto.ProtocolMessage {
+export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MUTED_MESSAGE);
     const message = create(Proto.SetVolumeMutedMessageSchema, {
         outputDeviceUID,
@@ -241,16 +283,22 @@ export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): Proto
 
     setExtension(protocolMessage, Proto.setVolumeMutedMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.setVolumeMutedMessage
+    ];
 }
 
-export function wakeDevice(): Proto.ProtocolMessage {
+export function wakeDevice(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.WAKE_DEVICE_MESSAGE);
     const message = create(Proto.WakeDeviceMessageSchema, {});
 
     setExtension(protocolMessage, Proto.wakeDeviceMessage, message);
 
-    return protocolMessage;
+    return [
+        protocolMessage,
+        Proto.wakeDeviceMessage
+    ];
 }
 
 export function getExtension<Desc extends DescExtension>(message: Extendee<Desc>, extension: Desc): ExtensionValueShape<Desc> {

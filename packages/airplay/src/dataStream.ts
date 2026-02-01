@@ -1,15 +1,11 @@
-import { Chacha20, ENCRYPTION, EncryptionState, hkdf, reporter } from '@basmilius/apple-common';
+import { type Context, hkdf, randomInt32 } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
-import { fromBinary, getExtension, toBinary } from '@bufbuild/protobuf';
+import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
+import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
 import * as Proto from './proto';
-import { randomInt32 } from './utils';
-import Stream from './stream';
+import BaseStream from './baseStream';
 
-const DATA_HEADER_LENGTH = 32; // 4 + 12 + 4 + 8 + 4
-
-type Bindings = {
-    onData: (buffer: Buffer) => Promise<void>;
-};
+const DATA_HEADER_LENGTH = 32;
 
 type EventMap = {
     readonly deviceInfo: [Proto.DeviceInfoMessage];
@@ -33,29 +29,41 @@ type EventMap = {
     readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
 };
 
-export default class AirPlayDataStream extends Stream<EventMap> {
-    get #encryption(): EncryptionState {
-        return this[ENCRYPTION];
-    }
-
-    readonly #bindings: Bindings;
+export default class DataStream extends BaseStream<EventMap> {
     #buffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
     #handler?: [Function, Function];
+    #handlers: Record<number, [DescExtension, Function]> = {};
 
-    constructor(address: string, port: number) {
-        super(address, port);
+    constructor(context: Context, address: string, port: number) {
+        super(context, address, port);
 
         this.#seqno = 0x100000000n + BigInt(randomInt32());
 
-        this.#bindings = {
-            onData: this.#onData.bind(this)
-        };
+        this.on('data', this.#onData.bind(this));
 
-        this.on('data', this.#bindings.onData);
+        this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_UPDATE_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoUpdateMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.ORIGIN_CLIENT_PROPERTIES_MESSAGE] = [Proto.originClientPropertiesMessage, this.#onOriginClientPropertiesMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.PLAYER_CLIENT_PROPERTIES_MESSAGE] = [Proto.playerClientPropertiesMessage, this.#onPlayerClientPropertiesMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SEND_COMMAND_RESULT_MESSAGE] = [Proto.sendCommandResultMessage, this.#onSendCommandResultMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SET_ARTWORK_MESSAGE] = [Proto.setArtworkMessage, this.#onSetArtworkMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE] = [Proto.setDefaultSupportedCommandsMessage, this.#onSetDefaultSupportedCommandsMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SET_NOW_PLAYING_CLIENT_MESSAGE] = [Proto.setNowPlayingClientMessage, this.#onSetNowPlayingClientMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SET_NOW_PLAYING_PLAYER_MESSAGE] = [Proto.setNowPlayingPlayerMessage, this.#onSetNowPlayingPlayerMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SET_STATE_MESSAGE] = [Proto.setStateMessage, this.#onSetStateMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.REMOVE_CLIENT_MESSAGE] = [Proto.removeClientMessage, this.#onRemoveClientMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.UPDATE_CLIENT_MESSAGE] = [Proto.updateClientMessage, this.#onUpdateClientMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_MESSAGE] = [Proto.updateContentItemMessage, this.#onUpdateContentItemMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE] = [Proto.updateContentItemArtworkMessage, this.#onUpdateContentItemArtworkMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.UPDATE_PLAYER_MESSAGE] = [Proto.updatePlayerMessage, this.#onUpdatePlayerMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.UPDATE_OUTPUT_DEVICE_MESSAGE] = [Proto.updateOutputDeviceMessage, this.#onUpdateOutputDeviceMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.VOLUME_CONTROL_AVAILABILITY_MESSAGE] = [Proto.volumeControlAvailabilityMessage, this.#onVolumeControlAvailabilityMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE] = [Proto.volumeControlCapabilitiesDidChangeMessage, this.#onVolumeControlCapabilitiesDidChangeMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE] = [Proto.volumeDidChangeMessage, this.#onVolumeDidChangeMessage.bind(this)];
     }
 
-    async exchange(message: Proto.ProtocolMessage): Promise<Proto.ProtocolMessage> {
+    async exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<void> {
         return new Promise(async (resolve, reject) => {
             this.#handler = [resolve, reject];
             await this.send(message);
@@ -65,34 +73,44 @@ export default class AirPlayDataStream extends Stream<EventMap> {
     async reply(seqno: bigint): Promise<void> {
         const rply = buildReply(seqno);
 
-        reporter.raw(`[datastream] Sending reply for seqno ${seqno}.`);
+        this.context.logger.raw('[data]', `Sending reply packet seqno=${seqno}`);
 
-        await this.write(await this.#encrypt(rply));
+        await this.write(this.encrypt(rply));
     }
 
-    async send(message: Proto.ProtocolMessage): Promise<void> {
-        const bytes = toBinary(Proto.ProtocolMessageSchema, message, {writeUnknownFields: true});
-        const lenPrefix = Buffer.from(encodeVarint(bytes.length));
-        const pbPayload = Buffer.concat([lenPrefix, Buffer.from(bytes)]);
+    async send(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<void> {
+        let extension: DescExtension | undefined;
+
+        if (Array.isArray(message)) {
+            extension = message[1];
+            message = message[0];
+        }
+
+        const bytes = toBinary(Proto.ProtocolMessageSchema, message, {writeUnknownFields: false});
+        const lengthPrefix = Buffer.from(encodeVarint(bytes.byteLength));
+        const payload = Buffer.concat([lengthPrefix, bytes]);
 
         const plistPayload = Buffer.from(
             Plist.serialize({
                 params: {
-                    data: pbPayload.buffer.slice(pbPayload.byteOffset, pbPayload.byteOffset + pbPayload.byteLength)
+                    data: payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength)
                 }
-            } as any)
+            })
         );
 
         const header = buildHeader(DATA_HEADER_LENGTH + plistPayload.byteLength, this.#seqno++);
-        const frame = Buffer.concat([header, plistPayload]);
-        const encrypted = await this.#encrypt(frame);
+        let frame: Buffer = Buffer.concat([header, plistPayload]);
 
-        reporter.raw('[datastream] Sending message.', message);
+        if (this.isEncrypted) {
+            frame = this.encrypt(frame);
+        }
 
-        await this.write(encrypted);
+        this.context.logger.raw('[data]', 'Sending message.', message.type, extension ? getExtension(message, extension) : message);
+
+        await this.write(frame);
     }
 
-    async setup(sharedSecret: Buffer, seed: bigint): Promise<void> {
+    setup(sharedSecret: Buffer, seed: bigint): void {
         const readKey = hkdf({
             hash: 'sha512',
             key: sharedSecret,
@@ -109,134 +127,29 @@ export default class AirPlayDataStream extends Stream<EventMap> {
             info: Buffer.from('DataStream-Output-Encryption-Key')
         });
 
-        await this.enableEncryption(readKey, writeKey);
+        this.enableEncryption(readKey, writeKey);
     }
 
-    async #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): Promise<void> {
-        reporter.info('Connected to device', message.name);
-
-        this.emit('deviceInfo', message);
-    }
-
-    async #onDeviceInfoUpdateMessage(message: Proto.DeviceInfoMessage): Promise<void> {
-        reporter.info('Device info update', message);
-
-        this.emit('deviceInfoUpdate', message);
-    }
-
-    async #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): Promise<void> {
-        reporter.raw('Origin client properties', message);
-
-        this.emit('originClientProperties', message);
-    }
-
-    async #onPlayerClientPropertiesMessage(message: Proto.PlayerClientPropertiesMessage): Promise<void> {
-        reporter.raw('Player client properties', message);
-
-        this.emit('playerClientProperties', message);
-    }
-
-    async #onRemoveClientMessage(message: Proto.RemoveClientMessage): Promise<void> {
-        reporter.info('Remove client', message);
-
-        this.emit('removeClient', message);
-    }
-
-    async #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): Promise<void> {
-        reporter.info('Send command result', message);
-
-        this.emit('sendCommandResult', message);
-    }
-
-    async #onSetArtworkMessage(message: Proto.SetArtworkMessage): Promise<void> {
-        reporter.info('Set artwork', message);
-
-        this.emit('setArtwork', message);
-    }
-
-    async #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): Promise<void> {
-        reporter.info('Set default supported commands', message);
-
-        this.emit('setDefaultSupportedCommands', message);
-    }
-
-    async #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): Promise<void> {
-        reporter.info('Set now playing client', message);
-
-        this.emit('setNowPlayingClient', message);
-    }
-
-    async #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): Promise<void> {
-        reporter.info('Set now playing player', message);
-
-        this.emit('setNowPlayingPlayer', message);
-    }
-
-    async #onSetStateMessage(message: Proto.SetStateMessage): Promise<void> {
-        reporter.info('Set state', message);
-
-        this.emit('setState', message);
-    }
-
-    async #onUpdateClientMessage(message: Proto.UpdateClientMessage): Promise<void> {
-        reporter.info('Update client', message);
-
-        this.emit('updateClient', message);
-    }
-
-    async #onUpdateContentItemMessage(message: Proto.UpdateContentItemMessage): Promise<void> {
-        reporter.info('Update content item', message);
-
-        this.emit('updateContentItem', message);
-    }
-
-    async #onUpdateContentItemArtworkMessage(message: Proto.UpdateContentItemArtworkMessage): Promise<void> {
-        reporter.info('Update content artwork', message);
-
-        this.emit('updateContentItemArtwork', message);
-    }
-
-    async #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): Promise<void> {
-        reporter.info('Update player', message);
-
-        this.emit('updatePlayer', message);
-    }
-
-    async #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): Promise<void> {
-        reporter.info('Update output device', message);
-
-        this.emit('updateOutputDevice', message);
-    }
-
-    async #onVolumeControlAvailabilityMessage(message: Proto.VolumeControlAvailabilityMessage): Promise<void> {
-        reporter.info('Volume control availability', message);
-
-        this.emit('volumeControlAvailability', message);
-    }
-
-    async #onVolumeControlCapabilitiesDidChangeMessage(message: Proto.VolumeControlCapabilitiesDidChangeMessage): Promise<void> {
-        reporter.info('Volume control capabilities did change', message);
-
-        this.emit('volumeControlCapabilitiesDidChange', message);
-    }
-
-    async #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): Promise<void> {
-        reporter.info('VolumeDidChange message', message);
-
-        this.emit('volumeDidChange', message);
-    }
-
-    async #onData(buffer: Buffer): Promise<void> {
+    async #onData(data: Buffer): Promise<void> {
         try {
-            this.#buffer = Buffer.concat([this.#buffer, buffer]);
-            this.#buffer = await this.#decrypt(this.#buffer);
+            this.#buffer = Buffer.concat([this.#buffer, data]);
+
+            if (this.isEncrypted) {
+                const decrypted = this.decrypt(this.#buffer);
+
+                if (!decrypted) {
+                    return;
+                }
+
+                this.#buffer = decrypted;
+            }
 
             while (this.#buffer.byteLength > DATA_HEADER_LENGTH) {
                 const header = this.#buffer.subarray(0, DATA_HEADER_LENGTH);
                 const totalLength = header.readUint32BE();
 
                 if (this.#buffer.byteLength < totalLength) {
-                    reporter.warn(`Not enough data yet, waiting on the next frame.. needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${buffer.byteLength}`);
+                    this.context.logger.warn('[data]', `Data packet is too short needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
                     return;
                 }
 
@@ -244,13 +157,11 @@ export default class AirPlayDataStream extends Stream<EventMap> {
                 const plist = Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
                 const command = header.toString('ascii', 4, 8);
 
-                reporter.raw('Raw data received', header.toString());
-
                 this.#buffer = this.#buffer.subarray(totalLength);
 
                 if (!plist || !plist.params || !plist.params.data) {
                     if (command === 'rply') {
-                        reporter.raw('Got reply...');
+                        this.context.logger.raw('[data]', 'Received reply packet.');
                     } else if (command === 'sync') {
                         await this.reply(parseHeaderSeqno(header));
                     }
@@ -267,9 +178,9 @@ export default class AirPlayDataStream extends Stream<EventMap> {
 
                 const content = Buffer.from(plist.params.data);
 
-                for (const message of await parseMessages(content)) {
-                    reporter.raw('Parsed message', message);
-                    await this.#handleMessage(message);
+                for (const message of parseMessages(content)) {
+                    this.context.logger.raw('[data]', `Received message.`, message);
+                    this.#handleMessage(message);
                 }
 
                 if (command === 'sync') {
@@ -277,274 +188,137 @@ export default class AirPlayDataStream extends Stream<EventMap> {
                 }
             }
         } catch (err) {
-            reporter.error('Error in data stream #onData()', err);
+            this.context.logger.error('[data]', '#onData()', err);
             this.emit('error', err);
         }
     }
 
-    async #decrypt(data: Buffer): Promise<Buffer> {
-        const result: Buffer[] = [];
-        let offset = 0;
-        let readCount = this.#encryption.readCount ?? 0;
-
-        while (offset < data.length) {
-            if (offset + 2 > data.length) {
-                reporter.warn('Truncated frame length');
-                return this.#buffer;
-            }
-
-            const frameLength = data.readUInt16LE(offset);
-            offset += 2;
-
-            const nonce = this.nonce(readCount++);
-            const end = offset + frameLength + 16;
-
-            if (end > data.length) {
-                reporter.warn(`Truncated frame end=${end} length=${data.length}`);
-                return this.#buffer;
-            }
-
-            const ciphertext = data.subarray(offset, offset + frameLength);
-            const authTag = data.subarray(offset + frameLength, end);
-            offset = end;
-
-            const plaintext = Chacha20.decrypt(
-                this.#encryption.readKey,
-                nonce,
-                Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)), // same AAD = leLength
-                ciphertext,
-                authTag
-            );
-
-            result.push(plaintext);
-        }
-
-        this.#encryption.readCount = readCount;
-
-        return Buffer.concat(result);
-    }
-
-    async #encrypt(data: Buffer): Promise<Buffer> {
-        const FRAME_LENGTH = 1024;
-        const result: Buffer[] = [];
-
-        for (let offset = 0; offset < data.length;) {
-            const frame = data.subarray(offset, offset + FRAME_LENGTH);
-            offset += frame.length;
-
-            const leLength = Buffer.alloc(2);
-            leLength.writeUInt16LE(frame.length, 0);
-
-            const nonce = this.nonce(this.#encryption.writeCount++);
-            const encrypted = Chacha20.encrypt(
-                this.#encryption.writeKey,
-                nonce,
-                leLength,
-                frame
-            );
-
-            result.push(leLength, encrypted.ciphertext, encrypted.authTag);
-        }
-
-        return Buffer.concat(result);
-    }
-
-    async #handleMessage(message: Proto.ProtocolMessage): Promise<void> {
+    #handleMessage(message: Proto.ProtocolMessage): void {
         if (this.#handler) {
             const [resolve] = this.#handler;
             this.#handler = undefined;
-
             resolve(message);
         }
 
-        switch (message.type) {
-            case Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE:
-                await this.#onDeviceInfoMessage(getExtension(message, Proto.deviceInfoMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.DEVICE_INFO_UPDATE_MESSAGE:
-                await this.#onDeviceInfoUpdateMessage(getExtension(message, Proto.deviceInfoMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.ORIGIN_CLIENT_PROPERTIES_MESSAGE:
-                await this.#onOriginClientPropertiesMessage(getExtension(message, Proto.originClientPropertiesMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.PLAYER_CLIENT_PROPERTIES_MESSAGE:
-                await this.#onPlayerClientPropertiesMessage(getExtension(message, Proto.playerClientPropertiesMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.SEND_COMMAND_RESULT_MESSAGE:
-                await this.#onSendCommandResultMessage(getExtension(message, Proto.sendCommandResultMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.SET_ARTWORK_MESSAGE:
-                await this.#onSetArtworkMessage(getExtension(message, Proto.setArtworkMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE:
-                await this.#onSetDefaultSupportedCommandsMessage(getExtension(message, Proto.setDefaultSupportedCommandsMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.SET_NOW_PLAYING_CLIENT_MESSAGE:
-                await this.#onSetNowPlayingClientMessage(getExtension(message, Proto.setNowPlayingClientMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.SET_NOW_PLAYING_PLAYER_MESSAGE:
-                await this.#onSetNowPlayingPlayerMessage(getExtension(message, Proto.setNowPlayingPlayerMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.SET_STATE_MESSAGE:
-                await this.#onSetStateMessage(getExtension(message, Proto.setStateMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.REMOVE_CLIENT_MESSAGE:
-                await this.#onRemoveClientMessage(getExtension(message, Proto.removeClientMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.UPDATE_CLIENT_MESSAGE:
-                await this.#onUpdateClientMessage(getExtension(message, Proto.updateClientMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_MESSAGE:
-                await this.#onUpdateContentItemMessage(getExtension(message, Proto.updateContentItemMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE:
-                await this.#onUpdateContentItemArtworkMessage(getExtension(message, Proto.updateContentItemArtworkMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.UPDATE_PLAYER_MESSAGE:
-                await this.#onUpdatePlayerMessage(getExtension(message, Proto.updatePlayerMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.UPDATE_OUTPUT_DEVICE_MESSAGE:
-                await this.#onUpdateOutputDeviceMessage(getExtension(message, Proto.updateOutputDeviceMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.VOLUME_CONTROL_AVAILABILITY_MESSAGE:
-                await this.#onVolumeControlAvailabilityMessage(getExtension(message, Proto.volumeControlAvailabilityMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE:
-                await this.#onVolumeControlCapabilitiesDidChangeMessage(getExtension(message, Proto.volumeControlCapabilitiesDidChangeMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE:
-                await this.#onVolumeDidChangeMessage(getExtension(message, Proto.volumeDidChangeMessage));
-                break;
-
-            case Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE:
-                break;
-
-            default:
-                reporter.warn('Received unknown message.', message);
-                break;
+        if (message.type in this.#handlers) {
+            const [extension, handler] = this.#handlers[message.type];
+            handler(getExtension(message, extension));
+        } else if (message.type !== Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE) {
+            this.context.logger.warn('[data]', `Unknown message type ${message.type}.`);
         }
     }
-}
 
-function buildHeader(totalSize: number, seqno: bigint): Buffer {
-    const buf = Buffer.alloc(32);
+    #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): void {
+        this.context.logger.info('[data]', 'Connected to device', message.name);
 
-    buf.writeUInt32BE(totalSize, 0);
-    buf.write('sync', 4, 'ascii');
-    buf.fill(0, 8, 16);
-    buf.write('comm', 16, 'ascii');
-    buf.writeBigUInt64BE(seqno, 20);
-    buf.writeUInt32BE(0, 28);
-
-    return buf;
-}
-
-function buildReply(seqno: bigint): Buffer {
-    const header = Buffer.alloc(32);
-    header.writeUInt32BE(0, 0); // placeholder
-    header.write('rply', 4, 'ascii');
-    header.fill(0, 8, 16);
-    header.writeBigUInt64BE(seqno, 20);
-    header.writeUInt32BE(0, 28);
-
-    const plist = Buffer.from(
-        Plist.serialize(Buffer.alloc(0) as any)
-    );
-
-    const total = header.length + plist.length;
-    header.writeUInt32BE(total, 0);
-
-    return Buffer.concat([header, plist]);
-}
-
-function encodeVarint(value: number): Uint8Array {
-    if (value < 0) {
-        throw new RangeError('Varint only supports non-negative integers');
+        this.emit('deviceInfo', message);
     }
 
-    const bytes: number[] = [];
-    while (value > 127) {
-        bytes.push((value & 0x7f) | 0x80);
-        value >>>= 7;
+    #onDeviceInfoUpdateMessage(message: Proto.DeviceInfoMessage): void {
+        this.context.logger.info('[data]', 'Device info update', message);
+
+        this.emit('deviceInfoUpdate', message);
     }
 
-    bytes.push(value);
+    #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): void {
+        this.context.logger.raw('[data]', 'Origin client properties', message);
 
-    return Uint8Array.from(bytes);
-}
-
-function parseHeaderSeqno(header: Buffer): bigint {
-    if (header.length < 28) {
-        throw new Error('Header too short');
+        this.emit('originClientProperties', message);
     }
 
-    return header.readBigUInt64BE(20);
-}
+    #onPlayerClientPropertiesMessage(message: Proto.PlayerClientPropertiesMessage): void {
+        this.context.logger.raw('[data]', 'Player client properties', message);
 
-async function parseMessages(content: Buffer): Promise<Proto.ProtocolMessage[]> {
-    const messages: Proto.ProtocolMessage[] = [];
-    let offset = 0;
-
-    while (offset < content.length) {
-        const firstByte = content[offset];
-
-        if (firstByte === 0x08) {
-            const message = content.subarray(offset);
-            const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
-            messages.push(decoded);
-            break;
-        }
-
-        const [length, variantLen] = readVariant(content, offset);
-        offset += variantLen;
-
-        if (offset + length > content.length) {
-            break;
-        }
-
-        const message = content.subarray(offset, offset + length);
-        offset += length;
-
-        const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
-        messages.push(decoded);
+        this.emit('playerClientProperties', message);
     }
 
-    return messages;
-}
+    #onRemoveClientMessage(message: Proto.RemoveClientMessage): void {
+        this.context.logger.info('[data]', 'Remove client', message);
 
-function readVariant(buf: Buffer, offset = 0): [number, number] {
-    let result = 0;
-    let shift = 0;
-    let bytesRead = 0;
-
-    while (true) {
-        const byte = buf[offset + bytesRead++];
-        result |= (byte & 0x7f) << shift;
-
-        if ((byte & 0x80) === 0) {
-            break;
-        }
-
-        shift += 7;
+        this.emit('removeClient', message);
     }
 
-    return [result, bytesRead];
+    #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): void {
+        this.context.logger.info('[data]', 'Send command result', message);
+
+        this.emit('sendCommandResult', message);
+    }
+
+    #onSetArtworkMessage(message: Proto.SetArtworkMessage): void {
+        this.context.logger.info('[data]', 'Set artwork', message);
+
+        this.emit('setArtwork', message);
+    }
+
+    #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): void {
+        this.context.logger.info('[data]', 'Set default supported commands', message);
+
+        this.emit('setDefaultSupportedCommands', message);
+    }
+
+    #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): void {
+        this.context.logger.info('[data]', 'Set now playing client', message);
+
+        this.emit('setNowPlayingClient', message);
+    }
+
+    #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): void {
+        this.context.logger.info('[data]', 'Set now playing player', message);
+
+        this.emit('setNowPlayingPlayer', message);
+    }
+
+    #onSetStateMessage(message: Proto.SetStateMessage): void {
+        this.context.logger.info('[data]', 'Set state', message);
+
+        this.emit('setState', message);
+    }
+
+    #onUpdateClientMessage(message: Proto.UpdateClientMessage): void {
+        this.context.logger.info('[data]', 'Update client', message);
+
+        this.emit('updateClient', message);
+    }
+
+    #onUpdateContentItemMessage(message: Proto.UpdateContentItemMessage): void {
+        this.context.logger.info('[data]', 'Update content item', message);
+
+        this.emit('updateContentItem', message);
+    }
+
+    #onUpdateContentItemArtworkMessage(message: Proto.UpdateContentItemArtworkMessage): void {
+        this.context.logger.info('[data]', 'Update content artwork', message);
+
+        this.emit('updateContentItemArtwork', message);
+    }
+
+    #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): void {
+        this.context.logger.info('[data]', 'Update player', message);
+
+        this.emit('updatePlayer', message);
+    }
+
+    #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): void {
+        this.context.logger.info('[data]', 'Update output device', message);
+
+        this.emit('updateOutputDevice', message);
+    }
+
+    #onVolumeControlAvailabilityMessage(message: Proto.VolumeControlAvailabilityMessage): void {
+        this.context.logger.info('[data]', 'Volume control availability', message);
+
+        this.emit('volumeControlAvailability', message);
+    }
+
+    #onVolumeControlCapabilitiesDidChangeMessage(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
+        this.context.logger.info('[data]', 'Volume control capabilities did change', message);
+
+        this.emit('volumeControlCapabilitiesDidChange', message);
+    }
+
+    #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): void {
+        this.context.logger.info('[data]', 'VolumeDidChange message', message);
+
+        this.emit('volumeDidChange', message);
+    }
 }

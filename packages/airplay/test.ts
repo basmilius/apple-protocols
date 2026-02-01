@@ -1,35 +1,35 @@
-import { Discovery, prompt, reporter, TimingServer, waitFor } from '@basmilius/apple-common';
-import { AirPlay, DataStreamMessage } from './src';
+import { Discovery, prompt, reporter } from '@basmilius/apple-common';
+import * as AirPlay from './src';
 
 reporter.all();
 
 async function homepod(): Promise<void> {
     const discovery = Discovery.airplay();
     const discoveryResult = await discovery.findUntil('Woonkamer HomePod._airplay._tcp.local');
-    const protocol = new AirPlay(discoveryResult);
+    const protocol = new AirPlay.Protocol('Woonkamer HomePod._airplay._tcp.local', discoveryResult);
 
     await protocol.connect();
 
     await protocol.pairing.start();
     const keys = await protocol.pairing.transient();
 
-    await protocol.rtsp.enableEncryption(
+    protocol.controlStream.enableEncryption(
         keys.accessoryToControllerKey,
         keys.controllerToAccessoryKey
     );
 
-    await protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
+    await protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
     await protocol.setupDataStream(keys.sharedSecret);
 
     setInterval(() => protocol.feedback(), 2000);
 
-    // await protocol.dataStream.exchange(DataStreamMessage.configureConnection(``));
-    await protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
+    // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.configureConnection(``));
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
 
     protocol.dataStream.addListener('deviceInfo', async () => {
-        await protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-        await protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
-        await protocol.dataStream.exchange(DataStreamMessage.setReadyState());
+        await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setConnectionState());
+        await protocol.dataStream.exchange(AirPlay.DataStreamMessage.clientUpdatesConfig());
+        await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setReadyState());
 
         // await waitFor(1000);
         //
@@ -68,7 +68,7 @@ async function homepod(): Promise<void> {
 async function tv(): Promise<void> {
     const discovery = Discovery.airplay();
     const device = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
-    const protocol = new AirPlay(device);
+    const protocol = new AirPlay.Protocol('Woonkamer TV._airplay._tcp.local', device);
 
     await protocol.connect();
 
@@ -80,17 +80,17 @@ async function tv(): Promise<void> {
         secretKey: Buffer.from('0be84946aabcca3c99471791b32a64b83eb5c4f8edb62e1535c69507d7720296385ae55433ebee4acfba7b1a12ce1cccafea37bd49f86b21691741a647a071ec', 'hex')
     });
 
-    await protocol.rtsp.enableEncryption(
+    protocol.controlStream.enableEncryption(
         keys.accessoryToControllerKey,
         keys.controllerToAccessoryKey
     );
 
-    await protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
+    await protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
     await protocol.setupDataStream(keys.sharedSecret);
 
     setInterval(() => protocol.feedback(), 2000);
 
-    await protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
 
     protocol.dataStream.addListener('deviceInfo', async message => {
         let outputUID: string;
@@ -105,69 +105,37 @@ async function tv(): Promise<void> {
             outputUID = 'unknown';
         }
 
-        await protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-        await protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
-        await protocol.dataStream.exchange(DataStreamMessage.getVolume(outputUID));
-        // await protocol.dataStream.exchange(DataStreamMessage.sendCommand(Proto.Command.Rewind15Seconds));
-
+        await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setConnectionState());
+        await protocol.dataStream.exchange(AirPlay.DataStreamMessage.clientUpdatesConfig());
+        await protocol.dataStream.exchange(AirPlay.DataStreamMessage.getVolume(outputUID));
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendCommand(AirPlay.Proto.Command.Rewind15Seconds));
+        //
         // await waitFor(1000);
-
+        //
         // await waitFor(3000);
-
-        // await protocol.dataStream.exchange(DataStreamMessage.getVolumeMuted(outputUID));
-        // await protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(outputUID, true));
-
+        //
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.getVolumeMuted(outputUID));
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setVolumeMuted(outputUID, true));
+        //
         // await waitFor(1000);
-
-        // await protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(outputUID, false));
-
-        // const options = create(Proto.CommandOptionsSchema, {
+        //
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setVolumeMuted(outputUID, false));
+        //
+        // const options = create(AirPlay.Proto.CommandOptionsSchema, {
         //     stationURL: 'https://bmcdn.nl/doorbell.ogg'
         // });
-
-        // await protocol.dataStream.exchange(DataStreamMessage.sendCommand(Proto.Command.Play, options));
-
-        // await protocol.dataStream.exchange(DataStreamMessage.sendButtonEvent(12, 0x40, true));
-        // await protocol.dataStream.exchange(DataStreamMessage.sendButtonEvent(12, 0x40, false));
-
-        // await waitFor(1000);
-
-        // const response = await protocol.rtsp.post('/play', Buffer.from(serializeBinaryPlist({
-        //     'Content-Location': 'https://bmcdn.nl/doorbell.ogg',
-        //     'Start-Position-Seconds': 0,
-        //     'uuid': uuid().toUpperCase(),
-        //     'streamType': 1,
-        //     'mediaType': 'file',
-        //     'mightSupportStorePastisKeyRequests': true,
-        //     'playbackRestrictions': 0,
-        //     'secureConnectionMs': 22,
-        //     'volume': 0.5,
-        //     'infoMs': 122,
-        //     'connectMs': 18,
-        //     'authMs': 0,
-        //     'bonjourMs': 0,
-        //     'referenceRestrictions': 3,
-        //     'SenderMACAddress': getMacAddress().toUpperCase(),
-        //     'model': 'iPhone16,2',
-        //     'postAuthMs': 0,
-        //     'clientBundleID': 'com.basmilius.airplay',
-        //     'clientProcName': 'com.basmilius.airplay',
-        //     'osBuildVersion': '23C5027f',
-        //     'rate': 1.0
-        // })), {
-        //     'Content-Type': 'application/x-apple-binary-plist',
-        //     'X-Apple-Session-ID': protocol.sessionUUID,
-        //     'X-Apple-Stream-ID': '1'
-        // });
         //
-        // console.log(response);
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendCommand(AirPlay.Proto.Command.Play, options));
+        //
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, true));
+        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, false));
     });
 }
 
 async function tvPair(): Promise<void> {
     const discovery = Discovery.airplay();
     const device = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
-    const protocol = new AirPlay(device);
+    const protocol = new AirPlay.Protocol('Woonkamer TV._airplay._tcp.local', device);
 
     await protocol.connect();
     await protocol.pairing.start();

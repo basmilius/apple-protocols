@@ -86,7 +86,7 @@ export default class DataStream extends BaseStream<EventMap> {
             message = message[0];
         }
 
-        const bytes = toBinary(Proto.ProtocolMessageSchema, message, {writeUnknownFields: false});
+        const bytes = toBinary(Proto.ProtocolMessageSchema, message, {writeUnknownFields: true});
         const lengthPrefix = Buffer.from(encodeVarint(bytes.byteLength));
         const payload = Buffer.concat([lengthPrefix, bytes]);
 

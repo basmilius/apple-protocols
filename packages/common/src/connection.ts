@@ -160,7 +160,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     }
 
     async write(data: Buffer | Uint8Array): Promise<void> {
-        if (!this.#socket || this.state !== 'connected') {
+        if (!this.#socket || this.state !== 'connected' || !this.#socket.writable) {
             this.emit('error', new Error('Cannot write to a disconnected connection.'));
             return;
         }

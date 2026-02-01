@@ -165,7 +165,7 @@ export default class extends EventEmitter<EventMap> {
             this.#protocol.useTimingServer(this.#timingServer);
         }
 
-        await this.#protocol.setupEventStream(keys.pairingId, keys.sharedSecret);
+        await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
         await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
         this.#protocol.dataStream.on('error', async (err: Error) => this.#onError(err));

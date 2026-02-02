@@ -4,13 +4,14 @@ import { OPack } from '@basmilius/apple-encoding';
 import { OPackFrameTypes, PairFrameTypes } from './frame';
 
 const HEADER_SIZE = 4;
+const PAIRING_QUEUE_IDENTIFIER = -1;
 
 export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
     get #encryptionState(): EncryptionState {
         return this[ENCRYPTION];
     }
 
-    readonly #queue: Record<number, Function> = {};
+    readonly #queue: Map<number, [Function, Function]> = new Map();
     #buffer: Buffer = Buffer.alloc(0);
     #xid: number;
 
@@ -19,7 +20,9 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         this.#xid = randomInt(0, 2 ** 16);
 
+        this.on('close', this.#onClose.bind(this));
         this.on('data', this.#onData.bind(this));
+        this.on('error', this.#onError.bind(this));
     }
 
     async exchange(type: number, obj: Record<string, unknown>): Promise<[number, unknown]> {
@@ -27,9 +30,9 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         return new Promise<[number, number]>((resolve, reject) => {
             if (PairFrameTypes.includes(type)) {
-                this.#queue[-1] = resolve;
+                this.#queue.set(PAIRING_QUEUE_IDENTIFIER, [resolve, reject]);
             } else {
-                this.#queue[_x] = resolve;
+                this.#queue.set(_x, [resolve, reject]);
             }
 
             this.send(type, obj).catch(reject);
@@ -38,7 +41,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
     async send(type: number, obj: Record<string, unknown>): Promise<void> {
         const _x = this.#xid++;
-        obj._x ??= OPack.sizedInt(_x, 8);
+        obj._x ??= OPack.sizedInteger(_x, 8);
 
         let payload = Buffer.from(OPack.encode(obj));
         let payloadLength = payload.byteLength;
@@ -71,6 +74,16 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
             this.context.logger.error('[companion-link]', 'Error in Companion Link send()', err);
             this.emit('error', err);
         }
+    }
+
+    #onClose(): void {
+        const error = new Error('Connection closed while waiting for response');
+
+        for (const [, reject] of this.#queue.values()) {
+            reject(error);
+        }
+
+        this.#queue.clear();
     }
 
     async #onData(data: Buffer): Promise<void> {
@@ -107,6 +120,14 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         }
     }
 
+    #onError(err: Error): void {
+        for (const [, reject] of this.#queue.values()) {
+            reject(err);
+        }
+
+        this.#queue.clear();
+    }
+
     #decrypt(data: Buffer): Buffer {
         const header = data.subarray(0, 4);
         const payloadLength = header.readUintBE(1, 3);
@@ -136,30 +157,29 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
 
         if ('_x' in payload) {
-            const _x = (payload as any)._x;
+            const _x = Number(payload['_x']);
 
-            if (_x in this.#queue) {
-                const resolve = this.#queue[_x] ?? null;
-                resolve?.([header, payload]);
+            if (this.#queue.has(_x)) {
+                const [resolve] = this.#queue.get(_x);
+                resolve([header, payload]);
 
-                delete this.#queue[_x];
+                this.#queue.delete(_x);
             } else if ('_i' in payload) {
                 this.emit(payload['_i'] as string, payload['_c']);
             } else {
                 // probably an event
                 const content = payload['_c'];
-                const keys = Object.keys(content).map(k => k.substring(0, -3));
+                const keys = Object.keys(content).map(k => k.slice(0, -3));
 
                 for (const key of keys) {
                     this.emit(key, content[key]);
                 }
             }
-        } else if (this.#queue[-1]) {
-            const _x = -1;
-            const resolve = this.#queue[_x] ?? null;
-            resolve?.([header, payload]);
+        } else if (this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
+            const [resolve] = this.#queue.get(PAIRING_QUEUE_IDENTIFIER);
+            resolve([header, payload]);
 
-            delete this.#queue[_x];
+            this.#queue.delete(PAIRING_QUEUE_IDENTIFIER);
         } else {
             this.context.logger.warn('[companion-link]', 'No handler for message', [header, payload]);
         }

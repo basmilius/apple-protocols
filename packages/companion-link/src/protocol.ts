@@ -345,11 +345,11 @@ export default class Protocol {
 }
 
 function objectOrFail<T = object>(obj: unknown): T {
-    if (typeof obj === 'object') {
+    if (obj !== null && typeof obj === 'object') {
         return obj as T;
     }
 
-    throw new Error('Expected an object.');
+    throw new TypeError('Expected an object.');
 }
 
 type AttentionStateResponse = {

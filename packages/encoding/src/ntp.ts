@@ -56,14 +56,14 @@ export function encode(fields: PacketFields): Buffer {
 }
 
 export type PacketFields = {
-    proto: number;
-    type: number;
-    seqno: number;
-    padding: number;
-    reftime_sec: number;
-    reftime_frac: number;
-    recvtime_sec: number;
-    recvtime_frac: number;
-    sendtime_sec: number;
-    sendtime_frac: number;
+    readonly proto: number;
+    readonly type: number;
+    readonly seqno: number;
+    readonly padding: number;
+    readonly reftime_sec: number;
+    readonly reftime_frac: number;
+    readonly recvtime_sec: number;
+    readonly recvtime_frac: number;
+    readonly sendtime_sec: number;
+    readonly sendtime_frac: number;
 };

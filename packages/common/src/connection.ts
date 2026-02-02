@@ -166,7 +166,11 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         }
 
         return new Promise((resolve, reject) => {
-            this.#socket.write(data, err => err ? reject(err) : resolve());
+            try {
+                this.#socket.write(data, err => err ? reject(err) : resolve());
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 

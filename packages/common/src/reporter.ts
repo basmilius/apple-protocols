@@ -1,3 +1,5 @@
+import { pad } from 'lodash-es';
+
 type DebugGroup =
     | 'debug'
     | 'error'
@@ -7,34 +9,44 @@ type DebugGroup =
     | 'warn';
 
 export class Logger {
+    get id(): string {
+        return this.#id;
+    }
+
+    get label(): string {
+        return this.#label;
+    }
+
     readonly #id: string;
+    readonly #label: string;
 
     constructor(id: string) {
         this.#id = id;
+        this.#label = `\u001b[36m[${pad(id, 16)}]\u001b[39m`;
     }
 
     debug(...data: any[]): void {
-        debug(`\u001b[36m[${this.#id}]\u001b[39m`, ...data);
+        debug(this.#label, ...data);
     }
 
     error(...data: any[]): void {
-        error(`\u001b[36m[${this.#id}]\u001b[39m`, ...data);
+        error(this.#label, ...data);
     }
 
     info(...data: any[]): void {
-        info(`\u001b[36m[${this.#id}]\u001b[39m`, ...data);
+        info(this.#label, ...data);
     }
 
     net(...data: any[]): void {
-        net(`\u001b[36m[${this.#id}]\u001b[39m`, ...data);
+        net(this.#label, ...data);
     }
 
     raw(...data: any[]): void {
-        raw(`\u001b[36m[${this.#id}]\u001b[39m`, ...data);
+        raw(this.#label, ...data);
     }
 
     warn(...data: any[]): void {
-        warn(`\u001b[36m[${this.#id}]\u001b[39m`, ...data);
+        warn(this.#label, ...data);
     }
 }
 

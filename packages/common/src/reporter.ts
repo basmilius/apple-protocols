@@ -22,7 +22,7 @@ export class Logger {
 
     constructor(id: string) {
         this.#id = id;
-        this.#label = `\u001b[36m[${pad(id, 16)}]\u001b[39m`;
+        this.#label = `\u001b[36m[${pad(id, 24)}]\u001b[39m`;
     }
 
     debug(...data: any[]): void {

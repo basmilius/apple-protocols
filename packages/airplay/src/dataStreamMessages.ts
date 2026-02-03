@@ -158,17 +158,12 @@ export function playbackQueueRequest(location: number, length: number, includeMe
         artworkHeight: 600,
         artworkWidth: 600,
         includeInfo: true,
-        includeLyrics: false,
-        includeSections: false,
-        includeAlignments: false,
+        includeLyrics: true,
+        includeSections: true,
+        includeAlignments: true,
         includeAvailableArtworkFormats: true,
-        includeParticipants: false,
-        isLegacyNowPlayingInfoRequest: false,
-        returnContentItemAssetsInUserCompletion: true,
-        requestedAnimatedArtworkAssetURLFormats: [
-            'MRContentItemAnimatedArtworkFormatSquare',
-            'MRContentItemAnimatedArtworkFormatTall'
-        ]
+        includeParticipants: true,
+        isLegacyNowPlayingInfoRequest: false
     });
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);

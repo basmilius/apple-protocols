@@ -176,7 +176,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState(Proto.SetConnectionStateMessage_ConnectionState.Connecting));
         await waitFor(500);
 
-        const gid = this.#discoveryResult.packet.additionals.find(a => 'rdata' in a && typeof a['rdata'] === 'object' && 'gid' in a['rdata'])?.['rdata']['gid'] as string;
+        const gid = this.#discoveryResult.txt.gid;
 
         if (gid) {
             await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));

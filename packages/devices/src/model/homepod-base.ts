@@ -17,10 +17,6 @@ export default abstract class extends EventEmitter<EventMap> {
         return this.#airplay.state.nowPlayingClient?.bundleIdentifier ?? null;
     }
 
-    get deviceId(): string {
-        return this.#deviceId;
-    }
-
     get displayName(): string | null {
         return this.#airplay.state.nowPlayingClient?.displayName ?? null;
     }
@@ -50,14 +46,12 @@ export default abstract class extends EventEmitter<EventMap> {
     }
 
     readonly #airplay: AirPlayDevice;
-    readonly #deviceId: string;
     #disconnect: boolean = false;
 
-    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
+    constructor(discoveryResult: DiscoveryResult) {
         super();
 
-        this.#deviceId = deviceId;
-        this.#airplay = new AirPlayDevice(this.#deviceId, discoveryResult);
+        this.#airplay = new AirPlayDevice(discoveryResult);
         this.#airplay.on('connected', () => this.#onConnected());
         this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
     }

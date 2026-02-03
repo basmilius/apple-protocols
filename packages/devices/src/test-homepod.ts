@@ -13,7 +13,7 @@ async function main(): Promise<void> {
         discoveryResult = JSON.parse(await redis.get('homepod'));
     } else {
         const discovery = Discovery.airplay();
-        discoveryResult = await discovery.findUntil('Slaapkamer HomePod._airplay._tcp.local');
+        discoveryResult = await discovery.findUntil('Slaapkamer-HomePod.local');
 
         await redis.setex('homepod', 3600, JSON.stringify(discoveryResult));
     }
@@ -28,7 +28,7 @@ async function main(): Promise<void> {
         console.log(item?.metadata);
     }
 
-    const device = new HomePodMini('Slaapkamer HomePod.local', discoveryResult);
+    const device = new HomePodMini(discoveryResult);
     device.airplay.timingServer = timingServer;
     await device.connect();
 

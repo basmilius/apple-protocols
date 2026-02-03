@@ -48,7 +48,6 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
-    readonly #deviceId: string;
     readonly #remote: Remote;
     readonly #state: State;
     readonly #volume: Volume;
@@ -60,10 +59,9 @@ export default class extends EventEmitter<EventMap> {
     #protocol!: Protocol;
     #timingServer?: TimingServer;
 
-    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
+    constructor(discoveryResult: DiscoveryResult) {
         super();
 
-        this.#deviceId = deviceId;
         this.#discoveryResult = discoveryResult;
         this.#remote = new Remote(this);
         this.#state = new State(this);
@@ -74,7 +72,7 @@ export default class extends EventEmitter<EventMap> {
         this.#disconnect = false;
         this.#state.clear();
 
-        this.#protocol = new Protocol(this.#deviceId, this.#discoveryResult);
+        this.#protocol = new Protocol(this.#discoveryResult);
         this.#protocol.controlStream.on('close', async () => this.#onClose());
         this.#protocol.controlStream.on('error', async (err: Error) => this.#onError(err));
         this.#protocol.controlStream.on('timeout', async () => this.#onTimeout());

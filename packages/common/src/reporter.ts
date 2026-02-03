@@ -1,5 +1,3 @@
-import { pad } from 'lodash-es';
-
 type DebugGroup =
     | 'debug'
     | 'error'
@@ -22,7 +20,7 @@ export class Logger {
 
     constructor(id: string) {
         this.#id = id;
-        this.#label = `\u001b[36m[${pad(id, 24)}]\u001b[39m`;
+        this.#label = `\u001b[36m[${id}]\u001b[39m`;
     }
 
     debug(...data: any[]): void {

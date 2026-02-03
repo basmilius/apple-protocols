@@ -5,8 +5,8 @@ reporter.all();
 
 async function homepod(): Promise<void> {
     const discovery = Discovery.airplay();
-    const discoveryResult = await discovery.findUntil('Woonkamer HomePod._airplay._tcp.local');
-    const protocol = new AirPlay.Protocol('Woonkamer HomePod._airplay._tcp.local', discoveryResult);
+    const discoveryResult = await discovery.findUntil('Woonkamer-HomePod.local');
+    const protocol = new AirPlay.Protocol(discoveryResult);
 
     await protocol.connect();
 
@@ -67,8 +67,8 @@ async function homepod(): Promise<void> {
 
 async function tv(): Promise<void> {
     const discovery = Discovery.airplay();
-    const device = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
-    const protocol = new AirPlay.Protocol('Woonkamer TV._airplay._tcp.local', device);
+    const discoveryResult = await discovery.findUntil('Woonkamer-TV.local');
+    const protocol = new AirPlay.Protocol(discoveryResult);
 
     await protocol.connect();
 
@@ -134,8 +134,8 @@ async function tv(): Promise<void> {
 
 async function tvPair(): Promise<void> {
     const discovery = Discovery.airplay();
-    const device = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
-    const protocol = new AirPlay.Protocol('Woonkamer TV._airplay._tcp.local', device);
+    const discoveryResult = await discovery.findUntil('Woonkamer-TV.local');
+    const protocol = new AirPlay.Protocol(discoveryResult);
 
     await protocol.connect();
     await protocol.pairing.start();

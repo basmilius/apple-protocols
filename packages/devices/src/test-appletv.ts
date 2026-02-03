@@ -20,7 +20,7 @@ async function main(): Promise<void> {
     const airplayDiscoveryResult = await airplay();
     const companionLinkDiscoveryResult = await companionLink();
 
-    const device = new AppleTV('Woonkamer TV.local', airplayDiscoveryResult, companionLinkDiscoveryResult);
+    const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
 
     device.airplay.on('disconnected', unexpected => {
         if (!unexpected) {
@@ -57,7 +57,7 @@ async function airplay(): Promise<DiscoveryResult> {
     }
 
     const discovery = Discovery.airplay();
-    const discoveryResult = await discovery.findUntil('Woonkamer TV._airplay._tcp.local');
+    const discoveryResult = await discovery.findUntil('Woonkamer-TV.local');
 
     await redis.setex('airplay', 3600, JSON.stringify(discoveryResult));
 
@@ -70,7 +70,7 @@ async function companionLink(): Promise<DiscoveryResult> {
     // }
 
     const discovery = Discovery.companionLink();
-    const discoveryResult = await discovery.findUntil('Woonkamer TV._companion-link._tcp.local');
+    const discoveryResult = await discovery.findUntil('Woonkamer-TV.local');
 
     await redis.setex('companion-link', 3600, JSON.stringify(discoveryResult));
 

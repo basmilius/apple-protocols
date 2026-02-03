@@ -26,7 +26,6 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol?.stream?.isConnected ?? false;
     }
 
-    readonly #deviceId: string;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
@@ -34,10 +33,9 @@ export default class extends EventEmitter<EventMap> {
     #keys: AccessoryKeys;
     #protocol!: Protocol;
 
-    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
+    constructor(discoveryResult: DiscoveryResult) {
         super();
 
-        this.#deviceId = deviceId;
         this.#discoveryResult = discoveryResult;
 
         this.onSystemStatus = this.onSystemStatus.bind(this);
@@ -50,7 +48,7 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.#disconnect = false;
-        this.#protocol = new Protocol(this.#deviceId, this.#discoveryResult);
+        this.#protocol = new Protocol(this.#discoveryResult);
         this.#protocol.stream.on('close', async () => this.#onClose());
         this.#protocol.stream.on('error', async (err: Error) => this.#onError(err));
         this.#protocol.stream.on('timeout', async () => this.#onTimeout());

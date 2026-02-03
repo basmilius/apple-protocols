@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { COMPANION_LINK_SERVICE, Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
+import { Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
 import { OPack, Plist } from '@basmilius/apple-encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType, MessageType } from './frame';
@@ -35,8 +35,8 @@ export default class Protocol {
     readonly #stream: Stream;
     readonly #verify: Verify;
 
-    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
-        this.#context = new Context(deviceId.replace(`.${COMPANION_LINK_SERVICE}`, '').replace('.local', ''));
+    constructor(discoveryResult: DiscoveryResult) {
+        this.#context = new Context(discoveryResult.id);
         this.#discoveryResult = discoveryResult;
         this.#stream = new Stream(this.#context, discoveryResult.address, discoveryResult.service.port);
         this.#pairing = new Pairing(this);

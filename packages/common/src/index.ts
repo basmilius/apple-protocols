@@ -9,7 +9,6 @@ export {
 } from './crypto';
 
 export {
-    type DiscoveryResult,
     Discovery
 } from './discovery';
 
@@ -72,5 +71,6 @@ export {
 
 export type {
     ConnectionState,
+    DiscoveryResult,
     EventMap
 } from './types';

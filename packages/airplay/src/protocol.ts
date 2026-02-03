@@ -1,4 +1,4 @@
-import { AIRPLAY_SERVICE, Context, type DiscoveryResult, getMacAddress, randomInt64, type TimingServer, uuid } from '@basmilius/apple-common';
+import { Context, type DiscoveryResult, getMacAddress, randomInt64, type TimingServer, uuid } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import ControlStream from './controlStream';
@@ -48,8 +48,8 @@ export default class Protocol {
     #eventStream?: EventStream;
     #timingServer?: TimingServer;
 
-    constructor(deviceId: string, discoveryResult: DiscoveryResult) {
-        this.#context = new Context(deviceId.replace(`.${AIRPLAY_SERVICE}`, '').replace('.local', ''));
+    constructor(discoveryResult: DiscoveryResult) {
+        this.#context = new Context(discoveryResult.id);
         this.#discoveryResult = discoveryResult;
         this.#sessionUUID = uuid();
         this.#controlStream = new ControlStream(this.#context, discoveryResult.address, discoveryResult.service.port);

@@ -1,26 +1,14 @@
 declare module 'node-dns-sd' {
+    import type { DiscoveryResult, DnsPacket, DnsRecord, Result } from './types';
+
     export function discover(opts: {
         readonly name: string;
     }): Promise<Result[]>;
 
-    export type Result = {
-        readonly fqdn: string;
-        readonly address: string;
-        readonly modelName: string;
-        readonly familyName: string | null;
-        readonly service: {
-            readonly port: number;
-            readonly protocol: 'tcp' | 'udp';
-            readonly type: string;
-        };
-        readonly packet: {
-            readonly address: string;
-            readonly header: Record<string, number>;
-            readonly questions: Array;
-            readonly answers: Array;
-            readonly authorities: Array;
-            readonly additionals: [];
-        };
-        readonly [key: string]: unknown;
+    export type {
+        DiscoveryResult,
+        DnsPacket,
+        DnsRecord,
+        Result
     };
 }

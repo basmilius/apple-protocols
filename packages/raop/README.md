@@ -19,7 +19,9 @@ npm install @basmilius/apple-raop
 - 🎵 **Audio Streaming**: RTP-based audio transmission with proper timing
 - 📡 **Multiple Codecs**: Support for ALAC, PCM, and AAC audio formats
 - 🔊 **Volume Control**: Runtime volume adjustment
-- 🔐 **Session Management**: Complete session lifecycle handling
+- 🔐 **Encryption**: RSA/AES encryption support for secure audio streaming
+- 🍎 **Apple Compatible**: Full support for HomePods, Apple TVs, and AirPort Express
+- ⚡ **Auto-Detection**: Automatically detects and enables encryption when required
 
 ## Usage
 
@@ -37,6 +39,7 @@ const session = new RaopSession(devices[0]);
 await session.establish();
 
 // Setup audio session (ALAC 44.1kHz stereo by default)
+// Encryption is automatically enabled if device requires it
 await session.setupSession({
   codec: 'ALAC',
   sampleRate: 44100,
@@ -44,10 +47,13 @@ await session.setupSession({
   bitsPerSample: 16,
 });
 
+// Check if encryption was enabled
+console.log('Encryption:', session.isEncryptionEnabled() ? 'Enabled' : 'Disabled');
+
 // Start playback
 await session.startPlayback();
 
-// Stream audio data
+// Stream audio data (automatically encrypted if needed)
 const audioBuffer = ...; // Your audio data
 await session.sendAudio(audioBuffer);
 
@@ -57,6 +63,32 @@ await session.setVolume(0.5);
 // Close session
 await session.teardown();
 ```
+
+### Encryption Support
+
+The package automatically detects if a device requires encryption and enables it:
+
+```typescript
+// Encryption is auto-detected from device TXT records
+const session = new RaopSession(device);
+await session.establish();
+await session.setupSession(); // Encryption enabled automatically if needed
+
+// Check encryption status
+if (session.isEncryptionEnabled()) {
+  console.log('Audio will be encrypted with AES-128');
+}
+
+// Manually control encryption (override auto-detection)
+await session.setupSession(audioFormat, false); // Force disable
+await session.setupSession(audioFormat, true);  // Force enable
+```
+
+Encryption details:
+- **AES-128-CBC** for audio stream encryption
+- **RSA encryption** for AES key exchange (using Airport public key)
+- Encrypted key and IV sent in SDP ANNOUNCE
+- Audio automatically encrypted before RTP transmission
 
 ### Advanced Usage
 
@@ -144,15 +176,16 @@ Manages a complete RAOP streaming session.
 - **`establish()`** - Open RTSP control connection  
   Returns: `Promise<void>`
 
-- **`setupSession(audioFormat?)`** - Configure audio format and transport  
+- **`setupSession(audioFormat?, enableEncryption?)`** - Configure audio format and transport  
   Returns: `Promise<void>`  
   Parameters:
   - `audioFormat?`: AudioFormat - Audio configuration (defaults to ALAC 44.1kHz stereo)
+  - `enableEncryption?`: boolean - Override auto-detected encryption setting
 
 - **`startPlayback()`** - Begin audio streaming  
   Returns: `Promise<void>`
 
-- **`sendAudio(buffer)`** - Send audio data as RTP packet  
+- **`sendAudio(buffer)`** - Send audio data as RTP packet (automatically encrypted if enabled)  
   Returns: `Promise<void>`  
   Parameters:
   - `buffer`: Buffer - Audio data to stream
@@ -168,6 +201,9 @@ Manages a complete RAOP streaming session.
 - **`isActive()`** - Check if session is connected  
   Returns: `boolean`
 
+- **`isEncryptionEnabled()`** - Check if audio encryption is enabled  
+  Returns: `boolean`
+
 - **`getDeviceIdentifier()`** - Get device ID  
   Returns: `string`
 
@@ -178,9 +214,37 @@ Manages a complete RAOP streaming session.
 
 - `deviceInfo`: DiscoveryResult - Information about connected device
 
+### Encryption Functions
+
+Utilities for audio stream encryption.
+
+#### Functions
+
+- **`generateAesConfig()`** - Generate random AES-128 key and IV  
+  Returns: `AesConfig`
+
+- **`encryptAesKey(aesKey, rsaPublicKey)`** - Encrypt AES key with RSA  
+  Returns: `Buffer`
+
+- **`createAesCipher(config)`** - Create AES cipher for encryption  
+  Returns: `{ encrypt: (data: Buffer) => Buffer }`
+
+- **`createAesDecipher(config)`** - Create AES decipher for decryption  
+  Returns: `{ decrypt: (data: Buffer) => Buffer }`
+
+- **`getEncryptionType(txtRecords)`** - Detect encryption type from TXT records  
+  Returns: `'none' | 'rsa' | 'fairplay'`
+
+- **`requiresEncryption(txtRecords)`** - Check if device requires encryption  
+  Returns: `boolean`
+
+#### Constants
+
+- **`AIRPORT_RSA_PUBLIC_KEY`** - Apple's well-known RSA public key for AirPort devices
+
 ### `RtspClient`
 
-Low-level RTSP protocol client.
+Low-level RTSP protocol client with Apple-specific headers.
 
 #### Methods
 

@@ -1,9 +1,10 @@
 import { Socket } from 'node:net';
+import { randomBytes } from 'node:crypto';
 import { RtspMethod, type RtspRequest, type RtspResponse, RtspStatus } from './types';
 
 /**
  * RTSP Client for RAOP communication
- * Handles RTSP protocol request/response cycle
+ * Handles RTSP protocol request/response cycle with Apple-specific headers
  */
 export class RtspClient {
   private socket: Socket;
@@ -11,9 +12,20 @@ export class RtspClient {
   private sessionId: string | null = null;
   private responseBuffer = '';
   private pendingResponses: Map<number, (response: RtspResponse) => void> = new Map();
+  
+  // Apple-specific identifiers
+  private clientInstance: string;
+  private dacpId: string;
+  private activeRemote: string;
 
   constructor(socket: Socket) {
     this.socket = socket;
+    
+    // Generate unique identifiers for this client session
+    this.clientInstance = randomBytes(8).toString('hex').toUpperCase();
+    this.dacpId = randomBytes(8).toString('hex').toUpperCase();
+    this.activeRemote = randomBytes(4).readUInt32BE(0).toString();
+    
     this.setupSocketHandlers();
   }
 
@@ -98,6 +110,11 @@ export class RtspClient {
     let requestStr = `${request.method} ${request.uri} RTSP/1.0\r\n`;
     requestStr += `CSeq: ${cseq}\r\n`;
     
+    // Add Apple-specific headers for compatibility with HomePods and Apple TVs
+    requestStr += `Client-Instance: ${this.clientInstance}\r\n`;
+    requestStr += `DACP-ID: ${this.dacpId}\r\n`;
+    requestStr += `Active-Remote: ${this.activeRemote}\r\n`;
+    
     if (this.sessionId && request.method !== RtspMethod.SETUP) {
       requestStr += `Session: ${this.sessionId}\r\n`;
     }
@@ -130,7 +147,7 @@ export class RtspClient {
       method: RtspMethod.OPTIONS,
       uri,
       headers: new Map([
-        ['User-Agent', 'apple-protocols/1.0'],
+        ['User-Agent', 'AirPlay/320.20'],
       ]),
     });
   }
@@ -140,7 +157,7 @@ export class RtspClient {
       method: RtspMethod.ANNOUNCE,
       uri,
       headers: new Map([
-        ['User-Agent', 'apple-protocols/1.0'],
+        ['User-Agent', 'AirPlay/320.20'],
         ['Content-Type', 'application/sdp'],
       ]),
       body: sdpContent,
@@ -152,7 +169,7 @@ export class RtspClient {
       method: RtspMethod.SETUP,
       uri,
       headers: new Map([
-        ['User-Agent', 'apple-protocols/1.0'],
+        ['User-Agent', 'AirPlay/320.20'],
         ['Transport', transport],
       ]),
     });
@@ -160,7 +177,7 @@ export class RtspClient {
 
   async record(uri: string, rtpInfo?: string): Promise<RtspResponse> {
     const headers = new Map([
-      ['User-Agent', 'apple-protocols/1.0'],
+      ['User-Agent', 'AirPlay/320.20'],
       ['Range', 'npt=0-'],
     ]);
 
@@ -180,7 +197,7 @@ export class RtspClient {
       method: RtspMethod.SET_PARAMETER,
       uri,
       headers: new Map([
-        ['User-Agent', 'apple-protocols/1.0'],
+        ['User-Agent', 'AirPlay/320.20'],
         ['Content-Type', 'text/parameters'],
       ]),
       body: `${parameter}: ${value}\r\n`,
@@ -192,7 +209,7 @@ export class RtspClient {
       method: RtspMethod.TEARDOWN,
       uri,
       headers: new Map([
-        ['User-Agent', 'apple-protocols/1.0'],
+        ['User-Agent', 'AirPlay/320.20'],
       ]),
     });
   }

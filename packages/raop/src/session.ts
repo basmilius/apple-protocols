@@ -74,14 +74,14 @@ export class RaopSession {
     // Step 1: OPTIONS - Query supported methods
     const optionsResponse = await this.rtspClient.options(rtspUrl);
     if (optionsResponse.statusCode !== 200) {
-      throw new Error(`OPTIONS failed: ${optionsResponse.statusCode}`);
+      throw new Error(`OPTIONS failed: ${optionsResponse.statusCode} ${optionsResponse.statusText}`);
     }
 
     // Step 2: ANNOUNCE - Declare audio format
     const sdp = new SdpBuilder(format).build();
     const announceResponse = await this.rtspClient.announce(rtspUrl, sdp);
     if (announceResponse.statusCode !== 200) {
-      throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode}`);
+      throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);
     }
 
     // Step 3: Create UDP socket for audio
@@ -97,7 +97,7 @@ export class RaopSession {
     const transport = `RTP/AVP/UDP;unicast;interleaved=0-1;mode=record;control_port=0;timing_port=0;client_port=${this.audioPort}`;
     const setupResponse = await this.rtspClient.setup(rtspUrl, transport);
     if (setupResponse.statusCode !== 200) {
-      throw new Error(`SETUP failed: ${setupResponse.statusCode}`);
+      throw new Error(`SETUP failed: ${setupResponse.statusCode} ${setupResponse.statusText}`);
     }
 
     // Parse server port from Transport header
@@ -136,7 +136,7 @@ export class RaopSession {
     
     const recordResponse = await this.rtspClient.record(rtspUrl, rtpInfo);
     if (recordResponse.statusCode !== 200) {
-      throw new Error(`RECORD failed: ${recordResponse.statusCode}`);
+      throw new Error(`RECORD failed: ${recordResponse.statusCode} ${recordResponse.statusText}`);
     }
   }
 

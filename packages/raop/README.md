@@ -84,8 +84,11 @@ Discovers RAOP-enabled devices on the network.
 
 #### Methods
 
-- `locateDevices()`: Promise<DiscoveryResult[]> - Find all RAOP devices
-- `locateDevice(deviceId, attempts?, delayMs?)`: Promise<DiscoveryResult> - Find specific device with retries
+- **`locateDevices()`** - Find all RAOP devices on the network  
+  Returns: `Promise<DiscoveryResult[]>`
+
+- **`locateDevice(deviceId, attempts?, delayMs?)`** - Find a specific device with retries  
+  Returns: `Promise<DiscoveryResult>`
 
 ### `RaopSession`
 
@@ -97,10 +100,17 @@ Manages a connection session with a RAOP device.
 
 #### Methods
 
-- `establish()`: Promise<void> - Open connection to device
-- `teardown()`: Promise<void> - Close connection
-- `isActive()`: boolean - Check if session is connected
-- `getDeviceIdentifier()`: string - Get device ID
+- **`establish()`** - Open connection to device  
+  Returns: `Promise<void>`
+
+- **`teardown()`** - Close connection  
+  Returns: `Promise<void>`
+
+- **`isActive()`** - Check if session is connected  
+  Returns: `boolean`
+
+- **`getDeviceIdentifier()`** - Get device ID  
+  Returns: `string`
 
 #### Properties
 

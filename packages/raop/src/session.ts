@@ -20,8 +20,18 @@ export class RaopSession {
     return new Promise((resolve, reject) => {
       this.socket = new Socket();
       
-      this.socket.on('error', reject);
-      this.socket.on('connect', () => resolve());
+      const handleError = (error: Error) => {
+        this.socket?.removeListener('connect', handleConnect);
+        reject(error);
+      };
+      
+      const handleConnect = () => {
+        this.socket?.removeListener('error', handleError);
+        resolve();
+      };
+      
+      this.socket.once('error', handleError);
+      this.socket.once('connect', handleConnect);
       
       this.socket.connect(this.targetPort, this.targetHost);
     });
@@ -29,8 +39,14 @@ export class RaopSession {
 
   async teardown(): Promise<void> {
     if (this.socket) {
-      this.socket.destroy();
-      this.socket = null;
+      try {
+        this.socket.destroy();
+      } catch (error) {
+        // Socket may already be destroyed or in an invalid state
+        console.warn('Error during socket teardown:', error);
+      } finally {
+        this.socket = null;
+      }
     }
   }
 

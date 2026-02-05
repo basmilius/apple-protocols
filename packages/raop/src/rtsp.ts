@@ -15,8 +15,8 @@ export class RtspClient {
   private pendingResponses: Map<number, (response: RtspResponse) => void> = new Map();
   
   // Apple-specific identifiers (matching pyatv format)
-  private dacpId: string;        // Uppercase hex string (matches pyatv)
-  private activeRemote: number;  // Integer (matches pyatv)
+  private dacpId: string;        // Uppercase hex string (16 hex chars = 8 bytes)
+  private activeRemote: number;  // 32-bit unsigned integer (0 to 4294967295)
 
   constructor(socket: Socket) {
     this.socket = socket;

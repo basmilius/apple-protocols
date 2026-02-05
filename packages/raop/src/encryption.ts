@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, publicEncrypt } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, publicEncrypt, constants } from 'node:crypto';
 
 /**
  * RAOP Encryption utilities
@@ -32,7 +32,7 @@ export function encryptAesKey(aesKey: Buffer, rsaPublicKey: string): Buffer {
   return publicEncrypt(
     {
       key: rsaPublicKey,
-      padding: 1, // RSA_PKCS1_OAEP_PADDING
+      padding: constants.RSA_PKCS1_OAEP_PADDING,
     },
     aesKey
   );
@@ -89,29 +89,31 @@ MLCL6TiJYH0KuNmPRQIDAQAB
 -----END PUBLIC KEY-----`;
 
 /**
+ * Parse encryption type value from TXT record
+ */
+function parseEncryptionTypeValue(txtRecords: Record<string, string>): number {
+  const et = txtRecords['et'];
+  if (!et) return 0;
+  
+  const etValue = parseInt(et.split(',')[0]);
+  return isNaN(etValue) ? 0 : etValue;
+}
+
+/**
  * Check if device requires encryption based on TXT records
  */
 export function requiresEncryption(txtRecords: Record<string, string>): boolean {
-  // Check encryption type field
-  const et = txtRecords['et'];
-  if (et) {
-    // et=0,1 means encryption supported
-    // et=0 means no encryption
-    // et=1,3,5 means RSA encryption
-    const etValue = parseInt(et.split(',')[0]);
-    return etValue > 0;
-  }
-  return false;
+  // et=0 means no encryption
+  // et>0 means encryption supported/required
+  return parseEncryptionTypeValue(txtRecords) > 0;
 }
 
 /**
  * Get encryption type from TXT records
  */
 export function getEncryptionType(txtRecords: Record<string, string>): 'none' | 'rsa' | 'fairplay' {
-  const et = txtRecords['et'];
-  if (!et) return 'none';
+  const etValue = parseEncryptionTypeValue(txtRecords);
   
-  const etValue = parseInt(et.split(',')[0]);
   if (etValue === 0) return 'none';
   if (etValue === 1 || etValue === 3 || etValue === 5) return 'rsa';
   

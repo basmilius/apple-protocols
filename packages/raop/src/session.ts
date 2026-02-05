@@ -107,7 +107,7 @@ export class RaopSession {
     }
 
     // Step 2: ANNOUNCE - Declare audio format (with encryption if enabled)
-    const sdp = new SdpBuilder(format, this.aesConfig || undefined, rsaEncryptedKey).build();
+    const sdp = new SdpBuilder(format, this.aesConfig ?? undefined, rsaEncryptedKey).build();
     const announceResponse = await this.rtspClient.announce(rtspUrl, sdp);
     if (announceResponse.statusCode !== 200) {
       throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);
@@ -269,6 +269,6 @@ export class RaopSession {
    * Check if encryption is enabled for this session
    */
   isEncryptionEnabled(): boolean {
-    return this.aesCipher !== null;
+    return this.encryptionEnabled && this.aesCipher !== null;
   }
 }

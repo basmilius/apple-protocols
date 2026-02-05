@@ -93,16 +93,45 @@ Supported formats (device-dependent):
 
 ### ✅ Completed
 - Device discovery via mDNS
-- Basic session management
-- Connection establishment/teardown
+- RTSP protocol client with all commands
+- RTP packet structure and streaming
+- SDP generation for audio negotiation
+- Session lifecycle management
+- Volume control via SET_PARAMETER
+- Support for ALAC, PCM, and AAC formats
+- UDP transport for audio data
 
-### 🚧 Not Implemented (Future Work)
-- RTSP protocol handling
-- Audio codec integration
-- RTP streaming
-- Authentication/pairing
-- Volume control
-- Synchronization (multi-room audio)
+### 🔐 Optional/Advanced Features (Not Implemented)
+- RSA authentication (not required for most devices)
+- AirPlay 2 pair-verify encryption
+- NTP/PTP timing synchronization
+- Multi-room audio synchronization
+- Audio buffer management and jitter handling
+- Metadata transmission (cover art, track info)
+- Lossless audio encoding (requires ALAC encoder)
+
+## Implementation Details
+
+The implementation provides:
+
+1. **RtspClient**: Full RTSP protocol implementation
+   - Request/response parsing
+   - Session management
+   - All RAOP commands
+
+2. **RtpStream**: RTP packet handling
+   - Sequence numbering
+   - Timestamp management
+   - Packet serialization
+
+3. **SdpBuilder**: SDP content generation
+   - Multiple codec support
+   - Format parameter encoding
+
+4. **RaopSession**: High-level session API
+   - Connection establishment
+   - Audio streaming interface
+   - Volume control
 
 ## References
 
@@ -113,16 +142,33 @@ Supported formats (device-dependent):
 
 ## Notes
 
-This implementation provides foundational components for RAOP:
+This implementation provides complete RAOP client functionality:
 - Discovery of RAOP-capable devices
-- Session lifecycle management
-- Basic connection framework
+- RTSP control protocol
+- RTP audio streaming
+- Volume control
 
-A complete RAOP implementation requires:
-1. RTSP client implementation
-2. Audio encoding (ALAC/AAC)
-3. RTP packet handling
-4. Timing/synchronization
-5. Authentication flows
+To use this for actual audio playback:
+1. Discover and connect to a device
+2. Setup session with desired audio format
+3. Encode audio to the selected format (ALAC/PCM/AAC)
+4. Stream encoded audio via RTP packets
+5. Handle timing for smooth playback
 
-The current implementation focuses on the discovery and connection layer, providing a starting point for audio streaming applications.
+The current implementation focuses on the protocol layer. Audio encoding (e.g., ALAC compression) would need to be added separately for production use. PCM format works without encoding but requires more bandwidth.
+
+Example workflow:
+```typescript
+const session = new RaopSession(device);
+await session.establish();
+await session.setupSession({ codec: 'PCM', sampleRate: 44100, channels: 2, bitsPerSample: 16 });
+await session.startPlayback();
+
+// Stream audio frames
+for (const frame of audioFrames) {
+  await session.sendAudio(frame);
+  // Add timing delay based on frame size and sample rate
+}
+
+await session.teardown();
+```

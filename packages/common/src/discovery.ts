@@ -36,12 +36,10 @@ export class Discovery {
 
             tries--;
 
-            if (tries === 0) {
-                throw new Error('Device not found after serveral tries, aborting.');
-            }
-
             await waitFor(timeout);
         }
+
+        throw new Error('Device not found after serveral tries, aborting.');
     }
 
     static airplay(): Discovery {

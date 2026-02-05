@@ -72,16 +72,12 @@ export default class ControlStream extends BaseStream {
         this.#requesting = false;
     }
 
-    async #request(method: RTSP.Method, path: string, body: Buffer | string | null, headers: HeadersInit, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+    #request(method: RTSP.Method, path: string, body: Buffer | string | null, headers: HeadersInit, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         if (this.#requesting) {
             return Promise.reject(new Error('Another request is currently being made.'));
         }
 
         this.#requesting = true;
-
-        headers['Active-Remote'] = this.activeRemoteId;
-        headers['Client-Instance'] = this.dacpId;
-        headers['DACP-ID'] = this.dacpId;
 
         const cseq = this.#cseq++;
         let data: Buffer;
@@ -90,13 +86,13 @@ export default class ControlStream extends BaseStream {
             headers['Content-Length'] = Buffer.byteLength(body);
 
             data = Buffer.concat([
-                Buffer.from(RTSP.makeHeader(method, path, headers, cseq)),
+                Buffer.from(RTSP.makeHeader(method, path, headers, cseq, this.#activeRemoteId, this.#dacpId, this.#sessionId)),
                 Buffer.from(body)
             ]);
         } else {
             headers['Content-Length'] = 0;
 
-            data = Buffer.from(RTSP.makeHeader(method, path, headers, cseq));
+            data = Buffer.from(RTSP.makeHeader(method, path, headers, cseq, this.#activeRemoteId, this.#dacpId, this.#sessionId));
         }
 
         this.context.logger.net('[control]', method, path, `cseq = ${cseq}`);

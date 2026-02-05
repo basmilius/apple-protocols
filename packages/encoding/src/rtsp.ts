@@ -10,12 +10,16 @@ export type Method =
     | 'SETUP'
     | 'TEARDOWN';
 
-export function makeHeader(method: Method, path: string, headers: HeadersInit, cseq: number): string {
+export function makeHeader(method: Method, path: string, headers: HeadersInit, cseq: number, activeRemote: string, dacpId: string, sessionId: string): string {
     const lines = [];
     lines.push(`${method} ${path} RTSP/1.0`);
     lines.push(`CSeq: ${cseq}`);
+    lines.push(`Active-Remote: ${activeRemote}`);
+    lines.push(`Client-Instance: ${dacpId}`);
+    lines.push(`DACP-ID: ${dacpId}`);
     lines.push('User-Agent: AirPlay/320.20');
     lines.push('X-Apple-ProtocolVersion: 1');
+    lines.push(`X-Apple-Session-ID: ${sessionId}`);
     lines.push('X-ProtocolVersion: 1');
 
     for (const [name, value] of Object.entries(headers)) {

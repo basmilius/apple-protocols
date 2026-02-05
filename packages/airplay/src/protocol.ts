@@ -122,7 +122,7 @@ export default class Protocol {
             osBuildVersion: '18C66',
             osName: 'iPhone OS',
             osVersion: '14.3',
-            sourceVersion: '550.10',
+            sourceVersion: '320.20',
             sessionUUID: this.#sessionUUID,
             timingProtocol: 'None',
             isRemoteControlOnly: true

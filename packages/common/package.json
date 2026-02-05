@@ -25,7 +25,8 @@
         "provenance": true
     },
     "scripts": {
-        "build": "tsc && bun -b build.ts"
+        "build": "tsc && bun -b build.ts",
+        "test:discovery": "bun --watch test-discovery.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

@@ -5,9 +5,17 @@ import { RtspClient } from './rtsp';
 import { SdpBuilder } from './sdp';
 import { RtpStream } from './rtp';
 import type { AudioFormat, SessionConfig } from './types';
+import { 
+  generateAesConfig, 
+  encryptAesKey, 
+  createAesCipher,
+  getEncryptionType,
+  AIRPORT_RSA_PUBLIC_KEY,
+  type AesConfig 
+} from './encryption';
 
 /**
- * RAOP Audio Session - manages RTSP control and RTP audio streaming
+ * RAOP Audio Session - manages RTSP control and RTP audio streaming with optional encryption
  */
 export class RaopSession {
   private controlSocket: Socket | null = null;
@@ -20,6 +28,11 @@ export class RaopSession {
   private audioPort: number = 0;
   private serverAudioPort: number = 0;
   
+  // Encryption support
+  private aesConfig: AesConfig | null = null;
+  private aesCipher: ReturnType<typeof createAesCipher> | null = null;
+  private encryptionEnabled: boolean = false;
+  
   readonly deviceInfo: DiscoveryResult;
   private sessionConfig: SessionConfig | null = null;
 
@@ -27,6 +40,10 @@ export class RaopSession {
     this.deviceInfo = device;
     this.targetHost = device.address;
     this.targetPort = device.service.port;
+    
+    // Check if device requires encryption
+    const encType = getEncryptionType(device.txt || {});
+    this.encryptionEnabled = encType !== 'none';
   }
 
   /**
@@ -57,7 +74,7 @@ export class RaopSession {
   /**
    * Perform RTSP handshake: OPTIONS, ANNOUNCE, SETUP
    */
-  async setupSession(audioFormat?: AudioFormat): Promise<void> {
+  async setupSession(audioFormat?: AudioFormat, enableEncryption?: boolean): Promise<void> {
     if (!this.rtspClient) {
       throw new Error('RTSP client not established. Call establish() first.');
     }
@@ -77,8 +94,20 @@ export class RaopSession {
       throw new Error(`OPTIONS failed: ${optionsResponse.statusCode} ${optionsResponse.statusText}`);
     }
 
-    // Step 2: ANNOUNCE - Declare audio format
-    const sdp = new SdpBuilder(format).build();
+    // Step 1.5: Setup encryption if needed
+    let rsaEncryptedKey: Buffer | undefined;
+    if (enableEncryption !== false && this.encryptionEnabled) {
+      this.aesConfig = generateAesConfig();
+      
+      // Encrypt AES key with RSA public key
+      rsaEncryptedKey = encryptAesKey(this.aesConfig.key, AIRPORT_RSA_PUBLIC_KEY);
+      
+      // Create cipher for audio encryption
+      this.aesCipher = createAesCipher(this.aesConfig);
+    }
+
+    // Step 2: ANNOUNCE - Declare audio format (with encryption if enabled)
+    const sdp = new SdpBuilder(format, this.aesConfig || undefined, rsaEncryptedKey).build();
     const announceResponse = await this.rtspClient.announce(rtspUrl, sdp);
     if (announceResponse.statusCode !== 200) {
       throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);
@@ -141,14 +170,20 @@ export class RaopSession {
   }
 
   /**
-   * Send audio data as RTP packet
+   * Send audio data as RTP packet (with optional encryption)
    */
   async sendAudio(audioData: Buffer): Promise<void> {
     if (!this.rtpStream || !this.audioSocket || !this.serverAudioPort) {
       throw new Error('Session not fully configured');
     }
 
-    const packet = this.rtpStream.createPacket(audioData);
+    // Encrypt audio data if encryption is enabled
+    let payload = audioData;
+    if (this.aesCipher) {
+      payload = this.aesCipher.encrypt(audioData);
+    }
+
+    const packet = this.rtpStream.createPacket(payload);
     const buffer = packet.toBuffer();
 
     return new Promise((resolve, reject) => {
@@ -214,6 +249,8 @@ export class RaopSession {
     this.rtspClient = null;
     this.rtpStream = null;
     this.sessionConfig = null;
+    this.aesCipher = null;
+    this.aesConfig = null;
   }
 
   isActive(): boolean {
@@ -226,5 +263,12 @@ export class RaopSession {
 
   getSessionConfig(): SessionConfig | null {
     return this.sessionConfig;
+  }
+
+  /**
+   * Check if encryption is enabled for this session
+   */
+  isEncryptionEnabled(): boolean {
+    return this.aesCipher !== null;
   }
 }

@@ -32,6 +32,7 @@ try {
     console.log(`   Audio: ${config.audioFormat.codec} ${config.audioFormat.sampleRate}Hz`);
     console.log(`   Transport: ${config.transport.protocol}`);
     console.log(`   Ports: client=${config.transport.clientPort}, server=${config.transport.serverPort}`);
+    console.log(`   Encryption: ${session.isEncryptionEnabled() ? 'Enabled (AES-128)' : 'Disabled'}`);
   }
 
   // Step 3: Start playback

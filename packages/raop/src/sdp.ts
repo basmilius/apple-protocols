@@ -1,4 +1,5 @@
 import type { AudioFormat } from './types';
+import type { AesConfig } from './encryption';
 
 /**
  * SDP Builder for RAOP ANNOUNCE command
@@ -8,9 +9,13 @@ export class SdpBuilder {
   private audioFormat: AudioFormat;
   private rtpMap: number = 96; // Payload type for ALAC
   private fmtp: string = '';
+  private aesConfig?: AesConfig;
+  private rsaEncryptedKey?: Buffer;
 
-  constructor(audioFormat: AudioFormat) {
+  constructor(audioFormat: AudioFormat, aesConfig?: AesConfig, rsaEncryptedKey?: Buffer) {
     this.audioFormat = audioFormat;
+    this.aesConfig = aesConfig;
+    this.rsaEncryptedKey = rsaEncryptedKey;
     this.configureFmtp();
   }
 
@@ -69,6 +74,16 @@ export class SdpBuilder {
     // Format parameters
     if (this.fmtp) {
       lines.push(`a=fmtp:${this.fmtp}`);
+    }
+
+    // Encryption parameters (if provided)
+    if (this.aesConfig) {
+      // rsaaeskey: RSA-encrypted AES key (base64)
+      if (this.rsaEncryptedKey) {
+        lines.push(`a=rsaaeskey:${this.rsaEncryptedKey.toString('base64')}`);
+      }
+      // aesiv: AES initialization vector (base64)
+      lines.push(`a=aesiv:${this.aesConfig.iv.toString('base64')}`);
     }
 
     // Additional attributes

@@ -5,6 +5,7 @@ import { RtspMethod, type RtspRequest, type RtspResponse, RtspStatus } from './t
 /**
  * RTSP Client for RAOP communication
  * Handles RTSP protocol request/response cycle with Apple-specific headers
+ * Implementation based on pyatv for maximum compatibility
  */
 export class RtspClient {
   private socket: Socket;
@@ -13,18 +14,19 @@ export class RtspClient {
   private responseBuffer = '';
   private pendingResponses: Map<number, (response: RtspResponse) => void> = new Map();
   
-  // Apple-specific identifiers
-  private clientInstance: string;
-  private dacpId: string;
-  private activeRemote: string;
+  // Apple-specific identifiers (matching pyatv format)
+  private dacpId: string;        // Uppercase hex string (matches pyatv)
+  private activeRemote: number;  // Integer (matches pyatv)
 
   constructor(socket: Socket) {
     this.socket = socket;
     
-    // Generate unique identifiers for this client session
-    this.clientInstance = randomBytes(8).toString('hex').toUpperCase();
+    // Generate unique identifiers matching pyatv format
+    // DACP-ID: uppercase hex string (16 hex digits)
     this.dacpId = randomBytes(8).toString('hex').toUpperCase();
-    this.activeRemote = randomBytes(4).readUInt32BE(0).toString();
+    
+    // Active-Remote: 32-bit unsigned integer
+    this.activeRemote = randomBytes(4).readUInt32BE(0);
     
     this.setupSocketHandlers();
   }
@@ -110,10 +112,10 @@ export class RtspClient {
     let requestStr = `${request.method} ${request.uri} RTSP/1.0\r\n`;
     requestStr += `CSeq: ${cseq}\r\n`;
     
-    // Add Apple-specific headers for compatibility with HomePods and Apple TVs
-    requestStr += `Client-Instance: ${this.clientInstance}\r\n`;
+    // Add Apple-specific headers (matching pyatv format exactly)
     requestStr += `DACP-ID: ${this.dacpId}\r\n`;
     requestStr += `Active-Remote: ${this.activeRemote}\r\n`;
+    requestStr += `Client-Instance: ${this.dacpId}\r\n`;  // Client-Instance matches DACP-ID
     
     if (this.sessionId && request.method !== RtspMethod.SETUP) {
       requestStr += `Session: ${this.sessionId}\r\n`;
@@ -147,7 +149,7 @@ export class RtspClient {
       method: RtspMethod.OPTIONS,
       uri,
       headers: new Map([
-        ['User-Agent', 'AirPlay/320.20'],
+        ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
       ]),
     });
   }
@@ -157,7 +159,7 @@ export class RtspClient {
       method: RtspMethod.ANNOUNCE,
       uri,
       headers: new Map([
-        ['User-Agent', 'AirPlay/320.20'],
+        ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
         ['Content-Type', 'application/sdp'],
       ]),
       body: sdpContent,
@@ -169,7 +171,7 @@ export class RtspClient {
       method: RtspMethod.SETUP,
       uri,
       headers: new Map([
-        ['User-Agent', 'AirPlay/320.20'],
+        ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
         ['Transport', transport],
       ]),
     });
@@ -177,7 +179,7 @@ export class RtspClient {
 
   async record(uri: string, rtpInfo?: string): Promise<RtspResponse> {
     const headers = new Map([
-      ['User-Agent', 'AirPlay/320.20'],
+      ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
       ['Range', 'npt=0-'],
     ]);
 
@@ -197,7 +199,7 @@ export class RtspClient {
       method: RtspMethod.SET_PARAMETER,
       uri,
       headers: new Map([
-        ['User-Agent', 'AirPlay/320.20'],
+        ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
         ['Content-Type', 'text/parameters'],
       ]),
       body: `${parameter}: ${value}\r\n`,
@@ -209,7 +211,7 @@ export class RtspClient {
       method: RtspMethod.TEARDOWN,
       uri,
       headers: new Map([
-        ['User-Agent', 'AirPlay/320.20'],
+        ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
       ]),
     });
   }

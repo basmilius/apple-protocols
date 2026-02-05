@@ -1,6 +1,8 @@
 import { Socket } from 'node:net';
 import { createSocket, type Socket as DgramSocket } from 'node:dgram';
+import { randomBytes } from 'node:crypto';
 import type { DiscoveryResult } from '@basmilius/apple-common';
+import { getLocalIP } from '@basmilius/apple-common';
 import { RtspClient } from './rtsp';
 import { SdpBuilder } from './sdp';
 import { RtpStream } from './rtp';
@@ -16,6 +18,7 @@ import {
 
 /**
  * RAOP Audio Session - manages RTSP control and RTP audio streaming with optional encryption
+ * Implementation based on pyatv for maximum compatibility
  */
 export class RaopSession {
   private controlSocket: Socket | null = null;
@@ -27,6 +30,9 @@ export class RaopSession {
   private readonly targetPort: number;
   private audioPort: number = 0;
   private serverAudioPort: number = 0;
+  
+  // Session ID (matching pyatv: random 32-bit integer)
+  private readonly raopSessionId: number;
   
   // Encryption support
   private aesConfig: AesConfig | null = null;
@@ -40,6 +46,9 @@ export class RaopSession {
     this.deviceInfo = device;
     this.targetHost = device.address;
     this.targetPort = device.service.port;
+    
+    // Generate random 32-bit session ID (matching pyatv)
+    this.raopSessionId = randomBytes(4).readUInt32BE(0);
     
     // Check if device requires encryption
     const encType = getEncryptionType(device.txt || {});
@@ -86,7 +95,8 @@ export class RaopSession {
       bitsPerSample: 16,
     };
 
-    const rtspUrl = `rtsp://${this.targetHost}/${this.deviceInfo.id}`;
+    // Use pyatv-style URI format: rtsp://host/sessionId
+    const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
 
     // Step 1: OPTIONS - Query supported methods
     const optionsResponse = await this.rtspClient.options(rtspUrl);
@@ -107,7 +117,16 @@ export class RaopSession {
     }
 
     // Step 2: ANNOUNCE - Declare audio format (with encryption if enabled)
-    const sdp = new SdpBuilder(format, this.aesConfig ?? undefined, rsaEncryptedKey).build();
+    // Get local IP for SDP
+    const localIp = await getLocalIP();
+    const sdp = new SdpBuilder(
+      format, 
+      this.raopSessionId, 
+      localIp, 
+      this.targetHost,
+      this.aesConfig ?? undefined, 
+      rsaEncryptedKey
+    ).build();
     const announceResponse = await this.rtspClient.announce(rtspUrl, sdp);
     if (announceResponse.statusCode !== 200) {
       throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);
@@ -160,7 +179,7 @@ export class RaopSession {
       throw new Error('Session not established');
     }
 
-    const rtspUrl = `rtsp://${this.targetHost}/${this.deviceInfo.id}`;
+    const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
     const rtpInfo = `seq=${this.rtpStream!.getSequenceNumber()};rtptime=${this.rtpStream!.getTimestamp()}`;
     
     const recordResponse = await this.rtspClient.record(rtspUrl, rtpInfo);
@@ -209,7 +228,7 @@ export class RaopSession {
     // Convert to RAOP volume scale: -30 dB (quiet) to 0 dB (max)
     // Some devices support -144 to 0, but -30 to 0 is more widely compatible
     const raopVolume = -30 + (volume * 30);
-    const rtspUrl = `rtsp://${this.targetHost}/${this.deviceInfo.id}`;
+    const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
     
     await this.rtspClient.setParameter(rtspUrl, 'volume', raopVolume.toFixed(6));
   }
@@ -220,7 +239,7 @@ export class RaopSession {
   async teardown(): Promise<void> {
     if (this.rtspClient) {
       try {
-        const rtspUrl = `rtsp://${this.targetHost}/${this.deviceInfo.id}`;
+        const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
         await this.rtspClient.teardown(rtspUrl);
       } catch (error) {
         console.warn('Error during RTSP teardown:', error);

@@ -4,6 +4,7 @@ import type { AesConfig } from './encryption';
 /**
  * SDP Builder for RAOP ANNOUNCE command
  * Generates Session Description Protocol content for audio streaming
+ * Format based on pyatv for maximum compatibility
  */
 export class SdpBuilder {
   private audioFormat: AudioFormat;
@@ -11,9 +12,22 @@ export class SdpBuilder {
   private fmtp: string = '';
   private aesConfig?: AesConfig;
   private rsaEncryptedKey?: Buffer;
+  private sessionId: number;
+  private localIp: string;
+  private remoteIp: string;
 
-  constructor(audioFormat: AudioFormat, aesConfig?: AesConfig, rsaEncryptedKey?: Buffer) {
+  constructor(
+    audioFormat: AudioFormat, 
+    sessionId: number,
+    localIp: string,
+    remoteIp: string,
+    aesConfig?: AesConfig, 
+    rsaEncryptedKey?: Buffer
+  ) {
     this.audioFormat = audioFormat;
+    this.sessionId = sessionId;
+    this.localIp = localIp;
+    this.remoteIp = remoteIp;
     this.aesConfig = aesConfig;
     this.rsaEncryptedKey = rsaEncryptedKey;
     this.configureFmtp();
@@ -47,13 +61,14 @@ export class SdpBuilder {
     lines.push('v=0');
 
     // Origin: username, session id, version, network type, address type, address
-    lines.push(`o=apple-protocols 0 0 IN IP4 127.0.0.1`);
+    // Matching pyatv format: o=iTunes {session_id} 0 IN IP4 {local_ip}
+    lines.push(`o=iTunes ${this.sessionId} 0 IN IP4 ${this.localIp}`);
 
-    // Session name
-    lines.push('s=RAOP Session');
+    // Session name (matching pyatv)
+    lines.push('s=iTunes');
 
-    // Connection info
-    lines.push('c=IN IP4 0.0.0.0');
+    // Connection info (matching pyatv format with remote IP)
+    lines.push(`c=IN IP4 ${this.remoteIp}`);
 
     // Timing (0 0 means session is permanent)
     lines.push('t=0 0');
@@ -95,24 +110,34 @@ export class SdpBuilder {
   /**
    * Create default ALAC configuration (most common for RAOP)
    */
-  static defaultAlac(): SdpBuilder {
-    return new SdpBuilder({
-      codec: 'ALAC',
-      sampleRate: 44100,
-      channels: 2,
-      bitsPerSample: 16,
-    });
+  static defaultAlac(sessionId: number, localIp: string, remoteIp: string): SdpBuilder {
+    return new SdpBuilder(
+      {
+        codec: 'ALAC',
+        sampleRate: 44100,
+        channels: 2,
+        bitsPerSample: 16,
+      },
+      sessionId,
+      localIp,
+      remoteIp
+    );
   }
 
   /**
    * Create PCM configuration
    */
-  static pcm(sampleRate: number = 44100, channels: number = 2): SdpBuilder {
-    return new SdpBuilder({
-      codec: 'PCM',
-      sampleRate,
-      channels,
-      bitsPerSample: 16,
-    });
+  static pcm(sessionId: number, localIp: string, remoteIp: string, sampleRate: number = 44100, channels: number = 2): SdpBuilder {
+    return new SdpBuilder(
+      {
+        codec: 'PCM',
+        sampleRate,
+        channels,
+        bitsPerSample: 16,
+      },
+      sessionId,
+      localIp,
+      remoteIp
+    );
   }
 }

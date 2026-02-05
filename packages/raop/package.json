@@ -1,0 +1,16 @@
+{
+  "name": "@basmilius/apple-raop",
+  "version": "0.0.0",
+  "description": "RAOP audio streaming protocol for Apple devices",
+  "type": "module",
+  "main": "./lib/raop.js",
+  "types": "./lib/raop.d.ts",
+  "scripts": {
+    "compile": "tsc",
+    "discover": "bun discover.ts",
+    "demo": "bun demo.ts"
+  },
+  "dependencies": {
+    "@basmilius/apple-common": "workspace:*"
+  }
+}

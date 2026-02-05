@@ -21,6 +21,39 @@ Implementation of Apple’s AirPlay 2 protocol stack.
 
 _Currently under development._
 
+### RAOP (Remote Audio Output Protocol)
+
+**Path**: packages/raop
+
+Implements the Remote Audio Output Protocol for discovering and connecting to Apple audio streaming devices.
+This is the underlying protocol that powers AirPlay audio streaming.
+
+#### 🧱 Build
+
+To compile the @basmilius/apple-raop package:
+
+```shell
+cd packages/raop && npm run compile
+```
+
+#### 🔍 Discover Devices
+
+To find RAOP-enabled devices via mDNS on your local network:
+
+```shell
+cd packages/raop && npm run discover
+```
+
+#### 🧪 Demo
+
+Run a basic connection test:
+
+```shell
+cd packages/raop && npm run demo
+```
+
+See [RAOP_FINDINGS.md](RAOP_FINDINGS.md) for detailed protocol information and implementation notes.
+
 ### Companion Link
 
 **Path**: packages/companion-link

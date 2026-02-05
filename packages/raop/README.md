@@ -107,8 +107,11 @@ await session.establish();
 # Discover RAOP devices on network
 npm run discover
 
-# Run basic connection demo
+# Run basic session demo
 npm run demo
+
+# Run complete audio streaming example (generates test tone)
+npm run example
 
 # Compile TypeScript
 npm run compile
@@ -293,16 +296,21 @@ This implementation provides a complete RAOP client suitable for:
 
 Most modern Apple devices accept unauthenticated RAOP connections for basic audio streaming. Advanced features like encryption may be required for some commercial applications.
 
-## Current Limitations
+## Known Limitations
 
-This is a foundational implementation providing discovery and basic connectivity. Full RAOP functionality requires:
+While the core protocol is fully implemented, some advanced features are not included:
 
-1. RTSP protocol implementation
-2. Audio codec integration (ALAC/AAC)
-3. RTP streaming
-4. Authentication/pairing flows
-5. Volume control
-6. Timing synchronization
+- **Audio Encoding**: Raw audio data must be pre-encoded to the target format (ALAC/AAC/PCM)
+- **Authentication**: No RSA or pair-verify authentication (not required for most consumer devices)
+- **Timing Protocol**: No NTP/PTP timing synchronization (basic RTP timing only)
+- **Multi-room**: No synchronization across multiple devices
+- **Metadata**: No support for cover art or track information
+- **Buffering**: No adaptive jitter buffer or packet loss recovery
+
+For production audio streaming, you'll need to add:
+- Audio encoder (e.g., ALAC compression library)
+- Timing management for smooth playback
+- Buffer management for network jitter
 
 See [RAOP_FINDINGS.md](../../RAOP_FINDINGS.md) for detailed protocol information.
 

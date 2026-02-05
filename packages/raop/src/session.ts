@@ -161,13 +161,18 @@ export class RaopSession {
 
   /**
    * Set volume (0.0 to 1.0)
+   * 
+   * RAOP devices support volume range from -144 to 0 dB (or -30 to 0 dB on some devices).
+   * This method uses the -30 to 0 range which is more commonly supported.
+   * For full range support, adjust the scaling factor as needed.
    */
   async setVolume(volume: number): Promise<void> {
     if (!this.rtspClient) {
       throw new Error('Session not established');
     }
 
-    // Convert to RAOP volume scale (-144 to 0, or -30 to 0 for some devices)
+    // Convert to RAOP volume scale: -30 dB (quiet) to 0 dB (max)
+    // Some devices support -144 to 0, but -30 to 0 is more widely compatible
     const raopVolume = -30 + (volume * 30);
     const rtspUrl = `rtsp://${this.targetHost}/${this.deviceInfo.id}`;
     

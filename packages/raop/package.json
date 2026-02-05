@@ -8,7 +8,8 @@
   "scripts": {
     "compile": "tsc",
     "discover": "bun discover.ts",
-    "demo": "bun demo.ts"
+    "demo": "bun demo.ts",
+    "example": "bun example.ts"
   },
   "dependencies": {
     "@basmilius/apple-common": "workspace:*"

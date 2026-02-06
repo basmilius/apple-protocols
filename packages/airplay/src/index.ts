@@ -7,3 +7,9 @@ export { Pairing, Verify } from './pairing';
 
 export * as DataStreamMessage from './dataStreamMessages';
 export * as Proto from './proto';
+
+export {
+    generateActiveRemoteId,
+    generateDacpId,
+    generateSessionId
+} from './utils';

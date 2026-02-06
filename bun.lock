@@ -90,6 +90,20 @@
         "tweetnacl": "^1.0.3",
       },
     },
+    "packages/raop": {
+      "name": "@basmilius/apple-raop",
+      "version": "0.0.0",
+      "dependencies": {
+        "@basmilius/apple-airplay": "workspace:*",
+        "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
+        "@basmilius/apple-encryption": "workspace:*",
+      },
+      "devDependencies": {
+        "@basmilius/tools": "^2.23.0",
+        "@types/bun": "^1.3.8",
+      },
+    },
   },
   "packages": {
     "@basmilius/apple-airplay": ["@basmilius/apple-airplay@workspace:packages/airplay"],
@@ -103,6 +117,8 @@
     "@basmilius/apple-encoding": ["@basmilius/apple-encoding@workspace:packages/encoding"],
 
     "@basmilius/apple-encryption": ["@basmilius/apple-encryption@workspace:packages/encryption"],
+
+    "@basmilius/apple-raop": ["@basmilius/apple-raop@workspace:packages/raop"],
 
     "@basmilius/tools": ["@basmilius/tools@2.23.0", "", { "dependencies": { "oxc-transform": "^0.105.0" } }, "sha512-837S2H5m9EQQteTH3tDV0PvwvHcCVjben8sTd9SVZwxhnHng54Mb0je3yvs2pAK1Xj8W7Npn6Uku/1TGbQ9cBg=="],
 

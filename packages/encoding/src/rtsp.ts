@@ -6,6 +6,7 @@ export type Method =
     | 'GET_PARAMETER'
     | 'SET_PARAMETER'
     | 'ANNOUNCE'
+    | 'FLUSH'
     | 'RECORD'
     | 'SETUP'
     | 'TEARDOWN';

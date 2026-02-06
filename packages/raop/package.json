@@ -1,0 +1,53 @@
+{
+    "name": "@basmilius/apple-raop",
+    "description": "Implementation of Apple's RAOP protocol in Node.js.",
+    "version": "0.0.0",
+    "type": "module",
+    "license": "MIT",
+    "author": {
+        "name": "Bas Milius",
+        "email": "bas@mili.us",
+        "url": "https://bas.dev"
+    },
+    "keywords": [
+        "apple",
+        "raop",
+        "airplay",
+        "tv",
+        "apple tv",
+        "homekit"
+    ],
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "scripts": {
+        "build": "tsc && bun -b build.ts",
+        "find": "bun find.ts",
+        "watch:test": "bun --watch test.ts"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "typings": "./dist/index.d.ts",
+    "sideEffects": false,
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "dependencies": {
+        "@basmilius/apple-airplay": "workspace:*",
+        "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
+        "@basmilius/apple-encryption": "workspace:*"
+    },
+    "devDependencies": {
+        "@basmilius/tools": "^2.23.0",
+        "@types/bun": "^1.3.8"
+    }
+}

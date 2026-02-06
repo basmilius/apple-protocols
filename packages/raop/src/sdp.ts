@@ -34,24 +34,21 @@ export class SdpBuilder {
   }
 
   private configureFmtp(): void {
-    // FMTP (Format Parameters) for different codecs
-    switch (this.audioFormat.codec) {
-      case 'ALAC':
-        // ALAC FMTP: frame size, compatible version, bit depth, pb, mb, kb, channels, max run, max frame bytes, avg bit rate, sample rate
-        this.fmtp = `96 352 0 16 40 10 14 2 255 0 0 ${this.audioFormat.sampleRate}`;
-        this.rtpMap = 96;
-        break;
-      case 'PCM':
-        // PCM is typically L16
-        this.rtpMap = this.audioFormat.channels === 2 ? 10 : 11; // 10=L16/2ch, 11=L16/1ch
-        this.fmtp = '';
-        break;
-      case 'AAC':
-        this.rtpMap = 97;
-        // AAC-LC configuration
-        this.fmtp = `97 profile-level-id=15;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3`;
-        break;
-    }
+    // IMPORTANT: Match pyatv's EXACT format!
+    // Apple devices expect this specific format regardless of actual codec.
+    // pyatv uses: "a=rtpmap:96 L16/44100/2" with ALAC fmtp parameters
+    // This is Apple's quirk - rtpmap says L16 but fmtp has ALAC-style params
+    
+    const { bitsPerSample = 16, channels = 2, sampleRate = 44100 } = this.audioFormat;
+    
+    // Always use payload type 96 (matching pyatv)
+    this.rtpMap = 96;
+    
+    // ALAC-style FMTP format (matching pyatv):
+    // Format: {payload} {frames_per_packet} {compat_version} {bit_depth} {pb} {mb} {kb} {channels} {max_run} {max_frame_bytes} {avg_bit_rate} {sample_rate}
+    // pyatv uses: "96 352 0 16 40 10 14 2 255 0 0 44100"
+    const framesPerPacket = 352; // Standard ALAC frames per packet
+    this.fmtp = `96 ${framesPerPacket} 0 ${bitsPerSample} 40 10 14 ${channels} 255 0 0 ${sampleRate}`;
   }
 
   build(): string {
@@ -73,23 +70,15 @@ export class SdpBuilder {
     // Timing (0 0 means session is permanent)
     lines.push('t=0 0');
 
-    // Media description
-    const { sampleRate, channels } = this.audioFormat;
-    lines.push(`m=audio 0 RTP/AVP ${this.rtpMap}`);
+    // Media description (matching pyatv exactly)
+    lines.push(`m=audio 0 RTP/AVP 96`);
 
-    // RTP map
-    if (this.audioFormat.codec === 'ALAC') {
-      lines.push(`a=rtpmap:96 AppleLossless`);
-    } else if (this.audioFormat.codec === 'PCM') {
-      lines.push(`a=rtpmap:${this.rtpMap} L16/${sampleRate}/${channels}`);
-    } else if (this.audioFormat.codec === 'AAC') {
-      lines.push(`a=rtpmap:97 mpeg4-generic/${sampleRate}/${channels}`);
-    }
+    // RTP map - IMPORTANT: Always use "L16/44100/2" like pyatv, regardless of actual format!
+    // This is what Apple devices expect. The actual format is in fmtp.
+    lines.push(`a=rtpmap:96 L16/44100/2`);
 
-    // Format parameters
-    if (this.fmtp) {
-      lines.push(`a=fmtp:${this.fmtp}`);
-    }
+    // Format parameters (ALAC-style format)
+    lines.push(`a=fmtp:${this.fmtp}`);
 
     // Encryption parameters (if provided)
     if (this.aesConfig) {

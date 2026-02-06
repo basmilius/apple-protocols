@@ -175,6 +175,8 @@ export class RaopSession {
     // Step 3: Create UDP sockets for audio, timing, and control
     console.log(`\n🔌 Step 3: Creating UDP sockets`);
     this.audioSocket = createSocket('udp4');
+    await new Promise<void>((resolve) => {
+      this.audioSocket!.bind(0, () => {
         this.audioPort = this.audioSocket!.address().port;
         console.log(`   Audio socket: port ${this.audioPort}`);
         resolve();
@@ -220,8 +222,8 @@ export class RaopSession {
       // Parse only the numeric portion before any semicolon
       const sessionIdStr = sessionHeader.split(';')[0].trim();
       this.rtspSessionId = parseInt(sessionIdStr);
-    }
       console.log(`   RTSP Session ID: ${this.rtspSessionId}`);
+    }
 
     // Parse server port from Transport header
     const transportHeader = setupResponse.headers.get('Transport');
@@ -230,8 +232,8 @@ export class RaopSession {
       console.log(`   Transport response: ${transportHeader}`);
       if (serverPortMatch) {
         this.serverAudioPort = parseInt(serverPortMatch[1]);
-      }
         console.log(`   Server audio port: ${this.serverAudioPort}`);
+      }
     }
 
     // Initialize RTP stream
@@ -246,9 +248,10 @@ export class RaopSession {
         mode: 'record',
       },
     };
-  }
 
     console.log(`\n✅ Session setup complete!`);
+  }
+
   /**
    * Start audio playback
    */

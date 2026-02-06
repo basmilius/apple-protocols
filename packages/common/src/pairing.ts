@@ -24,10 +24,43 @@ abstract class BasePairing {
             TLV8.bail(data);
         }
 
-        this.#context.logger.raw('Decoded TLV', data);
+        this.#context.logger.raw('Decoded TLV', formatTlvMap(data));
 
         return data;
     }
+}
+
+function formatTlvMap(data: Map<number, Buffer>): string {
+    const tlvValueNames: Record<number, string> = {
+        [TLV8.Value.Method]: 'Method',
+        [TLV8.Value.Identifier]: 'Identifier',
+        [TLV8.Value.Salt]: 'Salt',
+        [TLV8.Value.PublicKey]: 'PublicKey',
+        [TLV8.Value.Proof]: 'Proof',
+        [TLV8.Value.EncryptedData]: 'EncryptedData',
+        [TLV8.Value.State]: 'State',
+        [TLV8.Value.Error]: 'Error',
+        [TLV8.Value.BackOff]: 'BackOff',
+        [TLV8.Value.Certificate]: 'Certificate',
+        [TLV8.Value.Signature]: 'Signature',
+        [TLV8.Value.Permissions]: 'Permissions',
+        [TLV8.Value.FragmentData]: 'FragmentData',
+        [TLV8.Value.FragmentLast]: 'FragmentLast',
+        [TLV8.Value.Name]: 'Name',
+        [TLV8.Value.Flags]: 'Flags'
+    };
+
+    const entries: string[] = [];
+    
+    for (const [key, value] of data.entries()) {
+        const keyName = tlvValueNames[key] || `Unknown(${key})`;
+        const valueStr = value.length <= 64 
+            ? value.toString('hex')
+            : `${value.toString('hex').substring(0, 64)}... (${value.length} bytes)`;
+        entries.push(`  ${keyName}(${key}): ${valueStr}`);
+    }
+
+    return `Map(${data.size}) {\n${entries.join('\n')}\n}`;
 }
 
 export class AccessoryPair extends BasePairing {

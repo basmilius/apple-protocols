@@ -1,4 +1,5 @@
-import { Chacha20, ENCRYPTION, EncryptionAwareConnection, type EncryptionState, type EventMap } from '@basmilius/apple-common';
+import { ENCRYPTION, EncryptionAwareConnection, type EncryptionState, type EventMap } from '@basmilius/apple-common';
+import { Chacha20 } from '@basmilius/apple-encryption';
 import { nonce } from './utils';
 
 type DefaultEventMap = {

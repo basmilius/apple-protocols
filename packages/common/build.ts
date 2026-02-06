@@ -19,10 +19,8 @@ await build({
     ],
     external: [
         '@basmilius/apple-encoding',
-        'chacha',
+        '@basmilius/apple-encryption',
         'fast-srp-hap',
-        'node-dns-sd',
-        'tweetnacl',
-        'uuid'
+        'node-dns-sd'
     ]
 });

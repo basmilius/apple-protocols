@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
-import { Chacha20, type Context, ENCRYPTION, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
+import { type Context, ENCRYPTION, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
+import { Chacha20 } from '@basmilius/apple-encryption';
 import { OPackFrameTypes, PairFrameTypes } from './frame';
 
 const HEADER_SIZE = 4;

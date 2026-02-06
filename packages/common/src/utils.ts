@@ -1,4 +1,49 @@
 import { randomBytes } from 'node:crypto';
+import { networkInterfaces } from 'node:os';
+
+export function getLocalIP(): string | null {
+    const interfaces = networkInterfaces();
+
+    for (const iface of Object.values(interfaces)) {
+        if (!iface) {
+            continue;
+        }
+
+        for (const net of iface) {
+            if (net.internal || net.family !== 'IPv4') {
+                continue;
+            }
+
+            if (net.address && net.address !== '127.0.0.1') {
+                return net.address;
+            }
+        }
+    }
+
+    return null;
+}
+
+export function getMacAddress(): string {
+    const interfaces = networkInterfaces();
+
+    for (const iface of Object.values(interfaces)) {
+        if (!iface) {
+            continue;
+        }
+
+        for (const net of iface) {
+            if (net.internal || net.family !== 'IPv4') {
+                continue;
+            }
+
+            if (net.mac && net.mac !== '00:00:00:00:00:00') {
+                return net.mac.toUpperCase();
+            }
+        }
+    }
+
+    return '00:00:00:00:00:00';
+}
 
 export function randomInt32(): number {
     return randomBytes(4).readUInt32BE(0);

@@ -3,19 +3,8 @@ export {
 } from 'uuid';
 
 export {
-    Chacha20,
-    Curve25519,
-    hkdf
-} from './crypto';
-
-export {
     Discovery
 } from './discovery';
-
-export {
-    getLocalIP,
-    getMacAddress
-} from './net';
 
 export {
     prompt,
@@ -63,6 +52,8 @@ export {
 } from './timing';
 
 export {
+    getLocalIP,
+    getMacAddress,
     randomInt32,
     randomInt64,
     uint16ToBE,

@@ -1,10 +1,9 @@
 import { OPack, TLV8 } from '@basmilius/apple-encoding';
+import { Chacha20, Curve25519, Ed25519, hkdf, type KeyPair } from '@basmilius/apple-encryption';
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
 import type { Context } from './context';
-import { Chacha20, Curve25519, hkdf } from './crypto';
-import tweetnacl from 'tweetnacl';
 
 abstract class BasePairing {
     get context(): Context {
@@ -47,7 +46,7 @@ export class AccessoryPair extends BasePairing {
     }
 
     async start(): Promise<void> {
-        const keyPair = tweetnacl.sign.keyPair();
+        const keyPair = Ed25519.generateKeyPair();
         this.#publicKey = Buffer.from(keyPair.publicKey);
         this.#secretKey = Buffer.from(keyPair.secretKey);
     }
@@ -167,7 +166,7 @@ export class AccessoryPair extends BasePairing {
             this.#publicKey
         ]);
 
-        const signature = tweetnacl.sign.detached(deviceInfo, this.#secretKey);
+        const signature = Ed25519.sign(deviceInfo, this.#secretKey);
 
         const innerTlv = TLV8.encode([
             [TLV8.Value.Identifier, this.#pairingId],
@@ -220,7 +219,7 @@ export class AccessoryPair extends BasePairing {
             accessoryLongTermPublicKey
         ]);
 
-        if (!tweetnacl.sign.detached.verify(accessoryInfo, accessorySignature, accessoryLongTermPublicKey)) {
+        if (!Ed25519.verify(accessoryInfo, accessorySignature, accessoryLongTermPublicKey)) {
             throw new Error('Invalid accessory signature.');
         }
 
@@ -235,7 +234,7 @@ export class AccessoryPair extends BasePairing {
 }
 
 export class AccessoryVerify extends BasePairing {
-    readonly #ephemeralKeyPair: tweetnacl.BoxKeyPair;
+    readonly #ephemeralKeyPair: KeyPair;
     readonly #requestHandler: RequestHandler;
 
     constructor(context: Context, requestHandler: RequestHandler) {
@@ -303,7 +302,7 @@ export class AccessoryVerify extends BasePairing {
             this.#ephemeralKeyPair.publicKey
         ]);
 
-        if (!tweetnacl.sign.detached.verify(accessoryInfo, accessorySignature, longTermPublicKey)) {
+        if (!Ed25519.verify(accessoryInfo, accessorySignature, longTermPublicKey)) {
             throw new Error('Invalid accessory signature.');
         }
 
@@ -321,7 +320,7 @@ export class AccessoryVerify extends BasePairing {
             m2.serverEphemeralPublicKey
         ]);
 
-        const iosDeviceSignature = Buffer.from(tweetnacl.sign.detached(iosDeviceInfo, secretKey));
+        const iosDeviceSignature = Buffer.from(Ed25519.sign(iosDeviceInfo, secretKey));
 
         const innerTlv = TLV8.encode([
             [TLV8.Value.Identifier, pairingId],

@@ -1,6 +1,6 @@
 {
-    "name": "@basmilius/apple-encoding",
-    "description": "Common encoding utilities for Apple Protocols.",
+    "name": "@basmilius/apple-encryption",
+    "description": "Common encryption utilities for Apple Protocols.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -13,9 +13,7 @@
         "apple",
         "airplay",
         "companion link",
-        "opack",
-        "plist",
-        "tlv8"
+        "encryption"
     ],
     "files": [
         "dist",
@@ -40,8 +38,8 @@
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",
-        "@plist/binary.parse": "^1.1.0",
-        "@plist/binary.serialize": "^1.1.0",
-        "@types/bun": "^1.3.8"
+        "@stablelib/chacha20poly1305": "^2.0.1",
+        "@types/bun": "^1.3.8",
+        "tweetnacl": "^1.0.3"
     }
 }

@@ -1,5 +1,6 @@
-import { type Context, hkdf } from '@basmilius/apple-common';
+import type { Context } from '@basmilius/apple-common';
 import { Plist, RTSP } from '@basmilius/apple-encoding';
+import { hkdf } from '@basmilius/apple-encryption';
 import BaseStream from './baseStream';
 
 export default class EventStream extends BaseStream {

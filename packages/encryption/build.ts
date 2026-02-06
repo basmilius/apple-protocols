@@ -17,9 +17,5 @@ await build({
         dts(),
         copy('./src/types.ts', './dist/types.d.ts')
     ],
-    external: [
-        '@basmilius/apple-common',
-        '@basmilius/apple-encoding',
-        '@basmilius/apple-encryption'
-    ]
+    external: []
 });

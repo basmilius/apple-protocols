@@ -1,5 +1,5 @@
 import { exists, rm } from 'node:fs/promises';
-import { build, copy, dts } from '@basmilius/tools';
+import { build, dts } from '@basmilius/tools';
 
 if (await exists('./dist')) {
     await rm('./dist', {
@@ -19,6 +19,7 @@ await build({
     external: [
         '@basmilius/apple-common',
         '@basmilius/apple-encoding',
+        '@basmilius/apple-encryption',
         '@bufbuild/protobuf'
     ]
 });

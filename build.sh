@@ -2,6 +2,7 @@ set -e
 export NOMINIFY=1
 
 bun --cwd packages/encoding build
+bun --cwd packages/encryption build
 
 bun --cwd packages/common build
 

@@ -16,8 +16,5 @@ await build({
     plugins: [
         dts()
     ],
-    external: [
-        '@plist/binary.parse',
-        '@plist/binary.serialize'
-    ]
+    external: []
 });

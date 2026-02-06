@@ -1,5 +1,6 @@
-import { type Context, hkdf, randomInt32 } from '@basmilius/apple-common';
+import { type Context, randomInt32 } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
+import { hkdf } from '@basmilius/apple-encryption';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
 import * as Proto from './proto';

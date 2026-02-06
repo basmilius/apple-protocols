@@ -1,4 +1,5 @@
 import tweetnacl from 'tweetnacl';
+import type { KeyPair } from './types';
 
 export function generateKeyPair(): KeyPair {
     const keyPair = tweetnacl.box.keyPair();
@@ -11,9 +12,4 @@ export function generateKeyPair(): KeyPair {
 
 export function generateSharedSecKey(priKey: Uint8Array, pubKey: Uint8Array): Uint8Array {
     return tweetnacl.scalarMult(priKey, pubKey);
-}
-
-interface KeyPair {
-    readonly publicKey: Uint8Array;
-    readonly secretKey: Uint8Array;
 }

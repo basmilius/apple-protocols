@@ -41,7 +41,8 @@
     },
     "dependencies": {
         "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*"
+        "@basmilius/apple-encoding": "workspace:*",
+        "@basmilius/apple-encryption": "workspace:*"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",

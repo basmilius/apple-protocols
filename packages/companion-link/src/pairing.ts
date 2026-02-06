@@ -1,4 +1,5 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, hkdf } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify } from '@basmilius/apple-common';
+import { hkdf } from '@basmilius/apple-encryption';
 import { FrameType } from './frame';
 import type Protocol from './protocol';
 import type Stream from './stream';

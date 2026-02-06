@@ -6,7 +6,7 @@ This repository provides TypeScript implementations of several proprietary Apple
 
 - [Bun](https://bun.sh/)
 - [Node.js](https://nodejs.org/)
-- An Apple TV (for testing)
+- An Apple TV or HomePod (for testing)
 - Patience — these are low-level protocols
 
 ## 🚀 Getting Started
@@ -17,42 +17,55 @@ This repository provides TypeScript implementations of several proprietary Apple
 
 ### AirPlay 2
 
-Implementation of Apple’s AirPlay 2 protocol stack.
+**Path**: packages/airplay
 
-_Currently under development._
+Full implementation of Apple's AirPlay 2 protocol stack, including:
+- Remote control and media playback
+- **RAOP (Remote Audio Output Protocol)** for audio streaming
+- Event and data streams
+- HAP-style pairing and verification
 
-### RAOP (Remote Audio Output Protocol)
+#### Features
 
-**Path**: packages/raop
-
-Implements the Remote Audio Output Protocol for discovering and connecting to Apple audio streaming devices.
-This is the underlying protocol that powers AirPlay audio streaming.
+- ✅ Device discovery via mDNS
+- ✅ HAP pairing for HomePods
+- ✅ Verify authentication for Apple TVs
+- ✅ Control stream (RTSP)
+- ✅ Event stream (notifications)
+- ✅ Data stream (media control)
+- ✅ Audio stream (RAOP)
+- ✅ ChaCha20-Poly1305 encryption
 
 #### 🧱 Build
 
-To compile the @basmilius/apple-raop package:
-
 ```shell
-cd packages/raop && npm run compile
+cd packages/airplay && bun run build
 ```
 
 #### 🔍 Discover Devices
 
-To find RAOP-enabled devices via mDNS on your local network:
-
 ```shell
-cd packages/raop && npm run discover
+cd packages/airplay && bun find.ts
 ```
 
-#### 🧪 Demo
+#### 🧪 Test
 
-Run a basic connection test:
+Test with HomePod or Apple TV:
 
 ```shell
-cd packages/raop && npm run demo
+cd packages/airplay && bun test.ts homepod
+cd packages/airplay && bun test.ts tv
 ```
 
-See [RAOP_FINDINGS.md](RAOP_FINDINGS.md) for detailed protocol information and implementation notes.
+#### 🎵 Audio Streaming (RAOP)
+
+Stream audio to HomePods and Apple TVs:
+
+```shell
+cd packages/airplay && bun test-audio.ts homepod
+```
+
+See [RAOP.md](RAOP.md) for complete RAOP documentation and examples.
 
 ### Companion Link
 
@@ -63,23 +76,17 @@ The protocol uses a binary format transmitted over TCP.
 
 #### 🧱 Build
 
-To build the @basmilius/apple-companion-link package:
-
 ```shell
 bun --cwd packages/companion-link build
 ```
 
 #### 🔍 Discover Devices
 
-To find Companion Link–enabled devices via mDNS on your local network:
-
 ```shell
 bun --cwd packages/companion-link find
 ```
 
 #### 🧪 Test
-
-You can run a test script against a target Apple TV.
 
 1. Update the FQDN in src/test.ts to match your target device.
 2. Make sure that you call `pair()` first, so that device credentials are created.
@@ -88,3 +95,37 @@ You can run a test script against a target Apple TV.
 ```shell
 bun --cwd packages/companion-link watch:test
 ```
+
+## 📦 Packages
+
+| Package | Description | Status |
+|---------|-------------|--------|
+| `@basmilius/apple-airplay` | AirPlay 2 protocol with RAOP audio streaming | ✅ Working |
+| `@basmilius/apple-companion-link` | Companion Link protocol | ✅ Working |
+| `@basmilius/apple-common` | Shared utilities and types | ✅ Working |
+| `@basmilius/apple-devices` | Apple device database | ✅ Working |
+| `@basmilius/apple-encoding` | Protocol encoding/decoding | ✅ Working |
+
+## 🎯 Device Compatibility
+
+| Device | AirPlay 2 | RAOP Audio | Companion Link |
+|--------|-----------|------------|----------------|
+| HomePod | ✅ | ✅ | ❌ |
+| HomePod mini | ✅ | ✅ | ❌ |
+| Apple TV 4K | ✅ | ✅ | ✅ |
+| Apple TV HD | ✅ | ✅ | ✅ |
+| AirPort Express | ⚠️ | ✅ | ❌ |
+
+## 📚 Documentation
+
+- [RAOP Audio Streaming Guide](RAOP.md) - Complete guide to audio streaming
+- [AirPlay Package](packages/airplay/) - Full AirPlay v2 implementation
+- [Companion Link Package](packages/companion-link/) - Apple TV communication
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
+
+## 📄 License
+
+See LICENSE file for details.

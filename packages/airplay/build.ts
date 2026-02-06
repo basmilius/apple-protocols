@@ -19,7 +19,6 @@ await build({
     external: [
         '@basmilius/apple-common',
         '@basmilius/apple-encoding',
-        '@basmilius/apple-encryption',
-        '@bufbuild/protobuf'
+        '@basmilius/apple-encryption'
     ]
 });

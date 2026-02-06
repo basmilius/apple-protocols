@@ -1,6 +1,7 @@
 import { Context, type DiscoveryResult, getMacAddress, randomInt64, type TimingServer, uuid } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
+import AudioStream, { type AudioFormat } from './audioStream';
 import ControlStream from './controlStream';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
@@ -8,6 +9,10 @@ import EventStream from './eventStream';
 export default class Protocol {
     get context(): Context {
         return this.#context;
+    }
+
+    get audioStream(): AudioStream | undefined {
+        return this.#audioStream;
     }
 
     get controlStream(): ControlStream {
@@ -44,6 +49,7 @@ export default class Protocol {
     readonly #pairing: Pairing;
     readonly #sessionUUID: string;
     readonly #verify: Verify;
+    #audioStream?: AudioStream;
     #dataStream?: DataStream;
     #eventStream?: EventStream;
     #timingServer?: TimingServer;
@@ -63,12 +69,14 @@ export default class Protocol {
 
     async destroy(): Promise<void> {
         await this.#controlStream.destroy();
+        await this.#audioStream?.destroy();
         await this.#dataStream?.destroy();
         await this.#eventStream?.destroy();
     }
 
     async disconnect(): Promise<void> {
         await this.#controlStream.disconnect();
+        await this.#audioStream?.disconnect();
         await this.#dataStream?.disconnect();
         await this.#eventStream?.disconnect();
     }
@@ -156,5 +164,102 @@ export default class Protocol {
 
     useTimingServer(timingServer: TimingServer): void {
         this.#timingServer = timingServer;
+    }
+
+    /**
+     * Setup audio streaming (RAOP) with AirPlay v2.
+     * This configures an RTP audio stream for sending audio data to the device.
+     * 
+     * @param sharedSecret The shared encryption secret
+     * @param audioFormat The audio format configuration
+     * @param controlPort Local control port for audio control messages
+     * @param timingPort Optional timing port for NTP timing sync
+     */
+    async setupAudioStream(
+        sharedSecret: Buffer,
+        audioFormat: AudioFormat = { codec: 'PCM', sampleRate: 44100, channels: 2, bitsPerSample: 16 },
+        controlPort: number = 0,
+        timingPort?: number
+    ): Promise<void> {
+        // Build the audio stream setup request
+        const streamConfig: Record<string, any> = {
+            type: 0x60, // Audio stream type
+            audioFormat: getAudioFormatCode(audioFormat.codec),
+            audioMode: 'default',
+            controlPort,
+            ct: 1, // Compression type
+            spf: 352, // Samples per frame
+            sr: audioFormat.sampleRate
+        };
+
+        if (timingPort) {
+            streamConfig.timingPort = timingPort;
+            streamConfig.timingProtocol = 'NTP';
+        }
+
+        // Add encryption keys if available
+        if (sharedSecret) {
+            // For now, we'll use the shared secret as-is
+            // In a full implementation, this would derive proper keys
+            streamConfig.shk = sharedSecret.toString('base64');
+        }
+
+        const request = Plist.serialize({
+            streams: [streamConfig]
+        });
+
+        this.context.logger.net('[protocol]', 'Setting up audio stream...');
+
+        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, Buffer.from(request), {
+            'Content-Type': 'application/x-apple-binary-plist'
+        });
+
+        if (response.status !== 200) {
+            this.context.logger.error('[protocol]', 'Failed to setup audio stream.', response.status, response.statusText, await response.text());
+            throw new Error('Failed to setup audio stream.');
+        }
+
+        const plist = Plist.parse(await response.arrayBuffer()) as any;
+        const audioPort = plist.streams?.[0]?.dataPort & 0xFFFF;
+        const serverControlPort = plist.streams?.[0]?.controlPort & 0xFFFF;
+        const serverTimingPort = plist.streams?.[0]?.timingPort & 0xFFFF;
+
+        if (!audioPort) {
+            throw new Error('No audio port returned from device');
+        }
+
+        this.context.logger.net('[protocol]', `Connecting to audio stream on port ${audioPort}...`);
+
+        this.#audioStream = new AudioStream(this.#context, this.#controlStream.address, audioPort);
+        this.#audioStream.configure(
+            { audioFormat, controlPort, timingPort },
+            { audio: audioPort, control: serverControlPort, timing: serverTimingPort }
+        );
+
+        // Setup encryption if shared secret is provided
+        if (sharedSecret) {
+            this.#audioStream.setup(sharedSecret, BigInt(0));
+        }
+
+        await this.#audioStream.connect();
+        
+        // Start recording/playback
+        await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
+    }
+}
+
+/**
+ * Convert codec name to AirPlay audio format code.
+ */
+function getAudioFormatCode(codec: string): number {
+    switch (codec) {
+        case 'PCM':
+            return 0x800; // PCM 16-bit
+        case 'ALAC':
+            return 0x4000; // Apple Lossless
+        case 'AAC':
+            return 0x8000; // AAC
+        default:
+            return 0x800; // Default to PCM
     }
 }

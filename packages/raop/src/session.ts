@@ -34,6 +34,12 @@ export class RaopSession {
   // Session ID (matching pyatv: random 32-bit integer)
   private readonly raopSessionId: number;
   
+  // RTSP session ID from SETUP response
+  private rtspSessionId: number | null = null;
+  
+  // Local IP for URI (cached)
+  private localIp: string | null = null;
+  
   // Encryption support
   private aesConfig: AesConfig | null = null;
   private aesCipher: ReturnType<typeof createAesCipher> | null = null;
@@ -95,8 +101,9 @@ export class RaopSession {
       bitsPerSample: 16,
     };
 
-    // Use pyatv-style URI format: rtsp://host/sessionId
-    const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
+    // CRITICAL: pyatv uses LOCAL IP in URI, not remote host!
+    const localIp = await getLocalIP();
+    const rtspUrl = `rtsp://${localIp}/${this.raopSessionId}`;
 
     // Step 1: OPTIONS - Query supported methods
     const optionsResponse = await this.rtspClient.options(rtspUrl);
@@ -117,13 +124,11 @@ export class RaopSession {
     }
 
     // Step 2: ANNOUNCE - Declare audio format (with encryption if enabled)
-    // Get local IP for SDP
-    const localIp = await getLocalIP();
     const sdp = new SdpBuilder(
       format, 
       this.raopSessionId, 
-      localIp, 
-      this.targetHost,
+      localIp,                // Local IP for origin
+      this.targetHost,        // Remote IP for connection
       this.aesConfig ?? undefined, 
       rsaEncryptedKey
     ).build();
@@ -132,7 +137,7 @@ export class RaopSession {
       throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);
     }
 
-    // Step 3: Create UDP socket for audio
+    // Step 3: Create UDP sockets for audio, timing, and control
     this.audioSocket = createSocket('udp4');
     await new Promise<void>((resolve) => {
       this.audioSocket!.bind(0, () => {
@@ -141,11 +146,38 @@ export class RaopSession {
       });
     });
 
-    // Step 4: SETUP - Configure transport
-    const transport = `RTP/AVP/UDP;unicast;interleaved=0-1;mode=record;control_port=0;timing_port=0;client_port=${this.audioPort}`;
+    // Create timing and control ports (required by pyatv)
+    const timingSocket = createSocket('udp4');
+    const timingPort = await new Promise<number>((resolve) => {
+      timingSocket.bind(0, () => {
+        const port = timingSocket.address().port;
+        timingSocket.close();
+        resolve(port);
+      });
+    });
+
+    const controlSocket = createSocket('udp4');
+    const controlPort = await new Promise<number>((resolve) => {
+      controlSocket.bind(0, () => {
+        const port = controlSocket.address().port;
+        controlSocket.close();
+        resolve(port);
+      });
+    });
+
+    // Step 4: SETUP - Configure transport with all ports
+    // Format matches pyatv exactly
+    const transport = `RTP/AVP/UDP;unicast;interleaved=0-1;mode=record;control_port=${controlPort};timing_port=${timingPort}`;
     const setupResponse = await this.rtspClient.setup(rtspUrl, transport);
     if (setupResponse.statusCode !== 200) {
       throw new Error(`SETUP failed: ${setupResponse.statusCode} ${setupResponse.statusText}`);
+    }
+
+    // Parse SETUP response (matching pyatv)
+    // Extract RTSP Session ID
+    const sessionHeader = setupResponse.headers.get('Session');
+    if (sessionHeader) {
+      this.rtspSessionId = parseInt(sessionHeader);
     }
 
     // Parse server port from Transport header
@@ -169,17 +201,20 @@ export class RaopSession {
         mode: 'record',
       },
     };
+    
+    // Cache local IP for later use
+    this.localIp = localIp;
   }
 
   /**
    * Start audio playback
    */
   async startPlayback(): Promise<void> {
-    if (!this.rtspClient) {
+    if (!this.rtspClient || !this.localIp) {
       throw new Error('Session not established');
     }
 
-    const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
+    const rtspUrl = `rtsp://${this.localIp}/${this.raopSessionId}`;
     const rtpInfo = `seq=${this.rtpStream!.getSequenceNumber()};rtptime=${this.rtpStream!.getTimestamp()}`;
     
     const recordResponse = await this.rtspClient.record(rtspUrl, rtpInfo);
@@ -221,14 +256,14 @@ export class RaopSession {
    * For full range support, adjust the scaling factor as needed.
    */
   async setVolume(volume: number): Promise<void> {
-    if (!this.rtspClient) {
+    if (!this.rtspClient || !this.localIp) {
       throw new Error('Session not established');
     }
 
     // Convert to RAOP volume scale: -30 dB (quiet) to 0 dB (max)
     // Some devices support -144 to 0, but -30 to 0 is more widely compatible
     const raopVolume = -30 + (volume * 30);
-    const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
+    const rtspUrl = `rtsp://${this.localIp}/${this.raopSessionId}`;
     
     await this.rtspClient.setParameter(rtspUrl, 'volume', raopVolume.toFixed(6));
   }
@@ -237,9 +272,9 @@ export class RaopSession {
    * Stop playback and close session
    */
   async teardown(): Promise<void> {
-    if (this.rtspClient) {
+    if (this.rtspClient && this.localIp) {
       try {
-        const rtspUrl = `rtsp://${this.targetHost}/${this.raopSessionId}`;
+        const rtspUrl = `rtsp://${this.localIp}/${this.raopSessionId}`;
         await this.rtspClient.teardown(rtspUrl);
       } catch (error) {
         console.warn('Error during RTSP teardown:', error);

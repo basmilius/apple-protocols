@@ -1,4 +1,3 @@
-import { uuid } from "@basmilius/apple-common";
 import { Plist } from '@basmilius/apple-encoding';
 import { fromBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
@@ -12,7 +11,7 @@ export function generateDacpId(): string {
 }
 
 export function generateSessionId(): string {
-    return uuid().toUpperCase();
+    return Math.floor(Math.random() * 2 ** 32).toString(10);
 }
 
 export function nonce(counter: number): Buffer {

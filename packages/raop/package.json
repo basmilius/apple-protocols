@@ -1,6 +1,6 @@
 {
-    "name": "@basmilius/apple-airplay",
-    "description": "Implementation of Apple's AirPlay2 in Node.js.",
+    "name": "@basmilius/apple-raop",
+    "description": "Implementation of Apple's RAOP protocol in Node.js.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -11,6 +11,7 @@
     },
     "keywords": [
         "apple",
+        "raop",
         "airplay",
         "tv",
         "apple tv",
@@ -26,10 +27,7 @@
     },
     "scripts": {
         "build": "tsc && bun -b build.ts",
-        "find": "bun find.ts",
-        "gen:proto": "buf generate",
-        "test:audio": "bun --watch test-audio.ts",
-        "test:remote": "bun --watch test-remote.ts"
+        "watch:test": "bun --watch test.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -42,15 +40,13 @@
         }
     },
     "dependencies": {
+        "@basmilius/apple-airplay": "workspace:*",
         "@basmilius/apple-common": "workspace:*",
         "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@bufbuild/protobuf": "^2.11.0"
+        "@basmilius/apple-encryption": "workspace:*"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",
-        "@bufbuild/buf": "^1.65.0",
-        "@bufbuild/protoc-gen-es": "^2.11.0",
         "@types/bun": "^1.3.8"
     }
 }

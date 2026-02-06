@@ -8,8 +8,7 @@ export {
 
 export {
     prompt,
-    waitFor,
-    cli
+    waitFor
 } from './cli';
 
 export {
@@ -59,6 +58,10 @@ export {
     uint16ToBE,
     uint53ToLE
 } from './utils';
+
+export type {
+    AudioSource
+} from './audioSource';
 
 export type {
     ConnectionState,

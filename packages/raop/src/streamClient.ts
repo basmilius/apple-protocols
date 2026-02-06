@@ -112,7 +112,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
     }
 
     async sendAudio(source: AudioSource, metadata: MediaMetadata = EMPTY_METADATA, volume?: number): Promise<void> {
-        if (!this.#controlClient || !this.#timingServer) {
+        if (!this.#controlClient) {
             throw new Error('Not initialized');
         }
 
@@ -182,6 +182,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
 
             await this.#streamData(source, transport);
         } catch (err) {
+            this.#context.logger.error('An error occurred during streaming.', err);
             throw new Error(`An error occurred during streaming: ${err}`);
         } finally {
             this.#packetBacklog.clear();

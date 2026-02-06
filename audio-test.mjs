@@ -40,7 +40,7 @@ try {
             album: 'Test Album',
             duration: 5
         },
-        volume: 25
+        volume: 15
     });
 
     console.log('✅ Streaming complete!');

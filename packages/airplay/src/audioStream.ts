@@ -1,4 +1,4 @@
-import { getRandomValues } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { type AudioSource, type Context, randomInt32, randomInt64 } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
@@ -55,8 +55,7 @@ export default class AudioStream {
     }
 
     async setup(): Promise<{ dataPort: number; controlPort: number }> {
-        this.#sharedKey = Buffer.alloc(32);
-        getRandomValues(this.#sharedKey);
+        this.#sharedKey = Buffer.from(randomBytes(32));
 
         // Generate random SSRC
         this.#ssrc = randomInt32() >>> 0;

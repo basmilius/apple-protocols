@@ -9,7 +9,7 @@ await timingServer.listen();
 
 console.log('🔍 Discovering device...');
 const discovery = Discovery.airplay();
-const discoveryResult = await discovery.findUntil('Slaapkamer-HomePod.local');
+const discoveryResult = await discovery.findUntil('Woonkamer-HomePod.local');
 
 console.log('✅ Found device:', discoveryResult.id);
 console.log('   Address:', discoveryResult.address);
@@ -51,12 +51,12 @@ console.log('✅ Volume set');
 
 console.log('\n🎶 Loading audio file with ffmpeg...');
 const audioSource = new AudioSource.Ffmpeg(
-    new URL('../../doorbell.ogg', import.meta.url).pathname,
+    new URL('../../.audio/doorbell.ogg', import.meta.url).pathname,
     5
 );
 await audioSource.start();
 
-// const pcmBuffer = readFileSync(new URL('../../doorbell.pcm', import.meta.url).pathname);
+// const pcmBuffer = readFileSync(new URL('../../.audio/doorbell.pcm', import.meta.url).pathname);
 // const audioSource = new AirPlay.AudioSource.Pcm(pcmBuffer);
 // await audioSource.start();
 

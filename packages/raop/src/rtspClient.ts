@@ -62,7 +62,7 @@ function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
         `c=IN IP4 ${options.remoteIp}`,
         't=0 0',
         'm=audio 0 RTP/AVP 96',
-        'a=rtpmap:96 L16/44100/2',
+        `a=rtpmap:96 L16/${options.sampleRate}/${options.channels}`,
         `a=fmtp:96 ${FRAMES_PER_PACKET} 0 ${options.bitsPerChannel} 40 10 14 ${options.channels} 255 0 0 ${options.sampleRate}`
     ].join('\r\n') + '\r\n';
 }

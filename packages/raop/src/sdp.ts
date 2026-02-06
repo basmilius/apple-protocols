@@ -96,8 +96,8 @@ export class SdpBuilder {
       lines.push(`a=aesiv:${this.aesConfig.iv.toString('base64')}`);
     }
 
-    // Additional attributes
-    lines.push('a=recvonly'); // We're sending, device is receiving
+    // Note: pyatv does NOT include 'a=recvonly' in its ANNOUNCE_PAYLOAD
+    // Omitting it to match pyatv exactly and avoid 500 errors from HomePods
 
     return lines.join('\r\n') + '\r\n';
   }

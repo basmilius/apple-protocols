@@ -172,30 +172,31 @@ export default class Protocol {
      * 
      * @param sharedSecret The shared encryption secret
      * @param audioFormat The audio format configuration
-     * @param controlPort Local control port for audio control messages
-     * @param timingPort Optional timing port for NTP timing sync
      */
     async setupAudioStream(
         sharedSecret: Buffer,
-        audioFormat: AudioFormat = { codec: 'PCM', sampleRate: 44100, channels: 2, bitsPerSample: 16 },
-        controlPort: number = 0,
-        timingPort?: number
+        audioFormat: AudioFormat = { codec: 'PCM', sampleRate: 44100, channels: 2, bitsPerSample: 16 }
     ): Promise<void> {
+        // Create AudioStream instance first to get ports
+        this.#audioStream = new AudioStream(this.#context, this.#controlStream.address, 0);
+        
+        // Create UDP sockets and get real port numbers
+        const { controlPort, timingPort } = await this.#audioStream.createSockets();
+        
+        this.context.logger.net('[protocol]', `Created UDP sockets: control=${controlPort}, timing=${timingPort}`);
+
         // Build the audio stream setup request
         const streamConfig: Record<string, any> = {
             type: 0x60, // Audio stream type
             audioFormat: getAudioFormatCode(audioFormat.codec),
             audioMode: 'default',
             controlPort,
+            timingPort,
+            timingProtocol: 'NTP',
             ct: 1, // Compression type
             spf: 352, // Samples per frame
             sr: audioFormat.sampleRate
         };
-
-        if (timingPort) {
-            streamConfig.timingPort = timingPort;
-            streamConfig.timingProtocol = 'NTP';
-        }
 
         // Add encryption keys if available
         if (sharedSecret) {
@@ -228,12 +229,22 @@ export default class Protocol {
             throw new Error('No audio port returned from device');
         }
 
-        this.context.logger.net('[protocol]', `Connecting to audio stream on port ${audioPort}...`);
+        this.context.logger.net('[protocol]', `Server audio port: ${audioPort}, control: ${serverControlPort}, timing: ${serverTimingPort}`);
 
-        this.#audioStream = new AudioStream(this.#context, this.#controlStream.address, audioPort);
+        // Update audio stream with server port
+        const updatedAudioStream = new AudioStream(this.#context, this.#controlStream.address, audioPort);
+        
+        // Transfer the sockets from temporary stream
+        (updatedAudioStream as any).#controlSocket = (this.#audioStream as any).#controlSocket;
+        (updatedAudioStream as any).#timingSocket = (this.#audioStream as any).#timingSocket;
+        (updatedAudioStream as any).#controlPort = controlPort;
+        (updatedAudioStream as any).#timingPort = timingPort;
+        
+        this.#audioStream = updatedAudioStream;
+        
         this.#audioStream.configure(
             { audioFormat, controlPort, timingPort },
-            { audio: audioPort, control: serverControlPort, timing: serverTimingPort }
+            { control: serverControlPort, timing: serverTimingPort }
         );
 
         // Setup encryption if shared secret is provided

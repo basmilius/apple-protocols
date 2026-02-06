@@ -1,11 +1,11 @@
-export abstract class AudioSource {
-    abstract get duration(): number;
+export interface AudioSource {
+    get duration(): number;
 
-    abstract readframes(count: number): Promise<Buffer | null>;
+    readFrames(count: number): Promise<Buffer | null>;
 
-    abstract reset(): Promise<void>;
+    reset(): Promise<void>;
 
-    abstract start(): Promise<void>;
+    start(): Promise<void>;
 
-    abstract stop(): Promise<void>;
+    stop(): Promise<void>;
 }

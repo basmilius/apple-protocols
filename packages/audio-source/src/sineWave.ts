@@ -1,15 +1,13 @@
-import { AudioSource } from "@basmilius/apple-common";
+import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
 
-export default class SineWave extends AudioSource {
+export default class SineWave implements AudioSource {
     readonly duration: number;
     readonly #buffer: Buffer;
     readonly #frameSize: number;
     #offset: number = 0;
 
     constructor(durationSeconds: number, frequency: number = 440, sampleRate: number = DEFAULT_SAMPLE_RATE, channels: number = DEFAULT_CHANNELS, bytesPerChannel: number = DEFAULT_BYTES_PER_CHANNEL) {
-        super();
-
         this.duration = durationSeconds;
         this.#frameSize = channels * bytesPerChannel;
         this.#buffer = this.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
@@ -43,7 +41,7 @@ export default class SineWave extends AudioSource {
         return buffer;
     }
 
-    async readframes(count: number): Promise<Buffer | null> {
+    async readFrames(count: number): Promise<Buffer | null> {
         if (this.#offset >= this.#buffer.length) {
             return null;
         }

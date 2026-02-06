@@ -3,10 +3,6 @@ export {
 } from 'uuid';
 
 export {
-    AudioSource
-} from './audioSource';
-
-export {
     Discovery
 } from './discovery';
 
@@ -62,6 +58,10 @@ export {
     uint16ToBE,
     uint53ToLE
 } from './utils';
+
+export type {
+    AudioSource
+} from './audioSource';
 
 export type {
     ConnectionState,

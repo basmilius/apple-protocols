@@ -55,6 +55,13 @@ export function encode(fields: PacketFields): Buffer {
     return buffer;
 }
 
+export function fromTs(timestamp: number, sampleRate: number): bigint {
+    const seconds = Math.floor(timestamp / sampleRate);
+    const fraction = ((timestamp % sampleRate) * 0xFFFFFFFF) / sampleRate;
+
+    return (BigInt(seconds) << 32n) | BigInt(Math.floor(fraction));
+}
+
 export type PacketFields = {
     readonly proto: number;
     readonly type: number;

@@ -3,7 +3,6 @@ import { EventEmitter } from 'node:events';
 import { NTP } from '@basmilius/apple-encoding';
 import { decodeRetransmitRequest, PacketFifo, SyncPacket } from './packets';
 import type { StreamContext } from './types';
-import { ts2ntp } from './utils';
 
 export default class ControlClient extends EventEmitter {
     #transport?: UdpSocket;
@@ -82,7 +81,7 @@ export default class ControlClient extends EventEmitter {
         const sendSync = () => {
             if (!this.#transport) return;
 
-            const currentTime = ts2ntp(this.#context.headTs, this.#context.sampleRate);
+            const currentTime = NTP.fromTs(this.#context.headTs, this.#context.sampleRate);
             const [currentSec, currentFrac] = NTP.parts(currentTime);
 
             const packet = SyncPacket.encode(

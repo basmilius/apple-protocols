@@ -1,22 +1,20 @@
-import { AudioSource } from '@basmilius/apple-common';
+import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
-import { decode, isMp3File } from './decoder';
+import { decode, isMp3 } from './decoder';
 
-export default class Mp3 extends AudioSource {
+export default class Mp3 implements AudioSource {
     readonly duration: number;
     readonly #buffer: Buffer;
     readonly #frameSize: number;
     #offset: number = 0;
 
     constructor(buffer: Buffer, duration: number) {
-        super();
-
         this.#buffer = buffer;
         this.#frameSize = DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL;
         this.duration = duration;
     }
 
-    async readframes(count: number): Promise<Buffer | null> {
+    async readFrames(count: number): Promise<Buffer | null> {
         if (this.#offset >= this.#buffer.length) {
             return null;
         }
@@ -39,7 +37,7 @@ export default class Mp3 extends AudioSource {
     }
 
     static async fromBuffer(mp3Buffer: Buffer): Promise<Mp3> {
-        if (!isMp3File(mp3Buffer)) {
+        if (!isMp3(mp3Buffer)) {
             throw new Error('Invalid MP3 file');
         }
 

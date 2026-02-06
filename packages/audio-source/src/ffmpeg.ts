@@ -1,8 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { AudioSource } from "@basmilius/apple-common";
+import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE, FFMPEG_FRAMES_PER_PACKET } from './const';
 
-export default class Ffmpeg extends AudioSource {
+export default class Ffmpeg implements AudioSource {
     readonly duration: number;
     readonly #frameSize: number;
     readonly #filePath: string;
@@ -15,8 +15,6 @@ export default class Ffmpeg extends AudioSource {
     #resolveQueue: Array<(value: Buffer | null) => void> = [];
 
     constructor(filePath: string, duration: number, sampleRate: number = DEFAULT_SAMPLE_RATE, channels: number = DEFAULT_CHANNELS, bytesPerChannel: number = DEFAULT_BYTES_PER_CHANNEL) {
-        super();
-
         this.#filePath = filePath;
         this.duration = duration;
         this.#sampleRate = sampleRate;
@@ -72,7 +70,7 @@ export default class Ffmpeg extends AudioSource {
         this.#ffmpeg = null;
     }
 
-    async readframes(count: number): Promise<Buffer | null> {
+    async readFrames(count: number): Promise<Buffer | null> {
         const bytesNeeded = count * this.#frameSize;
 
         if (this.#buffer.length >= bytesNeeded) {

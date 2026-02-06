@@ -41,9 +41,13 @@ function readSample(buffer: Buffer, frame: number, channel: number, frameSize: n
         return endian === 'little'
             ? buffer.readInt16LE(offset)
             : buffer.readInt16BE(offset);
-    } else if (bitsPerSample === 8) {
+    }
+
+    if (bitsPerSample === 8) {
         return (buffer[offset] - 128) * 256;
-    } else if (bitsPerSample === 24) {
+    }
+
+    if (bitsPerSample === 24) {
         let value: number;
 
         if (endian === 'little') {
@@ -56,7 +60,9 @@ function readSample(buffer: Buffer, frame: number, channel: number, frameSize: n
         }
 
         return value / 256;
-    } else if (bitsPerSample === 32) {
+    }
+
+    if (bitsPerSample === 32) {
         const value = endian === 'little'
             ? buffer.readInt32LE(offset)
             : buffer.readInt32BE(offset);

@@ -1,22 +1,20 @@
-import { AudioSource } from '@basmilius/apple-common';
+import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
-import { decode, isMp3File, isOggFile, isWavFile } from './decoder';
+import { decode, isMp3, isOgg, isWav } from './decoder';
 
-export default class Url extends AudioSource {
+export default class Url implements AudioSource {
     readonly duration: number;
     readonly #buffer: Buffer;
     readonly #frameSize: number;
     #offset: number = 0;
 
     constructor(buffer: Buffer, duration: number) {
-        super();
-
         this.#buffer = buffer;
         this.#frameSize = DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL;
         this.duration = duration;
     }
 
-    async readframes(count: number): Promise<Buffer | null> {
+    async readFrames(count: number): Promise<Buffer | null> {
         if (this.#offset >= this.#buffer.length) {
             return null;
         }
@@ -45,7 +43,7 @@ export default class Url extends AudioSource {
 
         let pcmBuffer: Buffer;
 
-        if (isMp3File(buffer) || isOggFile(buffer) || isWavFile(buffer)) {
+        if (isMp3(buffer) || isOgg(buffer) || isWav(buffer)) {
             pcmBuffer = await decode(buffer);
         } else {
             throw new Error('Unsupported audio format. Please use WAV or MP3.');

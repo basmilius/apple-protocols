@@ -1,19 +1,19 @@
 import type { Socket as UdpSocket } from 'node:dgram';
 
-export interface MediaMetadata {
-    title: string;
-    artist: string;
-    album: string;
-    duration: number;
-    artwork?: Buffer;
+export type MediaMetadata = {
+    readonly title: string;
+    readonly artist: string;
+    readonly album: string;
+    readonly duration: number;
+    readonly artwork?: Buffer;
 }
 
-export interface PlaybackInfo {
-    metadata: MediaMetadata;
-    position: number;
+export type PlaybackInfo = {
+    readonly metadata: MediaMetadata;
+    readonly position: number;
 }
 
-export interface StreamContext {
+export type StreamContext = {
     sampleRate: number;
     channels: number;
     bytesPerChannel: number;

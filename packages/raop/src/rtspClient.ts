@@ -18,20 +18,31 @@ const CURVE25519_PUB_KEY = Buffer.from([
     0x5d, 0x8c, 0x01, 0x2a, 0x0c, 0x7e, 0x1d, 0x4e
 ]);
 
-interface DigestInfo {
-    username: string;
-    realm: string;
-    password: string;
-    nonce: string;
+type AnnouncePayloadOptions = {
+    readonly sessionId: number;
+    readonly localIp: string;
+    readonly remoteIp: string;
+    readonly bitsPerChannel: number;
+    readonly channels: number;
+    readonly sampleRate: number;
+};
+
+type DigestInfo = {
+    readonly username: string;
+    readonly realm: string;
+    readonly password: string;
+    readonly nonce: string;
 }
 
 function getDigestPayload(method: string, uri: string, info: DigestInfo): string {
     const ha1 = createHash('md5')
         .update(`${info.username}:${info.realm}:${info.password}`)
         .digest('hex');
+
     const ha2 = createHash('md5')
         .update(`${method}:${uri}`)
         .digest('hex');
+
     const response = createHash('md5')
         .update(`${ha1}:${info.nonce}:${ha2}`)
         .digest('hex');
@@ -43,14 +54,7 @@ function generateRandomSessionId(): number {
     return Math.floor(Math.random() * 0xFFFFFFFF);
 }
 
-function buildAnnouncePayload(options: {
-    sessionId: number;
-    localIp: string;
-    remoteIp: string;
-    bitsPerChannel: number;
-    channels: number;
-    sampleRate: number;
-}): string {
+function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
     return [
         'v=0',
         `o=iTunes ${options.sessionId} 0 IN IP4 ${options.localIp}`,
@@ -119,8 +123,6 @@ export default class RtspClient extends Connection<{}> {
         this.on('connect', this.#onConnect.bind(this));
     }
 
-    // RTSP Methods
-
     async info(): Promise<Record<string, unknown>> {
         try {
             const response = await this.#exchange('GET', '/info', {
@@ -154,12 +156,7 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
-    async announce(
-        bytesPerChannel: number,
-        channels: number,
-        sampleRate: number,
-        password?: string
-    ): Promise<Response> {
+    async announce(bytesPerChannel: number, channels: number, sampleRate: number, password?: string): Promise<Response> {
         const body = buildAnnouncePayload({
             sessionId: this.#sessionId,
             localIp: this.connection.localIp,
@@ -178,8 +175,10 @@ export default class RtspClient extends Connection<{}> {
         // Handle password authentication
         if (response.status === 401 && password) {
             const wwwAuthenticate = response.headers.get('www-authenticate');
+
             if (wwwAuthenticate) {
                 const parts = wwwAuthenticate.split('"');
+
                 if (parts.length >= 5) {
                     this.#digestInfo = {
                         username: 'pyatv',
@@ -199,10 +198,7 @@ export default class RtspClient extends Connection<{}> {
         return response;
     }
 
-    async setup(
-        headers?: Record<string, string>,
-        body?: Buffer | string | Record<string, unknown>
-    ): Promise<Response> {
+    async setup(headers?: Record<string, string>, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
         return await this.#exchange('SETUP', undefined, {headers, body});
     }
 
@@ -221,12 +217,7 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
-    async setMetadata(
-        session: string,
-        rtpseq: number,
-        rtptime: number,
-        metadata: MediaMetadata
-    ): Promise<void> {
+    async setMetadata(session: string, rtpseq: number, rtptime: number, metadata: MediaMetadata): Promise<void> {
         const daapData = DAAP.encodeTrackMetadata({
             title: metadata.title,
             artist: metadata.artist,
@@ -244,12 +235,7 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
-    async setArtwork(
-        session: string,
-        rtpseq: number,
-        rtptime: number,
-        artwork: Buffer
-    ): Promise<void> {
+    async setArtwork(session: string, rtpseq: number, rtptime: number, artwork: Buffer): Promise<void> {
         let contentType = 'image/jpeg';
         if (artwork[0] === 0x89 && artwork[1] === 0x50) {
             contentType = 'image/png';
@@ -275,10 +261,8 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
-    // Core exchange method
-
     async #exchange(
-        method: RTSP.Method | 'FLUSH',
+        method: RTSP.Method,
         uri?: string,
         options: {
             contentType?: string;
@@ -309,15 +293,12 @@ export default class RtspClient extends Connection<{}> {
             'User-Agent': USER_AGENT
         };
 
-        // Add digest authentication if required
         if (this.#digestInfo) {
             headers['Authorization'] = getDigestPayload(method, targetUri, this.#digestInfo);
         }
 
-        // Merge extra headers
         Object.assign(headers, extraHeaders);
 
-        // Handle dict body as binary plist
         if (body && typeof body === 'object' && !Buffer.isBuffer(body)) {
             headers['Content-Type'] = 'application/x-apple-binary-plist';
             body = Buffer.from(Plist.serialize(body as {}));
@@ -325,7 +306,6 @@ export default class RtspClient extends Connection<{}> {
             headers['Content-Type'] = contentType;
         }
 
-        // Build request
         let bodyBuffer: Buffer | undefined;
         if (body) {
             bodyBuffer = typeof body === 'string' ? Buffer.from(body) : body as Buffer;
@@ -361,8 +341,8 @@ export default class RtspClient extends Connection<{}> {
                 reject(err);
             });
 
-            // Wrap resolve to clear timeout
             const originalResolve = resolve;
+
             this.#requests.set(cseq, {
                 resolve: (response) => {
                     clearTimeout(timer);
@@ -380,8 +360,6 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
-    // Event handlers
-
     #onConnect(): void {
         this.#localIp = '0.0.0.0';
     }
@@ -389,7 +367,6 @@ export default class RtspClient extends Connection<{}> {
     #onClose(): void {
         this.#buffer = Buffer.alloc(0);
 
-        // Reject all pending requests
         for (const [cseq, {reject}] of this.#requests) {
             reject(new Error('Connection closed'));
             this.#requests.delete(cseq);
@@ -411,7 +388,6 @@ export default class RtspClient extends Connection<{}> {
 
                 this.#buffer = this.#buffer.subarray(result.responseLength);
 
-                // Match response to request by CSeq
                 const cseqHeader = result.response.headers.get('CSeq');
                 const cseq = cseqHeader ? parseInt(cseqHeader, 10) : -1;
 
@@ -430,7 +406,6 @@ export default class RtspClient extends Connection<{}> {
     }
 
     #onError(err: Error): void {
-        // Reject all pending requests
         for (const [cseq, {reject}] of this.#requests) {
             reject(err);
             this.#requests.delete(cseq);

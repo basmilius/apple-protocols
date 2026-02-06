@@ -22,13 +22,13 @@ console.log('✅ Connected to:', client.deviceId);
 console.log('   Model:', client.modelName);
 console.log('   Address:', client.address);
 
-// const audioSource = new AudioSource.Ffmpeg(new URL('./doorbell.ogg', import.meta.url).pathname, 5);
+// const audioSource = new AudioSource.Ffmpeg(new URL('.audio/doorbell.ogg', import.meta.url).pathname, 5);
 // await audioSource.start();
 
-// const audioSource = new AudioSource.Ffmpeg(new URL('./olympics.mp3', import.meta.url).pathname, 5);
+// const audioSource = new AudioSource.Ffmpeg(new URL('.audio/olympics.mp3', import.meta.url).pathname, 5);
 // await audioSource.start();
 
-const audioSource = await AudioSource.Mp3.fromBuffer(readFileSync('./olympics.mp3'));
+const audioSource = await AudioSource.Mp3.fromBuffer(readFileSync('.audio/olympics.mp3'));
 
 // const audioSource = await AudioSource.Ogg.fromUrl('https://bmcdn.nl/doorbell.ogg');
 

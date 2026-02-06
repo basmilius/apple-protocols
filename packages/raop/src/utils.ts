@@ -1,11 +1,5 @@
 import { EncryptionType, MetadataType } from './types';
 
-export function ts2ntp(timestamp: number, sampleRate: number): bigint {
-    const seconds = Math.floor(timestamp / sampleRate);
-    const fraction = ((timestamp % sampleRate) * 0xFFFFFFFF) / sampleRate;
-    return (BigInt(seconds) << 32n) | BigInt(Math.floor(fraction));
-}
-
 export function pctToDbfs(volume: number): number {
     if (volume <= 0) return -144;
     if (volume >= 100) return 0;

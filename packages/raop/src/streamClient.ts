@@ -15,16 +15,24 @@ export type EventMap = {
 };
 
 export default class StreamClient extends EventEmitter<EventMap> {
+    get info(): Record<string, unknown> {
+        return this.#info;
+    }
+
     get playbackInfo(): PlaybackInfo {
-        const metadata = this.#isMetadataEmpty(this.#metadata) ? MISSING_METADATA : this.#metadata;
         return {
-            metadata,
+            metadata: this.#isMetadataEmpty(this.#metadata) ? MISSING_METADATA : this.#metadata,
             position: this.#streamContext.position
         };
     }
 
-    get info(): Record<string, unknown> {
-        return this.#info;
+    get #requiresAuthSetup(): boolean {
+        const modelName = this.#properties.get('am') ?? '';
+
+        return (
+            (this.#encryptionTypes & EncryptionType.MFiSAP) !== 0
+            && modelName.startsWith('AirPort')
+        );
     }
 
     readonly #context: Context;
@@ -91,25 +99,6 @@ export default class StreamClient extends EventEmitter<EventMap> {
         }
 
         await this.#protocol.setup(this.#timingServer.port, this.#controlClient.port);
-    }
-
-    #updateOutputProperties(properties: Map<string, string>): void {
-        const [sampleRate, channels, bytesPerChannel] = getAudioProperties(properties);
-
-        this.#streamContext.sampleRate = sampleRate;
-        this.#streamContext.channels = channels;
-        this.#streamContext.bytesPerChannel = bytesPerChannel;
-
-        this.#context.logger.debug(`Update play settings to ${sampleRate}/${channels}/${bytesPerChannel * 8}bit`);
-    }
-
-    get #requiresAuthSetup(): boolean {
-        const modelName = this.#properties.get('am') ?? '';
-
-        return (
-            (this.#encryptionTypes & EncryptionType.MFiSAP) !== 0
-            && modelName.startsWith('AirPort')
-        );
     }
 
     stop(): void {
@@ -213,14 +202,15 @@ export default class StreamClient extends EventEmitter<EventMap> {
         const stats = new Statistics(this.#streamContext.sampleRate);
 
         const initialTime = performance.now();
-        this.#isPlaying = true;
         let prevSlowSeqno: number | null = null;
         let numberSlowSeqno = 0;
 
+        this.#isPlaying = true;
+
         while (this.#isPlaying) {
             const currentSeqno = this.#streamContext.rtpseq - 1;
-
             const numSent = await this.#sendPacket(source, stats.totalFrames === 0, transport);
+
             if (numSent === 0) {
                 break;
             }
@@ -233,6 +223,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
                     Math.floor(framesBehind / FRAMES_PER_PACKET),
                     MAX_PACKETS_COMPENSATE
                 );
+
                 this.#context.logger.debug(
                     `Compensating with ${maxPackets} packets (${framesBehind} frames behind)`
                 );
@@ -287,7 +278,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
             return 0;
         }
 
-        let frames = await source.readframes(FRAMES_PER_PACKET);
+        let frames = await source.readFrames(FRAMES_PER_PACKET);
 
         if (!frames) {
             frames = Buffer.alloc(this.#streamContext.packetSize);
@@ -335,5 +326,15 @@ export default class StreamClient extends EventEmitter<EventMap> {
             && metadata.artist === ''
             && metadata.album === ''
             && metadata.duration === 0;
+    }
+
+    #updateOutputProperties(properties: Map<string, string>): void {
+        const [sampleRate, channels, bytesPerChannel] = getAudioProperties(properties);
+
+        this.#streamContext.sampleRate = sampleRate;
+        this.#streamContext.channels = channels;
+        this.#streamContext.bytesPerChannel = bytesPerChannel;
+
+        this.#context.logger.debug(`Update play settings to ${sampleRate}/${channels}/${bytesPerChannel * 8}bit`);
     }
 }

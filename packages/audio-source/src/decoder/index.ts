@@ -1,3 +1,3 @@
-export { isMp3File, isOggFile, isWavFile } from './codec';
+export { isMp3, isOgg, isWav } from './codec';
 export { default as decode } from './decode';
 export * from './pcm';

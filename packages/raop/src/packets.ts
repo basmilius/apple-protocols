@@ -77,9 +77,9 @@ export const SyncPacket = {
     }
 };
 
-export interface RetransmitRequest {
-    lostSeqno: number;
-    lostPackets: number;
+export type RetransmitRequest = {
+    readonly lostSeqno: number;
+    readonly lostPackets: number;
 }
 
 export function decodeRetransmitRequest(data: Buffer): RetransmitRequest {

@@ -24,7 +24,7 @@ async function main(): Promise<void> {
     console.log('   Address:', client.address);
 
     const audioSource = new AudioSource.Ffmpeg(
-        new URL('../../olympics.mp3', import.meta.url).pathname,
+        new URL('../../.audio/olympics.mp3', import.meta.url).pathname,
         5
     );
 

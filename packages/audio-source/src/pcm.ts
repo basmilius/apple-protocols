@@ -1,21 +1,19 @@
-import { AudioSource } from "@basmilius/apple-common";
+import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
 
-export default class Pcm extends AudioSource {
+export default class Pcm implements AudioSource {
     readonly duration: number;
     readonly #buffer: Buffer;
     readonly #frameSize: number;
     #offset: number = 0;
 
     constructor(pcmBuffer: Buffer, sampleRate: number = DEFAULT_SAMPLE_RATE) {
-        super();
-
         this.#buffer = pcmBuffer;
         this.#frameSize = DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL;
         this.duration = pcmBuffer.length / this.#frameSize / sampleRate;
     }
 
-    async readframes(count: number): Promise<Buffer | null> {
+    async readFrames(count: number): Promise<Buffer | null> {
         if (this.#offset >= this.#buffer.length) {
             return null;
         }

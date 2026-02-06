@@ -227,7 +227,7 @@ export default class AudioStream {
         }
 
         // Read frames from source
-        let frames = await source.readframes(FRAMES_PER_PACKET);
+        let frames = await source.readFrames(FRAMES_PER_PACKET);
 
         if (!frames || frames.length === 0) {
             // No more audio data - send padding (silent frames)

@@ -1,22 +1,20 @@
-import { AudioSource } from '@basmilius/apple-common';
+import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
-import { decode, isOggFile } from './decoder';
+import { decode, isOgg } from './decoder';
 
-export default class Ogg extends AudioSource {
+export default class Ogg implements AudioSource {
     readonly duration: number;
     readonly #buffer: Buffer;
     readonly #frameSize: number;
     #offset: number = 0;
 
     constructor(buffer: Buffer, duration: number) {
-        super();
-
         this.#buffer = buffer;
         this.#frameSize = DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL;
         this.duration = duration;
     }
 
-    async readframes(count: number): Promise<Buffer | null> {
+    async readFrames(count: number): Promise<Buffer | null> {
         if (this.#offset >= this.#buffer.length) {
             return null;
         }
@@ -39,7 +37,7 @@ export default class Ogg extends AudioSource {
     }
 
     static async fromBuffer(oggBuffer: Buffer): Promise<Ogg> {
-        if (!isOggFile(oggBuffer)) {
+        if (!isOgg(oggBuffer)) {
             throw new Error('Invalid OGG file');
         }
 

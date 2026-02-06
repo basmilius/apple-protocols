@@ -1,4 +1,5 @@
 .idea/
+.audio/
 dist/
 node_modules/
 

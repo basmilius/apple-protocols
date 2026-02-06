@@ -152,16 +152,21 @@ class RaopStreamProtocol implements StreamProtocol {
         });
 
         const transportHeader = response.headers.get('Transport');
-        if (transportHeader) {
-            const serverPortMatch = transportHeader.match(/server_port=(\d+)/);
-            if (serverPortMatch) {
-                this.#streamContext.serverPort = parseInt(serverPortMatch[1], 10);
-            }
 
-            const controlPortMatch = transportHeader.match(/control_port=(\d+)/);
-            if (controlPortMatch) {
-                this.#streamContext.controlPort = parseInt(controlPortMatch[1], 10);
-            }
+        if (!transportHeader) {
+            return;
+        }
+
+        const serverPortMatch = transportHeader.match(/server_port=(\d+)/);
+
+        if (serverPortMatch) {
+            this.#streamContext.serverPort = parseInt(serverPortMatch[1], 10);
+        }
+
+        const controlPortMatch = transportHeader.match(/control_port=(\d+)/);
+
+        if (controlPortMatch) {
+            this.#streamContext.controlPort = parseInt(controlPortMatch[1], 10);
         }
     }
 
@@ -170,7 +175,6 @@ class RaopStreamProtocol implements StreamProtocol {
             try {
                 await this.#rtsp.feedback(true);
             } catch {
-                // Ignore feedback errors
             }
         }, 2000);
     }
@@ -187,10 +191,13 @@ class RaopStreamProtocol implements StreamProtocol {
     }
 
     teardown(): void {
-        if (this.#feedbackInterval) {
-            clearInterval(this.#feedbackInterval);
-            this.#feedbackInterval = undefined;
+        if (!this.#feedbackInterval) {
+            return;
         }
+
+        clearInterval(this.#feedbackInterval);
+
+        this.#feedbackInterval = undefined;
     }
 }
 
@@ -211,6 +218,7 @@ function createStreamContext(): StreamContext {
         packetSize: FRAMES_PER_PACKET * CHANNELS * BYTES_PER_CHANNEL,
         frameSize: CHANNELS * BYTES_PER_CHANNEL,
         paddingSent: 0,
+
         reset() {
             this.rtpseq = Math.floor(Math.random() * 65536);
             this.rtptime = Math.floor(Math.random() * 0xFFFFFFFF);

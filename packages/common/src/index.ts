@@ -12,8 +12,7 @@ export {
 
 export {
     prompt,
-    waitFor,
-    cli
+    waitFor
 } from './cli';
 
 export {

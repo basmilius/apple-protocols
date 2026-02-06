@@ -1,82 +1,20 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
-import type { AudioSource } from '@basmilius/apple-airplay';
-import { type Context, TimingServer } from '@basmilius/apple-common';
+import { EventEmitter } from 'node:events';
+import { type AudioSource, type Context, type TimingServer, waitFor } from '@basmilius/apple-common';
+import { EMPTY_METADATA, FRAMES_PER_PACKET, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
 import { AudioPacketHeader, PacketFifo } from './packets';
-import type { MediaMetadata, PlaybackInfo, RaopListener, Settings, StreamContext, StreamProtocol } from './types';
-import { EncryptionType, MetadataType } from './types';
+import { EncryptionType, type MediaMetadata, MetadataType, type PlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
 import { getAudioProperties, getEncryptionTypes, getMetadataTypes, pctToDbfs } from './utils';
 import ControlClient from './controlClient';
 import Statistics from './statistics';
 import RtspClient from './rtspClient';
 
-const MAX_PACKETS_COMPENSATE = 3;
-const PACKET_BACKLOG_SIZE = 1000;
-const SLOW_WARNING_THRESHOLD = 5;
-const FRAMES_PER_PACKET = 352;
-
-const MISSING_METADATA: MediaMetadata = {
-    title: 'Streaming with apple-raop',
-    artist: 'apple-raop',
-    album: 'AirPlay',
-    duration: 0
+export type EventMap = {
+    readonly playing: [playbackInfo: PlaybackInfo];
+    readonly stopped: [];
 };
 
-const EMPTY_METADATA: MediaMetadata = {
-    title: '',
-    artist: '',
-    album: '',
-    duration: 0
-};
-
-const SUPPORTED_ENCRYPTIONS = EncryptionType.Unencrypted | EncryptionType.MFiSAP;
-
-export { EMPTY_METADATA };
-
-export default class StreamClient {
-    readonly #context: Context;
-    readonly #rtsp: RtspClient;
-    readonly #streamContext: StreamContext;
-    readonly #settings: Settings;
-    readonly #protocol: StreamProtocol;
-    readonly #packetBacklog: PacketFifo;
-
-    #controlClient?: ControlClient;
-    #timingServer?: TimingServer;
-    #encryptionTypes: EncryptionType = EncryptionType.Unknown;
-    #metadataTypes: MetadataType = MetadataType.NotSupported;
-    #metadata: MediaMetadata = EMPTY_METADATA;
-    #listener?: WeakRef<RaopListener>;
-    #info: Record<string, unknown> = {};
-    #properties: Map<string, string> = new Map();
-    #isPlaying: boolean = false;
-
-    constructor(
-        context: Context,
-        rtsp: RtspClient,
-        streamContext: StreamContext,
-        protocol: StreamProtocol,
-        settings: Settings
-    ) {
-        this.#context = context;
-        this.#rtsp = rtsp;
-        this.#streamContext = streamContext;
-        this.#protocol = protocol;
-        this.#settings = settings;
-        this.#packetBacklog = new PacketFifo(PACKET_BACKLOG_SIZE);
-    }
-
-    get listener(): RaopListener | undefined {
-        return this.#listener?.deref();
-    }
-
-    set listener(newListener: RaopListener | undefined) {
-        if (newListener) {
-            this.#listener = new WeakRef(newListener);
-        } else {
-            this.#listener = undefined;
-        }
-    }
-
+export default class StreamClient extends EventEmitter<EventMap> {
     get playbackInfo(): PlaybackInfo {
         const metadata = this.#isMetadataEmpty(this.#metadata) ? MISSING_METADATA : this.#metadata;
         return {
@@ -89,10 +27,37 @@ export default class StreamClient {
         return this.#info;
     }
 
+    readonly #context: Context;
+    readonly #rtsp: RtspClient;
+    readonly #streamContext: StreamContext;
+    readonly #settings: Settings;
+    readonly #protocol: StreamProtocol;
+    readonly #packetBacklog: PacketFifo;
+    readonly #timingServer: TimingServer;
+
+    #controlClient?: ControlClient;
+    #encryptionTypes: EncryptionType = EncryptionType.Unknown;
+    #metadataTypes: MetadataType = MetadataType.NotSupported;
+    #metadata: MediaMetadata = EMPTY_METADATA;
+    #info: Record<string, unknown> = {};
+    #properties: Map<string, string> = new Map();
+    #isPlaying: boolean = false;
+
+    constructor(context: Context, rtsp: RtspClient, streamContext: StreamContext, protocol: StreamProtocol, settings: Settings, timingServer: TimingServer) {
+        super();
+
+        this.#context = context;
+        this.#rtsp = rtsp;
+        this.#streamContext = streamContext;
+        this.#protocol = protocol;
+        this.#settings = settings;
+        this.#packetBacklog = new PacketFifo(PACKET_BACKLOG_SIZE);
+        this.#timingServer = timingServer;
+    }
+
     close(): void {
         this.#protocol.teardown();
         this.#controlClient?.close();
-        this.#timingServer?.close();
     }
 
     async initialize(properties: Map<string, string>): Promise<void> {
@@ -100,9 +65,7 @@ export default class StreamClient {
         this.#encryptionTypes = getEncryptionTypes(properties);
         this.#metadataTypes = getMetadataTypes(properties);
 
-        this.#context.logger.info(
-            `Initializing RTSP with encryption=${this.#encryptionTypes}, metadata=${this.#metadataTypes}`
-        );
+        this.#context.logger.info(`Initializing RTSP with encryption=${this.#encryptionTypes}, metadata=${this.#metadataTypes}`);
 
         const intersection = this.#encryptionTypes & SUPPORTED_ENCRYPTIONS;
         if (!intersection || intersection === EncryptionType.Unknown) {
@@ -117,12 +80,7 @@ export default class StreamClient {
             this.#settings.protocols.raop.controlPort
         );
 
-        this.#timingServer = new TimingServer();
-        await this.#timingServer.listen();
-
-        this.#context.logger.debug(
-            `Local ports: control=${this.#controlClient.port}, timing=${this.#timingServer.port}`
-        );
+        this.#context.logger.debug(`Local ports: control=${this.#controlClient.port}, timing=${this.#timingServer.port}`);
 
         const info = await this.#rtsp.info();
         Object.assign(this.#info, info);
@@ -137,20 +95,20 @@ export default class StreamClient {
 
     #updateOutputProperties(properties: Map<string, string>): void {
         const [sampleRate, channels, bytesPerChannel] = getAudioProperties(properties);
+
         this.#streamContext.sampleRate = sampleRate;
         this.#streamContext.channels = channels;
         this.#streamContext.bytesPerChannel = bytesPerChannel;
 
-        this.#context.logger.debug(
-            `Update play settings to ${sampleRate}/${channels}/${bytesPerChannel * 8}bit`
-        );
+        this.#context.logger.debug(`Update play settings to ${sampleRate}/${channels}/${bytesPerChannel * 8}bit`);
     }
 
     get #requiresAuthSetup(): boolean {
         const modelName = this.#properties.get('am') ?? '';
+
         return (
-            (this.#encryptionTypes & EncryptionType.MFiSAP) !== 0 &&
-            modelName.startsWith('AirPort')
+            (this.#encryptionTypes & EncryptionType.MFiSAP) !== 0
+            && modelName.startsWith('AirPort')
         );
     }
 
@@ -164,11 +122,7 @@ export default class StreamClient {
         this.#streamContext.volume = volume;
     }
 
-    async sendAudio(
-        source: AudioSource.AudioSource,
-        metadata: MediaMetadata = EMPTY_METADATA,
-        volume?: number
-    ): Promise<void> {
+    async sendAudio(source: AudioSource, metadata: MediaMetadata = EMPTY_METADATA, volume?: number): Promise<void> {
         if (!this.#controlClient || !this.#timingServer) {
             throw new Error('Not initialized');
         }
@@ -193,6 +147,7 @@ export default class StreamClient {
             }
 
             this.#metadata = metadata;
+
             if ((this.#metadataTypes & MetadataType.Text) !== 0) {
                 this.#context.logger.debug('Playing with metadata:', this.playbackInfo.metadata);
                 await this.#rtsp.setMetadata(
@@ -205,6 +160,7 @@ export default class StreamClient {
 
             if ((this.#metadataTypes & MetadataType.Artwork) !== 0 && metadata.artwork) {
                 this.#context.logger.debug(`Sending ${metadata.artwork.length} bytes artwork`);
+
                 await this.#rtsp.setArtwork(
                     this.#streamContext.rtspSession,
                     this.#streamContext.rtpseq,
@@ -215,10 +171,7 @@ export default class StreamClient {
 
             await this.#protocol.startFeedback();
 
-            const listener = this.listener;
-            if (listener) {
-                listener.playing(this.playbackInfo);
-            }
+            this.emit('playing', this.playbackInfo);
 
             await this.#rtsp.record({
                 'Range': 'npt=0-',
@@ -252,14 +205,11 @@ export default class StreamClient {
             this.#protocol.teardown();
             this.close();
 
-            const listener = this.listener;
-            if (listener) {
-                listener.stopped();
-            }
+            this.emit('stopped');
         }
     }
 
-    async #streamData(source: AudioSource.AudioSource, transport: UdpSocket): Promise<void> {
+    async #streamData(source: AudioSource, transport: UdpSocket): Promise<void> {
         const stats = new Statistics(this.#streamContext.sampleRate);
 
         const initialTime = performance.now();
@@ -312,20 +262,16 @@ export default class StreamClient {
 
             if (diff > 0) {
                 numberSlowSeqno = 0;
-                await this.#sleep(diff * 1000);
+                await waitFor(diff * 1000);
             } else {
                 if (prevSlowSeqno === currentSeqno - 1) {
                     numberSlowSeqno++;
                 }
 
                 if (numberSlowSeqno >= SLOW_WARNING_THRESHOLD) {
-                    this.#context.logger.warn(
-                        `Too slow to keep up for seqno ${currentSeqno} (${absTimeStream.toFixed(3)} vs ${relToStart.toFixed(3)} => ${diff.toFixed(3)})`
-                    );
+                    this.#context.logger.warn(`Too slow to keep up for seqno ${currentSeqno} (${absTimeStream.toFixed(3)} vs ${relToStart.toFixed(3)} => ${diff.toFixed(3)})`);
                 } else {
-                    this.#context.logger.debug(
-                        `Too slow to keep up for seqno ${currentSeqno} (${absTimeStream.toFixed(3)} vs ${relToStart.toFixed(3)} => ${diff.toFixed(3)})`
-                    );
+                    this.#context.logger.debug(`Too slow to keep up for seqno ${currentSeqno} (${absTimeStream.toFixed(3)} vs ${relToStart.toFixed(3)} => ${diff.toFixed(3)})`);
                 }
 
                 prevSlowSeqno = currentSeqno;
@@ -336,11 +282,7 @@ export default class StreamClient {
         this.#context.logger.debug(`Audio finished sending in ${(elapsedNs / 1e9).toFixed(3)}s`);
     }
 
-    async #sendPacket(
-        source: AudioSource.AudioSource,
-        firstPacket: boolean,
-        transport: UdpSocket
-    ): Promise<number> {
+    async #sendPacket(source: AudioSource, firstPacket: boolean, transport: UdpSocket): Promise<number> {
         if (this.#streamContext.paddingSent >= this.#streamContext.latency) {
             return 0;
         }
@@ -373,11 +315,7 @@ export default class StreamClient {
         return Math.floor(frames.length / this.#streamContext.frameSize);
     }
 
-    async #sendNumberOfPackets(
-        source: AudioSource.AudioSource,
-        transport: UdpSocket,
-        count: number
-    ): Promise<[number, boolean]> {
+    async #sendNumberOfPackets(source: AudioSource, transport: UdpSocket, count: number): Promise<[number, boolean]> {
         let totalFrames = 0;
 
         for (let i = 0; i < count; i++) {
@@ -393,15 +331,9 @@ export default class StreamClient {
     }
 
     #isMetadataEmpty(metadata: MediaMetadata): boolean {
-        return (
-            metadata.title === '' &&
-            metadata.artist === '' &&
-            metadata.album === '' &&
-            metadata.duration === 0
-        );
-    }
-
-    #sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return metadata.title === ''
+            && metadata.artist === ''
+            && metadata.album === ''
+            && metadata.duration === 0;
     }
 }

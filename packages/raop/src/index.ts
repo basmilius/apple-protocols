@@ -5,4 +5,6 @@ export * from './utils';
 export { default as ControlClient } from './controlClient';
 export { default as RtspClient } from './rtspClient';
 export { default as Statistics } from './statistics';
-export { default as StreamClient, EMPTY_METADATA } from './streamClient';
+export { default as StreamClient } from './streamClient';
+
+export { RaopClient, type StreamOptions } from './raop';

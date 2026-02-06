@@ -48,6 +48,7 @@ export default class ControlClient extends EventEmitter {
 
     close(): void {
         this.stop();
+
         if (this.#transport) {
             this.#transport.close();
             this.#transport = undefined;
@@ -68,6 +69,7 @@ export default class ControlClient extends EventEmitter {
             this.#abortController.abort();
             this.#abortController = undefined;
         }
+
         if (this.#syncTask) {
             clearInterval(this.#syncTask);
             this.#syncTask = undefined;

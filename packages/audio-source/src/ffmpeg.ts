@@ -61,6 +61,13 @@ export default class Ffmpeg extends AudioSource {
             return;
         }
 
+        while (this.#resolveQueue.length > 0) {
+            this.#resolveQueue.shift()!(null);
+        }
+
+        this.#ffmpeg.stdout?.removeAllListeners();
+        this.#ffmpeg.removeAllListeners();
+
         this.#ffmpeg.kill();
         this.#ffmpeg = null;
     }

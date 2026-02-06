@@ -41,6 +41,7 @@ jobs:
                     bun --cwd packages/audio-source build
                     bun --cwd packages/airplay build
                     bun --cwd packages/companion-link build
+                    bun --cwd packages/raop build
                     bun --cwd packages/devices build
 
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
@@ -51,6 +52,7 @@ jobs:
                     bun publish --cwd packages/audio-source --access public
                     bun publish --cwd packages/airplay --access public
                     bun publish --cwd packages/companion-link --access public
+                    bun publish --cwd packages/raop --access public
                     bun publish --cwd packages/devices --access public
                 env:
                     NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -6,7 +6,6 @@ import { OPackFrameTypes, PairFrameTypes } from './frame';
 
 const HEADER_SIZE = 4;
 const PAIRING_QUEUE_IDENTIFIER = -1;
-const MAX_BUFFER_SIZE = 1024 * 1024 * 5; // 5 MB max buffer size
 
 export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
     get #encryptionState(): EncryptionState {
@@ -89,14 +88,6 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     }
 
     async #onData(data: Buffer): Promise<void> {
-        // Check for potential buffer overflow before concatenation
-        if (this.#buffer.byteLength + data.byteLength > MAX_BUFFER_SIZE) {
-            const error = new Error(`Buffer size exceeded maximum limit of ${MAX_BUFFER_SIZE} bytes`);
-            this.context.logger.error('[companion-link]', 'Buffer overflow detected', error);
-            this.emit('error', error);
-            return;
-        }
-
         this.#buffer = Buffer.concat([this.#buffer, data]);
 
         try {

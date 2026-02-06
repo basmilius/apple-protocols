@@ -7,6 +7,7 @@ import * as Proto from './proto';
 import BaseStream from './baseStream';
 
 const DATA_HEADER_LENGTH = 32;
+const MAX_BUFFER_SIZE = 1024 * 1024 * 5; // 5 MB max buffer to prevent memory exhaustion
 
 type EventMap = {
     readonly deviceInfo: [Proto.DeviceInfoMessage];
@@ -133,6 +134,14 @@ export default class DataStream extends BaseStream<EventMap> {
 
     async #onData(data: Buffer): Promise<void> {
         try {
+            // Prevent unbounded buffer growth
+            if (this.#buffer.byteLength + data.byteLength > MAX_BUFFER_SIZE) {
+                const error = new Error(`Data stream buffer exceeded ${MAX_BUFFER_SIZE} bytes - possible malformed data or parsing failure`);
+                this.context.logger.error('[data]', 'Buffer overflow', error);
+                this.emit('error', error);
+                return;
+            }
+
             this.#buffer = Buffer.concat([this.#buffer, data]);
 
             if (this.isEncrypted) {

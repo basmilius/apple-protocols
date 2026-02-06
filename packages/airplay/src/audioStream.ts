@@ -272,10 +272,13 @@ export default class AudioStream {
         this.#packetBacklog.set(seqno, packet);
 
         // Limit backlog size by removing oldest entries
-        if (this.#packetBacklog.size > PACKET_BACKLOG_SIZE) {
+        // Remove multiple entries if needed to stay within limit
+        while (this.#packetBacklog.size > PACKET_BACKLOG_SIZE) {
             const oldestKey = this.#packetBacklog.keys().next().value;
             if (oldestKey !== undefined) {
                 this.#packetBacklog.delete(oldestKey);
+            } else {
+                break; // Safety check
             }
         }
     }

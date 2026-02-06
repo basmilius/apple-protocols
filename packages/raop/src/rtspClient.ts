@@ -6,6 +6,7 @@ import type { MediaMetadata } from './types';
 
 const USER_AGENT = 'AirPlay/550.10';
 const FRAMES_PER_PACKET = 352;
+const MAX_BUFFER_SIZE = 1024 * 1024 * 5; // 5 MB max buffer to prevent memory exhaustion
 
 // Used to signal that traffic is to be unencrypted
 const AUTH_SETUP_UNENCRYPTED = Buffer.from([0x01]);
@@ -377,6 +378,14 @@ export default class RtspClient extends Connection<{}> {
 
     #onData(data: Buffer): void {
         try {
+            // Prevent unbounded buffer growth
+            if (this.#buffer.byteLength + data.byteLength > MAX_BUFFER_SIZE) {
+                const error = new Error(`RTSP buffer exceeded ${MAX_BUFFER_SIZE} bytes - possible malformed data or parsing failure`);
+                this.context.logger.error('[rtsp]', 'Buffer overflow', error);
+                this.emit('error', error);
+                return;
+            }
+
             this.#buffer = Buffer.concat([this.#buffer, data]);
 
             while (this.#buffer.byteLength > 0) {

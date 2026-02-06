@@ -3,6 +3,8 @@ import { RTSP } from '@basmilius/apple-encoding';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from './utils';
 import BaseStream from './baseStream';
 
+const MAX_BUFFER_SIZE = 1024 * 1024 * 5; // 5 MB max buffer to prevent memory exhaustion
+
 export default class ControlStream extends BaseStream {
     get activeRemoteId(): string {
         return this.#activeRemoteId;
@@ -133,6 +135,14 @@ export default class ControlStream extends BaseStream {
 
     #onData(data: Buffer): void {
         try {
+            // Prevent unbounded buffer growth
+            if (this.#buffer.byteLength + data.byteLength > MAX_BUFFER_SIZE) {
+                const error = new Error(`Control stream buffer exceeded ${MAX_BUFFER_SIZE} bytes - possible malformed data or parsing failure`);
+                this.context.logger.error('[control]', 'Buffer overflow', error);
+                this.emit('error', error);
+                return;
+            }
+
             this.#buffer = Buffer.concat([this.#buffer, data]);
 
             if (this.isEncrypted) {

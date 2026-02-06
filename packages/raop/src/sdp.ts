@@ -75,9 +75,15 @@ export class SdpBuilder {
 
     // RTP map - IMPORTANT: Always use "L16/44100/2" like pyatv, regardless of actual format!
     // This is what Apple devices expect. The actual format is in fmtp.
+    // Note: If audioFormat differs significantly from 44100/2, log a warning
+    const { sampleRate, channels } = this.audioFormat;
+    if (sampleRate !== 44100 || channels !== 2) {
+      console.warn(`⚠️  SDP rtpmap is hardcoded to L16/44100/2 but audioFormat is ${sampleRate}/${channels}`);
+      console.warn(`   Apple devices expect this format. Actual params are in fmtp.`);
+    }
     lines.push(`a=rtpmap:96 L16/44100/2`);
 
-    // Format parameters (ALAC-style format)
+    // Format parameters (ALAC-style format with actual audio parameters)
     lines.push(`a=fmtp:${this.fmtp}`);
 
     // Encryption parameters (if provided)

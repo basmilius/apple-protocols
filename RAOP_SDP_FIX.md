@@ -23,9 +23,10 @@ Apple's RAOP implementation requires:
 - **Always** use ALAC-style fmtp parameters
 
 This is counterintuitive because:
-- The rtpmap says `L16` (Linear 16-bit PCM)
-- But the fmtp contains ALAC-specific parameters
+- The rtpmap says `L16` (Linear 16-bit PCM) at 44100Hz stereo
+- But the fmtp contains ALAC-specific parameters with actual audio settings
 - The actual audio format is determined by fmtp, not rtpmap
+- The hardcoded rtpmap is just what Apple devices expect to see
 
 ## pyatv's Working Format
 
@@ -50,7 +51,18 @@ FRAMES_PER_PACKET = 352
 Key observations:
 1. `a=rtpmap:96 L16/44100/2` is **completely hardcoded** - not parameterized
 2. The fmtp line contains ALAC parameters: `352 0 16 40 10 14 2 255 0 0 44100`
-3. Format: `{frames} {compat} {bits} {pb} {mb} {kb} {channels} {max_run} {max_frame} {avg_rate} {sample_rate}`
+3. ALAC fmtp format (expanded for clarity):
+   - `352` - frames_per_packet
+   - `0` - compatible_version
+   - `16` - bit_depth (bits per sample)
+   - `40` - rice_history_mult (prediction parameter)
+   - `10` - rice_initial_history (prediction parameter)
+   - `14` - rice_limit (prediction parameter)
+   - `2` - channels
+   - `255` - max_run (run-length encoding limit)
+   - `0` - max_frame_bytes (0 = no limit)
+   - `0` - avg_bit_rate (0 = VBR)
+   - `44100` - sample_rate
 
 ## Our Previous (Broken) Implementation
 

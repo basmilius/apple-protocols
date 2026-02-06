@@ -5,8 +5,8 @@ import audioDecode from 'audio-decode';
 /**
  * Decode an audio buffer to PCM format.
  * Note: This function allocates a full buffer for the entire audio file in memory.
- * For large audio files (>100MB), this may cause memory spikes. Consider using
- * streaming audio sources (like FFmpeg) for better memory efficiency.
+ * For large audio files (e.g., >10 minutes or >100MB), this may cause memory spikes. 
+ * Consider using streaming audio sources (like FFmpeg) for better memory efficiency.
  */
 export default async function (buffer: Buffer): Promise<Buffer> {
     const audioBuffer = await audioDecode(buffer);

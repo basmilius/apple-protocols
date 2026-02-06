@@ -3,6 +3,7 @@ import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE, FFMPEG_FRAMES_PER_PACKET } from './const';
 
 const MAX_BUFFER_SIZE = 1024 * 1024 * 10; // 10 MB max buffer size
+const RESUME_THRESHOLD = MAX_BUFFER_SIZE / 2; // Resume when buffer drops to 5 MB
 const MAX_QUEUE_SIZE = 100; // Maximum number of pending read requests
 
 export default class Ffmpeg implements AudioSource {
@@ -43,14 +44,13 @@ export default class Ffmpeg implements AudioSource {
             if (this.#buffer.length + chunk.length > MAX_BUFFER_SIZE && !this.#paused) {
                 this.#paused = true;
                 this.#ffmpeg?.stdout?.pause();
-                console.warn('FFmpeg: Buffer size exceeded, pausing stream');
             }
 
             this.#buffer = Buffer.concat([this.#buffer, chunk]);
             this.#processQueue();
 
             // Resume if buffer is now small enough and there are pending requests
-            if (this.#paused && this.#buffer.length < MAX_BUFFER_SIZE / 2 && this.#resolveQueue.length > 0) {
+            if (this.#paused && this.#buffer.length < RESUME_THRESHOLD && this.#resolveQueue.length > 0) {
                 this.#paused = false;
                 this.#ffmpeg?.stdout?.resume();
             }
@@ -95,7 +95,7 @@ export default class Ffmpeg implements AudioSource {
             this.#buffer = this.#buffer.subarray(bytesNeeded);
 
             // Resume stream if it was paused and buffer is now small enough
-            if (this.#paused && this.#buffer.length < MAX_BUFFER_SIZE / 2) {
+            if (this.#paused && this.#buffer.length < RESUME_THRESHOLD) {
                 this.#paused = false;
                 this.#ffmpeg?.stdout?.resume();
             }

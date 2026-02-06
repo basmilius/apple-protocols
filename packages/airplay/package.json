@@ -28,7 +28,8 @@
         "build": "tsc && bun -b build.ts",
         "find": "bun find.ts",
         "gen:proto": "buf generate",
-        "watch:test": "bun --watch test.ts"
+        "test:audio": "bun --watch test-audio.ts",
+        "test:remote": "bun --watch test-remote.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

@@ -154,6 +154,56 @@ export default class Protocol {
         await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
     }
 
+    async setupEventStreamForAudioStreaming(sharedSecret: Buffer, pairingId: Buffer): Promise<void> {
+        const groupUUID = uuid().toUpperCase();
+
+        const body: Record<string, string | number | boolean> = {
+            deviceID: pairingId.toString(),
+            groupContainsGroupLeader: false,
+            groupUUID,
+            isMultiSelectAirPlay: true,
+            macAddress: getMacAddress().toUpperCase(),
+            model: 'iPhone16,2',
+            name: 'Homey Pro',
+            osBuildVersion: '22A3354',
+            osName: 'iPhone OS',
+            osVersion: '18.0',
+            senderSupportsRelay: false,
+            sessionCorrelationUUID: this.#sessionUUID.toUpperCase(),
+            sessionUUID: this.#sessionUUID.toUpperCase(),
+            sourceVersion: '935.7.1',
+            statsCollectionEnabled: false,
+            supportsGroupCohesion: true,
+            timingProtocol: 'None',
+            updateSessionRequest: false
+        };
+
+        if (this.#timingServer) {
+            body.timingPort = this.#timingServer.port;
+            body.timingProtocol = 'NTP';
+        }
+
+        const request = Plist.serialize(body);
+        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, Buffer.from(request), {
+            'Content-Type': 'application/x-apple-binary-plist'
+        });
+
+        if (response.status !== 200) {
+            this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
+            throw new Error('Failed to setup event stream.');
+        }
+
+        const plist = Plist.parse(await response.arrayBuffer()) as any;
+        const eventPort = plist.eventPort & 0xFFFF;
+        this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
+
+        this.#eventStream = new EventStream(this.#context, this.#controlStream.address, eventPort);
+        this.#eventStream.setup(sharedSecret);
+
+        await this.#eventStream.connect();
+        await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
+    }
+
     useTimingServer(timingServer: TimingServer): void {
         this.#timingServer = timingServer;
     }

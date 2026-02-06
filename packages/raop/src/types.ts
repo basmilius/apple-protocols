@@ -40,11 +40,6 @@ export interface StreamProtocol {
     teardown(): void;
 }
 
-export interface AudioSource {
-    duration: number;
-    readframes(count: number): Promise<Buffer | null>;
-}
-
 export interface Settings {
     protocols: {
         raop: {

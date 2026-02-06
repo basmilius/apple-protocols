@@ -3,6 +3,10 @@ export {
 } from 'uuid';
 
 export {
+    AudioSource
+} from './audioSource';
+
+export {
     Discovery
 } from './discovery';
 

@@ -1,130 +1,16 @@
-import { Context, Discovery, reporter } from '@basmilius/apple-common';
-import { type AudioSource, type MediaMetadata, RtspClient, type Settings, StreamClient, type StreamContext, type StreamProtocol } from './src';
 import type { Socket as UdpSocket } from 'node:dgram';
-import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { Context, Discovery, reporter } from '@basmilius/apple-common';
+import { type MediaMetadata, RtspClient, type Settings, StreamClient, type StreamContext, type StreamProtocol } from './src';
+import * as AudioSource from '../audio-source/dist';
 
 reporter.all();
 
-// Audio generation settings
 const SAMPLE_RATE = 44100;
 const CHANNELS = 2;
 const BYTES_PER_CHANNEL = 2;
 const FRAMES_PER_PACKET = 352;
 
-/**
- * Audio source that decodes a file using ffmpeg to raw PCM.
- */
-class FileAudioSource implements AudioSource {
-    readonly duration: number;
-    readonly #frameSize: number;
-    readonly #filePath: string;
-    readonly #sampleRate: number;
-    readonly #channels: number;
-
-    #ffmpeg: ReturnType<typeof spawn> | null = null;
-    #buffer: Buffer = Buffer.alloc(0);
-    #ended: boolean = false;
-    #resolveQueue: Array<(value: Buffer | null) => void> = [];
-
-    constructor(
-        filePath: string,
-        duration: number,
-        sampleRate: number = SAMPLE_RATE,
-        channels: number = CHANNELS,
-        bytesPerChannel: number = BYTES_PER_CHANNEL
-    ) {
-        this.#filePath = filePath;
-        this.duration = duration;
-        this.#sampleRate = sampleRate;
-        this.#channels = channels;
-        this.#frameSize = channels * bytesPerChannel;
-    }
-
-    async start(): Promise<void> {
-        this.#ffmpeg = spawn('ffmpeg', [
-            '-i', this.#filePath,
-            '-f', 's16be',           // Signed 16-bit big-endian PCM
-            '-acodec', 'pcm_s16be',
-            '-ar', String(this.#sampleRate),
-            '-ac', String(this.#channels),
-            '-'                       // Output to stdout
-        ], {
-            stdio: ['ignore', 'pipe', 'ignore']
-        });
-
-        this.#ffmpeg.stdout!.on('data', (chunk: Buffer) => {
-            this.#buffer = Buffer.concat([this.#buffer, chunk]);
-            this.#processQueue();
-        });
-
-        this.#ffmpeg.stdout!.on('end', () => {
-            this.#ended = true;
-            this.#processQueue();
-        });
-
-        this.#ffmpeg.on('error', (err) => {
-            console.error('ffmpeg error:', err);
-            this.#ended = true;
-            this.#processQueue();
-        });
-    }
-
-    #processQueue(): void {
-        while (this.#resolveQueue.length > 0) {
-            const bytesNeeded = FRAMES_PER_PACKET * this.#frameSize;
-
-            if (this.#buffer.length >= bytesNeeded) {
-                const chunk = this.#buffer.subarray(0, bytesNeeded);
-                this.#buffer = this.#buffer.subarray(bytesNeeded);
-                this.#resolveQueue.shift()!(chunk);
-            } else if (this.#ended) {
-                if (this.#buffer.length > 0) {
-                    const chunk = this.#buffer;
-                    this.#buffer = Buffer.alloc(0);
-                    this.#resolveQueue.shift()!(chunk);
-                } else {
-                    this.#resolveQueue.shift()!(null);
-                }
-            } else {
-                break;
-            }
-        }
-    }
-
-    async readframes(count: number): Promise<Buffer | null> {
-        const bytesNeeded = count * this.#frameSize;
-
-        if (this.#buffer.length >= bytesNeeded) {
-            const chunk = this.#buffer.subarray(0, bytesNeeded);
-            this.#buffer = this.#buffer.subarray(bytesNeeded);
-            return chunk;
-        }
-
-        if (this.#ended) {
-            if (this.#buffer.length > 0) {
-                const chunk = this.#buffer;
-                this.#buffer = Buffer.alloc(0);
-                return chunk;
-            }
-            return null;
-        }
-
-        return new Promise((resolve) => {
-            this.#resolveQueue.push(resolve);
-        });
-    }
-
-    stop(): void {
-        if (this.#ffmpeg) {
-            this.#ffmpeg.kill();
-            this.#ffmpeg = null;
-        }
-    }
-}
-
-/**
- * Stream protocol implementation for AirPlay 1 / RAOP.
- */
 class RaopStreamProtocol implements StreamProtocol {
     readonly #rtsp: RtspClient;
     readonly #streamContext: StreamContext;
@@ -206,9 +92,6 @@ class RaopStreamProtocol implements StreamProtocol {
     }
 }
 
-/**
- * Create a stream context with default values.
- */
 function createStreamContext(): StreamContext {
     return {
         sampleRate: SAMPLE_RATE,
@@ -240,7 +123,7 @@ async function testRaop(): Promise<void> {
     console.log('🔍 Discovering device...');
 
     const discovery = Discovery.raop();
-    const discoveryResult = await discovery.findUntil('Slaapkamer-HomePod.local');
+    const discoveryResult = await discovery.findUntil('Woonkamer-HomePod.local');
 
     console.log('✅ Found device:', discoveryResult.id);
     console.log('   Address:', discoveryResult.address);
@@ -286,14 +169,16 @@ async function testRaop(): Promise<void> {
 
     // Create audio source from file
     console.log('\n🎶 Loading audio file...');
-    const audioSource = new FileAudioSource(
-        new URL('./doorbell.ogg', import.meta.url).pathname,
-        5  // Approximate duration in seconds - adjust as needed
-    );
+    // const audioSource = new AudioSource.Ffmpeg(new URL('../../doorbell.ogg', import.meta.url).pathname, 5);
+    // await audioSource.start();
+
+    const audioSource = new AudioSource.Ffmpeg(new URL('../../olympics.mp3', import.meta.url).pathname, 5);
     await audioSource.start();
 
+    // const audioSource = await AudioSource.Mp3.fromBuffer(readFileSync('../../olympics.mp3'));
+
     const metadata: MediaMetadata = {
-        title: 'Doorbell',
+        title: 'Olympics',
         artist: 'RAOP Test',
         album: 'Test Album',
         duration: 5
@@ -311,12 +196,12 @@ async function testRaop(): Promise<void> {
     };
 
     try {
-        await streamClient.sendAudio(audioSource, metadata);
+        await streamClient.sendAudio(audioSource, metadata, 25);
         console.log('\n✅ Streaming complete!');
     } catch (err) {
         console.error('\n❌ Streaming error:', err);
     } finally {
-        audioSource.stop();
+        await audioSource.stop();
     }
 
     await rtsp.disconnect();

@@ -1,7 +1,8 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
+import type { AudioSource } from '@basmilius/apple-airplay';
 import { type Context, TimingServer } from '@basmilius/apple-common';
 import { AudioPacketHeader, PacketFifo } from './packets';
-import type { AudioSource, MediaMetadata, PlaybackInfo, RaopListener, Settings, StreamContext, StreamProtocol } from './types';
+import type { MediaMetadata, PlaybackInfo, RaopListener, Settings, StreamContext, StreamProtocol } from './types';
 import { EncryptionType, MetadataType } from './types';
 import { getAudioProperties, getEncryptionTypes, getMetadataTypes, pctToDbfs } from './utils';
 import ControlClient from './controlClient';
@@ -164,7 +165,7 @@ export default class StreamClient {
     }
 
     async sendAudio(
-        source: AudioSource,
+        source: AudioSource.AudioSource,
         metadata: MediaMetadata = EMPTY_METADATA,
         volume?: number
     ): Promise<void> {
@@ -258,7 +259,7 @@ export default class StreamClient {
         }
     }
 
-    async #streamData(source: AudioSource, transport: UdpSocket): Promise<void> {
+    async #streamData(source: AudioSource.AudioSource, transport: UdpSocket): Promise<void> {
         const stats = new Statistics(this.#streamContext.sampleRate);
 
         const initialTime = performance.now();
@@ -336,7 +337,7 @@ export default class StreamClient {
     }
 
     async #sendPacket(
-        source: AudioSource,
+        source: AudioSource.AudioSource,
         firstPacket: boolean,
         transport: UdpSocket
     ): Promise<number> {
@@ -373,7 +374,7 @@ export default class StreamClient {
     }
 
     async #sendNumberOfPackets(
-        source: AudioSource,
+        source: AudioSource.AudioSource,
         transport: UdpSocket,
         count: number
     ): Promise<[number, boolean]> {

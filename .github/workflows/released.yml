@@ -38,6 +38,7 @@ jobs:
                     bun --cwd packages/encoding build
                     bun --cwd packages/encryption build
                     bun --cwd packages/common build
+                    bun --cwd packages/audio-source build
                     bun --cwd packages/airplay build
                     bun --cwd packages/companion-link build
                     bun --cwd packages/devices build
@@ -47,6 +48,7 @@ jobs:
                     bun publish --cwd packages/encoding --access public
                     bun publish --cwd packages/encryption --access public
                     bun publish --cwd packages/common --access public
+                    bun publish --cwd packages/audio-source --access public
                     bun publish --cwd packages/airplay --access public
                     bun publish --cwd packages/companion-link --access public
                     bun publish --cwd packages/devices --access public

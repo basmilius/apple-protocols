@@ -1,0 +1,4 @@
+export const DEFAULT_BYTES_PER_CHANNEL = 2;
+export const DEFAULT_CHANNELS = 2;
+export const DEFAULT_SAMPLE_RATE = 44100;
+export const FFMPEG_FRAMES_PER_PACKET = 352;

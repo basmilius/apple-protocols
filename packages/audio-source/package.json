@@ -1,6 +1,6 @@
 {
-    "name": "@basmilius/apple-raop",
-    "description": "Implementation of Apple's RAOP protocol in Node.js.",
+    "name": "@basmilius/apple-audio-source",
+    "description": "Different audio sources for use in Apple Streaming Protocols.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -9,14 +9,7 @@
         "email": "bas@mili.us",
         "url": "https://bas.dev"
     },
-    "keywords": [
-        "apple",
-        "raop",
-        "airplay",
-        "tv",
-        "apple tv",
-        "homekit"
-    ],
+    "keywords": [],
     "files": [
         "dist",
         "LICENSE"
@@ -26,8 +19,7 @@
         "provenance": true
     },
     "scripts": {
-        "build": "tsc && bun -b build.ts",
-        "watch:test": "bun --watch test.ts"
+        "build": "tsc && bun -b build.ts"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -40,10 +32,8 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-airplay": "workspace:*",
         "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*"
+        "audio-decode": "^2.2.3"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",

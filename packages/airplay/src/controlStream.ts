@@ -39,6 +39,10 @@ export default class ControlStream extends BaseStream {
         this.on('timeout', this.#onTimeout.bind(this));
     }
 
+    async flush(uri: string, headers: Record<string, string>): Promise<Response> {
+        return await this.#request('FLUSH', uri, null, headers);
+    }
+
     async get(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.#request('GET', path, null, headers, timeout);
     }
@@ -53,6 +57,16 @@ export default class ControlStream extends BaseStream {
 
     async setup(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.#request('SETUP', path, body, headers, timeout);
+    }
+
+    async setParameter(parameter: string, value: string): Promise<Response> {
+        return await this.#request('SET_PARAMETER', `/${this.sessionId}`, `${parameter}: ${value}\r\n`, {
+            'Content-Type': 'text/parameters'
+        });
+    }
+
+    async teardown(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.#request('TEARDOWN', path, null, headers, timeout);
     }
 
     #handle(data: Response, err?: Error): void {

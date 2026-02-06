@@ -17,7 +17,6 @@ await build({
         dts()
     ],
     external: [
-        '@basmilius/apple-common',
-        'audio-decode'
+        '@basmilius/apple-common'
     ]
 });

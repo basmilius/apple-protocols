@@ -32,11 +32,11 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "audio-decode": "^2.2.3"
+        "@basmilius/apple-common": "workspace:*"
     },
     "devDependencies": {
         "@basmilius/tools": "^2.23.0",
-        "@types/bun": "^1.3.8"
+        "@types/bun": "^1.3.8",
+        "audio-decode": "^2.2.3"
     }
 }

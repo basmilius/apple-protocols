@@ -174,12 +174,7 @@ export class RaopSession {
 
     // Step 3: Create UDP sockets for audio, timing, and control
     console.log(`\n🔌 Step 3: Creating UDP sockets`);
-    // Keep sockets open (don't close them like before!)
-    // Step 3: Create UDP sockets for audio, timing, and control
-    console.log(`\n🔌 Step 3: Creating UDP sockets`);
     this.audioSocket = createSocket('udp4');
-    await new Promise<void>((resolve) => {
-      this.audioSocket!.bind(0, () => {
         this.audioPort = this.audioSocket!.address().port;
         console.log(`   Audio socket: port ${this.audioPort}`);
         resolve();

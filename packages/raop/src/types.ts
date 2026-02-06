@@ -11,6 +11,7 @@ export enum RtspMethod {
   TEARDOWN = 'TEARDOWN',
   SET_PARAMETER = 'SET_PARAMETER',
   GET_PARAMETER = 'GET_PARAMETER',
+  POST = 'POST',  // For auth-setup (HTTP method)
 }
 
 /**
@@ -34,7 +35,7 @@ export interface RtspRequest {
   method: RtspMethod;
   uri: string;
   headers: Map<string, string>;
-  body?: string;
+  body?: string | Buffer;  // Allow Buffer for binary data
 }
 
 /**

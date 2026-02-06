@@ -141,15 +141,16 @@ export class RtspClient {
 
     // Add content
     if (request.body) {
-      requestStr += `Content-Length: ${request.body.length}\r\n`;
+      const bodyData = Buffer.isBuffer(request.body) ? request.body : Buffer.from(request.body);
+      requestStr += `Content-Length: ${bodyData.length}\r\n`;
       requestStr += '\r\n';
-      requestStr += request.body;
+      // Write headers as string, then body as buffer
+      this.socket.write(requestStr);
+      this.socket.write(bodyData);
     } else {
       requestStr += '\r\n';
+      this.socket.write(requestStr);
     }
-
-    // Send request
-    this.socket.write(requestStr);
 
     // Wait for response
     return new Promise((resolve) => {
@@ -177,14 +178,14 @@ export class RtspClient {
     const body = Buffer.concat([AUTH_SETUP_UNENCRYPTED, CURVE25519_PUB_KEY]);
     
     const request: RtspRequest = {
-      method: 'POST' as RtspMethod,
+      method: RtspMethod.POST,
       uri: `/auth-setup`,  // Just the path, no host
       headers: new Map([
         ['User-Agent', 'AirPlay/550.10'],
         ['Content-Type', 'application/octet-stream'],
         ['Host', host],  // HTTP requires Host header
       ]),
-      body: body.toString('binary'),  // Binary data
+      body: body,  // Send as Buffer directly
     };
     
     // Use HTTP/1.1 protocol for auth-setup

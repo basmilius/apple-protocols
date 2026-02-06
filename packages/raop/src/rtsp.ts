@@ -2,6 +2,19 @@ import { Socket } from 'node:net';
 import { randomBytes } from 'node:crypto';
 import { RtspMethod, type RtspRequest, type RtspResponse, RtspStatus } from './types';
 
+// Auth-setup constants (matching pyatv)
+// Used to signal that traffic is to be unencrypted
+const AUTH_SETUP_UNENCRYPTED = Buffer.from([0x01]);
+
+// Static Curve25519 public key used to satisfy the auth-setup step
+// We never verify anything. Source: pyatv/owntone
+const CURVE25519_PUB_KEY = Buffer.from([
+  0x59, 0x02, 0xed, 0xe9, 0x0d, 0x4e, 0xf2, 0xbd,
+  0x4c, 0xb6, 0x8a, 0x63, 0x30, 0x03, 0x82, 0x07,
+  0xa9, 0x4d, 0xbd, 0x50, 0xd8, 0xaa, 0x46, 0x5b,
+  0x5d, 0x8c, 0x01, 0x2a, 0x0c, 0x7e, 0x1d, 0x4e,
+]);
+
 /**
  * RTSP Client for RAOP communication
  * Handles RTSP protocol request/response cycle with Apple-specific headers
@@ -105,11 +118,11 @@ export class RtspClient {
     }
   }
 
-  async sendRequest(request: RtspRequest): Promise<RtspResponse> {
+  async sendRequest(request: RtspRequest, protocol: string = 'RTSP/1.0'): Promise<RtspResponse> {
     const cseq = this.sequenceNumber++;
     
     // Build request string
-    let requestStr = `${request.method} ${request.uri} RTSP/1.0\r\n`;
+    let requestStr = `${request.method} ${request.uri} ${protocol}\r\n`;
     requestStr += `CSeq: ${cseq}\r\n`;
     
     // Add Apple-specific headers (matching pyatv format exactly)
@@ -152,6 +165,30 @@ export class RtspClient {
         ['User-Agent', 'AirPlay/550.10'],  // Matches pyatv
       ]),
     });
+  }
+
+  /**
+   * Send auth-setup POST request (required for HomePods and newer devices)
+   * This authenticates the client before allowing ANNOUNCE/SETUP
+   * Uses HTTP/1.1 protocol (not RTSP) per Apple's spec
+   */
+  async authSetup(host: string): Promise<RtspResponse> {
+    // Build auth-setup body: unencrypted flag + Curve25519 public key
+    const body = Buffer.concat([AUTH_SETUP_UNENCRYPTED, CURVE25519_PUB_KEY]);
+    
+    const request: RtspRequest = {
+      method: 'POST' as RtspMethod,
+      uri: `/auth-setup`,  // Just the path, no host
+      headers: new Map([
+        ['User-Agent', 'AirPlay/550.10'],
+        ['Content-Type', 'application/octet-stream'],
+        ['Host', host],  // HTTP requires Host header
+      ]),
+      body: body.toString('binary'),  // Binary data
+    };
+    
+    // Use HTTP/1.1 protocol for auth-setup
+    return this.sendRequest(request, 'HTTP/1.1');
   }
 
   async announce(uri: string, sdpContent: string): Promise<RtspResponse> {

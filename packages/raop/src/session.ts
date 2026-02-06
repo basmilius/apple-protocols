@@ -110,6 +110,19 @@ export class RaopSession {
     this.localIp = localIp;  // Cache immediately for error handling
     const rtspUrl = `rtsp://${localIp}/${this.raopSessionId}`;
 
+    // Step 0: AUTH-SETUP - Authenticate with device (required for HomePods)
+    // This must be done before OPTIONS/ANNOUNCE
+    try {
+      const authResponse = await this.rtspClient.authSetup(this.targetHost);
+      // Accept 200 or 404 (404 means device doesn't require auth-setup)
+      if (authResponse.statusCode !== 200 && authResponse.statusCode !== 404) {
+        console.warn(`auth-setup returned ${authResponse.statusCode}, continuing anyway`);
+      }
+    } catch (error) {
+      // Some devices don't support auth-setup, continue anyway
+      console.warn('auth-setup failed, continuing:', error);
+    }
+
     // Step 1: OPTIONS - Query supported methods
     const optionsResponse = await this.rtspClient.options(rtspUrl);
     if (optionsResponse.statusCode !== 200) {

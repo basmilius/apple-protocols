@@ -21,15 +21,6 @@ type ConnectionEventMap = {
     timeout: [];
 };
 
-type Bindings = {
-    onClose: (hadError: boolean) => Promise<void>;
-    onConnect: () => Promise<void>;
-    onData: (data: Buffer) => Promise<void>;
-    onEnd: () => Promise<void>;
-    onError: (err: Error) => Promise<void>;
-    onTimeout: () => Promise<void>;
-};
-
 export class Connection<TEventMap extends EventMap> extends EventEmitter<ConnectionEventMap | TEventMap> {
     get address(): string {
         return this.#address;
@@ -70,7 +61,6 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
     readonly #address: string;
     readonly #port: number;
-    readonly #bindings: Bindings;
     readonly #context: Context;
     #debug: boolean = false;
     #retryAttempt: number = 0;
@@ -92,15 +82,6 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         this.#address = address;
         this.#port = port;
         this.#context = context;
-
-        this.#bindings = {
-            onClose: this.#onClose.bind(this),
-            onConnect: this.#onConnect.bind(this),
-            onData: this.#onData.bind(this),
-            onEnd: this.#onEnd.bind(this),
-            onError: this.#onError.bind(this),
-            onTimeout: this.#onTimeout.bind(this)
-        };
 
         this.#state = 'disconnected';
     }
@@ -179,15 +160,16 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#state = 'connecting';
             this.#connectPromise = {resolve, reject};
 
+            this.#socket = undefined;
             this.#socket = new Socket();
             this.#socket.setTimeout(SOCKET_TIMEOUT);
 
-            this.#socket.on('close', this.#bindings.onClose);
-            this.#socket.on('connect', this.#bindings.onConnect);
-            this.#socket.on('data', this.#bindings.onData);
-            this.#socket.on('end', this.#bindings.onEnd);
-            this.#socket.on('error', this.#bindings.onError);
-            this.#socket.on('timeout', this.#bindings.onTimeout);
+            this.#socket.on('close', this.#onClose.bind(this));
+            this.#socket.on('connect', this.#onConnect.bind(this));
+            this.#socket.on('data', this.#onData.bind(this));
+            this.#socket.on('end', this.#onEnd.bind(this));
+            this.#socket.on('error', this.#onError.bind(this));
+            this.#socket.on('timeout', this.#onTimeout.bind(this));
 
             this.#context.logger.net(`Connecting to ${this.#address}:${this.#port}...`);
 

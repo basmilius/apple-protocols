@@ -1,6 +1,6 @@
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from '../const';
 import { convertPcm } from './pcm';
-import audioDecode from 'audio-decode';
+import audioDecode from './audioDecode';
 
 export default async function (buffer: Buffer): Promise<Buffer> {
     const audioBuffer = await audioDecode(buffer);

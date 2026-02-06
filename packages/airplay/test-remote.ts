@@ -1,4 +1,4 @@
-import { Discovery, prompt, reporter } from '@basmilius/apple-common';
+import { Discovery, prompt, reporter, waitFor } from '@basmilius/apple-common';
 import * as AirPlay from './src';
 
 reporter.all();
@@ -30,6 +30,8 @@ async function homepod(): Promise<void> {
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setConnectionState());
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.clientUpdatesConfig());
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setReadyState());
+
+        await waitFor(3000);
 
         // await waitFor(1000);
         //

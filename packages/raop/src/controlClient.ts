@@ -56,6 +56,10 @@ export default class ControlClient extends EventEmitter {
         this.stop();
 
         if (this.#transport) {
+            // Clean up event listeners to prevent memory leaks
+            this.#transport.removeAllListeners('error');
+            this.#transport.removeAllListeners('message');
+            this.#transport.removeAllListeners('listening');
             this.#transport.close();
             this.#transport = undefined;
         }

@@ -59,13 +59,19 @@ export class RtspClient {
       const headerSection = this.responseBuffer.substring(0, headerEndIndex);
       const lines = headerSection.split('\r\n');
       
-      // Parse status line
+      // Parse status line (support both RTSP/1.0 and HTTP/1.1)
       const statusLine = lines[0];
-      const statusMatch = statusLine.match(/RTSP\/1\.0 (\d+) (.+)/);
-      if (!statusMatch) break;
+      const statusMatch = statusLine.match(/(RTSP\/1\.0|HTTP\/1\.1) (\d+) (.+)/);
+      if (!statusMatch) {
+        console.error('❌ Failed to parse status line:', statusLine);
+        break;
+      }
 
-      const statusCode = parseInt(statusMatch[1]);
-      const statusText = statusMatch[2];
+      const protocol = statusMatch[1];
+      const statusCode = parseInt(statusMatch[2]);
+      const statusText = statusMatch[3];
+      
+      console.log(`📨 Received ${protocol} ${statusCode} ${statusText}`);
 
       // Parse headers
       const headers = new Map<string, string>();
@@ -121,6 +127,8 @@ export class RtspClient {
   async sendRequest(request: RtspRequest, protocol: string = 'RTSP/1.0'): Promise<RtspResponse> {
     const cseq = this.sequenceNumber++;
     
+    console.log(`📤 Sending ${request.method} ${request.uri} (CSeq: ${cseq})`);
+    
     // Build request string
     let requestStr = `${request.method} ${request.uri} ${protocol}\r\n`;
     requestStr += `CSeq: ${cseq}\r\n`;
@@ -144,6 +152,7 @@ export class RtspClient {
       const bodyData = Buffer.isBuffer(request.body) ? request.body : Buffer.from(request.body);
       requestStr += `Content-Length: ${bodyData.length}\r\n`;
       requestStr += '\r\n';
+      console.log(`   └─ Body length: ${bodyData.length} bytes`);
       // Write headers as string, then body as buffer
       this.socket.write(requestStr);
       this.socket.write(bodyData);

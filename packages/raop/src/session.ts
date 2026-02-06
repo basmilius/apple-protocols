@@ -109,29 +109,40 @@ export class RaopSession {
     const localIp = await getLocalIP();
     this.localIp = localIp;  // Cache immediately for error handling
     const rtspUrl = `rtsp://${localIp}/${this.raopSessionId}`;
+    
+    console.log(`🌐 Local IP: ${localIp}`);
+    console.log(`🎯 RTSP URL: ${rtspUrl}`);
 
     // Step 0: AUTH-SETUP - Authenticate with device (required for HomePods)
     // This must be done before OPTIONS/ANNOUNCE
+    console.log(`🔐 Step 0: AUTH-SETUP`);
     try {
       const authResponse = await this.rtspClient.authSetup(this.targetHost);
       // Accept 200 or 404 (404 means device doesn't require auth-setup)
       if (authResponse.statusCode !== 200 && authResponse.statusCode !== 404) {
-        console.warn(`auth-setup returned ${authResponse.statusCode}, continuing anyway`);
+        console.warn(`⚠️  auth-setup returned ${authResponse.statusCode}, continuing anyway`);
+      } else {
+        console.log(`✅ auth-setup: ${authResponse.statusCode}`);
       }
     } catch (error) {
       // Some devices don't support auth-setup, continue anyway
-      console.warn('auth-setup failed, continuing:', error);
+      console.warn('⚠️  auth-setup failed, continuing:', error);
     }
 
     // Step 1: OPTIONS - Query supported methods
+    console.log(`\n🔍 Step 1: OPTIONS`);
     const optionsResponse = await this.rtspClient.options(rtspUrl);
     if (optionsResponse.statusCode !== 200) {
       throw new Error(`OPTIONS failed: ${optionsResponse.statusCode} ${optionsResponse.statusText}`);
     }
+    console.log(`✅ OPTIONS: ${optionsResponse.statusCode}`);
+
 
     // Step 1.5: Setup encryption if needed
+    console.log(`\n🔒 Step 1.5: Encryption setup`);
     let rsaEncryptedKey: Buffer | undefined;
     if (enableEncryption !== false && this.encryptionEnabled) {
+      console.log(`   Generating AES config...`);
       this.aesConfig = generateAesConfig();
       
       // Encrypt AES key with RSA public key
@@ -139,9 +150,13 @@ export class RaopSession {
       
       // Create cipher for audio encryption
       this.aesCipher = createAesCipher(this.aesConfig);
+      console.log(`✅ Encryption enabled`);
+    } else {
+      console.log(`   No encryption required`);
     }
 
     // Step 2: ANNOUNCE - Declare audio format (with encryption if enabled)
+    console.log(`\n📢 Step 2: ANNOUNCE`);
     const sdp = new SdpBuilder(
       format, 
       this.raopSessionId, 
@@ -150,17 +165,23 @@ export class RaopSession {
       this.aesConfig ?? undefined, 
       rsaEncryptedKey
     ).build();
+    console.log(`   SDP prepared (${sdp.length} bytes)`);
     const announceResponse = await this.rtspClient.announce(rtspUrl, sdp);
     if (announceResponse.statusCode !== 200) {
       throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);
     }
+    console.log(`✅ ANNOUNCE: ${announceResponse.statusCode}`);
 
     // Step 3: Create UDP sockets for audio, timing, and control
+    console.log(`\n🔌 Step 3: Creating UDP sockets`);
     // Keep sockets open (don't close them like before!)
+    // Step 3: Create UDP sockets for audio, timing, and control
+    console.log(`\n🔌 Step 3: Creating UDP sockets`);
     this.audioSocket = createSocket('udp4');
     await new Promise<void>((resolve) => {
       this.audioSocket!.bind(0, () => {
         this.audioPort = this.audioSocket!.address().port;
+        console.log(`   Audio socket: port ${this.audioPort}`);
         resolve();
       });
     });
@@ -170,6 +191,7 @@ export class RaopSession {
     const timingPort = await new Promise<number>((resolve) => {
       this.timingSocket!.bind(0, () => {
         const port = this.timingSocket!.address().port;
+        console.log(`   Timing socket: port ${port}`);
         resolve(port);
       });
     });
@@ -179,17 +201,22 @@ export class RaopSession {
     const controlPort = await new Promise<number>((resolve) => {
       this.controlClientSocket!.bind(0, () => {
         const port = this.controlClientSocket!.address().port;
+        console.log(`   Control socket: port ${port}`);
         resolve(port);
       });
     });
 
     // Step 4: SETUP - Configure transport with all ports
     // Format matches pyatv exactly
+    console.log(`\n⚙️  Step 4: SETUP`);
     const transport = `RTP/AVP/UDP;unicast;interleaved=0-1;mode=record;control_port=${controlPort};timing_port=${timingPort}`;
+    console.log(`   Transport: ${transport}`);
     const setupResponse = await this.rtspClient.setup(rtspUrl, transport);
     if (setupResponse.statusCode !== 200) {
       throw new Error(`SETUP failed: ${setupResponse.statusCode} ${setupResponse.statusText}`);
     }
+    console.log(`✅ SETUP: ${setupResponse.statusCode}`);
+
 
     // Parse SETUP response (matching pyatv)
     // Extract RTSP Session ID - may have parameters like "12345;timeout=60"
@@ -199,14 +226,17 @@ export class RaopSession {
       const sessionIdStr = sessionHeader.split(';')[0].trim();
       this.rtspSessionId = parseInt(sessionIdStr);
     }
+      console.log(`   RTSP Session ID: ${this.rtspSessionId}`);
 
     // Parse server port from Transport header
     const transportHeader = setupResponse.headers.get('Transport');
     if (transportHeader) {
       const serverPortMatch = transportHeader.match(/server_port=(\d+)/);
+      console.log(`   Transport response: ${transportHeader}`);
       if (serverPortMatch) {
         this.serverAudioPort = parseInt(serverPortMatch[1]);
       }
+        console.log(`   Server audio port: ${this.serverAudioPort}`);
     }
 
     // Initialize RTP stream
@@ -223,6 +253,7 @@ export class RaopSession {
     };
   }
 
+    console.log(`\n✅ Session setup complete!`);
   /**
    * Start audio playback
    */
@@ -230,11 +261,13 @@ export class RaopSession {
     if (!this.rtspClient || !this.localIp) {
       throw new Error('Session not established');
     }
+    console.log(`\n▶️  Starting playback...`);
 
     const rtspUrl = `rtsp://${this.localIp}/${this.raopSessionId}`;
     const rtpInfo = `seq=${this.rtpStream!.getSequenceNumber()};rtptime=${this.rtpStream!.getTimestamp()}`;
     
     const recordResponse = await this.rtspClient.record(rtspUrl, rtpInfo);
+    console.log(`✅ RECORD: ${recordResponse.statusCode} - Playback started`);
     if (recordResponse.statusCode !== 200) {
       throw new Error(`RECORD failed: ${recordResponse.statusCode} ${recordResponse.statusText}`);
     }

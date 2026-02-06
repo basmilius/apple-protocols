@@ -165,7 +165,9 @@ export class RaopSession {
       this.aesConfig ?? undefined, 
       rsaEncryptedKey
     ).build();
-    console.log(`   SDP prepared (${sdp.length} bytes)`);
+    console.log(`   SDP payload (${sdp.length} bytes):`);
+    // Log SDP for debugging - indent each line
+    sdp.split('\r\n').filter(line => line).forEach(line => console.log(`   ${line}`));
     const announceResponse = await this.rtspClient.announce(rtspUrl, sdp);
     if (announceResponse.statusCode !== 200) {
       throw new Error(`ANNOUNCE failed: ${announceResponse.statusCode} ${announceResponse.statusText}`);

@@ -117,14 +117,16 @@ t=0 0
 m=audio 0 RTP/AVP 96
 a=rtpmap:96 L16/44100/2
 a=fmtp:96 352 0 16 40 10 14 2 255 0 0 44100
-a=recvonly
 ```
+
+**Note:** The `a=recvonly` attribute is NOT included (removed in final fix). Including it causes HomePods to return 500 errors during SETUP.
 
 This format:
 - Uses local IP (192.168.1.94) in origin line
 - Uses remote IP (192.168.1.195) in connection line
 - Has hardcoded rtpmap `L16/44100/2`
 - Has ALAC-style fmtp with actual parameters
+- NO `a=recvonly` line (critical!)
 
 ## Why This Format?
 
@@ -147,7 +149,7 @@ With the fixed SDP format, the expected flow is:
 ✅ OPTIONS: 200
 
 📢 Step 2: ANNOUNCE
-   SDP payload (148 bytes):
+   SDP payload (169 bytes):
    v=0
    o=iTunes 3749121388 0 IN IP4 192.168.1.94
    s=iTunes
@@ -156,7 +158,6 @@ With the fixed SDP format, the expected flow is:
    m=audio 0 RTP/AVP 96
    a=rtpmap:96 L16/44100/2
    a=fmtp:96 352 0 16 40 10 14 2 255 0 0 44100
-   a=recvonly
 ✅ ANNOUNCE: 200
 
 ⚙️  Step 4: SETUP

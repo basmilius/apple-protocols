@@ -26,6 +26,10 @@ export class RaopSession {
   private rtspClient: RtspClient | null = null;
   private rtpStream: RtpStream | null = null;
   
+  // Additional UDP sockets for RAOP protocol
+  private timingSocket: DgramSocket | null = null;
+  private controlClientSocket: DgramSocket | null = null;
+  
   private readonly targetHost: string;
   private readonly targetPort: number;
   private audioPort: number = 0;
@@ -103,6 +107,7 @@ export class RaopSession {
 
     // CRITICAL: pyatv uses LOCAL IP in URI, not remote host!
     const localIp = await getLocalIP();
+    this.localIp = localIp;  // Cache immediately for error handling
     const rtspUrl = `rtsp://${localIp}/${this.raopSessionId}`;
 
     // Step 1: OPTIONS - Query supported methods
@@ -138,6 +143,7 @@ export class RaopSession {
     }
 
     // Step 3: Create UDP sockets for audio, timing, and control
+    // Keep sockets open (don't close them like before!)
     this.audioSocket = createSocket('udp4');
     await new Promise<void>((resolve) => {
       this.audioSocket!.bind(0, () => {
@@ -146,21 +152,20 @@ export class RaopSession {
       });
     });
 
-    // Create timing and control ports (required by pyatv)
-    const timingSocket = createSocket('udp4');
+    // Create timing socket and keep it open
+    this.timingSocket = createSocket('udp4');
     const timingPort = await new Promise<number>((resolve) => {
-      timingSocket.bind(0, () => {
-        const port = timingSocket.address().port;
-        timingSocket.close();
+      this.timingSocket!.bind(0, () => {
+        const port = this.timingSocket!.address().port;
         resolve(port);
       });
     });
 
-    const controlSocket = createSocket('udp4');
+    // Create control socket and keep it open
+    this.controlClientSocket = createSocket('udp4');
     const controlPort = await new Promise<number>((resolve) => {
-      controlSocket.bind(0, () => {
-        const port = controlSocket.address().port;
-        controlSocket.close();
+      this.controlClientSocket!.bind(0, () => {
+        const port = this.controlClientSocket!.address().port;
         resolve(port);
       });
     });
@@ -174,10 +179,12 @@ export class RaopSession {
     }
 
     // Parse SETUP response (matching pyatv)
-    // Extract RTSP Session ID
+    // Extract RTSP Session ID - may have parameters like "12345;timeout=60"
     const sessionHeader = setupResponse.headers.get('Session');
     if (sessionHeader) {
-      this.rtspSessionId = parseInt(sessionHeader);
+      // Parse only the numeric portion before any semicolon
+      const sessionIdStr = sessionHeader.split(';')[0].trim();
+      this.rtspSessionId = parseInt(sessionIdStr);
     }
 
     // Parse server port from Transport header
@@ -201,9 +208,6 @@ export class RaopSession {
         mode: 'record',
       },
     };
-    
-    // Cache local IP for later use
-    this.localIp = localIp;
   }
 
   /**
@@ -288,6 +292,24 @@ export class RaopSession {
         console.warn('Error closing audio socket:', error);
       }
       this.audioSocket = null;
+    }
+
+    if (this.timingSocket) {
+      try {
+        this.timingSocket.close();
+      } catch (error) {
+        console.warn('Error closing timing socket:', error);
+      }
+      this.timingSocket = null;
+    }
+
+    if (this.controlClientSocket) {
+      try {
+        this.controlClientSocket.close();
+      } catch (error) {
+        console.warn('Error closing control socket:', error);
+      }
+      this.controlClientSocket = null;
     }
 
     if (this.controlSocket) {

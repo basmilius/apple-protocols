@@ -14,8 +14,10 @@ export class TimingServer {
     constructor() {
         this.#logger = new Logger('timing-server');
         this.#socket = createSocket('udp4');
-        this.#socket.on('error', err => this.#onError(err));
-        this.#socket.on('message', (data, info) => this.#onMessage(data, info));
+
+        this.#socket.on('connect', this.#onConnect.bind(this));
+        this.#socket.on('error', this.#onError.bind(this));
+        this.#socket.on('message', this.#onMessage.bind(this));
     }
 
     async close(): Promise<void> {
@@ -28,6 +30,11 @@ export class TimingServer {
             this.#socket.once('listening', () => this.#onListening());
             this.#socket.bind(0, resolve);
         });
+    }
+
+    #onConnect(): void {
+        this.#socket.setRecvBufferSize(16384);
+        this.#socket.setSendBufferSize(16384);
     }
 
     async #onError(err: Error): Promise<void> {

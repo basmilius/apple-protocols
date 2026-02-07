@@ -164,6 +164,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#socket = undefined;
 
             this.#socket = new Socket();
+            this.#socket.setNoDelay(true);
             this.#socket.setTimeout(SOCKET_TIMEOUT);
 
             this.#socket.on('close', this.#onClose.bind(this));

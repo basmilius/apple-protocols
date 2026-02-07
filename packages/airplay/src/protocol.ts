@@ -68,9 +68,21 @@ export default class Protocol {
     }
 
     async disconnect(): Promise<void> {
-        await this.#controlStream.disconnect();
-        await this.#dataStream?.disconnect();
-        await this.#eventStream?.disconnect();
+        try {
+            await this.#dataStream?.destroy();
+        } catch {}
+
+        try {
+            await this.#eventStream?.destroy();
+        } catch {}
+
+        try {
+            await this.#controlStream.destroy();
+        } catch {}
+
+        this.#dataStream = undefined;
+        this.#eventStream = undefined;
+        this.#timingServer = undefined;
     }
 
     async feedback(): Promise<void> {

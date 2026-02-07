@@ -160,7 +160,9 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#state = 'connecting';
             this.#connectPromise = {resolve, reject};
 
+            this.#socket?.removeAllListeners();
             this.#socket = undefined;
+
             this.#socket = new Socket();
             this.#socket.setTimeout(SOCKET_TIMEOUT);
 
@@ -203,6 +205,11 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#connectPromise?.reject(err);
             this.#connectPromise = undefined;
             return;
+        }
+
+        if (this.#retryTimeout) {
+            clearTimeout(this.#retryTimeout);
+            this.#retryTimeout = undefined;
         }
 
         this.#retryAttempt++;

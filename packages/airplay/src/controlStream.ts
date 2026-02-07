@@ -39,6 +39,11 @@ export default class ControlStream extends BaseStream {
         this.on('timeout', this.#onTimeout.bind(this));
     }
 
+    async disconnect(): Promise<void> {
+        this.#cleanup();
+        await super.disconnect();
+    }
+
     async flush(uri: string, headers: Record<string, string>): Promise<Response> {
         return await this.#request('FLUSH', uri, null, headers);
     }
@@ -67,6 +72,18 @@ export default class ControlStream extends BaseStream {
 
     async teardown(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.#request('TEARDOWN', path, null, headers, timeout);
+    }
+
+    #cleanup(): void {
+        if (this.#requestTimer) {
+            clearTimeout(this.#requestTimer);
+            this.#requestTimer = undefined;
+        }
+
+        this.#buffer = Buffer.alloc(0);
+        this.#reject = undefined;
+        this.#resolve = undefined;
+        this.#requesting = false;
     }
 
     #handle(data: Response, err?: Error): void {
@@ -126,7 +143,7 @@ export default class ControlStream extends BaseStream {
     }
 
     #onClose(): void {
-        this.#buffer = Buffer.alloc(0);
+        this.#cleanup();
         this.#handle(undefined, new Error('Connection closed.'));
         this.context.logger.net('[control]', '#onClose()');
     }

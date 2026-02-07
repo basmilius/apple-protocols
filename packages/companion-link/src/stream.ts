@@ -26,6 +26,11 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.on('error', this.#onError.bind(this));
     }
 
+    async disconnect(): Promise<void> {
+        this.#cleanup();
+        await super.disconnect();
+    }
+
     async exchange(type: number, obj: Record<string, unknown>): Promise<[number, unknown]> {
         const _x = this.#xid;
 
@@ -77,6 +82,18 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         }
     }
 
+    #cleanup(): void {
+        this.#buffer = Buffer.alloc(0);
+
+        const error = new Error('Stream cleanup');
+
+        for (const [, reject] of this.#queue.values()) {
+            reject(error);
+        }
+
+        this.#queue.clear();
+    }
+
     #onClose(): void {
         const error = new Error('Connection closed while waiting for response');
 
@@ -85,6 +102,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         }
 
         this.#queue.clear();
+        this.#cleanup();
     }
 
     async #onData(data: Buffer): Promise<void> {

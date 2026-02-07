@@ -149,74 +149,82 @@ export default class AudioStream {
 
         this.#dataSocket = createSocket('udp4');
 
-        await new Promise<void>((resolve, reject) => {
-            this.#dataSocket!.on('error', reject);
-            this.#dataSocket!.connect(this.#dataPort, remoteAddress, resolve);
-        });
+        try {
+            await new Promise<void>((resolve, reject) => {
+                this.#dataSocket!.on('error', reject);
+                this.#dataSocket!.connect(this.#dataPort, remoteAddress, resolve);
+            });
 
-        const frameSize = CHANNELS * BYTES_PER_CHANNEL;
-        const packetSize = FRAMES_PER_PACKET * frameSize;
+            const frameSize = CHANNELS * BYTES_PER_CHANNEL;
+            const packetSize = FRAMES_PER_PACKET * frameSize;
 
-        const ctx: AudioStreamContext = {
-            sampleRate: SAMPLE_RATE,
-            channels: CHANNELS,
-            bytesPerChannel: BYTES_PER_CHANNEL,
-            frameSize,
-            packetSize,
-            rtpSeq: randomInt32() & 0xFFFF,
-            rtpTime: randomInt32() >>> 0,
-            headTs: 0,
-            latency: LATENCY_FRAMES,
-            paddingSent: 0
-        };
+            const ctx: AudioStreamContext = {
+                sampleRate: SAMPLE_RATE,
+                channels: CHANNELS,
+                bytesPerChannel: BYTES_PER_CHANNEL,
+                frameSize,
+                packetSize,
+                rtpSeq: randomInt32() & 0xFFFF,
+                rtpTime: randomInt32() >>> 0,
+                headTs: 0,
+                latency: LATENCY_FRAMES,
+                paddingSent: 0
+            };
 
-        ctx.headTs = ctx.rtpTime;
+            ctx.headTs = ctx.rtpTime;
 
-        // this.#context.logger.debug('[audio]', 'Sending FLUSH...');
-        // await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
-        //     'Range': 'npt=0-',
-        //     'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
-        // });
-        // this.#context.logger.debug('[audio]', 'FLUSH complete');
+            // this.#context.logger.debug('[audio]', 'Sending FLUSH...');
+            // await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
+            //     'Range': 'npt=0-',
+            //     'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
+            // });
+            // this.#context.logger.debug('[audio]', 'FLUSH complete');
 
-        let firstPacket = true;
-        let packetCount = 0;
-        const startTime = performance.now();
+            let firstPacket = true;
+            let packetCount = 0;
+            const startTime = performance.now();
 
-        this.#context.logger.info('[audio]', 'Starting audio stream...');
-        this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
+            this.#context.logger.info('[audio]', 'Starting audio stream...');
+            this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
 
-        // Clear packet backlog
-        this.#packetBacklog.clear();
+            // Clear packet backlog
+            this.#packetBacklog.clear();
 
-        while (true) {
-            const framesSent = await this.#sendPacket(source, firstPacket, ctx);
+            while (true) {
+                const framesSent = await this.#sendPacket(source, firstPacket, ctx);
 
-            if (framesSent === 0) {
-                this.#context.logger.debug('[audio]', `End of audio stream after ${packetCount} packets (padding complete)`);
-                break;
+                if (framesSent === 0) {
+                    this.#context.logger.debug('[audio]', `End of audio stream after ${packetCount} packets (padding complete)`);
+                    break;
+                }
+
+                packetCount++;
+                firstPacket = false;
+
+                if (packetCount % 100 === 0) {
+                    this.#context.logger.debug('[audio]', `Sent ${packetCount} packets`);
+                }
+
+                const expectedTime = (ctx.headTs - ctx.rtpTime) / SAMPLE_RATE * 1000;
+                const actualTime = performance.now() - startTime;
+                const sleepTime = expectedTime - actualTime;
+
+                if (sleepTime > 0) {
+                    await this.#sleep(sleepTime);
+                }
             }
 
-            packetCount++;
-            firstPacket = false;
+            this.#context.logger.info('[audio]', `Audio stream finished, sent ${packetCount} packets`);
 
-            if (packetCount % 100 === 0) {
-                this.#context.logger.debug('[audio]', `Sent ${packetCount} packets`);
-            }
+            // this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
+            // await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
+        } catch (err) {
+            this.#dataSocket?.close();
+            this.#dataSocket = undefined;
+            this.#packetBacklog.clear();
 
-            const expectedTime = (ctx.headTs - ctx.rtpTime) / SAMPLE_RATE * 1000;
-            const actualTime = performance.now() - startTime;
-            const sleepTime = expectedTime - actualTime;
-
-            if (sleepTime > 0) {
-                await this.#sleep(sleepTime);
-            }
+            throw err;
         }
-
-        this.#context.logger.info('[audio]', `Audio stream finished, sent ${packetCount} packets`);
-
-        // this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
-        // await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
     }
 
     async #sendPacket(source: AudioSource, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {

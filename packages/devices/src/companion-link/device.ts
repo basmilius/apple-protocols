@@ -64,7 +64,10 @@ export default class extends EventEmitter<EventMap> {
     async disconnect(): Promise<void> {
         this.#disconnect = true;
 
-        clearInterval(this.#heartbeatInterval);
+        if (this.#heartbeatInterval) {
+            clearInterval(this.#heartbeatInterval);
+            this.#heartbeatInterval = undefined;
+        }
 
         await this.#unsubscribe();
         await this.#protocol.disconnect();
@@ -150,16 +153,23 @@ export default class extends EventEmitter<EventMap> {
             keys.controllerToAccessoryKey
         );
 
-        await this.#protocol._systemInfo(this.#credentials.pairingId);
-        await this.#protocol._sessionStart();
-        await this.#protocol._tvrcSessionStart();
-        await this.#protocol._touchStart();
-        await this.#protocol._tiStart();
-        await this.#protocol._unsubscribe('_iMC');
+        try {
+            await this.#protocol._systemInfo(this.#credentials.pairingId);
+            await this.#protocol._sessionStart();
+            await this.#protocol._tvrcSessionStart();
+            await this.#protocol._touchStart();
+            await this.#protocol._tiStart();
+            await this.#protocol._unsubscribe('_iMC');
 
-        this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
+            this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
 
-        await this.#subscribe();
+            await this.#subscribe();
+        } catch (err) {
+            clearInterval(this.#heartbeatInterval);
+            this.#heartbeatInterval = undefined;
+
+            throw err;
+        }
     }
 
     async #subscribe(): Promise<void> {

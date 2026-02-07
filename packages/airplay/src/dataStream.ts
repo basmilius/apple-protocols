@@ -41,6 +41,7 @@ export default class DataStream extends BaseStream<EventMap> {
 
         this.#seqno = 0x100000000n + BigInt(randomInt32());
 
+        this.on('close', this.#onClose.bind(this));
         this.on('data', this.#onData.bind(this));
 
         this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoMessage.bind(this)];
@@ -62,6 +63,11 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_CONTROL_AVAILABILITY_MESSAGE] = [Proto.volumeControlAvailabilityMessage, this.#onVolumeControlAvailabilityMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE] = [Proto.volumeControlCapabilitiesDidChangeMessage, this.#onVolumeControlCapabilitiesDidChangeMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE] = [Proto.volumeDidChangeMessage, this.#onVolumeDidChangeMessage.bind(this)];
+    }
+
+    async disconnect(): Promise<void> {
+        this.#cleanup();
+        await super.disconnect();
     }
 
     async exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<Proto.ProtocolMessage> {
@@ -129,6 +135,15 @@ export default class DataStream extends BaseStream<EventMap> {
         });
 
         this.enableEncryption(readKey, writeKey);
+    }
+
+    #cleanup(): void {
+        this.#buffer = Buffer.alloc(0);
+        this.#handler = undefined;
+    }
+
+    #onClose(): void {
+        this.#cleanup();
     }
 
     async #onData(data: Buffer): Promise<void> {

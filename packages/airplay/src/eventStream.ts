@@ -9,7 +9,13 @@ export default class EventStream extends BaseStream {
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
+        this.on('close', this.#onClose.bind(this));
         this.on('data', this.#onData.bind(this));
+    }
+
+    async disconnect(): Promise<void> {
+        this.#cleanup();
+        await super.disconnect();
     }
 
     async respond(response: Response): Promise<void> {
@@ -70,6 +76,10 @@ export default class EventStream extends BaseStream {
         this.enableEncryption(writeKey, readKey);
     }
 
+    #cleanup(): void {
+        this.#buffer = Buffer.alloc(0);
+    }
+
     async #handle(method: RTSP.Method, path: string, headers: HeadersInit, body: Buffer): Promise<void> {
         const key = `${method} ${path}`;
 
@@ -95,6 +105,10 @@ export default class EventStream extends BaseStream {
                 this.context.logger.warn('[event]', 'No handler for url', key);
                 break;
         }
+    }
+
+    #onClose(): void {
+        this.#cleanup();
     }
 
     async #onData(data: Buffer): Promise<void> {

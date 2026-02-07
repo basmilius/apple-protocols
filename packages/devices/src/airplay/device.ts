@@ -94,7 +94,10 @@ export default class extends EventEmitter<EventMap> {
     async disconnect(): Promise<void> {
         this.#disconnect = true;
 
-        clearInterval(this.#feedbackInterval);
+        if (this.#feedbackInterval) {
+            clearInterval(this.#feedbackInterval);
+            this.#feedbackInterval = undefined;
+        }
 
         this.#unsubscribe();
         await this.#protocol.disconnect();
@@ -173,35 +176,42 @@ export default class extends EventEmitter<EventMap> {
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
-        await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState(Proto.SetConnectionStateMessage_ConnectionState.Connecting));
-        await waitFor(500);
+        try {
+            await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState(Proto.SetConnectionStateMessage_ConnectionState.Connecting));
+            await waitFor(500);
 
-        const gid = this.#discoveryResult.txt.gid;
+            const gid = this.#discoveryResult.txt.gid;
 
-        if (gid) {
-            await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));
-        }
-
-        await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
-
-        const result = await Promise.race([
-            new Promise(resolve => {
-                this.#protocol.dataStream.on('deviceInfo', async () => {
-                    await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-                    await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
-                    resolve(true);
-                });
-            }),
-            async () => {
-                await waitFor(3000);
-                return false;
+            if (gid) {
+                await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));
             }
-        ]);
 
-        if (!result) {
-            await this.#onError(new Error('Device did not respond in time with its info.'));
-        } else {
-            this.#protocol.context.logger.info('Device info received successfully, protocol should be ready.');
+            await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
+
+            const result = await Promise.race([
+                new Promise(resolve => {
+                    this.#protocol.dataStream.once('deviceInfo', async () => {
+                        await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
+                        await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
+                        resolve(true);
+                    });
+                }),
+                async () => {
+                    await waitFor(3000);
+                    return false;
+                }
+            ]);
+
+            if (!result) {
+                await this.#onError(new Error('Device did not respond in time with its info.'));
+            } else {
+                this.#protocol.context.logger.info('Device info received successfully, protocol should be ready.');
+            }
+        } catch (err) {
+            clearInterval(this.#feedbackInterval);
+            this.#feedbackInterval = undefined;
+
+            throw err;
         }
     }
 

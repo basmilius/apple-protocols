@@ -16,7 +16,6 @@
         "resolveJsonModule": false,
         "isolatedModules": true,
         "jsx": "react-jsx",
-        "baseUrl": ".",
         "rootDir": ".",
         "outDir": "dist",
         "declaration": true,

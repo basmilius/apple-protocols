@@ -25,7 +25,7 @@
         "provenance": true
     },
     "scripts": {
-        "build": "tsc && bun -b build.ts",
+        "build": "tsgo && bun -b build.ts",
         "find": "bun find.ts",
         "gen:proto": "buf generate",
         "test:audio": "bun --watch test-audio.ts",
@@ -47,7 +47,7 @@
         "@basmilius/apple-encryption": "workspace:*"
     },
     "devDependencies": {
-        "@basmilius/tools": "^2.23.0",
+        "@basmilius/tools": "^2.24.0",
         "@bufbuild/buf": "^1.65.0",
         "@bufbuild/protobuf": "^2.11.0",
         "@bufbuild/protoc-gen-es": "^2.11.0",

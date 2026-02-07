@@ -1,11 +1,4 @@
-import { exists, rm } from 'node:fs/promises';
-import { build, dts } from '@basmilius/tools';
-
-if (await exists('./dist')) {
-    await rm('./dist', {
-        recursive: true
-    });
-}
+import { build, clean, dts } from '@basmilius/tools';
 
 const minify = !('NOMINIFY' in process.env);
 
@@ -14,6 +7,7 @@ await build({
     minify,
     sourcemap: 'none',
     plugins: [
+        clean('dist'),
         dts()
     ],
     external: [

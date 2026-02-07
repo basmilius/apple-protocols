@@ -1,11 +1,4 @@
-import { exists, rm } from 'node:fs/promises';
-import { build, copy, dts } from '@basmilius/tools';
-
-if (await exists('./dist')) {
-    await rm('./dist', {
-        recursive: true
-    });
-}
+import { build, clean, copy, dts } from '@basmilius/tools';
 
 const minify = !('NOMINIFY' in process.env);
 
@@ -14,8 +7,9 @@ await build({
     minify,
     sourcemap: 'none',
     plugins: [
-        dts(),
-        copy('./src/types.ts', './dist/types.d.ts')
+        clean('dist'),
+        copy('./src/types.ts', './dist/types.d.ts'),
+        dts()
     ],
     external: [
         '@basmilius/apple-encoding',

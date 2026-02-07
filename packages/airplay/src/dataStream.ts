@@ -112,6 +112,15 @@ export default class DataStream extends BaseStream<EventMap> {
         await this.write(frame);
     }
 
+    async disconnect(): Promise<void> {
+        // Clear handler references to allow garbage collection
+        this.#handler = undefined;
+        // Note: #handlers contains bound functions with closures - keep them as they're needed for the lifetime
+        // of the stream, but they'll be freed when the DataStream instance is collected
+        
+        return super.disconnect();
+    }
+
     setup(sharedSecret: Buffer, seed: bigint): void {
         const readKey = hkdf({
             hash: 'sha512',

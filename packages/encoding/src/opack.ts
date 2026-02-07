@@ -173,13 +173,25 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
         if (val <= TAG.INT_INLINE_MAX_VALUE) {
             packed = u8(TAG.INT_BASE + val);
         } else if (val <= 0xFF) {
-            packed = concat([u8(TAG.INT_1BYTE), uintToLEBytes(val, 1)]);
+            // Optimize: single allocation instead of concat
+            packed = new Uint8Array(2);
+            packed[0] = TAG.INT_1BYTE;
+            packed[1] = val;
         } else if (val <= 0xFFFF) {
-            packed = concat([u8(TAG.INT_2BYTE), uintToLEBytes(val, 2)]);
+            packed = new Uint8Array(3);
+            packed[0] = TAG.INT_2BYTE;
+            const bytes = uintToLEBytes(val, 2);
+            packed.set(bytes, 1);
         } else if (val <= 0xFFFFFFFF) {
-            packed = concat([u8(TAG.INT_4BYTE), uintToLEBytes(val, 4)]);
+            packed = new Uint8Array(5);
+            packed[0] = TAG.INT_4BYTE;
+            const bytes = uintToLEBytes(val, 4);
+            packed.set(bytes, 1);
         } else {
-            packed = concat([u8(TAG.INT_8BYTE), uintToLEBytes(val, 8)]);
+            packed = new Uint8Array(9);
+            packed[0] = TAG.INT_8BYTE;
+            const bytes = uintToLEBytes(val, 8);
+            packed.set(bytes, 1);
         }
     } else if (typeof data === 'number') {
         if (!Number.isInteger(data)) {
@@ -191,17 +203,34 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             if (data <= TAG.INT_INLINE_MAX_VALUE) {
                 packed = u8(TAG.INT_BASE + data);
             } else if (data <= 0xFF) {
-                packed = concat([u8(TAG.INT_1BYTE), uintToLEBytes(data, 1)]);
+                // Optimize: single allocation instead of concat
+                packed = new Uint8Array(2);
+                packed[0] = TAG.INT_1BYTE;
+                packed[1] = data;
             } else if (data <= 0xFFFF) {
-                packed = concat([u8(TAG.INT_2BYTE), uintToLEBytes(data, 2)]);
+                packed = new Uint8Array(3);
+                packed[0] = TAG.INT_2BYTE;
+                const bytes = uintToLEBytes(data, 2);
+                packed.set(bytes, 1);
             } else if (data <= 0xFFFFFFFF) {
-                packed = concat([u8(TAG.INT_4BYTE), uintToLEBytes(data, 4)]);
+                packed = new Uint8Array(5);
+                packed[0] = TAG.INT_4BYTE;
+                const bytes = uintToLEBytes(data, 4);
+                packed.set(bytes, 1);
             } else {
-                packed = concat([u8(TAG.INT_8BYTE), uintToLEBytes(data, 8)]);
+                packed = new Uint8Array(9);
+                packed[0] = TAG.INT_8BYTE;
+                const bytes = uintToLEBytes(data, 8);
+                packed.set(bytes, 1);
             }
         }
     } else if (data instanceof SizedInteger) {
-        packed = concat([u8(TAG.INT_1BYTE + Math.log2(data.size)), uintToLEBytes(data.valueOf(), data.size)]);
+        // Optimize: single allocation instead of concat
+        const byteSize = data.size;
+        packed = new Uint8Array(1 + byteSize);
+        packed[0] = TAG.INT_1BYTE + Math.log2(byteSize);
+        const bytes = uintToLEBytes(data.valueOf(), byteSize);
+        packed.set(bytes, 1);
     } else if (typeof data === 'string') {
         const b = new TextEncoder().encode(data);
         const len = b.length;

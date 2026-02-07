@@ -66,6 +66,11 @@ export default class StreamClient extends EventEmitter<EventMap> {
     close(): void {
         this.#protocol.teardown();
         this.#controlClient?.close();
+        
+        // Clear metadata and info to free memory (artwork can be large)
+        this.#metadata = EMPTY_METADATA;
+        this.#info = {};
+        this.#properties.clear();
     }
 
     async initialize(properties: Map<string, string>): Promise<void> {

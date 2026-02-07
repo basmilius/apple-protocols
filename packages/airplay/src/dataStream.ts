@@ -113,10 +113,12 @@ export default class DataStream extends BaseStream<EventMap> {
     }
 
     async disconnect(): Promise<void> {
-        // Clear handler references to allow garbage collection
+        // Clear the pending exchange handler to allow garbage collection
         this.#handler = undefined;
-        // Note: #handlers contains bound functions with closures - keep them as they're needed for the lifetime
-        // of the stream, but they'll be freed when the DataStream instance is collected
+        
+        // Note: #handlers is a registry of message type handlers that are bound in the constructor.
+        // These are needed for the stream's lifetime and will be freed when the DataStream 
+        // instance is garbage collected. Not clearing them here as they're stateless event handlers.
         
         return super.disconnect();
     }

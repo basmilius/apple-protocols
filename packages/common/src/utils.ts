@@ -54,7 +54,7 @@ export function randomInt64(): bigint {
 }
 
 export function uint16ToBE(value: number): Buffer {
-    const buffer = Buffer.alloc(2);
+    const buffer = Buffer.allocUnsafe(2);
     buffer.writeUInt16BE(value, 0);
 
     return buffer;
@@ -62,7 +62,7 @@ export function uint16ToBE(value: number): Buffer {
 
 export function uint53ToLE(value: number): Buffer {
     const [upper, lower] = splitUInt53(value);
-    const buffer = Buffer.alloc(8);
+    const buffer = Buffer.allocUnsafe(8);
     buffer.writeUInt32LE(lower, 0);
     buffer.writeUInt32LE(upper, 4);
 

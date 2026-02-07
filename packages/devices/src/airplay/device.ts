@@ -186,15 +186,15 @@ export default class extends EventEmitter<EventMap> {
                 await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));
             }
 
-            await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
-
             const result = await Promise.race([
-                new Promise(resolve => {
+                new Promise(async resolve => {
                     this.#protocol.dataStream.once('deviceInfo', async () => {
                         await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
                         await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
                         resolve(true);
                     });
+
+                    await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
                 }),
                 async () => {
                     await waitFor(3000);

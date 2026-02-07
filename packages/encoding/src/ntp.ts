@@ -39,7 +39,7 @@ export function decode(buffer: Buffer): PacketFields {
 }
 
 export function encode(fields: PacketFields): Buffer {
-    const buffer = Buffer.alloc(32);
+    const buffer = Buffer.allocUnsafe(32);
 
     buffer.writeUInt8(fields.proto, 0);
     buffer.writeUInt8(fields.type, 1);

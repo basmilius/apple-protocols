@@ -107,7 +107,7 @@ export function encodeTag(tag: string, value: Buffer | string | number | bigint)
         valueBuffer = value;
     }
 
-    const lengthBuffer = Buffer.alloc(4);
+    const lengthBuffer = Buffer.allocUnsafe(4);
     lengthBuffer.writeUInt32BE(valueBuffer.length, 0);
 
     return Buffer.concat([tagBuffer, lengthBuffer, valueBuffer]);

@@ -23,10 +23,7 @@ async function homepod(): Promise<void> {
 
     setInterval(() => protocol.feedback(), 2000);
 
-    // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.configureConnection(``));
-    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
-
-    protocol.dataStream.addListener('deviceInfo', async () => {
+    protocol.dataStream.once('deviceInfo', async () => {
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setConnectionState());
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.clientUpdatesConfig());
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setReadyState());
@@ -65,6 +62,9 @@ async function homepod(): Promise<void> {
         //
         // console.log(response);
     });
+
+    // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.configureConnection(``));
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
 }
 
 async function tv(): Promise<void> {
@@ -91,8 +91,6 @@ async function tv(): Promise<void> {
     await protocol.setupDataStream(keys.sharedSecret);
 
     setInterval(() => protocol.feedback(), 2000);
-
-    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
 
     protocol.dataStream.addListener('deviceInfo', async message => {
         let outputUID: string;
@@ -132,6 +130,8 @@ async function tv(): Promise<void> {
         // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, true));
         // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, false));
     });
+
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
 }
 
 async function tvPair(): Promise<void> {

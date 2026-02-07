@@ -248,7 +248,7 @@ export default class AudioStream {
         }
 
         // Build RTP header (12 bytes)
-        const rtpHeader = Buffer.alloc(12);
+        const rtpHeader = Buffer.allocUnsafe(12);
         rtpHeader.writeUInt8(0x80, 0);  // Version 2
         rtpHeader.writeUInt8(firstPacket ? 0xE0 : 0x60, 1);  // Marker + PT 96
         rtpHeader.writeUInt16BE(ctx.rtpSeq, 2);

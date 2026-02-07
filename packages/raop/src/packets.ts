@@ -45,7 +45,7 @@ export const AudioPacketHeader = {
         timestamp: number,
         ssrc: number
     ): Buffer {
-        const packet = Buffer.alloc(12);
+        const packet = Buffer.allocUnsafe(12);
         packet.writeUInt8(header, 0);
         packet.writeUInt8(payloadType, 1);
         packet.writeUInt16BE(seqno, 2);
@@ -65,7 +65,7 @@ export const SyncPacket = {
         ntpFrac: number,
         rtpTimestampNow: number
     ): Buffer {
-        const packet = Buffer.alloc(20);
+        const packet = Buffer.allocUnsafe(20);
         packet.writeUInt8(header, 0);
         packet.writeUInt8(payloadType, 1);
         packet.writeUInt16BE(seqno, 2);

@@ -63,7 +63,7 @@ export default class BaseStream<TEventMap extends EventMap = {}> extends Encrypt
             const frame = data.subarray(offset, offset + FRAME_LENGTH);
             offset += frame.length;
 
-            const leLength = Buffer.alloc(2);
+            const leLength = Buffer.allocUnsafe(2);
             leLength.writeUInt16LE(frame.length, 0);
 
             const encrypted = Chacha20.encrypt(

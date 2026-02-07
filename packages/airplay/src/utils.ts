@@ -23,7 +23,7 @@ export function nonce(counter: number): Buffer {
 }
 
 export function buildHeader(totalSize: number, seqno: bigint): Buffer {
-    const buf = Buffer.alloc(32);
+    const buf = Buffer.allocUnsafe(32);
 
     buf.writeUInt32BE(totalSize, 0);
     buf.write('sync', 4, 'ascii');
@@ -36,7 +36,7 @@ export function buildHeader(totalSize: number, seqno: bigint): Buffer {
 }
 
 export function buildReply(seqno: bigint): Buffer {
-    const header = Buffer.alloc(32);
+    const header = Buffer.allocUnsafe(32);
     header.writeUInt32BE(0, 0); // placeholder
     header.write('rply', 4, 'ascii');
     header.fill(0, 8, 16);

@@ -72,6 +72,14 @@ describe('isLiveStreamingUrl', () => {
             expect(isLiveStreamingUrl('http://example.com/download/audio.wav')).toBe(false);
         });
 
+        it('should not detect URLs with "stream" or "live" as substrings', () => {
+            expect(isLiveStreamingUrl('http://example.com/mainstream/audio.mp3')).toBe(false);
+            expect(isLiveStreamingUrl('http://example.com/downstream/song.ogg')).toBe(false);
+            expect(isLiveStreamingUrl('http://example.com/delivered/track.mp3')).toBe(false);
+            expect(isLiveStreamingUrl('http://example.com/oliver/song.mp3')).toBe(false);
+            expect(isLiveStreamingUrl('http://streamingcompany.com/static/audio.mp3')).toBe(false);
+        });
+
         it('should not detect file:// protocol', () => {
             expect(isLiveStreamingUrl('file:///home/user/music.mp3')).toBe(false);
         });

@@ -42,10 +42,9 @@ export function isLiveStreamingUrl(pathOrUrl: string): boolean {
             return true;
         }
 
-        // Common streaming endpoints/patterns
-        if (normalized.includes('/live') ||
-            normalized.includes('/stream') ||
-            normalized.includes('playlist.m3u')) {
+        // Common streaming endpoints/patterns (check for path segment boundaries)
+        // Match /live or /stream as complete path segments, not substrings
+        if (normalized.match(/\/(live|stream)(\/|$|\?)/)) {
             return true;
         }
 

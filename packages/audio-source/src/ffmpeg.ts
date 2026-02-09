@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE, FFMPEG_FRAMES_PER_PACKET } from './const';
+import { isLiveStreamingUrl } from './streamDetection';
 
 export default class Ffmpeg implements AudioSource {
     readonly duration: number;
@@ -15,6 +16,10 @@ export default class Ffmpeg implements AudioSource {
     #resolveQueue: Array<(value: Buffer | null) => void> = [];
 
     constructor(filePath: string, duration: number, sampleRate: number = DEFAULT_SAMPLE_RATE, channels: number = DEFAULT_CHANNELS, bytesPerChannel: number = DEFAULT_BYTES_PER_CHANNEL) {
+        if (isLiveStreamingUrl(filePath)) {
+            throw new Error('Live streaming URLs are not currently supported. Please use a local file or non-streaming URL.');
+        }
+
         this.#filePath = filePath;
         this.duration = duration;
         this.#sampleRate = sampleRate;

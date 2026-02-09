@@ -1,6 +1,7 @@
 import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
 import { decode, isMp3, isOgg, isWav } from './decoder';
+import { isLiveStreamingUrl } from './streamDetection';
 
 export default class Url implements AudioSource {
     readonly duration: number;
@@ -37,6 +38,10 @@ export default class Url implements AudioSource {
     }
 
     static async fromUrl(url: string): Promise<Url> {
+        if (isLiveStreamingUrl(url)) {
+            throw new Error('Live streaming URLs are not currently supported. Please use a local file or non-streaming URL.');
+        }
+
         const response = await fetch(url);
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);

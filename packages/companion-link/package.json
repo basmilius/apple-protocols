@@ -22,7 +22,7 @@
     ],
     "publishConfig": {
         "access": "public",
-        "provenance": true
+        "provenance": false
     },
     "scripts": {
         "build": "tsgo && bun -b build.ts",

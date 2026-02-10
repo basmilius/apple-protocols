@@ -46,11 +46,11 @@ jobs:
 
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
                 run: |
-                    (cd packages/encoding bunx npm publish --access public)
-                    (cd packages/encryption bunx npm publish --access public)
-                    (cd packages/common bunx npm publish --access public)
-                    (cd packages/audio-source bunx npm publish --access public)
-                    (cd packages/airplay bunx npm publish --access public)
-                    (cd packages/companion-link bunx npm publish --access public)
-                    (cd packages/raop bunx npm publish --access public)
-                    (cd packages/devices bunx npm publish --access public)
+                    (cd packages/encoding && bunx npm publish --access public)
+                    (cd packages/encryption && bunx npm publish --access public)
+                    (cd packages/common && bunx npm publish --access public)
+                    (cd packages/audio-source && bunx npm publish --access public)
+                    (cd packages/airplay && bunx npm publish --access public)
+                    (cd packages/companion-link && bunx npm publish --access public)
+                    (cd packages/raop && bunx npm publish --access public)
+                    (cd packages/devices && bunx npm publish --access public)

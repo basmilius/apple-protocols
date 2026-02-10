@@ -22,11 +22,6 @@ jobs:
             -   name: 🍞 Setup Bun
                 uses: oven-sh/setup-bun@v2
 
-            -   uses: actions/setup-node@v4
-                with:
-                    node-version: '25'
-                    registry-url: 'https://registry.npmjs.org'
-
             -   name: ✏️ Tag v${{ env.RELEASE_VERSION }}
                 run: |
                     # Temporary solution for the commented out lines below.
@@ -51,11 +46,13 @@ jobs:
 
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
                 run: |
-                    (cd packages/encoding && npm publish --access public)
-                    (cd packages/encryption && npm publish --access public)
-                    (cd packages/common && npm publish --access public)
-                    (cd packages/audio-source && npm publish --access public)
-                    (cd packages/airplay && npm publish --access public)
-                    (cd packages/companion-link && npm publish --access public)
-                    (cd packages/raop && npm publish --access public)
-                    (cd packages/devices && npm publish --access public)
+                    bun publish --cwd packages/encoding --access public
+                    bun publish --cwd packages/encryption --access public
+                    bun publish --cwd packages/common --access public
+                    bun publish --cwd packages/audio-source --access public
+                    bun publish --cwd packages/airplay --access public
+                    bun publish --cwd packages/companion-link --access public
+                    bun publish --cwd packages/raop --access public
+                    bun publish --cwd packages/devices --access public
+                env:
+                    NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}

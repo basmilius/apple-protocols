@@ -53,7 +53,7 @@ export default class EventStream extends BaseStream {
             data = this.encrypt(data);
         }
 
-        await this.write(data);
+        this.write(data);
     }
 
     setup(sharedSecret: Buffer): void {

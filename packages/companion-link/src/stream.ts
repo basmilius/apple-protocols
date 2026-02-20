@@ -43,11 +43,11 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
                 this.#queue.set(_x, [resolve, reject]);
             }
 
-            this.sendOPack(type, obj).catch(reject);
+            this.sendOPack(type, obj);
         });
     }
 
-    async send(type: number, payload: Buffer): Promise<void> {
+    send(type: number, payload: Buffer): void {
         let payloadLength = payload.byteLength;
 
         if (this.isEncrypted && payloadLength > 0) {
@@ -72,21 +72,16 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         this.context.logger.raw('[companion-link]', 'Sending data frame', this.isEncrypted, type);
 
-        try {
-            return await this.write(data);
-        } catch (err) {
-            this.context.logger.error('[companion-link]', 'Error in Companion Link send()', err);
-            this.emit('error', err);
-        }
+        this.write(data);
     }
 
-    async sendOPack(type: number, obj: Record<string, unknown>): Promise<void> {
+    sendOPack(type: number, obj: Record<string, unknown>): void {
         const _x = this.#xid++;
         obj._x ??= OPack.sizedInteger(_x, 8);
 
         this.context.logger.raw('[companion-link]', 'Sending opack frame', type, this.isEncrypted, obj);
 
-        await this.send(type, Buffer.from(OPack.encode(obj)));
+        this.send(type, Buffer.from(OPack.encode(obj)));
     }
 
     #cleanup(): void {

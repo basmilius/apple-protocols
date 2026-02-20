@@ -13,8 +13,8 @@ const LATENCY_FRAMES = 11025;
 const PACKET_BACKLOG_SIZE = 1000;
 
 // Audio formats:
-// 262144 (0x40000) = AAC-ELD (what iOS uses, requires encoding)
-// 4194304 (0x400000) = PCM 44100/16/2 (raw PCM, big-endian)
+// 262_144 (0x40000) = AAC-ELD (what iOS uses, requires encoding)
+// 4_194_304 (0x400000) = PCM 44100/16/2 (raw PCM, big-endian)
 const AUDIO_FORMAT_AAC_ELD = 262144;
 const AUDIO_FORMAT_PCM = 4194304;
 

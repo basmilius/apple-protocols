@@ -7,7 +7,7 @@ reporter.all();
 const timingServer = new TimingServer();
 await timingServer.listen();
 
-const client = await RaopClient.discover('Woonkamer-HomePod.local', timingServer);
+const client = await RaopClient.discover('Slaapkamer-HomePod.local', timingServer);
 
 client.on('playing', (playbackInfo) => {
     console.log('▶️  Playing:', playbackInfo.metadata.title);

@@ -335,11 +335,7 @@ export default class RtspClient extends Connection<{}> {
                 reject(new Error(`No response to CSeq ${cseq} (${targetUri})`));
             }, timeout);
 
-            this.write(data).catch(err => {
-                clearTimeout(timer);
-                this.#requests.delete(cseq);
-                reject(err);
-            });
+            this.write(data);
 
             const originalResolve = resolve;
 

@@ -73,19 +73,19 @@ export default class DataStream extends BaseStream<EventMap> {
     async exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<Proto.ProtocolMessage> {
         return new Promise(async (resolve, reject) => {
             this.#handler = [resolve, reject];
-            await this.send(message);
+            this.send(message);
         });
     }
 
-    async reply(seqno: bigint): Promise<void> {
+    reply(seqno: bigint): void {
         const rply = buildReply(seqno);
 
         this.context.logger.raw('[data]', `Sending reply packet seqno=${seqno}`);
 
-        await this.write(this.encrypt(rply));
+        this.write(this.encrypt(rply));
     }
 
-    async send(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<void> {
+    send(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): void {
         let extension: DescExtension | undefined;
 
         if (Array.isArray(message)) {
@@ -114,7 +114,7 @@ export default class DataStream extends BaseStream<EventMap> {
 
         this.context.logger.raw('[data]', 'Sending message.', message.type, extension ? getExtension(message, extension) : message);
 
-        await this.write(frame);
+        this.write(frame);
     }
 
     setup(sharedSecret: Buffer, seed: bigint): void {
@@ -179,7 +179,7 @@ export default class DataStream extends BaseStream<EventMap> {
                     if (command === 'rply') {
                         this.context.logger.raw('[data]', 'Received reply packet.');
                     } else if (command === 'sync') {
-                        await this.reply(parseHeaderSeqno(header));
+                        this.reply(parseHeaderSeqno(header));
                     }
 
                     if (this.#handler) {
@@ -200,7 +200,7 @@ export default class DataStream extends BaseStream<EventMap> {
                 }
 
                 if (command === 'sync') {
-                    await this.reply(parseHeaderSeqno(header));
+                    this.reply(parseHeaderSeqno(header));
                 }
             }
         } catch (err) {

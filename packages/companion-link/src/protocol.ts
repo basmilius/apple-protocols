@@ -211,7 +211,7 @@ export default class Protocol {
     async subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
         this.#stream.on(event, fn);
 
-        await this.#stream.sendOPack(FrameType.OPackEncrypted, {
+        this.#stream.sendOPack(FrameType.OPackEncrypted, {
             _i: '_interest',
             _t: MessageType.Event,
             _c: {
@@ -229,7 +229,7 @@ export default class Protocol {
             this.#stream.off(event, fn);
         }
 
-        await this.#stream.sendOPack(FrameType.OPackEncrypted, {
+        this.#stream.sendOPack(FrameType.OPackEncrypted, {
             _i: '_interest',
             _t: MessageType.Event,
             _c: {

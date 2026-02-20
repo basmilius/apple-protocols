@@ -138,7 +138,7 @@ export default class ControlStream extends BaseStream {
 
             this.#requestTimer = setTimeout(() => this.#handle(undefined, new Error('Request timed out')), timeout);
 
-            await this.write(data).catch(err => this.#handle(undefined, err));
+            this.write(data);
         });
     }
 

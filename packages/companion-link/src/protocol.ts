@@ -56,7 +56,7 @@ export default class Protocol {
     }
 
     async fetchMediaControlStatus(): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchMediaControlStatus',
             _t: MessageType.Request,
             _c: {}
@@ -64,7 +64,7 @@ export default class Protocol {
     }
 
     async fetchNowPlayingInfo(): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchCurrentNowPlayingInfoEvent',
             _t: MessageType.Request,
             _c: {}
@@ -72,7 +72,7 @@ export default class Protocol {
     }
 
     async fetchSupportedActions(): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchSupportedActionsEvent',
             _t: MessageType.Request,
             _c: {}
@@ -80,7 +80,7 @@ export default class Protocol {
     }
 
     async getAttentionState(): Promise<AttentionState> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchAttentionState',
             _t: MessageType.Request,
             _c: {}
@@ -92,7 +92,7 @@ export default class Protocol {
     }
 
     async getLaunchableApps(): Promise<LaunchableApp[]> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchLaunchableApplicationsEvent',
             _t: MessageType.Request,
             _c: {}
@@ -107,7 +107,7 @@ export default class Protocol {
     }
 
     async getSiriRemoteInfo(): Promise<any> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchSiriRemoteInfo',
             _t: MessageType.Request,
             _c: {}
@@ -117,7 +117,7 @@ export default class Protocol {
     }
 
     async getUserAccounts(): Promise<UserAccount[]> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchUserAccountsEvent',
             _t: MessageType.Request,
             _c: {}
@@ -132,7 +132,7 @@ export default class Protocol {
     }
 
     async hidCommand(command: HidCommandKey, down = false): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_hidC',
             _t: MessageType.Request,
             _c: {
@@ -143,7 +143,7 @@ export default class Protocol {
     }
 
     async launchApp(bundleId: string): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_launchApp',
             _t: MessageType.Request,
             _c: {
@@ -153,7 +153,7 @@ export default class Protocol {
     }
 
     async launchUrl(url: string): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_launchApp',
             _t: MessageType.Request,
             _c: {
@@ -163,7 +163,7 @@ export default class Protocol {
     }
 
     async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_mcc',
             _t: MessageType.Request,
             _c: {
@@ -199,7 +199,7 @@ export default class Protocol {
     }
 
     async switchUserAccount(accountId: string): Promise<void> {
-        await this.#stream.exchange(FrameType.E_OPACK, {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'SwitchUserAccountEvent',
             _t: MessageType.Request,
             _c: {
@@ -208,10 +208,10 @@ export default class Protocol {
         });
     }
 
-    async _subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
+    async subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
         this.#stream.on(event, fn);
 
-        await this.#stream.send(FrameType.E_OPACK, {
+        await this.#stream.sendOPack(FrameType.OPackEncrypted, {
             _i: '_interest',
             _t: MessageType.Event,
             _c: {
@@ -220,7 +220,7 @@ export default class Protocol {
         });
     }
 
-    async _unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
+    async unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
         if (!this.#stream.isConnected) {
             return;
         }
@@ -229,7 +229,7 @@ export default class Protocol {
             this.#stream.off(event, fn);
         }
 
-        await this.#stream.send(FrameType.E_OPACK, {
+        await this.#stream.sendOPack(FrameType.OPackEncrypted, {
             _i: '_interest',
             _t: MessageType.Event,
             _c: {
@@ -238,8 +238,8 @@ export default class Protocol {
         });
     }
 
-    async _sessionStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+    async sessionStart(): Promise<object> {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_sessionStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -253,8 +253,8 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
-    async _systemInfo(pairingId: Buffer): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+    async systemInfo(pairingId: Buffer): Promise<object> {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_systemInfo',
             _t: MessageType.Request,
             _btHP: false,
@@ -305,8 +305,8 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
-    async _tiStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+    async tiStart(): Promise<object> {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_tiStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -316,8 +316,8 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
-    async _touchStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+    async touchStart(): Promise<object> {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_touchStart',
             _t: MessageType.Request,
             _btHP: false,
@@ -331,8 +331,8 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
-    async _tvrcSessionStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.E_OPACK, {
+    async tvrcSessionStart(): Promise<object> {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'TVRCSessionStart',
             _t: MessageType.Request,
             _btHP: false,

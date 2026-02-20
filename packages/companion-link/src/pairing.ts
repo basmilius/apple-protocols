@@ -34,7 +34,10 @@ export class Pairing {
     }
 
     async #request(step: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
-        const frameType = step === 'm1' ? FrameType.PS_Start : FrameType.PS_Next;
+        const frameType = step === 'm1'
+            ? FrameType.PairSetupStart
+            : FrameType.PairSetupNext;
+
         const [, response] = await this.#stream.exchange(frameType, {
             _pd: data,
             _pwTy: 1
@@ -93,7 +96,10 @@ export class Verify {
     }
 
     async #request(step: 'm1' | 'm3' | 'm5', data: Buffer): Promise<Buffer> {
-        const frameType = step === 'm1' ? FrameType.PV_Start : FrameType.PV_Next;
+        const frameType = step === 'm1'
+            ? FrameType.PairVerifyStart
+            : FrameType.PairVerifyNext;
+
         const [, response] = await this.#stream.exchange(frameType, {
             _pd: data,
             _auTy: 4

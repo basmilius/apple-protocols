@@ -1,18 +1,19 @@
 export const FrameType = {
     Unknown: 0,
-    Noop: 1,
+    NoOp: 1,
 
-    PS_Start: 3,
-    PS_Next: 4,
-    PV_Start: 5,
-    PV_Next: 6,
+    PairSetupStart: 3,
+    PairSetupNext: 4,
 
-    U_OPACK: 7,
-    E_OPACK: 8,
-    P_OPACK: 9,
+    PairVerifyStart: 5,
+    PairVerifyNext: 6,
 
-    PA_Request: 10,
-    PA_Response: 11,
+    OPackUnencrypted: 7,
+    OPackEncrypted: 8,
+    OPackPacked: 9,
+
+    PairingRequest: 10,
+    PairingResponse: 11,
 
     SessionStartRequest: 16,
     SessionStartResponse: 17,
@@ -30,19 +31,19 @@ export const MessageType = {
 } as const;
 
 export const OPackFrameTypes: number[] = [
-    FrameType.PS_Start,
-    FrameType.PS_Next,
-    FrameType.PV_Start,
-    FrameType.PV_Next,
+    FrameType.PairSetupStart,
+    FrameType.PairSetupNext,
+    FrameType.PairVerifyStart,
+    FrameType.PairVerifyNext,
 
-    FrameType.U_OPACK,
-    FrameType.E_OPACK,
-    FrameType.P_OPACK
+    FrameType.OPackUnencrypted,
+    FrameType.OPackEncrypted,
+    FrameType.OPackPacked
 ];
 
-export const PairFrameTypes: number[] = [
-    FrameType.PS_Start,
-    FrameType.PS_Next,
-    FrameType.PV_Start,
-    FrameType.PV_Next
+export const PairingFrameTypes: number[] = [
+    FrameType.PairSetupStart,
+    FrameType.PairSetupNext,
+    FrameType.PairVerifyStart,
+    FrameType.PairVerifyNext
 ];

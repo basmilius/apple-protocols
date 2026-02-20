@@ -125,7 +125,6 @@ export default class extends EventEmitter<EventMap> {
     async #feedback(): Promise<void> {
         try {
             await this.#protocol.feedback();
-            await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState(Proto.SetConnectionStateMessage_ConnectionState.Connected));
         } catch (err) {
             this.#protocol.context.logger.error('Feedback error', err);
         }

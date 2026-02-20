@@ -11,9 +11,9 @@ reporter.all();
 const credentials = {
     accessoryIdentifier: '7EEEA518-06CC-486C-A8B8-4A07CDBE6267',
     accessoryLongTermPublicKey: Buffer.from('cfb3fb0e0eb494d9058d5051c94400b35251e3faad66542b9551a1496570628d', 'hex'),
-    pairingId: Buffer.from('46363138303243462d334134302d343045362d394231392d423835453530323042463534', 'hex'),
-    publicKey: Buffer.from('b12ef596d615e040f43675020e73a52c375d7fcecc2d10c4a342694eeb01d87a', 'hex'),
-    secretKey: Buffer.from('1abbb7a03b1ff46702fc3f95b2a0b5e83bbf4a730927f88ba2975ce10fb0c7e0b12ef596d615e040f43675020e73a52c375d7fcecc2d10c4a342694eeb01d87a', 'hex')
+    pairingId: Buffer.from('37313431424134412d344632452d343830352d423146302d303734464644363045344236', 'hex'),
+    publicKey: Buffer.from('0b920552a12f22dc420783f07d3a218e77c56d1380b0debe29c115ff5f4d7366', 'hex'),
+    secretKey: Buffer.from('c08b835bface415099acd56e227fc13c4155c8fea81450086c9745a5a296cf750b920552a12f22dc420783f07d3a218e77c56d1380b0debe29c115ff5f4d7366', 'hex')
 };
 
 async function main(): Promise<void> {

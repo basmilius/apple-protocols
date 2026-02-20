@@ -23,7 +23,10 @@
         "declarationMap": true,
         "emitDeclarationOnly": true,
         "experimentalDecorators": true,
-        "noEmit": true
+        "noEmit": true,
+        "paths": {
+            "@basmilius/apple-*": ["../*/src"]
+        }
     },
     "include": [
         "src/**/*.ts",

@@ -118,7 +118,7 @@ export default class extends EventEmitter<EventMap> {
 
     async #heartbeat(): Promise<void> {
         try {
-            await this.#protocol._systemInfo(this.#credentials.pairingId);
+            await this.#protocol.noOp();
         } catch (err) {
             this.#protocol.context.logger.error('Heartbeat error', err);
         }
@@ -154,12 +154,12 @@ export default class extends EventEmitter<EventMap> {
         );
 
         try {
-            await this.#protocol._systemInfo(this.#credentials.pairingId);
-            await this.#protocol._sessionStart();
-            await this.#protocol._tvrcSessionStart();
-            await this.#protocol._touchStart();
-            await this.#protocol._tiStart();
-            await this.#protocol._unsubscribe('_iMC');
+            await this.#protocol.systemInfo(this.#credentials.pairingId);
+            await this.#protocol.sessionStart();
+            await this.#protocol.tvrcSessionStart();
+            await this.#protocol.touchStart();
+            await this.#protocol.tiStart();
+            await this.#protocol.unsubscribe('_iMC');
 
             this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
 
@@ -173,8 +173,8 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #subscribe(): Promise<void> {
-        await this.#protocol._subscribe('SystemStatus', this.onSystemStatus);
-        await this.#protocol._subscribe('TVSystemStatus', this.onTVSystemStatus);
+        await this.#protocol.subscribe('SystemStatus', this.onSystemStatus);
+        await this.#protocol.subscribe('TVSystemStatus', this.onTVSystemStatus);
 
         const state = await this.getAttentionState();
         this.emit('power', state);
@@ -182,8 +182,8 @@ export default class extends EventEmitter<EventMap> {
 
     async #unsubscribe(): Promise<void> {
         try {
-            await this.#protocol._unsubscribe('SystemStatus', this.onSystemStatus);
-            await this.#protocol._unsubscribe('TVSystemStatus', this.onTVSystemStatus);
+            await this.#protocol.unsubscribe('SystemStatus', this.onSystemStatus);
+            await this.#protocol.unsubscribe('TVSystemStatus', this.onTVSystemStatus);
         } catch (_) {
         }
     }

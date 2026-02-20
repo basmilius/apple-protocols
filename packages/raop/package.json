@@ -46,7 +46,7 @@
         "@basmilius/apple-encryption": "workspace:*"
     },
     "devDependencies": {
-        "@basmilius/tools": "^2.24.0",
-        "@types/bun": "^1.3.8"
+        "@basmilius/tools": "^2.25.0",
+        "@types/bun": "^1.3.9"
     }
 }

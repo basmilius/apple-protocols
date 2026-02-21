@@ -32,7 +32,7 @@ export class Discovery {
 
             console.log();
             console.log(`Device not found, retrying in ${timeout}ms...`);
-            console.log(devices.map(d => ` ● ${d.id}`).join('\n'));
+            console.log(devices.map(d => ` ● ${d.id} (${d.fqdn})`).join('\n'));
 
             tries--;
 

@@ -1,4 +1,4 @@
-import { Discovery, type DiscoveryResult, reporter } from '@basmilius/apple-common';
+import { Discovery, type DiscoveryResult, reporter, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { redis } from 'bun';
 import { AppleTV } from './model';
@@ -21,6 +21,18 @@ async function main(): Promise<void> {
     const companionLinkDiscoveryResult = await companionLink();
 
     const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
+
+    device.airplay.on('connected', async () => {
+        await waitFor(3000);
+
+        const apps1 = await device.companionLink.getLaunchableApps();
+        console.log('Launchable apps:', apps1);
+
+        await waitFor(6000);
+
+        const apps2 = await device.companionLink.getLaunchableApps();
+        console.log('Launchable apps:', apps2);
+    });
 
     device.airplay.on('disconnected', unexpected => {
         if (!unexpected) {

@@ -343,10 +343,10 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
-    async noOp(): Promise<void> {
+    noOp(): void {
         this.#context.logger.debug('Sending no-op operation.');
 
-        await this.#stream.send(FrameType.NoOp, Buffer.allocUnsafe(0));
+        this.#stream.send(FrameType.NoOp, Buffer.allocUnsafe(0));
     }
 }
 

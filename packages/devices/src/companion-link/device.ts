@@ -118,7 +118,7 @@ export default class extends EventEmitter<EventMap> {
 
     async #heartbeat(): Promise<void> {
         try {
-            await this.#protocol.noOp();
+            this.#protocol.noOp();
         } catch (err) {
             this.#protocol.context.logger.error('Heartbeat error', err);
         }

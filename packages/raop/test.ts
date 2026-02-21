@@ -1,6 +1,6 @@
 import { reporter, TimingServer } from '@basmilius/apple-common';
 import { RaopClient } from './src';
-import * as AudioSource from '../audio-source/dist';
+import * as AudioSource from '@basmilius/apple-audio-source';
 
 reporter.all();
 

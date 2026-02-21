@@ -2,7 +2,7 @@ import { randomInt } from 'node:crypto';
 import { type Context, ENCRYPTION, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
-import { OPackFrameTypes, PairingFrameTypes } from './frame';
+import { FrameType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
 const HEADER_SIZE = 4;
 const PAIRING_QUEUE_IDENTIFIER = -1;
@@ -48,9 +48,10 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     }
 
     send(type: number, payload: Buffer): void {
+        const encrypt = this.isEncrypted && type !== FrameType.NoOp;
         let payloadLength = payload.byteLength;
 
-        if (this.isEncrypted && payloadLength > 0) {
+        if (encrypt) {
             payloadLength += Chacha20.CHACHA20_AUTH_TAG_LENGTH;
         }
 
@@ -60,7 +61,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         let data: Buffer;
 
-        if (this.isEncrypted) {
+        if (encrypt) {
             const nonce = Buffer.alloc(12);
             nonce.writeBigUInt64LE(BigInt(this.#encryptionState.writeCount++), 0);
 

@@ -23,7 +23,7 @@ async function main(): Promise<void> {
     const device = new AppleTV(airplayDiscoveryResult, companionLinkDiscoveryResult);
 
     device.airplay.on('connected', async () => {
-        await waitFor(3000);
+        await waitFor(6000);
 
         const apps1 = await device.companionLink.getLaunchableApps();
         console.log('Launchable apps:', apps1);
@@ -32,6 +32,16 @@ async function main(): Promise<void> {
 
         const apps2 = await device.companionLink.getLaunchableApps();
         console.log('Launchable apps:', apps2);
+
+        await waitFor(6000);
+
+        const apps3 = await device.companionLink.getLaunchableApps();
+        console.log('Launchable apps:', apps3);
+
+        await waitFor(6000);
+
+        const apps4 = await device.companionLink.getLaunchableApps();
+        console.log('Launchable apps:', apps4);
     });
 
     device.airplay.on('disconnected', unexpected => {

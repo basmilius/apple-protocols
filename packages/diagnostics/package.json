@@ -1,0 +1,57 @@
+{
+    "name": "@basmilius/apple-diagnostics",
+    "description": "Diagnostics tool for Apple Protocols.",
+    "version": "0.0.0",
+    "type": "module",
+    "license": "MIT",
+    "author": {
+        "name": "Bas Milius",
+        "email": "bas@mili.us",
+        "url": "https://bas.dev"
+    },
+    "keywords": [
+        "apple",
+        "airplay",
+        "companion link",
+        "opack",
+        "plist",
+        "tlv8"
+    ],
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "publishConfig": {
+        "access": "public",
+        "provenance": false
+    },
+    "scripts": {
+        "build": "tsgo && bun -b build.ts"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "typings": "./dist/index.d.ts",
+    "sideEffects": false,
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "dependencies": {
+        "@basmilius/apple-airplay": "workspace:*",
+        "@basmilius/apple-audio-source": "workspace:*",
+        "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-companion-link": "workspace:*",
+        "@basmilius/apple-devices": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
+        "@basmilius/apple-encryption": "workspace:*",
+        "@basmilius/apple-raop": "workspace:*",
+        "enquirer": "^2.4.1",
+        "ora": "^9.3.0"
+    },
+    "devDependencies": {
+        "@basmilius/tools": "^2.25.0",
+        "@types/bun": "^1.3.9"
+    }
+}

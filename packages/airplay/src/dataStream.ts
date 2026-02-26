@@ -43,6 +43,7 @@ export default class DataStream extends BaseStream<EventMap> {
 
         this.on('close', this.#onClose.bind(this));
         this.on('data', this.#onData.bind(this));
+        this.on('error', this.#onError.bind(this));
 
         this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_UPDATE_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoUpdateMessage.bind(this)];
@@ -70,10 +71,16 @@ export default class DataStream extends BaseStream<EventMap> {
         await super.disconnect();
     }
 
-    async exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<Proto.ProtocolMessage> {
-        return new Promise(async (resolve, reject) => {
+    exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<Proto.ProtocolMessage> {
+        return new Promise((resolve, reject) => {
             this.#handler = [resolve, reject];
-            this.send(message);
+
+            try {
+                this.send(message);
+            } catch (err) {
+                this.#handler = undefined;
+                reject(err);
+            }
         });
     }
 
@@ -139,11 +146,26 @@ export default class DataStream extends BaseStream<EventMap> {
 
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
-        this.#handler = undefined;
+
+        if (this.#handler) {
+            const [, reject] = this.#handler;
+            this.#handler = undefined;
+            reject(new Error('Connection closed.'));
+        }
     }
 
     #onClose(): void {
         this.#cleanup();
+    }
+
+    #onError(err: Error): void {
+        this.context.logger.error('[data]', '#onError()', err);
+
+        if (this.#handler) {
+            const [, reject] = this.#handler;
+            this.#handler = undefined;
+            reject(err);
+        }
     }
 
     async #onData(data: Buffer): Promise<void> {

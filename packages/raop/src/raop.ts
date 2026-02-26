@@ -170,7 +170,7 @@ class RaopStreamProtocol implements StreamProtocol {
         }
     }
 
-    async startFeedback(): Promise<void> {
+    startFeedback(): void {
         this.#feedbackInterval = setInterval(async () => {
             try {
                 await this.#rtsp.feedback(true);

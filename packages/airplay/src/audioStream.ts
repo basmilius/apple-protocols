@@ -62,8 +62,10 @@ export default class AudioStream {
 
         // Create local UDP socket for control (RTCP)
         this.#controlSocket = createSocket('udp4');
-        await new Promise<void>((resolve) => {
+        await new Promise<void>((resolve, reject) => {
+            this.#controlSocket!.once('error', reject);
             this.#controlSocket!.bind(0, () => {
+                this.#controlSocket!.removeListener('error', reject);
                 this.#controlPort = this.#controlSocket!.address().port;
                 resolve();
             });
@@ -151,8 +153,11 @@ export default class AudioStream {
 
         try {
             await new Promise<void>((resolve, reject) => {
-                this.#dataSocket!.on('error', reject);
-                this.#dataSocket!.connect(this.#dataPort, remoteAddress, resolve);
+                this.#dataSocket!.once('error', reject);
+                this.#dataSocket!.connect(this.#dataPort, remoteAddress, () => {
+                    this.#dataSocket!.removeListener('error', reject);
+                    resolve();
+                });
             });
 
             const frameSize = CHANNELS * BYTES_PER_CHANNEL;

@@ -47,8 +47,8 @@ export default class Protocol {
         await this.#stream.connect();
     }
 
-    async destroy(): Promise<void> {
-        await this.#stream.destroy();
+    destroy(): void {
+        this.#stream.destroy();
     }
 
     async disconnect(): Promise<void> {
@@ -208,7 +208,7 @@ export default class Protocol {
         });
     }
 
-    async subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
+    subscribe(event: string, fn: (data: unknown) => void): void {
         this.#stream.on(event, fn);
 
         this.#stream.sendOPack(FrameType.OPackEncrypted, {
@@ -220,7 +220,7 @@ export default class Protocol {
         });
     }
 
-    async unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
+    unsubscribe(event: string, fn?: (data: unknown) => void): void {
         if (!this.#stream.isConnected) {
             return;
         }

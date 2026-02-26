@@ -61,23 +61,23 @@ export default class Protocol {
         await this.#controlStream.connect();
     }
 
-    async destroy(): Promise<void> {
-        await this.#controlStream.destroy();
-        await this.#dataStream?.destroy();
-        await this.#eventStream?.destroy();
+    destroy(): void {
+        this.#controlStream.destroy();
+        this.#dataStream?.destroy();
+        this.#eventStream?.destroy();
     }
 
-    async disconnect(): Promise<void> {
+    disconnect(): void {
         try {
-            await this.#dataStream?.destroy();
+            this.#dataStream?.destroy();
         } catch {}
 
         try {
-            await this.#eventStream?.destroy();
+            this.#eventStream?.destroy();
         } catch {}
 
         try {
-            await this.#controlStream.destroy();
+            this.#controlStream.destroy();
         } catch {}
 
         this.#dataStream = undefined;

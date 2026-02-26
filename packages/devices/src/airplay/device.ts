@@ -73,9 +73,9 @@ export default class extends EventEmitter<EventMap> {
         this.#state.clear();
 
         this.#protocol = new Protocol(this.#discoveryResult);
-        this.#protocol.controlStream.on('close', async () => this.#onClose());
-        this.#protocol.controlStream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.controlStream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.controlStream.on('close', () => { void this.#onClose(); });
+        this.#protocol.controlStream.on('error', (err: Error) => { void this.#onError(err); });
+        this.#protocol.controlStream.on('timeout', () => { void this.#onTimeout(); });
 
         await this.#protocol.connect();
 
@@ -118,7 +118,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.sendCommand(command, options));
     }
 
-    async setCredentials(credentials: AccessoryCredentials): Promise<void> {
+    setCredentials(credentials: AccessoryCredentials): void {
         this.#credentials = credentials;
     }
 
@@ -168,10 +168,10 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
         await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
-        this.#protocol.dataStream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.dataStream.on('timeout', async () => this.#onTimeout());
-        this.#protocol.eventStream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.eventStream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.dataStream.on('error', (err: Error) => { void this.#onError(err); });
+        this.#protocol.dataStream.on('timeout', () => { void this.#onTimeout(); });
+        this.#protocol.eventStream.on('error', (err: Error) => { void this.#onError(err); });
+        this.#protocol.eventStream.on('timeout', () => { void this.#onTimeout(); });
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
@@ -185,20 +185,19 @@ export default class extends EventEmitter<EventMap> {
                 await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));
             }
 
-            const result = await Promise.race([
-                new Promise(async resolve => {
-                    this.#protocol.dataStream.once('deviceInfo', async () => {
-                        await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-                        await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
-                        resolve(true);
+            const result = await Promise.race<boolean>([
+                new Promise<boolean>((resolve, reject) => {
+                    this.#protocol.dataStream.once('deviceInfo', () => {
+                        this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState())
+                            .then(() => this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig()))
+                            .then(() => resolve(true))
+                            .catch(reject);
                     });
 
-                    await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
+                    this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId))
+                        .catch(reject);
                 }),
-                async () => {
-                    await waitFor(3000);
-                    return false;
-                }
+                waitFor(3000).then(() => false)
             ]);
 
             if (!result) {

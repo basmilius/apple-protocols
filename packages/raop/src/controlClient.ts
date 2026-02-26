@@ -102,7 +102,11 @@ export default class ControlClient extends EventEmitter {
             );
 
             firstPacket = false;
-            this.#transport.send(packet, port, addr);
+            this.#transport.send(packet, port, addr, (err) => {
+                if (err) {
+                    console.error(`Failed to send sync packet to ${addr}:${port}:`, err);
+                }
+            });
         };
 
         sendSync();
@@ -128,7 +132,11 @@ export default class ControlClient extends EventEmitter {
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), originalSeqno, packet]);
 
                 if (this.#transport) {
-                    this.#transport.send(resp, addr.port, addr.address);
+                    this.#transport.send(resp, addr.port, addr.address, (err) => {
+                        if (err) {
+                            console.error(`Failed to retransmit packet ${seqno} to ${addr.address}:${addr.port}:`, err);
+                        }
+                    });
                 }
             } else {
                 console.debug(`Packet ${seqno} not in backlog`);

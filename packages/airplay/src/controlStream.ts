@@ -132,7 +132,7 @@ export default class ControlStream extends BaseStream {
             data = this.encrypt(data);
         }
 
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.#reject = reject;
             this.#resolve = resolve;
 

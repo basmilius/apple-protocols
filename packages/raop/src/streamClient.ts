@@ -122,8 +122,12 @@ export default class StreamClient extends EventEmitter<EventMap> {
 
         try {
             transport = createSocket('udp4');
-            await new Promise<void>((resolve) => {
-                transport!.connect(this.#streamContext.serverPort, this.#rtsp.connection.remoteIp, resolve);
+            await new Promise<void>((resolve, reject) => {
+                transport!.once('error', reject);
+                transport!.connect(this.#streamContext.serverPort, this.#rtsp.connection.remoteIp, () => {
+                    transport!.removeListener('error', reject);
+                    resolve();
+                });
             });
 
             this.#controlClient.start(this.#rtsp.connection.remoteIp);

@@ -101,7 +101,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         return this.#attemptConnect();
     }
 
-    async destroy(): Promise<void> {
+    destroy(): void {
         this.#socket?.destroy();
     }
 

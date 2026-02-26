@@ -1,7 +1,7 @@
-import { file } from 'bun';
+import { file, write } from 'bun';
 import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
 
-export default async function (device: DiscoveryResult): Promise<AccessoryCredentials> {
+export default async function getSavedCredentials(device: DiscoveryResult): Promise<AccessoryCredentials> {
     const credentials = file(`${device.id}.ap-creds`);
 
     if (!await credentials.exists()) {
@@ -18,3 +18,19 @@ export default async function (device: DiscoveryResult): Promise<AccessoryCreden
         secretKey: Buffer.from(json.secretKey, 'hex')
     };
 }
+
+export async function saveCredentials(device: DiscoveryResult, credentials: AccessoryCredentials): Promise<void> {
+    const data = {
+        accessoryIdentifier: credentials.accessoryIdentifier,
+        accessoryLongTermPublicKey: credentials.accessoryLongTermPublicKey.toString('hex'),
+        pairingId: credentials.pairingId.toString('hex'),
+        publicKey: credentials.publicKey.toString('hex'),
+        secretKey: credentials.secretKey.toString('hex')
+    };
+
+    console.log('Credentials:');
+    console.log(data);
+
+    await write(`${device.id}.ap-creds`, JSON.stringify(data));
+}
+

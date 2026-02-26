@@ -2,17 +2,7 @@ import { Plist } from '@basmilius/apple-encoding';
 import { fromBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 
-export function generateActiveRemoteId(): string {
-    return Math.floor(Math.random() * 2 ** 32).toString(10);
-}
-
-export function generateDacpId(): string {
-    return Math.floor(Math.random() * 2 ** 64).toString(16).toUpperCase();
-}
-
-export function generateSessionId(): string {
-    return Math.floor(Math.random() * 2 ** 32).toString(10);
-}
+export { generateActiveRemoteId, generateDacpId, generateSessionId } from '@basmilius/apple-common';
 
 export function nonce(counter: number): Buffer {
     const nonceArray = new Uint8Array(12);

@@ -51,6 +51,9 @@ export {
 } from './timing';
 
 export {
+    generateActiveRemoteId,
+    generateDacpId,
+    generateSessionId,
     getLocalIP,
     getMacAddress,
     randomInt32,

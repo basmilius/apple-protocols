@@ -40,7 +40,6 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-airplay": "workspace:*",
         "@basmilius/apple-common": "workspace:*",
         "@basmilius/apple-encoding": "workspace:*",
         "@basmilius/apple-encryption": "workspace:*"

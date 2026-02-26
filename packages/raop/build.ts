@@ -12,7 +12,6 @@ await build({
         dts()
     ],
     external: [
-        '@basmilius/apple-airplay',
         '@basmilius/apple-common',
         '@basmilius/apple-encoding',
         '@basmilius/apple-encryption'

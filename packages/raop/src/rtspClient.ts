@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { generateActiveRemoteId, generateDacpId, generateSessionId } from '@basmilius/apple-airplay';
-import { Connection, type Context, HTTP_TIMEOUT } from '@basmilius/apple-common';
+import { Connection, type Context, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
 import { DAAP, Plist, RTSP } from '@basmilius/apple-encoding';
 import type { MediaMetadata } from './types';
 

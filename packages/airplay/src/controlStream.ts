@@ -1,6 +1,5 @@
-import { type Context, HTTP_TIMEOUT } from '@basmilius/apple-common';
+import { type Context, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
 import { RTSP } from '@basmilius/apple-encoding';
-import { generateActiveRemoteId, generateDacpId, generateSessionId } from './utils';
 import BaseStream from './baseStream';
 
 export default class ControlStream extends BaseStream {

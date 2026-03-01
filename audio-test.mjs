@@ -1,14 +1,14 @@
 import { readFileSync } from 'node:fs';
-import { reporter, TimingServer } from './packages/common/dist/index.js';
-import * as AudioSource from './packages/audio-source/dist/index.js';
-import { RaopClient } from './packages/raop/dist/index.js';
+import { reporter, TimingServer } from './packages/common/dist/index.mjs';
+import * as AudioSource from './packages/audio-source/dist/index.mjs';
+import { RaopClient } from './packages/raop/dist/index.mjs';
 
 reporter.all();
 
 const timingServer = new TimingServer();
 await timingServer.listen();
 
-const client = await RaopClient.discover('Woonkamer-HomePod.local', timingServer);
+const client = await RaopClient.discover('Slaapkamer-HomePod.local', timingServer);
 
 client.on('playing', (playbackInfo) => {
     console.log('▶️  Playing:', playbackInfo.metadata.title);

@@ -1,5 +1,5 @@
 import { Discovery, reporter, TimingServer } from '@basmilius/apple-common';
-import * as AudioSource from '../audio-source/dist';
+import * as AudioSource from '../audio-source';
 import * as AirPlay from './src';
 
 reporter.all();

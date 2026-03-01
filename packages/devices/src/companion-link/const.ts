@@ -1,1 +1,1 @@
-export const PROTOCOL = Symbol('com.basmilius.companion-link:protocol');
+export const PROTOCOL: unique symbol = Symbol('com.basmilius.companion-link:protocol');

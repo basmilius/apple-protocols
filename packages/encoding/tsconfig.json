@@ -6,7 +6,7 @@
             "dom.iterable",
             "esnext"
         ],
-        "allowJs": true,
+        "allowJs": false,
         "skipLibCheck": true,
         "strict": false,
         "forceConsistentCasingInFileNames": true,
@@ -14,6 +14,7 @@
         "module": "esnext",
         "moduleResolution": "node",
         "resolveJsonModule": false,
+        "isolatedDeclarations": true,
         "isolatedModules": true,
         "jsx": "react-jsx",
         "rootDir": ".",
@@ -30,8 +31,7 @@
     },
     "include": [
         "src/**/*.ts",
-        "test/**/*.ts",
-        "build.ts"
+        "test/**/*.ts"
     ],
     "exclude": [
         "dist",

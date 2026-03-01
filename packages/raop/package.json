@@ -26,17 +26,18 @@
         "provenance": false
     },
     "scripts": {
-        "build": "tsgo && bun -b build.ts",
+        "build": "tsgo --noEmit && tsdown",
+        "dev": "tsdown --watch",
         "watch:test": "bun --watch test.ts"
     },
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "typings": "./dist/index.d.ts",
+    "main": "./dist/index.mjs",
+    "types": "./dist/index.d.mts",
+    "typings": "./dist/index.d.mts",
     "sideEffects": false,
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
-            "default": "./dist/index.js"
+            "types": "./dist/index.d.mts",
+            "default": "./dist/index.mjs"
         }
     },
     "dependencies": {
@@ -46,7 +47,7 @@
         "@basmilius/apple-encryption": "workspace:*"
     },
     "devDependencies": {
-        "@basmilius/tools": "^2.25.0",
-        "@types/bun": "^1.3.9"
+        "@types/bun": "^1.3.9",
+        "tsdown": "^0.21.0-beta.2"
     }
 }

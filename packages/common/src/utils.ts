@@ -1,6 +1,18 @@
 import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 
+export function generateActiveRemoteId(): string {
+    return Math.floor(Math.random() * 2 ** 32).toString(10);
+}
+
+export function generateDacpId(): string {
+    return Math.floor(Math.random() * 2 ** 64).toString(16).toUpperCase();
+}
+
+export function generateSessionId(): string {
+    return Math.floor(Math.random() * 2 ** 32).toString(10);
+}
+
 export function getLocalIP(): string | null {
     const interfaces = networkInterfaces();
 

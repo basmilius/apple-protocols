@@ -51,7 +51,7 @@
         "ora": "^9.3.0"
     },
     "devDependencies": {
-        "@basmilius/tools": "^2.25.0",
+        "@basmilius/tools": "^2.29.0",
         "@types/bun": "^1.3.9"
     }
 }

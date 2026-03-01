@@ -5,7 +5,7 @@ reporter.all();
 
 async function homepod(): Promise<void> {
     const discovery = Discovery.airplay();
-    const discoveryResult = await discovery.findUntil('Woonkamer-HomePod.local');
+    const discoveryResult = await discovery.findUntil('Slaapkamer-HomePod.local');
     const protocol = new AirPlay.Protocol(discoveryResult);
 
     await protocol.connect();

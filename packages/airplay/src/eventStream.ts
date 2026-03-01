@@ -11,6 +11,7 @@ export default class EventStream extends BaseStream {
 
         this.on('close', this.#onClose.bind(this));
         this.on('data', this.#onData.bind(this));
+        this.on('error', this.#onError.bind(this));
     }
 
     async disconnect(): Promise<void> {
@@ -109,6 +110,10 @@ export default class EventStream extends BaseStream {
 
     #onClose(): void {
         this.#cleanup();
+    }
+
+    #onError(err: Error): void {
+        this.context.logger.error('[event]', '#onError()', err);
     }
 
     async #onData(data: Buffer): Promise<void> {

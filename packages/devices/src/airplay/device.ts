@@ -73,9 +73,9 @@ export default class extends EventEmitter<EventMap> {
         this.#state.clear();
 
         this.#protocol = new Protocol(this.#discoveryResult);
-        this.#protocol.controlStream.on('close', async () => this.#onClose());
-        this.#protocol.controlStream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.controlStream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.controlStream.on('close', this.#onClose.bind(this));
+        this.#protocol.controlStream.on('error', this.#onError.bind(this));
+        this.#protocol.controlStream.on('timeout', this.#onTimeout.bind(this));
 
         await this.#protocol.connect();
 
@@ -91,7 +91,7 @@ export default class extends EventEmitter<EventMap> {
         this.emit('connected');
     }
 
-    async disconnect(): Promise<void> {
+    disconnect(): void {
         this.#disconnect = true;
 
         if (this.#feedbackInterval) {
@@ -100,12 +100,12 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.#unsubscribe();
-        await this.#protocol.disconnect();
+        this.#protocol.disconnect();
     }
 
-    async disconnectSafely(): Promise<void> {
+    disconnectSafely(): void {
         try {
-            await this.disconnect();
+            this.disconnect();
         } catch (_) {
         }
     }
@@ -118,7 +118,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.sendCommand(command, options));
     }
 
-    async setCredentials(credentials: AccessoryCredentials): Promise<void> {
+    setCredentials(credentials: AccessoryCredentials): void {
         this.#credentials = credentials;
     }
 
@@ -130,25 +130,24 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
-    async #onClose(): Promise<void> {
+    #onClose(): void {
         this.#protocol.context.logger.net('#onClose() called on airplay device.');
 
         if (!this.#disconnect) {
-            await this.disconnectSafely();
+            this.disconnectSafely();
             this.emit('disconnected', true);
         } else {
             this.emit('disconnected', false);
         }
     }
 
-    async #onError(err: Error): Promise<void> {
+    #onError(err: Error): void {
         this.#protocol.context.logger.error('AirPlay error', err);
     }
 
-    async #onTimeout(): Promise<void> {
+    #onTimeout(): void {
         this.#protocol.context.logger.error('AirPlay timeout');
-
-        await this.#protocol.controlStream.destroy();
+        this.#protocol.controlStream.destroy();
     }
 
     async #setup(): Promise<void> {
@@ -168,10 +167,10 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
         await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
-        this.#protocol.dataStream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.dataStream.on('timeout', async () => this.#onTimeout());
-        this.#protocol.eventStream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.eventStream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.dataStream.on('error', this.#onError.bind(this));
+        this.#protocol.dataStream.on('timeout', this.#onTimeout.bind(this));
+        this.#protocol.eventStream.on('error', this.#onError.bind(this));
+        this.#protocol.eventStream.on('timeout', this.#onTimeout.bind(this));
 
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
@@ -202,7 +201,7 @@ export default class extends EventEmitter<EventMap> {
             ]);
 
             if (!result) {
-                await this.#onError(new Error('Device did not respond in time with its info.'));
+                this.#onError(new Error('Device did not respond in time with its info.'));
             } else {
                 this.#protocol.context.logger.info('Device info received successfully, protocol should be ready.');
             }

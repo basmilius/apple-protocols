@@ -47,8 +47,8 @@ export default class Protocol {
         await this.#stream.connect();
     }
 
-    async destroy(): Promise<void> {
-        await this.#stream.destroy();
+    destroy(): void {
+        this.#stream.destroy();
     }
 
     async disconnect(): Promise<void> {

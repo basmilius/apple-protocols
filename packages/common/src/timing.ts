@@ -20,14 +20,19 @@ export class TimingServer {
         this.#socket.on('message', this.#onMessage.bind(this));
     }
 
-    async close(): Promise<void> {
+    close(): void {
         this.#socket.close();
         this.#port = 0;
     }
 
-    async listen(): Promise<void> {
-        return new Promise<void>(resolve => {
-            this.#socket.once('listening', () => this.#onListening());
+    listen(): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            this.#socket.once('error', reject);
+            this.#socket.once('listening', () => {
+                this.#socket.removeListener('error', reject);
+                this.#onListening();
+                resolve();
+            });
             this.#socket.bind(0, resolve);
         });
     }
@@ -37,16 +42,16 @@ export class TimingServer {
         this.#socket.setSendBufferSize(16384);
     }
 
-    async #onError(err: Error): Promise<void> {
+    #onError(err: Error): void {
         this.#logger.error('Timing server error', err);
     }
 
-    async #onListening(): Promise<void> {
+    #onListening(): void {
         const {port} = this.#socket.address();
         this.#port = port;
     }
 
-    async #onMessage(data: Buffer, info: RemoteInfo): Promise<void> {
+    #onMessage(data: Buffer, info: RemoteInfo): void {
         try {
             const request = NTP.decode(data);
             const ntp = NTP.now();
@@ -67,7 +72,13 @@ export class TimingServer {
                 sendtime_frac: receivedFraction
             });
 
-            this.#socket.send(response, info.port, info.address);
+            this.#socket.send(response, info.port, info.address, err => {
+                if (!err) {
+                    return;
+                }
+
+                this.#logger.warn(`Timing server failed to send response to ${info.address}:${info.port}`, err);
+            });
         } catch (err) {
             this.#logger.warn(`Timing server received malformed packet (${data.length} bytes) from ${info.address}:${info.port}`, err);
         }

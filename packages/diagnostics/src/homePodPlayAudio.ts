@@ -51,7 +51,7 @@ export default async function (): Promise<void> {
     console.log(`Model: ${raop.modelName}`);
     console.log(`Address: ${raop.address}`);
 
-    const audioSource = await Url.fromUrl('https://bmcdn.nl/doorbell.ogg');
+    const audioSource = await Url.fromUrl('https://bmcdn.nl/doorbell.pcm');
 
     await raop.stream(audioSource, {
         metadata: {

@@ -54,6 +54,18 @@ export default class Client {
         return this.#playbackState === Proto.PlaybackState_Enum.Playing;
     }
 
+    get shuffleMode(): Proto.ShuffleMode_Enum {
+        const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeShuffleMode);
+
+        return info?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown;
+    }
+
+    get repeatMode(): Proto.RepeatMode_Enum {
+        const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeRepeatMode);
+
+        return info?.repeatMode ?? Proto.RepeatMode_Enum.Unknown;
+    }
+
     get elapsedTime(): number {
         const meta = this.currentItemMetadata;
         const npi = this.#nowPlayingInfo;

@@ -2,7 +2,6 @@ import { EventEmitter } from 'node:events';
 import { Socket } from 'node:net';
 import { SOCKET_TIMEOUT } from './const';
 import type { Context } from './context';
-import { ENCRYPTION } from './symbols';
 import type { ConnectionState, EventMap } from './types';
 
 const NOOP_PROMISE_HANDLER = {
@@ -21,7 +20,7 @@ type ConnectionEventMap = {
     timeout: [];
 };
 
-export class Connection<TEventMap extends EventMap> extends EventEmitter<ConnectionEventMap | TEventMap> {
+export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<ConnectionEventMap & TEventMap> {
     get address(): string {
         return this.#address;
     }
@@ -62,6 +61,8 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
     readonly #address: string;
     readonly #port: number;
     readonly #context: Context;
+    readonly #emitInternal = <K extends keyof ConnectionEventMap>(event: K, ...args: ConnectionEventMap[K]) =>
+        (this.emit as (...a: any[]) => boolean)(event, ...args);
     #debug: boolean = false;
     #retryAttempt: number = 0;
     #retryAttempts: number = 3;
@@ -142,7 +143,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
     write(data: Buffer | Uint8Array): void {
         if (!this.#socket || this.state !== 'connected' || !this.#socket.writable) {
-            this.emit('error', new Error('Cannot write to a disconnected connection.'));
+            this.#emitInternal('error', new Error('Cannot write to a disconnected connection.'));
             return;
         }
 
@@ -152,7 +153,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             }
 
             this.#context.logger.error('Failed to write data to socket.');
-            this.emit('error', err);
+            this.#emitInternal('error', err);
         });
     }
 
@@ -179,8 +180,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
             this.#socket.connect({
                 host: this.#address,
-                port: this.#port,
-                keepAlive: true
+                port: this.#port
             });
         });
     }
@@ -242,7 +242,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#context.logger.net(`Connection closed (${hadError ? 'with error' : 'normally'}).`);
         }
 
-        this.emit('close', hadError);
+        this.#emitInternal('close', hadError);
 
         if (wasConnected && this.#retryEnabled && hadError) {
             this.#scheduleRetry(new Error('Connection closed unexpectedly.'));
@@ -256,7 +256,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
         this.#socket.setKeepAlive(true, 10000);
         this.#socket.setTimeout(0);
 
-        this.emit('connect');
+        this.#emitInternal('connect');
         this.#connectPromise?.resolve();
         this.#connectPromise = undefined;
     }
@@ -269,18 +269,18 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
             this.#context.logger.debug(`ascii=${data.toString('ascii').replace(/[^\x20-\x7E]/g, '.').substring(0, cutoff)}`);
         }
 
-        this.emit('data', data);
+        this.#emitInternal('data', data);
     }
 
     #onEnd(): void {
-        this.emit('end');
+        this.#emitInternal('end');
     }
 
     #onError(err: Error): void {
         this.#context.logger.error(`Connection error: ${err.message}`);
 
         if (this.listenerCount('error') > 0) {
-            this.emit('error', err);
+            this.#emitInternal('error', err);
         } else {
             this.#context.logger.warn('No error handler registered. This is likely a bug.', this.constructor.name, '#onError');
         }
@@ -297,7 +297,7 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
         const err = new Error('Connection timed out.');
 
-        this.emit('timeout');
+        this.#emitInternal('timeout');
 
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);
@@ -310,13 +310,13 @@ export class Connection<TEventMap extends EventMap> extends EventEmitter<Connect
 
 export class EncryptionAwareConnection<TEventMap extends EventMap> extends Connection<TEventMap> {
     get isEncrypted(): boolean {
-        return !!this[ENCRYPTION];
+        return !!this._encryption;
     }
 
-    [ENCRYPTION]?: EncryptionState;
+    _encryption?: EncryptionState;
 
     enableEncryption(readKey: Buffer, writeKey: Buffer): void {
-        this[ENCRYPTION] = new EncryptionState(readKey, writeKey);
+        this._encryption = new EncryptionState(readKey, writeKey);
     }
 }
 

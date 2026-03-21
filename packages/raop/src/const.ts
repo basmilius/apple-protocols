@@ -19,4 +19,4 @@ export const EMPTY_METADATA: MediaMetadata = {
     duration: 0
 };
 
-export const SUPPORTED_ENCRYPTIONS = EncryptionType.Unencrypted | EncryptionType.MFiSAP;
+export const SUPPORTED_ENCRYPTIONS: number = EncryptionType.Unencrypted | EncryptionType.MFiSAP;

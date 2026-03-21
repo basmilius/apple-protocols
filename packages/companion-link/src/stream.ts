@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { type Context, ENCRYPTION, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
+import { type Context, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { FrameType, OPackFrameTypes, PairingFrameTypes } from './frame';
@@ -9,7 +9,7 @@ const PAIRING_QUEUE_IDENTIFIER = -1;
 
 export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
     get #encryptionState(): EncryptionState {
-        return this[ENCRYPTION];
+        return this._encryption;
     }
 
     readonly #queue: Map<number, [Function, Function]> = new Map();

@@ -1,4 +1,51 @@
-export const AirPlayFeatureFlags = {
+type AirPlayFeatureFlagsType = {
+    readonly SupportsAirPlayVideoV1: bigint;
+    readonly SupportsAirPlayPhoto: bigint;
+    readonly SupportsAirPlayVideoFairPlay: bigint;
+    readonly SupportsAirPlayVideoVolumeControl: bigint;
+    readonly SupportsAirPlayVideoHTTPLiveStreams: bigint;
+    readonly SupportsAirPlaySlideShow: bigint;
+    readonly SupportsAirPlayScreen: bigint;
+    readonly SupportsAirPlayAudio: bigint;
+    readonly AudioRedundant: bigint;
+    readonly Authentication_4: bigint;
+    readonly MetadataFeatures_0: bigint;
+    readonly MetadataFeatures_1: bigint;
+    readonly MetadataFeatures_2: bigint;
+    readonly AudioFormats_0: bigint;
+    readonly AudioFormats_1: bigint;
+    readonly AudioFormats_2: bigint;
+    readonly AudioFormats_3: bigint;
+    readonly Authentication_1: bigint;
+    readonly Authentication_8: bigint;
+    readonly SupportsLegacyPairing: bigint;
+    readonly HasUnifiedAdvertiserInfo: bigint;
+    readonly IsCarPlay: bigint;
+    readonly SupportsAirPlayVideoPlayQueue: bigint;
+    readonly SupportsAirPlayFromCloud: bigint;
+    readonly SupportsTLS_PSK: bigint;
+    readonly SupportsUnifiedMediaControl: bigint;
+    readonly SupportsBufferedAudio: bigint;
+    readonly SupportsPTP: bigint;
+    readonly SupportsScreenMultiCodec: bigint;
+    readonly SupportsSystemPairing: bigint;
+    readonly IsAPValeriaScreenSender: bigint;
+    readonly SupportsHKPairingAndAccessControl: bigint;
+    readonly SupportsCoreUtilsPairingAndEncryption: bigint;
+    readonly SupportsAirPlayVideoV2: bigint;
+    readonly MetadataFeatures_3: bigint;
+    readonly SupportsUnifiedPairSetupAndMFi: bigint;
+    readonly SupportsSetPeersExtendedMessage: bigint;
+    readonly SupportsAPSync: bigint;
+    readonly SupportsWoL: bigint;
+    readonly SupportsWoL2: bigint;
+    readonly SupportsHangdogRemoteControl: bigint;
+    readonly SupportsAudioStreamConnectionSetup: bigint;
+    readonly SupportsAudioMetadataControl: bigint;
+    readonly SupportsRFC2198Redundancy: bigint;
+};
+
+export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
     SupportsAirPlayVideoV1: 1n << 0n,
     SupportsAirPlayPhoto: 1n << 1n,
     SupportsAirPlayVideoFairPlay: 1n << 2n,
@@ -43,7 +90,7 @@ export const AirPlayFeatureFlags = {
     SupportsAudioStreamConnectionSetup: 1n << 59n,
     SupportsAudioMetadataControl: 1n << 60n,
     SupportsRFC2198Redundancy: 1n << 61n
-} as const;
+};
 
 export type AirPlayFeatureFlagName = keyof typeof AirPlayFeatureFlags;
 
@@ -53,7 +100,7 @@ const PASSWORD_BIT = 0x80n;
 const LEGACY_PAIRING_BIT = 0x200n;
 const PIN_REQUIRED_BIT = 0x8n;
 
-export const parseFeatures = (features: string): bigint => {
+export function parseFeatures(features: string): bigint {
     const parts = features.split(',').map(part => part.trim());
 
     if (parts.length === 1) {
@@ -68,12 +115,13 @@ export const parseFeatures = (features: string): bigint => {
     }
 
     throw new Error(`Invalid features format: ${features}`);
-};
+}
 
-export const hasFeatureFlag = (features: bigint, flag: bigint): boolean =>
-    (features & flag) !== 0n;
+export function hasFeatureFlag(features: bigint, flag: bigint): boolean {
+    return (features & flag) !== 0n;
+}
 
-export const describeFlags = (features: bigint): AirPlayFeatureFlagName[] => {
+export function describeFlags(features: bigint): AirPlayFeatureFlagName[] {
     const result: AirPlayFeatureFlagName[] = [];
 
     for (const [name, flag] of Object.entries(AirPlayFeatureFlags)) {
@@ -83,9 +131,9 @@ export const describeFlags = (features: bigint): AirPlayFeatureFlagName[] => {
     }
 
     return result;
-};
+}
 
-export const getProtocolVersion = (txt: Record<string, string>): 1 | 2 => {
+export function getProtocolVersion(txt: Record<string, string>): 1 | 2 {
     const featuresStr = txt.features ?? txt.ft;
 
     if (!featuresStr) {
@@ -103,9 +151,9 @@ export const getProtocolVersion = (txt: Record<string, string>): 1 | 2 => {
     }
 
     return 1;
-};
+}
 
-export const getPairingRequirement = (txt: Record<string, string>): PairingRequirement => {
+export function getPairingRequirement(txt: Record<string, string>): PairingRequirement {
     const featuresStr = txt.features ?? txt.ft;
 
     if (!featuresStr) {
@@ -132,9 +180,9 @@ export const getPairingRequirement = (txt: Record<string, string>): PairingRequi
     }
 
     return 'none';
-};
+}
 
-export const isPasswordRequired = (txt: Record<string, string>): boolean => {
+export function isPasswordRequired(txt: Record<string, string>): boolean {
     if (txt.pw === 'true') {
         return true;
     }
@@ -142,9 +190,9 @@ export const isPasswordRequired = (txt: Record<string, string>): boolean => {
     const sf = txt.sf ? BigInt(txt.sf) : 0n;
 
     return (sf & PASSWORD_BIT) !== 0n;
-};
+}
 
-export const isRemoteControlSupported = (txt: Record<string, string>): boolean => {
+export function isRemoteControlSupported(txt: Record<string, string>): boolean {
     const featuresStr = txt.features ?? txt.ft;
 
     if (!featuresStr) {
@@ -154,4 +202,4 @@ export const isRemoteControlSupported = (txt: Record<string, string>): boolean =
     const features = parseFeatures(featuresStr);
 
     return hasFeatureFlag(features, AirPlayFeatureFlags.SupportsHangdogRemoteControl);
-};
+}

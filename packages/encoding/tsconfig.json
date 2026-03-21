@@ -12,7 +12,7 @@
         "forceConsistentCasingInFileNames": true,
         "esModuleInterop": true,
         "module": "esnext",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "resolveJsonModule": false,
         "isolatedDeclarations": true,
         "isolatedModules": true,
@@ -26,7 +26,10 @@
         "noEmit": true,
         "paths": {
             "@basmilius/apple-*": ["../*/src"]
-        }
+        },
+        "types": [
+            "node"
+        ]
     },
     "include": [
         "src/**/*.ts",

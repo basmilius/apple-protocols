@@ -4,7 +4,7 @@ import AudioBufferShim from 'audio-buffer';
 
 const AudioBuffer = globalThis.AudioBuffer || AudioBufferShim;
 
-export default async function audioDecode(buf) {
+export default async function audioDecode(buf: any): Promise<any> {
     if (!buf && !(buf.length || buf.buffer)) throw Error('Bad decode target');
     buf = new Uint8Array(buf.buffer || buf);
 
@@ -17,8 +17,8 @@ export default async function audioDecode(buf) {
     return decoders[type](buf);
 };
 
-export const decoders = {
-    async oga(buf) {
+export const decoders: Record<string, any> = {
+    async oga(buf: any) {
         let {decoder} = decoders.oga;
         if (!decoder) {
             let {OggVorbisDecoder} = await import('@wasm-audio-decoders/ogg-vorbis');
@@ -26,7 +26,7 @@ export const decoders = {
         } else await decoder.reset();
         return buf && createBuffer(await decoder.decodeFile(buf));
     },
-    async mp3(buf) {
+    async mp3(buf: any) {
         let {decoder} = decoders.mp3;
         if (!decoder) {
             const {MPEGDecoder} = await import('mpg123-decoder');
@@ -34,7 +34,7 @@ export const decoders = {
         } else await decoder.reset();
         return buf && createBuffer(await decoder.decode(buf));
     },
-    async flac(buf) {
+    async flac(buf: any) {
         let {decoder} = decoders.flac;
         if (!decoder) {
             const {FLACDecoder} = await import('@wasm-audio-decoders/flac');
@@ -50,7 +50,7 @@ export const decoders = {
     //     } else await decoder.reset();
     //     return buf && createBuffer(await decoder.decodeFile(buf));
     // },
-    async wav(buf) {
+    async wav(buf: any) {
         let {decode} = decoders.wav;
         if (!decode) {
             let module = await import('node-wav');
@@ -64,7 +64,7 @@ export const decoders = {
             return buf && createBuffer(decodeWavExtensible(buf));
         }
     },
-    async qoa(buf) {
+    async qoa(buf: any) {
         let {decode} = decoders.qoa;
         if (!decode) {
             decoders.qoa.decode = decode = (await import('qoa-format')).decode;

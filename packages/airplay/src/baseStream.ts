@@ -1,4 +1,4 @@
-import { ENCRYPTION, EncryptionAwareConnection, type EncryptionState, type EventMap } from '@basmilius/apple-common';
+import { EncryptionAwareConnection, type EncryptionState, type EventMap } from '@basmilius/apple-common';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { nonce } from './utils';
 
@@ -11,7 +11,7 @@ type DefaultEventMap = {
 
 export default class BaseStream<TEventMap extends EventMap = {}> extends EncryptionAwareConnection<DefaultEventMap & TEventMap> {
     get #encryptionState(): EncryptionState {
-        return this[ENCRYPTION];
+        return this._encryption;
     }
 
     decrypt(data: Buffer): Buffer | false {

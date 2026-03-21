@@ -106,7 +106,7 @@ const encodeDnsQuestion = (name: string, qtype: number, unicastResponse: boolean
     return Buffer.concat([qname, suffix]);
 };
 
-export const createQueryPackets = (services: string[], qtype: number = QueryType.PTR, unicastResponse: boolean = false): Buffer[] => {
+export function createQueryPackets(services: string[], qtype: number = QueryType.PTR, unicastResponse: boolean = false): Buffer[] {
     const packets: Buffer[] = [];
 
     for (let i = 0; i < services.length; i += SERVICES_PER_MSG) {
@@ -125,7 +125,7 @@ export const createQueryPackets = (services: string[], qtype: number = QueryType
     }
 
     return packets;
-};
+}
 
 // --- DNS Packet Decoding ---
 
@@ -393,7 +393,7 @@ const knock = (address: string): Promise<void> => {
     return Promise.all(promises).then(() => {});
 };
 
-export const unicast = (hosts: string[], services: string[], timeout: number = 4): Promise<MdnsService[]> => {
+export function unicast(hosts: string[], services: string[], timeout: number = 4): Promise<MdnsService[]> {
     return new Promise((resolve) => {
         const queries = createQueryPackets(services);
         const collector = new ServiceCollector();
@@ -448,9 +448,9 @@ export const unicast = (hosts: string[], services: string[], timeout: number = 4
             setTimeout(finish, timeout * 1000);
         });
     });
-};
+}
 
-export const multicast = (services: string[], timeout: number = 4): Promise<MdnsService[]> => {
+export function multicast(services: string[], timeout: number = 4): Promise<MdnsService[]> {
     return new Promise((resolve) => {
         const collector = new ServiceCollector();
         const queries = createQueryPackets(services);
@@ -560,4 +560,4 @@ export const multicast = (services: string[], timeout: number = 4): Promise<Mdns
 
         setup();
     });
-};
+}

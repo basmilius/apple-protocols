@@ -1,5 +1,10 @@
 export {
+    AirPlayClient,
     AirPlayDevice,
+    AirPlayPlayer,
+    AirPlayRemote,
+    AirPlayState,
+    AirPlayVolume,
     AIRPLAY
 } from './airplay';
 

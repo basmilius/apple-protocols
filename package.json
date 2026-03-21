@@ -6,6 +6,10 @@
         "email": "bas@mili.us",
         "url": "https://bas.dev"
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/basmilius/apple-protocols"
+    },
     "workspaces": [
         "packages/*"
     ],

@@ -1,6 +1,19 @@
 import { Proto } from '@basmilius/apple-airplay';
 import { merge } from 'lodash-es';
 
+const COCOA_EPOCH_OFFSET = 978307200;
+
+const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: number, isPlaying: boolean): number => {
+    if (!rate || !isPlaying) {
+        return elapsed;
+    }
+
+    const timestampUnix = cocoaTimestamp + COCOA_EPOCH_OFFSET;
+    const delta = (Date.now() / 1000 - timestampUnix) * rate;
+
+    return Math.max(0, elapsed + delta);
+};
+
 export default class Client {
     get bundleIdentifier(): string {
         return this.#bundleIdentifier;
@@ -67,29 +80,20 @@ export default class Client {
     }
 
     get elapsedTime(): number {
-        const meta = this.currentItemMetadata;
         const npi = this.#nowPlayingInfo;
+        const meta = this.currentItemMetadata;
 
-        const elapsedTimestamp = meta?.elapsedTimeTimestamp || 0;
-        const elapsed = meta?.elapsedTime || npi?.elapsedTime || 0;
-
-        if (!elapsedTimestamp) {
-            return elapsed;
+        // Prefer NowPlayingInfo — it's the live ticker and updates on replay
+        if (npi?.elapsedTime != null && npi.timestamp) {
+            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate, this.isPlaying);
         }
 
-        const rate = meta?.playbackRate ?? npi?.playbackRate ?? 0;
-
-        if (rate === 0 || !this.isPlaying) {
-            return elapsed;
+        // Fall back to queue item metadata
+        if (meta?.elapsedTime != null && meta.elapsedTimeTimestamp) {
+            return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate, this.isPlaying);
         }
 
-        // elapsedTimeTimestamp is a Cocoa timestamp (seconds since 2001-01-01)
-        const cocoaEpochOffset = 978307200;
-        const timestampUnix = elapsedTimestamp + cocoaEpochOffset;
-        const now = Date.now() / 1000;
-        const diff = now - timestampUnix;
-
-        return Math.max(0, elapsed + diff);
+        return npi?.elapsedTime || meta?.elapsedTime || 0;
     }
 
     get currentItem(): Proto.ContentItem | null {

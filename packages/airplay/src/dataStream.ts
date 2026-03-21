@@ -15,6 +15,7 @@ type EventMap = {
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
+    readonly removePlayer: [Proto.RemovePlayerMessage];
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
@@ -57,6 +58,7 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.SET_NOW_PLAYING_PLAYER_MESSAGE] = [Proto.setNowPlayingPlayerMessage, this.#onSetNowPlayingPlayerMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.SET_STATE_MESSAGE] = [Proto.setStateMessage, this.#onSetStateMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.REMOVE_CLIENT_MESSAGE] = [Proto.removeClientMessage, this.#onRemoveClientMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.REMOVE_PLAYER_MESSAGE] = [Proto.removePlayerMessage, this.#onRemovePlayerMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.UPDATE_CLIENT_MESSAGE] = [Proto.updateClientMessage, this.#onUpdateClientMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_MESSAGE] = [Proto.updateContentItemMessage, this.#onUpdateContentItemMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE] = [Proto.updateContentItemArtworkMessage, this.#onUpdateContentItemArtworkMessage.bind(this)];
@@ -297,6 +299,12 @@ export default class DataStream extends BaseStream<EventMap> {
         this.context.logger.info('[data]', 'Remove client', message);
 
         this.emit('removeClient', message);
+    }
+
+    #onRemovePlayerMessage(message: Proto.RemovePlayerMessage): void {
+        this.context.logger.info('[data]', 'Remove player', message);
+
+        this.emit('removePlayer', message);
     }
 
     #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): void {

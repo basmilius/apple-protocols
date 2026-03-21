@@ -11,6 +11,7 @@ type EventMap = {
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
+    readonly removePlayer: [Proto.RemovePlayerMessage];
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
@@ -84,6 +85,7 @@ export default class extends EventEmitter<EventMap> {
         this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
         this.onPlayerClientProperties = this.onPlayerClientProperties.bind(this);
         this.onRemoveClient = this.onRemoveClient.bind(this);
+        this.onRemovePlayer = this.onRemovePlayer.bind(this);
         this.onSendCommandResult = this.onSendCommandResult.bind(this);
         this.onSetArtwork = this.onSetArtwork.bind(this);
         this.onSetDefaultSupportedCommands = this.onSetDefaultSupportedCommands.bind(this);
@@ -106,6 +108,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
         this.#dataStream.on('playerClientProperties', this.onPlayerClientProperties);
         this.#dataStream.on('removeClient', this.onRemoveClient);
+        this.#dataStream.on('removePlayer', this.onRemovePlayer);
         this.#dataStream.on('sendCommandResult', this.onSendCommandResult);
         this.#dataStream.on('setArtwork', this.onSetArtwork);
         this.#dataStream.on('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
@@ -134,6 +137,7 @@ export default class extends EventEmitter<EventMap> {
         dataStream.off('originClientProperties', this.onOriginClientProperties);
         dataStream.off('playerClientProperties', this.onPlayerClientProperties);
         dataStream.off('removeClient', this.onRemoveClient);
+        dataStream.off('removePlayer', this.onRemovePlayer);
         dataStream.off('sendCommandResult', this.onSendCommandResult);
         dataStream.off('setArtwork', this.onSetArtwork);
         dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
@@ -199,6 +203,11 @@ export default class extends EventEmitter<EventMap> {
 
         delete this.#clients[message.client.bundleIdentifier];
 
+        if (this.#nowPlayingClientBundleIdentifier === message.client.bundleIdentifier) {
+            this.#nowPlayingClientBundleIdentifier = null;
+        }
+
+        this.emit('removeClient', message);
         this.emit('clients', this.#clients);
     }
 
@@ -211,6 +220,11 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
+        if (message.playerPath?.client?.bundleIdentifier && message.supportedCommands) {
+            const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+            client.setDefaultSupportedCommands(message.supportedCommands.supportedCommands);
+        }
+
         this.emit('setDefaultSupportedCommands', message);
     }
 
@@ -221,26 +235,34 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
+        if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
+            const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+            client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
+            client.setActivePlayer(message.playerPath.player.identifier);
+        }
+
         this.emit('setNowPlayingPlayer', message);
     }
 
     onSetState(message: Proto.SetStateMessage): void {
         const client = this.#client(message.playerPath.client.bundleIdentifier, message.displayName);
+        const playerIdentifier = message.playerPath?.player?.identifier || 'MediaRemote-DefaultPlayer';
+        const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
         if (message.nowPlayingInfo) {
-            client.setNowPlayingInfo(message.nowPlayingInfo);
+            player.setNowPlayingInfo(message.nowPlayingInfo);
         }
 
         if (message.playbackState) {
-            client.setPlaybackState(message.playbackState, message.playbackStateTimestamp);
+            player.setPlaybackState(message.playbackState, message.playbackStateTimestamp);
         }
 
         if (message.supportedCommands) {
-            client.setSupportedCommands(message.supportedCommands.supportedCommands);
+            player.setSupportedCommands(message.supportedCommands.supportedCommands);
         }
 
         if (message.playbackQueue) {
-            client.setPlaybackQueue(message.playbackQueue);
+            player.setPlaybackQueue(message.playbackQueue);
         }
 
         this.emit('setState', message);
@@ -248,13 +270,11 @@ export default class extends EventEmitter<EventMap> {
 
     onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
         const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
-
-        if (!client) {
-            return;
-        }
+        const playerIdentifier = message.playerPath?.player?.identifier || 'MediaRemote-DefaultPlayer';
+        const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
         for (const item of message.contentItems) {
-            client.updateContentItem(item);
+            player.updateContentItem(item);
         }
 
         this.emit('updateContentItem', message);
@@ -265,7 +285,24 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
+        if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
+            const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+            client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
+        }
+
         this.emit('updatePlayer', message);
+    }
+
+    onRemovePlayer(message: Proto.RemovePlayerMessage): void {
+        if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
+            const client = this.#clients[message.playerPath.client.bundleIdentifier];
+
+            if (client) {
+                client.removePlayer(message.playerPath.player.identifier);
+            }
+        }
+
+        this.emit('removePlayer', message);
     }
 
     onUpdateClient(message: Proto.UpdateClientMessage): void {

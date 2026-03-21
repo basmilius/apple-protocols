@@ -55,21 +55,29 @@ export default class Client {
     }
 
     get elapsedTime(): number {
-        const npi = this.#nowPlayingInfo;
         const meta = this.currentItemMetadata;
+        const npi = this.#nowPlayingInfo;
 
-        const elapsed = npi?.elapsedTime || meta?.elapsedTime || 0;
-        const rate = npi?.playbackRate ?? meta?.playbackRate ?? 0;
-        const timestamp = npi?.timestamp || meta?.elapsedTimeTimestamp || 0;
+        const elapsedTimestamp = meta?.elapsedTimeTimestamp || 0;
+        const elapsed = meta?.elapsedTime || npi?.elapsedTime || 0;
 
-        if (rate === 0 || timestamp === 0) {
+        if (!elapsedTimestamp) {
             return elapsed;
         }
 
-        const now = Date.now() / 1000;
-        const delta = now - timestamp;
+        const rate = meta?.playbackRate ?? npi?.playbackRate ?? 0;
 
-        return elapsed + (delta * rate);
+        if (rate === 0 || !this.isPlaying) {
+            return elapsed;
+        }
+
+        // elapsedTimeTimestamp is a Cocoa timestamp (seconds since 2001-01-01)
+        const cocoaEpochOffset = 978307200;
+        const timestampUnix = elapsedTimestamp + cocoaEpochOffset;
+        const now = Date.now() / 1000;
+        const diff = now - timestampUnix;
+
+        return Math.max(0, elapsed + diff);
     }
 
     get currentItem(): Proto.ContentItem | null {

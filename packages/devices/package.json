@@ -56,8 +56,6 @@
     },
     "devDependencies": {
         "@types/bun": "^1.3.9",
-        "@types/lodash-es": "^4.17.12",
-        "lodash-es": "^4.17.23",
         "tsdown": "^0.21.0-beta.2"
     }
 }

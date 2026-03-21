@@ -1,10 +1,8 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { merge } from 'lodash-es';
-
 const COCOA_EPOCH_OFFSET = 978307200;
 
-const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: number, isPlaying: boolean): number => {
-    if (!rate || !isPlaying) {
+const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: number | undefined): number => {
+    if (!rate) {
         return elapsed;
     }
 
@@ -107,26 +105,12 @@ export default class Client {
         const npi = this.#nowPlayingInfo;
         const meta = this.currentItemMetadata;
 
-        const npiValid = npi?.elapsedTime != null && npi.timestamp;
-        const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp;
-
-        // When both sources are available, prefer the most recent one.
-        // NowPlayingInfo is usually the live ticker, but content item
-        // metadata may be more recent after track restarts or seeks.
-        if (npiValid && metaValid) {
-            if (meta.elapsedTimeTimestamp > npi.timestamp) {
-                return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate ?? npi.playbackRate, this.isPlaying);
-            }
-
-            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate, this.isPlaying);
+        if (npi?.elapsedTime != null && npi.timestamp) {
+            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate);
         }
 
-        if (npiValid) {
-            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate, this.isPlaying);
-        }
-
-        if (metaValid) {
-            return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate, this.isPlaying);
+        if (meta?.elapsedTime != null && meta.elapsedTimeTimestamp) {
+            return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
         }
 
         return npi?.elapsedTime || meta?.elapsedTime || 0;
@@ -227,14 +211,31 @@ export default class Client {
             return;
         }
 
-        const index = this.#playbackQueue.contentItems.findIndex(i => i.identifier === item.identifier);
-        if (index === -1) {
+        const existing = this.#playbackQueue.contentItems.find(i => i.identifier === item.identifier);
+        if (!existing) {
             return;
         }
 
-        this.#playbackQueue.contentItems[index] = merge(
-            item,
-            this.#playbackQueue.contentItems[index]
-        );
+        if (item.metadata != null && existing.metadata != null) {
+            for (const [key, value] of Object.entries(item.metadata)) {
+                if (value != null) {
+                    (existing.metadata as any)[key] = value;
+                }
+            }
+        } else if (item.metadata != null) {
+            existing.metadata = item.metadata;
+        }
+
+        if (item.artworkData != null) {
+            existing.artworkData = item.artworkData;
+        }
+
+        if (item.lyrics != null) {
+            existing.lyrics = item.lyrics;
+        }
+
+        if (item.info != null) {
+            existing.info = item.info;
+        }
     }
 }

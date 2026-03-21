@@ -1,4 +1,3 @@
-import { Plist } from '@basmilius/apple-encoding';
 import { fromBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 
@@ -25,20 +24,14 @@ export function buildHeader(totalSize: number, seqno: bigint): Buffer {
 
 export function buildReply(seqno: bigint): Buffer {
     const header = Buffer.allocUnsafe(32);
-    header.writeUInt32BE(0, 0); // placeholder
+    header.writeUInt32BE(32, 0); // size = header only, no payload
     header.write('rply', 4, 'ascii');
     header.fill(0, 8, 16);
+    header.fill(0, 16, 20); // command = 4 zero bytes (like pyatv)
     header.writeBigUInt64BE(seqno, 20);
     header.writeUInt32BE(0, 28);
 
-    const plist = Buffer.from(
-        Plist.serialize(Buffer.alloc(0) as any)
-    );
-
-    const total = header.length + plist.length;
-    header.writeUInt32BE(total, 0);
-
-    return Buffer.concat([header, plist]);
+    return header;
 }
 
 export function encodeVarint(value: number): Uint8Array {

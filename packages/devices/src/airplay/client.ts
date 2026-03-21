@@ -55,6 +55,30 @@ export default class Client {
         return this.#nowPlayingInfo?.album || this.currentItemMetadata?.albumName || '';
     }
 
+    get genre(): string {
+        return this.currentItemMetadata?.genre || '';
+    }
+
+    get seriesName(): string {
+        return this.currentItemMetadata?.seriesName || '';
+    }
+
+    get seasonNumber(): number {
+        return this.currentItemMetadata?.seasonNumber || 0;
+    }
+
+    get episodeNumber(): number {
+        return this.currentItemMetadata?.episodeNumber || 0;
+    }
+
+    get mediaType(): Proto.ContentItemMetadata_MediaType {
+        return this.currentItemMetadata?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType;
+    }
+
+    get contentIdentifier(): string {
+        return this.currentItemMetadata?.contentIdentifier || '';
+    }
+
     get duration(): number {
         return this.#nowPlayingInfo?.duration || this.currentItemMetadata?.duration || 0;
     }
@@ -83,13 +107,25 @@ export default class Client {
         const npi = this.#nowPlayingInfo;
         const meta = this.currentItemMetadata;
 
-        // Prefer NowPlayingInfo — it's the live ticker and updates on replay
-        if (npi?.elapsedTime != null && npi.timestamp) {
+        const npiValid = npi?.elapsedTime != null && npi.timestamp;
+        const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp;
+
+        // When both sources are available, prefer the most recent one.
+        // NowPlayingInfo is usually the live ticker, but content item
+        // metadata may be more recent after track restarts or seeks.
+        if (npiValid && metaValid) {
+            if (meta.elapsedTimeTimestamp > npi.timestamp) {
+                return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate ?? npi.playbackRate, this.isPlaying);
+            }
+
             return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate, this.isPlaying);
         }
 
-        // Fall back to queue item metadata
-        if (meta?.elapsedTime != null && meta.elapsedTimeTimestamp) {
+        if (npiValid) {
+            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate, this.isPlaying);
+        }
+
+        if (metaValid) {
             return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate, this.isPlaying);
         }
 

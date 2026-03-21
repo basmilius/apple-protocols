@@ -165,15 +165,16 @@ export function notification(notification: string): [Proto.ProtocolMessage, Desc
     ];
 }
 
-export function playbackQueueRequest(location: number, length: number, includeMetadata: boolean = true, includeLanguageOptions: boolean = false): [Proto.ProtocolMessage, DescExtension] {
+export function playbackQueueRequest(location: number, length: number, artworkWidth: number = 600, artworkHeight: number = -1): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
     const message = create(Proto.PlaybackQueueRequestMessageSchema, {
         location,
         length,
-        includeMetadata,
-        includeLanguageOptions,
-        artworkHeight: 600,
-        artworkWidth: 600,
+        artworkWidth,
+        artworkHeight,
+        returnContentItemAssetsInUserCompletion: true,
+        includeMetadata: true,
+        includeLanguageOptions: false,
         includeInfo: true,
         includeLyrics: true,
         includeSections: true,

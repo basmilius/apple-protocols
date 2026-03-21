@@ -191,36 +191,11 @@ export default class extends EventEmitter<EventMap> {
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
         try {
-            await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState(Proto.SetConnectionStateMessage_ConnectionState.Connecting));
-            await waitFor(500);
+            await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
+            await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
+            await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
 
-            const gid = this.#discoveryResult.txt.gid;
-
-            if (gid) {
-                await this.#protocol.dataStream.exchange(DataStreamMessage.configureConnection(gid));
-            }
-
-            const result = await Promise.race([
-                new Promise(async resolve => {
-                    this.#protocol.dataStream.once('deviceInfo', async () => {
-                        await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-                        await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
-                        resolve(true);
-                    });
-
-                    await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
-                }),
-                async () => {
-                    await waitFor(3000);
-                    return false;
-                }
-            ]);
-
-            if (!result) {
-                this.#onError(new Error('Device did not respond in time with its info.'));
-            } else {
-                this.#protocol.context.logger.info('Device info received successfully, protocol should be ready.');
-            }
+            this.#protocol.context.logger.info('Protocol ready.');
         } catch (err) {
             clearInterval(this.#feedbackInterval);
             this.#feedbackInterval = undefined;

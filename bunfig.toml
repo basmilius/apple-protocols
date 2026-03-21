@@ -1,2 +1,5 @@
+[console]
+depth = 8
+
 [install]
 linker = "isolated"

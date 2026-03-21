@@ -10,3 +10,6 @@ node_modules/
 
 !/.idea/.name
 !/.idea/icon.svg
+
+/error.log
+/output.log

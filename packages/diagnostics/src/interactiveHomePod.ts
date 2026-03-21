@@ -148,12 +148,18 @@ export default async function (storage: Storage): Promise<void> {
                         }
                         break;
                     case 'info':
+                        const npc = device.state.nowPlayingClient;
                         log('info', `Title: ${device.title || '(none)'}`);
                         log('info', `Artist: ${device.artist || '(none)'}`);
                         log('info', `Album: ${device.album || '(none)'}`);
+                        if (npc?.genre) {
+                            log('info', `Genre: ${npc.genre}`);
+                        }
                         log('info', `Duration: ${formatTime(device.duration)}`);
                         log('info', `Elapsed: ${formatTime(device.elapsedTime)}`);
                         log('info', `State: ${PlaybackStateLabel[device.playbackState] ?? 'Unknown'}`);
+                        log('info', `Shuffle: ${npc?.shuffleMode != null ? Proto.ShuffleMode_Enum[npc.shuffleMode] : 'Unknown'}`);
+                        log('info', `Repeat: ${npc?.repeatMode != null ? Proto.RepeatMode_Enum[npc.repeatMode] : 'Unknown'}`);
                         log('info', `Volume: ${Math.round(device.volume * 100)}%`);
                         log('info', `App: ${device.displayName ?? '(none)'} (${device.bundleIdentifier ?? ''})`);
                         break;

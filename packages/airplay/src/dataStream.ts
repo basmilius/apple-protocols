@@ -9,6 +9,7 @@ import BaseStream from './baseStream';
 const DATA_HEADER_LENGTH = 32;
 
 type EventMap = {
+    readonly rawMessage: [Proto.ProtocolMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
@@ -33,7 +34,7 @@ type EventMap = {
 export default class DataStream extends BaseStream<EventMap> {
     #buffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
-    #handler?: [Function, Function];
+    #outstanding: Map<string, { resolve: Function; reject: Function; timer: NodeJS.Timeout }> = new Map();
     #handlers: Record<number, [DescExtension, Function]> = {};
 
     constructor(context: Context, address: string, port: number) {
@@ -71,14 +72,23 @@ export default class DataStream extends BaseStream<EventMap> {
         await super.disconnect();
     }
 
-    exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): Promise<Proto.ProtocolMessage> {
+    exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension], timeout: number = 5000): Promise<Proto.ProtocolMessage> {
+        let msg = Array.isArray(message) ? message[0] : message;
+        const identifier = msg.identifier || `type_${msg.type}`;
+
         return new Promise((resolve, reject) => {
-            this.#handler = [resolve, reject];
+            const timer = setTimeout(() => {
+                this.#outstanding.delete(identifier);
+                reject(new Error(`Exchange timed out for ${identifier}`));
+            }, timeout);
+
+            this.#outstanding.set(identifier, { resolve, reject, timer });
 
             try {
                 this.send(message);
             } catch (err) {
-                this.#handler = undefined;
+                this.#outstanding.delete(identifier);
+                clearTimeout(timer);
                 reject(err);
             }
         });
@@ -147,11 +157,12 @@ export default class DataStream extends BaseStream<EventMap> {
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
 
-        if (this.#handler) {
-            const [, reject] = this.#handler;
-            this.#handler = undefined;
-            reject(new Error('Connection closed.'));
+        for (const [id, req] of this.#outstanding) {
+            clearTimeout(req.timer);
+            req.reject(new Error('Connection closed.'));
         }
+
+        this.#outstanding.clear();
     }
 
     #onClose(): void {
@@ -161,11 +172,12 @@ export default class DataStream extends BaseStream<EventMap> {
     #onError(err: Error): void {
         this.context.logger.error('[data]', '#onError()', err);
 
-        if (this.#handler) {
-            const [, reject] = this.#handler;
-            this.#handler = undefined;
-            reject(err);
+        for (const [id, req] of this.#outstanding) {
+            clearTimeout(req.timer);
+            req.reject(err);
         }
+
+        this.#outstanding.clear();
     }
 
     async #onData(data: Buffer): Promise<void> {
@@ -200,15 +212,19 @@ export default class DataStream extends BaseStream<EventMap> {
                 if (!plist || !plist.params || !plist.params.data) {
                     if (command === 'rply') {
                         this.context.logger.raw('[data]', 'Received reply packet.');
+
+                        // Resolve the oldest outstanding exchange — rply is the
+                        // DataStream-level acknowledgment for our sent message.
+                        const first = this.#outstanding.entries().next();
+
+                        if (!first.done) {
+                            const [id, req] = first.value;
+                            this.#outstanding.delete(id);
+                            clearTimeout(req.timer);
+                            req.resolve(undefined);
+                        }
                     } else if (command === 'sync') {
                         this.reply(parseHeaderSeqno(header));
-                    }
-
-                    if (this.#handler) {
-                        const [resolve] = this.#handler;
-                        this.#handler = undefined;
-
-                        resolve();
                     }
 
                     continue;
@@ -232,12 +248,19 @@ export default class DataStream extends BaseStream<EventMap> {
     }
 
     #handleMessage(message: Proto.ProtocolMessage): void {
-        if (this.#handler) {
-            const [resolve] = this.#handler;
-            this.#handler = undefined;
-            resolve(message);
+        this.emit('rawMessage', message);
+
+        // Check if this is a response to an outstanding exchange
+        const identifier = message.identifier || `type_${message.type}`;
+        const outstanding = this.#outstanding.get(identifier);
+
+        if (outstanding) {
+            this.#outstanding.delete(identifier);
+            clearTimeout(outstanding.timer);
+            outstanding.resolve(message);
         }
 
+        // Always dispatch to type handlers (state tracking, events, etc.)
         if (message.type in this.#handlers) {
             const [extension, handler] = this.#handlers[message.type];
             handler(getExtension(message, extension));

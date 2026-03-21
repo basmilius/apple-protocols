@@ -1,7 +1,7 @@
 import { Discovery, type Storage } from '@basmilius/apple-common';
 import { Url } from '@basmilius/apple-audio-source';
 import { Proto } from '@basmilius/apple-airplay';
-import { AppleTV } from '@basmilius/apple-devices';
+import { AppleTV, COMPANION_LINK } from '@basmilius/apple-devices';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
@@ -48,6 +48,9 @@ Available commands:
   tap                              Tap gesture
   stream <url>                     Stream audio from URL
   info                             Show now playing info
+  fetch                            Request playback queue from device
+  dump                             Dump raw metadata fields
+  clnpi                            Fetch now playing via Companion Link
   help                             Show this help
   quit                             Disconnect and exit
 `.trim();
@@ -108,6 +111,9 @@ export default async function (storage: Storage): Promise<void> {
     device.on('connected', () => log('event', 'Connected to Apple TV.'));
     device.on('disconnected', (unexpected) => log('event', unexpected ? 'Unexpectedly disconnected!' : 'Disconnected.'));
     device.on('power', (state) => log('event', `Power: ${state}`));
+    (device.companionLink as any).on('mediaControl', (data: any) => {
+        log('event', `_iMC: ${JSON.stringify(data)}`);
+    });
 
     let lastTitle = '';
 
@@ -144,6 +150,7 @@ export default async function (storage: Storage): Promise<void> {
     console.log();
     log('info', 'Connecting...');
     await device.connect(airplayCredentials, companionLinkCredentials);
+
     log('info', 'Connected! Type "help" for commands.');
     console.log();
 
@@ -234,14 +241,74 @@ export default async function (storage: Storage): Promise<void> {
                         }
                         break;
                     case 'info':
+                        const npc = device.state.nowPlayingClient;
                         log('info', `Title: ${device.title || '(none)'}`);
                         log('info', `Artist: ${device.artist || '(none)'}`);
                         log('info', `Album: ${device.album || '(none)'}`);
+                        if (npc?.seriesName) {
+                            log('info', `Series: ${npc.seriesName} S${npc.seasonNumber}E${npc.episodeNumber}`);
+                        }
+                        if (npc?.genre) {
+                            log('info', `Genre: ${npc.genre}`);
+                        }
+                        log('info', `Media: ${npc?.mediaType != null ? Proto.ContentItemMetadata_MediaType[npc.mediaType] ?? 'Unknown' : 'Unknown'}`);
                         log('info', `Duration: ${formatTime(device.duration)}`);
                         log('info', `Elapsed: ${formatTime(device.elapsedTime)}`);
                         log('info', `State: ${PlaybackStateLabel[device.playbackState] ?? 'Unknown'}`);
+                        log('info', `Shuffle: ${npc?.shuffleMode != null ? Proto.ShuffleMode_Enum[npc.shuffleMode] : 'Unknown'}`);
+                        log('info', `Repeat: ${npc?.repeatMode != null ? Proto.RepeatMode_Enum[npc.repeatMode] : 'Unknown'}`);
                         log('info', `Volume: ${Math.round(device.volume * 100)}%`);
                         log('info', `App: ${device.displayName ?? '(none)'} (${device.bundleIdentifier ?? ''})`);
+                        break;
+                    case 'fetch':
+                        log('info', 'Requesting playback queue...');
+                        await device.airplay.requestPlaybackQueue(1);
+                        log('command', 'Playback queue requested. Use "dump" to see results.');
+                        break;
+                    case 'dump':
+                        const dumpFields = (label: string, obj: any) => {
+                            if (!obj) {
+                                log('info', `${label}: (null)`);
+                                return;
+                            }
+                            log('info', `${label}:`);
+                            for (const [key, val] of Object.entries(obj)) {
+                                if (key === '$typeName') { continue; }
+                                if (val === '' || val === 0 || val === false) { continue; }
+                                if (val instanceof Uint8Array && val.byteLength === 0) { continue; }
+                                if (val == null) { continue; }
+                                const display = val instanceof Uint8Array ? `<${val.byteLength} bytes>` : typeof val === 'bigint' ? val.toString() : JSON.stringify(val);
+                                console.log(`  ${key}: ${display}`);
+                            }
+                        };
+                        const dc = device.state.nowPlayingClient;
+                        log('info', `Client: ${dc?.bundleIdentifier ?? '(none)'} / ${dc?.displayName ?? ''}`);
+                        log('info', `PlaybackState: ${dc ? PlaybackStateLabel[dc.playbackState] ?? dc.playbackState : '(none)'}`);
+                        log('info', `Queue items: ${dc?.playbackQueue?.contentItems?.length ?? 0}, location: ${dc?.playbackQueue?.location ?? -1}`);
+                        dumpFields('NowPlayingInfo', dc?.nowPlayingInfo);
+                        dumpFields('ContentItemMetadata', dc?.currentItemMetadata);
+                        dumpFields('ContentItem (top-level)', dc?.currentItem ? {
+                            identifier: dc.currentItem.identifier,
+                            artworkDataLength: dc.currentItem.artworkData?.byteLength ?? 0,
+                            artworkDataWidth: dc.currentItem.artworkDataWidth,
+                            artworkDataHeight: dc.currentItem.artworkDataHeight,
+                            remoteArtworks: dc.currentItem.remoteArtworks?.length ?? 0,
+                            dataArtworks: dc.currentItem.dataArtworks?.length ?? 0,
+                            animatedArtworks: dc.currentItem.animatedArtworks?.length ?? 0,
+                            lyrics: !!dc.currentItem.lyrics,
+                        } : null);
+                        log('info', `Artwork available: ${dc?.currentItemMetadata?.artworkAvailable ?? false}`);
+                        log('info', `Artwork URL: ${dc?.currentItemArtworkUrl ?? '(none)'}`);
+                        log('info', `Artwork bytes: ${dc?.currentItemArtwork?.byteLength ?? 0}`);
+                        break;
+                    case 'clnpi':
+                        try {
+                            const npiResult = await (device.companionLink as any)[COMPANION_LINK].fetchNowPlayingInfo();
+                            log('info', 'Companion Link NowPlayingInfo:');
+                            console.log(JSON.stringify(npiResult, null, 2));
+                        } catch (err) {
+                            log('error', `Failed: ${err}`);
+                        }
                         break;
                     case 'help': console.log(HELP); break;
                     case 'quit':

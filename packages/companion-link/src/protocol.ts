@@ -63,12 +63,14 @@ export default class Protocol {
         });
     }
 
-    async fetchNowPlayingInfo(): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
+    async fetchNowPlayingInfo(): Promise<any> {
+        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: 'FetchCurrentNowPlayingInfoEvent',
             _t: MessageType.Request,
             _c: {}
         });
+
+        return payload;
     }
 
     async fetchSupportedActions(): Promise<void> {

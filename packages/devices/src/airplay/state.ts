@@ -3,11 +3,31 @@ import { type DataStream, Proto, type Protocol } from '@basmilius/apple-airplay'
 import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Client from './client';
 import type Device from './device';
+import type Player from './player';
+
+type NowPlayingSnapshot = {
+    bundleIdentifier: string | null;
+    playerIdentifier: string | null;
+    playbackState: Proto.PlaybackState_Enum;
+    title: string;
+    artist: string;
+    album: string;
+    genre: string;
+    duration: number;
+    shuffleMode: Proto.ShuffleMode_Enum;
+    repeatMode: Proto.RepeatMode_Enum;
+    mediaType: Proto.ContentItemMetadata_MediaType;
+    seriesName: string;
+    seasonNumber: number;
+    episodeNumber: number;
+    contentIdentifier: string;
+};
 
 type EventMap = {
     readonly clients: [Record<string, Client>];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
+    readonly nowPlayingChanged: [client: Client | null, player: Player | null];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
@@ -68,6 +88,7 @@ export default class extends EventEmitter<EventMap> {
     readonly #device: Device;
     #clients: Record<string, Client>;
     #nowPlayingClientBundleIdentifier: string | null;
+    #nowPlayingSnapshot: NowPlayingSnapshot | null;
     #outputDeviceUID: string | null;
     #outputDevices: Proto.AVOutputDeviceDescriptor[] = [];
     #volume: number;
@@ -157,6 +178,7 @@ export default class extends EventEmitter<EventMap> {
     clear(): void {
         this.#clients = {};
         this.#nowPlayingClientBundleIdentifier = null;
+        this.#nowPlayingSnapshot = null;
         this.#outputDeviceUID = null;
         this.#outputDevices = [];
         this.#volume = 0;
@@ -201,14 +223,20 @@ export default class extends EventEmitter<EventMap> {
             return;
         }
 
+        const wasActive = this.#nowPlayingClientBundleIdentifier === message.client.bundleIdentifier;
+
         delete this.#clients[message.client.bundleIdentifier];
 
-        if (this.#nowPlayingClientBundleIdentifier === message.client.bundleIdentifier) {
+        if (wasActive) {
             this.#nowPlayingClientBundleIdentifier = null;
         }
 
         this.emit('removeClient', message);
         this.emit('clients', this.#clients);
+
+        if (wasActive) {
+            this.#emitNowPlayingChangedIfNeeded();
+        }
     }
 
     onSendCommandResult(message: Proto.SendCommandResultMessage): void {
@@ -232,6 +260,7 @@ export default class extends EventEmitter<EventMap> {
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
         this.emit('setNowPlayingClient', message);
+        this.#emitNowPlayingChangedIfNeeded();
     }
 
     onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
@@ -242,10 +271,12 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.emit('setNowPlayingPlayer', message);
+        this.#emitNowPlayingChangedIfNeeded();
     }
 
     onSetState(message: Proto.SetStateMessage): void {
-        const client = this.#client(message.playerPath.client.bundleIdentifier, message.displayName);
+        const bundleIdentifier = message.playerPath.client.bundleIdentifier;
+        const client = this.#client(bundleIdentifier, message.displayName);
         const playerIdentifier = message.playerPath?.player?.identifier || 'MediaRemote-DefaultPlayer';
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
@@ -266,10 +297,15 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.emit('setState', message);
+
+        if (bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
+            this.#emitNowPlayingChangedIfNeeded();
+        }
     }
 
     onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
-        const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+        const bundleIdentifier = message.playerPath.client.bundleIdentifier;
+        const client = this.#client(bundleIdentifier, message.playerPath.client.displayName);
         const playerIdentifier = message.playerPath?.player?.identifier || 'MediaRemote-DefaultPlayer';
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
@@ -278,6 +314,10 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.emit('updateContentItem', message);
+
+        if (bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
+            this.#emitNowPlayingChangedIfNeeded();
+        }
     }
 
     onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
@@ -303,6 +343,10 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.emit('removePlayer', message);
+
+        if (message.playerPath?.client?.bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
+            this.#emitNowPlayingChangedIfNeeded();
+        }
     }
 
     onUpdateClient(message: Proto.UpdateClientMessage): void {
@@ -348,5 +392,60 @@ export default class extends EventEmitter<EventMap> {
 
             return client;
         }
+    }
+
+    #createNowPlayingSnapshot(): NowPlayingSnapshot {
+        const client = this.nowPlayingClient;
+        const player = client?.activePlayer ?? null;
+
+        return {
+            bundleIdentifier: client?.bundleIdentifier ?? null,
+            playerIdentifier: player?.identifier ?? null,
+            playbackState: player?.playbackState ?? Proto.PlaybackState_Enum.Unknown,
+            title: player?.title ?? '',
+            artist: player?.artist ?? '',
+            album: player?.album ?? '',
+            genre: player?.genre ?? '',
+            duration: player?.duration ?? 0,
+            shuffleMode: player?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown,
+            repeatMode: player?.repeatMode ?? Proto.RepeatMode_Enum.Unknown,
+            mediaType: player?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType,
+            seriesName: player?.seriesName ?? '',
+            seasonNumber: player?.seasonNumber ?? 0,
+            episodeNumber: player?.episodeNumber ?? 0,
+            contentIdentifier: player?.contentIdentifier ?? ''
+        };
+    }
+
+    #emitNowPlayingChangedIfNeeded(): void {
+        const snapshot = this.#createNowPlayingSnapshot();
+        const previous = this.#nowPlayingSnapshot;
+
+        if (previous && this.#snapshotsEqual(previous, snapshot)) {
+            return;
+        }
+
+        this.#nowPlayingSnapshot = snapshot;
+
+        const client = this.nowPlayingClient;
+        this.emit('nowPlayingChanged', client, client?.activePlayer ?? null);
+    }
+
+    #snapshotsEqual(a: NowPlayingSnapshot, b: NowPlayingSnapshot): boolean {
+        return a.bundleIdentifier === b.bundleIdentifier
+            && a.playerIdentifier === b.playerIdentifier
+            && a.playbackState === b.playbackState
+            && a.title === b.title
+            && a.artist === b.artist
+            && a.album === b.album
+            && a.genre === b.genre
+            && a.duration === b.duration
+            && a.shuffleMode === b.shuffleMode
+            && a.repeatMode === b.repeatMode
+            && a.mediaType === b.mediaType
+            && a.seriesName === b.seriesName
+            && a.seasonNumber === b.seasonNumber
+            && a.episodeNumber === b.episodeNumber
+            && a.contentIdentifier === b.contentIdentifier;
     }
 }

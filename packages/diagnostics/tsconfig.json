@@ -20,7 +20,6 @@
         "outDir": "dist",
         "declaration": true,
         "declarationDir": "dist",
-        "declarationMap": true,
         "emitDeclarationOnly": true,
         "experimentalDecorators": true,
         "noEmit": true,

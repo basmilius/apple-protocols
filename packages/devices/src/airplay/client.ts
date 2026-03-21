@@ -105,11 +105,24 @@ export default class Client {
         const npi = this.#nowPlayingInfo;
         const meta = this.currentItemMetadata;
 
-        if (npi?.elapsedTime != null && npi.timestamp) {
+        const npiValid = npi?.elapsedTime != null && npi.timestamp;
+        const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp;
+
+        if (npiValid && metaValid) {
+            // After track restarts or seeks, metadata may have a more
+            // recent timestamp than NowPlayingInfo.
+            if (meta.elapsedTimeTimestamp > npi.timestamp) {
+                return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
+            }
+
             return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate);
         }
 
-        if (meta?.elapsedTime != null && meta.elapsedTimeTimestamp) {
+        if (npiValid) {
+            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate);
+        }
+
+        if (metaValid) {
             return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
         }
 

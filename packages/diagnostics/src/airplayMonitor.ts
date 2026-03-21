@@ -139,55 +139,63 @@ export default async function (storage: Storage): Promise<void> {
         log('client', `Client removed: ${message.client?.bundleIdentifier}`);
     });
 
-    // Playback state
-    let lastTitle = '';
-    let lastPlaybackState = -1;
+    // Now playing (change-detected)
+    device.state.on('nowPlayingChanged', (client, player) => {
+        console.log();
 
+        if (!client || !player) {
+            log('now-playing', 'Nothing playing.');
+            console.log();
+            return;
+        }
+
+        log('state', `${PlaybackStateLabel[player.playbackState] ?? player.playbackState} (${client.bundleIdentifier})`);
+
+        if (player.title) {
+            log('now-playing', `${player.title}`);
+        }
+
+        if (player.artist) {
+            log('now-playing', `  Artist: ${player.artist}`);
+        }
+
+        if (player.album) {
+            log('now-playing', `  Album: ${player.album}`);
+        }
+
+        if (player.genre) {
+            log('now-playing', `  Genre: ${player.genre}`);
+        }
+
+        if (player.seriesName) {
+            log('now-playing', `  Series: ${player.seriesName} S${player.seasonNumber}E${player.episodeNumber}`);
+        }
+
+        if (player.duration > 0) {
+            log('now-playing', `  Duration: ${formatTime(player.duration)}`);
+        }
+
+        if (player.mediaType !== Proto.ContentItemMetadata_MediaType.UnknownMediaType) {
+            log('now-playing', `  Media type: ${Proto.ContentItemMetadata_MediaType[player.mediaType] ?? player.mediaType}`);
+        }
+
+        if (player.shuffleMode !== Proto.ShuffleMode_Enum.Unknown) {
+            log('now-playing', `  Shuffle: ${Proto.ShuffleMode_Enum[player.shuffleMode] ?? player.shuffleMode}`);
+        }
+
+        if (player.repeatMode !== Proto.RepeatMode_Enum.Unknown) {
+            log('now-playing', `  Repeat: ${Proto.RepeatMode_Enum[player.repeatMode] ?? player.repeatMode}`);
+        }
+
+        if (!player.isDefaultPlayer) {
+            log('now-playing', `  Player: ${player.displayName} (${player.identifier})`);
+        }
+
+        console.log();
+    });
+
+    // Supported commands (from raw setState, not part of nowPlayingChanged)
     device.state.on('setState', (message) => {
-        const bundleId = message.playerPath?.client?.bundleIdentifier ?? 'unknown';
-        const state = message.playbackState;
-        const client = device.state.nowPlayingClient;
-
-        if (state !== undefined && state !== lastPlaybackState) {
-            lastPlaybackState = state;
-            log('state', `${PlaybackStateLabel[state] ?? state} (${bundleId})`);
-        }
-
-        if (client && message.nowPlayingInfo) {
-            const info = message.nowPlayingInfo;
-            const title = info.title || '';
-            const artist = info.artist || '';
-            const album = info.album || '';
-
-            if (title && title !== lastTitle) {
-                lastTitle = title;
-                console.log();
-                log('now-playing', `${title}`);
-
-                if (artist) {
-                    log('now-playing', `  Artist: ${artist}`);
-                }
-
-                if (album) {
-                    log('now-playing', `  Album: ${album}`);
-                }
-
-                if (info.duration > 0) {
-                    log('now-playing', `  Duration: ${formatTime(info.duration)}`);
-                }
-
-                if (info.elapsedTime > 0) {
-                    log('now-playing', `  Position: ${formatTime(info.elapsedTime)} / ${formatTime(info.duration)}`);
-                }
-
-                if (info.playbackRate !== undefined && info.playbackRate !== 1) {
-                    log('now-playing', `  Playback rate: ${info.playbackRate}x`);
-                }
-
-                console.log();
-            }
-        }
-
         if (message.supportedCommands) {
             const commands = message.supportedCommands.supportedCommands
                 .filter(c => c.enabled)

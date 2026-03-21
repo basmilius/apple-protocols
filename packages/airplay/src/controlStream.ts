@@ -55,6 +55,10 @@ export default class ControlStream extends BaseStream {
         return await this.#request('POST', path, body, headers, timeout);
     }
 
+    async put(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.#request('PUT', path, body, headers, timeout);
+    }
+
     async record(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.#request('RECORD', path, null, headers, timeout);
     }

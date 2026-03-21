@@ -48,6 +48,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#outputDeviceUID;
     }
 
+    get outputDevices(): Proto.AVOutputDeviceDescriptor[] {
+        return this.#outputDevices;
+    }
+
     get volume(): number {
         return this.#volume;
     }
@@ -64,6 +68,7 @@ export default class extends EventEmitter<EventMap> {
     #clients: Record<string, Client>;
     #nowPlayingClientBundleIdentifier: string | null;
     #outputDeviceUID: string | null;
+    #outputDevices: Proto.AVOutputDeviceDescriptor[] = [];
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
@@ -149,6 +154,7 @@ export default class extends EventEmitter<EventMap> {
         this.#clients = {};
         this.#nowPlayingClientBundleIdentifier = null;
         this.#outputDeviceUID = null;
+        this.#outputDevices = [];
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
@@ -221,6 +227,10 @@ export default class extends EventEmitter<EventMap> {
     onSetState(message: Proto.SetStateMessage): void {
         const client = this.#client(message.playerPath.client.bundleIdentifier, message.displayName);
 
+        if (message.nowPlayingInfo) {
+            client.setNowPlayingInfo(message.nowPlayingInfo);
+        }
+
         if (message.playbackState) {
             client.setPlaybackState(message.playbackState, message.playbackStateTimestamp);
         }
@@ -265,6 +275,8 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
+        this.#outputDevices = message.outputDevices;
+
         this.emit('updateOutputDevice', message);
     }
 

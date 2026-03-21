@@ -1,0 +1,23 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+import "RequestDetails.proto";
+
+extend ProtocolMessage {
+    optional AdjustVolumeMessage adjustVolumeMessage = 97;
+}
+
+message AdjustVolumeMessage {
+    enum Adjustment {
+        IncrementSmall = 1;
+        IncrementMedium = 2;
+        IncrementLarge = 3;
+        DecrementSmall = 4;
+        DecrementMedium = 5;
+        DecrementLarge = 6;
+    }
+
+    optional Adjustment adjustment = 1;
+    optional string outputDeviceUID = 2;
+    optional RequestDetails details = 3;
+}

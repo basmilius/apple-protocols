@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { DataStreamMessage, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -108,6 +108,22 @@ export default class extends EventEmitter<EventMap> {
             this.disconnect();
         } catch (_) {
         }
+    }
+
+    async addOutputDevices(deviceUIDs: string[]): Promise<void> {
+        await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext(deviceUIDs));
+    }
+
+    async removeOutputDevices(deviceUIDs: string[]): Promise<void> {
+        await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext([], deviceUIDs));
+    }
+
+    async setOutputDevices(deviceUIDs: string[]): Promise<void> {
+        await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext([], [], deviceUIDs));
+    }
+
+    async streamAudio(source: AudioSource): Promise<void> {
+        await this.#protocol.setupAudioStream(source);
     }
 
     async requestPlaybackQueue(length: number): Promise<void> {

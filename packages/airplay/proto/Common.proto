@@ -30,6 +30,10 @@ message DeviceClass {
         Accessory = 7;
         Bridge = 8;
         Mac = 9;
+        Android = 10;
+        Web = 11;
+        AppleDisplay = 12;
+        RealityDevice = 13;
     }
 }
 
@@ -64,6 +68,10 @@ message DeviceSubType {
         Cluster = 15;
         SetTopBox = 16;
         TVStick = 17;
+        Mac = 18;
+        iOS = 19;
+        Watch = 20;
+        Vision = 21;
     }
 }
 
@@ -75,5 +83,103 @@ message PlaybackState {
         Stopped = 3;
         Interrupted = 4;
         Seeking = 5;
+    }
+}
+
+message ClusterType {
+    enum Enum {
+        None = 0;
+        StereoPair = 1;
+        HomeTheater = 2;
+        GenericAudio = 3;
+    }
+}
+
+message VirtualTouchPhase {
+    enum Enum {
+        Unknown = 0;
+        Began = 1;
+        Moved = 2;
+        Stationary = 3;
+        Ended = 4;
+        Cancelled = 5;
+    }
+}
+
+message ChangeType {
+    enum Enum {
+        Immediate = 0;
+        Deferrable = 1;
+    }
+}
+
+message EndpointOptions {
+    enum Enum {
+        None = 0;
+        UpdateActiveEndpoint = 1;
+        FallbackToAddOutputDevices = 2;
+        AllowMigrateToGroup = 4;
+        AllowMigrateFromGroup = 8;
+    }
+}
+
+message PlayerOptions {
+    enum Enum {
+        None = 0;
+        RestoreDestinationPlaybackState = 1;
+        PlayDestination = 2;
+        PauseSource = 4;
+        RestorePlaybackPosition = 8;
+        RestorePlaybackRate = 16;
+    }
+}
+
+message RecipeType {
+    enum Enum {
+        NotPossible = 0;
+        Legacy = 1;
+        OneShot = 2;
+    }
+}
+
+message PlaybackSessionMigrateRequestEventRole {
+    enum Enum {
+        Unknown = 0;
+        Receptionist = 1;
+        Source = 2;
+        Destination = 3;
+        InApp = 4;
+        Hijacked = 5;
+        Group = 6;
+    }
+}
+
+message GroupSessionRouteType {
+    enum Enum {
+        Unknown = 0;
+        CarKit = 1;
+        CarPlay = 2;
+        Speaker = 5;
+        HomePod = 8;
+        HomePodMini = 9;
+        AppleTV = 11;
+    }
+}
+
+message ReplaceIntent {
+    enum Enum {
+        NonDestructive = 1;
+        ClearUpNext = 2;
+        KeepUpNext = 3;
+        LeaveSharedSession = 4;
+    }
+}
+
+message PlaybackQueueType {
+    enum Enum {
+        Unknown = 1;
+        Generic = 2;
+        Custom = 3;
+        Empty = 4;
     }
 }

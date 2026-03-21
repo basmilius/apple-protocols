@@ -42,8 +42,7 @@
     "dependencies": {
         "@basmilius/apple-encoding": "workspace:*",
         "@basmilius/apple-encryption": "workspace:*",
-        "fast-srp-hap": "^2.0.4",
-        "node-dns-sd": "^1.0.1"
+        "fast-srp-hap": "^2.0.4"
     },
     "devDependencies": {
         "@types/bun": "^1.3.9",

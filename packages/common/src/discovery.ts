@@ -1,29 +1,83 @@
-import mdns, { DiscoveryResult, DnsRecord, Result } from 'node-dns-sd';
+import { createConnection } from 'node:net';
+import { parseFeatures } from './airplayFeatures';
 import { waitFor } from './cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from './const';
+import { multicast, type MdnsService } from './mdns';
+import type { CombinedDiscoveryResult, DiscoveryResult } from './types';
+
+type CacheEntry = {
+    results: DiscoveryResult[];
+    expiresAt: number;
+};
+
+const CACHE_TTL = 30_000;
+const WAKE_PORTS = [7000, 3689, 49152, 32498];
+
+const toDiscoveryResult = (service: MdnsService): DiscoveryResult => {
+    const txt = service.properties;
+    const featuresStr = txt.features ?? txt.ft;
+    const model = txt.model ?? txt.am ?? '';
+    const protocol = service.type.includes('._tcp') ? 'tcp' as const : 'udp' as const;
+
+    const hostname = service.name.replace(/\s+/g, '-');
+
+    return {
+        id: `${hostname}.local`,
+        fqdn: `${hostname}.local`,
+        address: service.address,
+        modelName: model,
+        familyName: null,
+        txt,
+        features: featuresStr ? tryParseFeatures(featuresStr) : undefined,
+        service: {
+            port: service.port,
+            protocol,
+            type: service.type
+        },
+        packet: null as any
+    };
+};
+
+const tryParseFeatures = (features: string): bigint | undefined => {
+    try {
+        return parseFeatures(features);
+    } catch {
+        return undefined;
+    }
+};
 
 export class Discovery {
+    static #cache: Map<string, CacheEntry> = new Map();
+
     readonly #service: string;
 
     constructor(service: string) {
         this.#service = service;
     }
 
-    async find(): Promise<DiscoveryResult[]> {
-        const results = await mdns.discover({
-            name: this.#service
+    async find(useCache: boolean = true): Promise<DiscoveryResult[]> {
+        if (useCache) {
+            const cached = Discovery.#cache.get(this.#service);
+
+            if (cached && cached.expiresAt > Date.now()) {
+                return cached.results;
+            }
+        }
+
+        const services = await multicast([this.#service], 4);
+        const mapped = services.map(toDiscoveryResult);
+
+        Discovery.#cache.set(this.#service, {
+            results: mapped,
+            expiresAt: Date.now() + CACHE_TTL
         });
 
-        return results.map(result => ({
-            id: generateId(result) ?? result.fqdn,
-            txt: getTxt(result),
-            ...result
-        }));
+        return mapped;
     }
 
     async findUntil(id: string, tries: number = 10, timeout: number = 1000): Promise<DiscoveryResult> {
         while (tries > 0) {
-            const devices = await this.find();
+            const devices = await this.find(false);
             const device = devices.find(device => device.id === id);
 
             if (device) {
@@ -39,7 +93,53 @@ export class Discovery {
             await waitFor(timeout);
         }
 
-        throw new Error('Device not found after serveral tries, aborting.');
+        throw new Error('Device not found after several tries, aborting.');
+    }
+
+    static clearCache(): void {
+        Discovery.#cache.clear();
+    }
+
+    static async wake(address: string): Promise<void> {
+        const promises = WAKE_PORTS.map(port => new Promise<void>((resolve) => {
+            const socket = createConnection({ host: address, port, timeout: 500 });
+            socket.on('connect', () => { socket.destroy(); resolve(); });
+            socket.on('error', () => { socket.destroy(); resolve(); });
+            socket.on('timeout', () => { socket.destroy(); resolve(); });
+        }));
+
+        await Promise.all(promises);
+    }
+
+    static async discoverAll(): Promise<CombinedDiscoveryResult[]> {
+        const allServices = await multicast([AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE], 4);
+        const devices = new Map<string, CombinedDiscoveryResult>();
+
+        for (const service of allServices) {
+            const result = toDiscoveryResult(service);
+            const existing = devices.get(result.id);
+
+            if (existing) {
+                if (service.type === AIRPLAY_SERVICE) {
+                    existing.airplay = result;
+                } else if (service.type === COMPANION_LINK_SERVICE) {
+                    existing.companionLink = result;
+                } else if (service.type === RAOP_SERVICE) {
+                    existing.raop = result;
+                }
+            } else {
+                devices.set(result.id, {
+                    id: result.id,
+                    name: result.fqdn,
+                    address: result.address,
+                    airplay: service.type === AIRPLAY_SERVICE ? result : undefined,
+                    companionLink: service.type === COMPANION_LINK_SERVICE ? result : undefined,
+                    raop: service.type === RAOP_SERVICE ? result : undefined
+                });
+            }
+        }
+
+        return [...devices.values()];
     }
 
     static airplay(): Discovery {
@@ -53,68 +153,4 @@ export class Discovery {
     static raop(): Discovery {
         return new Discovery(RAOP_SERVICE);
     }
-}
-
-function generateId(result: Result): string | null {
-    if (!result?.packet) {
-        return null;
-    }
-
-    const {answers = [], additionals = []} = result.packet;
-    const allRecords = [...answers, ...additionals];
-
-    // Strategy 1: Find SRV record and get the target (most reliable)
-    const srvRecord = allRecords.find((record) => record.type === 'SRV');
-    if (srvRecord?.rdata?.target) {
-        return srvRecord.rdata.target;
-    }
-
-    // Strategy 2: Find A or AAAA record name that matches the IP address
-    // (the record name is the hostname)
-    if (result.address) {
-        const addressRecord = allRecords.find(record => (record.type === 'A' || record.type === 'AAAA') && record.rdata === result.address);
-
-        if (addressRecord?.name) {
-            return addressRecord.name;
-        }
-    }
-
-    // Strategy 3: Find any A record and use its name as hostname
-    const aRecord = allRecords.find((record) => record.type === 'A');
-    if (aRecord?.name) {
-        return aRecord.name;
-    }
-
-    // Strategy 4: Fallback - derive from fqdn/modelName (less reliable)
-    if (result.modelName) {
-        const hostname = result.modelName
-            .replace(/\s+/g, '-')
-            .replace(/[^a-zA-Z0-9-]/g, '');
-
-        return `${hostname}.local`;
-    }
-
-    return null;
-}
-
-function getTxt(result: Result): Record<string, string> {
-    if (!result.packet) {
-        return {};
-    }
-
-    const {answers = [], additionals = []} = result.packet;
-    const records: DnsRecord[] = [
-        ...answers,
-        ...additionals
-    ];
-
-    const txt: Record<string, string> = {};
-
-    for (const record of records) {
-        if (record.type === 'TXT' && record.rdata) {
-            Object.assign(txt, record.rdata);
-        }
-    }
-
-    return txt;
 }

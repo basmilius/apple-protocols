@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+import "GameControllerButtons.proto";
+import "GameControllerDigitizer.proto";
+import "GameControllerMotion.proto";
+
+extend ProtocolMessage {
+    optional GameControllerMessage gameControllerMessage = 23;
+}
+
+message GameControllerMessage {
+    optional uint64 controllerID = 1;
+    optional GameControllerMotion motion = 2;
+    optional GameControllerButtons buttons = 3;
+    optional GameControllerDigitizer digitizer = 4;
+}

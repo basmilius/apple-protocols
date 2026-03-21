@@ -117,4 +117,14 @@ export type Result = {
 export type DiscoveryResult = {
     readonly id: string;
     readonly txt: Record<string, string>;
+    readonly features?: bigint;
 } & Result;
+
+export type CombinedDiscoveryResult = {
+    readonly id: string;
+    readonly name: string;
+    readonly address: string;
+    airplay?: DiscoveryResult;
+    companionLink?: DiscoveryResult;
+    raop?: DiscoveryResult;
+};

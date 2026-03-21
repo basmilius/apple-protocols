@@ -40,7 +40,7 @@ console.log('✅ Streams ready');
 const feedbackInterval = setInterval(() => protocol.feedback(), 2000);
 
 console.log('\n🎵 Setting up audio stream...');
-const audioStream = new AirPlay.EXPERIMENTAL_AudioStream(protocol);
+const audioStream = new AirPlay.AudioStream(protocol);
 const {dataPort} = await audioStream.setup();
 console.log(`✅ Audio stream ready, dataPort=${dataPort}`);
 

@@ -1,6 +1,7 @@
-import { Context, type DiscoveryResult, getMacAddress, randomInt64, type TimingServer, uuid } from '@basmilius/apple-common';
+import { type AudioSource, Context, type DiscoveryResult, getMacAddress, randomInt64, type TimingServer, uuid } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
+import AudioStream from './audioStream';
 import ControlStream from './controlStream';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
@@ -20,6 +21,10 @@ export default class Protocol {
 
     get discoveryResult(): DiscoveryResult {
         return this.#discoveryResult;
+    }
+
+    get audioStream(): AudioStream | undefined {
+        return this.#audioStream;
     }
 
     get eventStream(): EventStream | undefined {
@@ -44,6 +49,7 @@ export default class Protocol {
     readonly #pairing: Pairing;
     readonly #sessionUUID: string;
     readonly #verify: Verify;
+    #audioStream?: AudioStream;
     #dataStream?: DataStream;
     #eventStream?: EventStream;
     #timingServer?: TimingServer;
@@ -62,12 +68,17 @@ export default class Protocol {
     }
 
     destroy(): void {
+        this.#audioStream?.close();
         this.#controlStream.destroy();
         this.#dataStream?.destroy();
         this.#eventStream?.destroy();
     }
 
     disconnect(): void {
+        try {
+            this.#audioStream?.close();
+        } catch {}
+
         try {
             this.#dataStream?.destroy();
         } catch {}
@@ -80,6 +91,7 @@ export default class Protocol {
             this.#controlStream.destroy();
         } catch {}
 
+        this.#audioStream = undefined;
         this.#dataStream = undefined;
         this.#eventStream = undefined;
         this.#timingServer = undefined;
@@ -214,6 +226,96 @@ export default class Protocol {
 
         await this.#eventStream.connect();
         await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
+    }
+
+    async playUrl(url: string, sharedSecret: Buffer, pairingId: Buffer, position: number = 0): Promise<void> {
+        // Setup a simple event stream (no isRemoteControlOnly, no audio streaming params)
+        const setupBody: Record<string, string | number | boolean> = {
+            deviceID: pairingId.toString(),
+            sessionUUID: this.#sessionUUID.toUpperCase(),
+            isMultiSelectAirPlay: true,
+            groupContainsGroupLeader: false,
+            macAddress: getMacAddress().toUpperCase(),
+            model: 'iPhone16,2',
+            name: 'apple-protocols',
+            osBuildVersion: '18C66',
+            osName: 'iPhone OS',
+            osVersion: '14.3',
+            sourceVersion: '320.20',
+            senderSupportsRelay: false,
+            statsCollectionEnabled: false
+        };
+
+        if (this.#timingServer) {
+            setupBody.timingPort = this.#timingServer.port;
+            setupBody.timingProtocol = 'NTP';
+        } else {
+            setupBody.timingProtocol = 'None';
+        }
+
+        const setupResponse = await this.#controlStream.setup(
+            `/${this.#controlStream.sessionId}`,
+            Buffer.from(Plist.serialize(setupBody)),
+            { 'Content-Type': 'application/x-apple-binary-plist' }
+        );
+
+        if (setupResponse.status !== 200) {
+            throw new Error(`Failed to setup for playback: ${setupResponse.status}`);
+        }
+
+        const setupPlist = Plist.parse(await setupResponse.arrayBuffer()) as any;
+        const eventPort = setupPlist.eventPort & 0xFFFF;
+
+        this.#eventStream = new EventStream(this.#context, this.#controlStream.address, eventPort);
+        this.#eventStream.setup(sharedSecret);
+        await this.#eventStream.connect();
+
+        await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
+
+        // Send play request
+        const playBody = Plist.serialize({
+            'Content-Location': url,
+            'Start-Position-Seconds': position,
+            uuid: this.#sessionUUID.toUpperCase(),
+            streamType: 1,
+            mediaType: 'file',
+            volume: 1.0,
+            rate: 1.0,
+            clientBundleID: 'com.basmilius.apple-protocols',
+            clientProcName: 'apple-protocols',
+            osBuildVersion: '18C66',
+            model: 'iPhone16,2',
+            SenderMACAddress: getMacAddress().toUpperCase()
+        });
+
+        const response = await this.#controlStream.post('/play', Buffer.from(playBody), {
+            'Content-Type': 'application/x-apple-binary-plist'
+        });
+
+        this.context.logger.info('[protocol]', `play_url response: ${response.status}`);
+
+        if (response.status !== 200) {
+            throw new Error(`Failed to play URL: ${response.status}`);
+        }
+
+        // Set properties needed for playback (based on pyatv)
+        await this.#putProperty('isInterestedInDateRange', { value: true });
+        await this.#putProperty('actionAtItemEnd', { value: 0 });
+        await this.#controlStream.post('/rate?value=1.000000');
+        await this.#putProperty('forwardEndTime', { value: { flags: 0, value: 0, epoch: 0, timescale: 0 } });
+        await this.#putProperty('reverseEndTime', { value: { flags: 0, value: 0, epoch: 0, timescale: 0 } });
+    }
+
+    async #putProperty(property: string, body: any): Promise<void> {
+        await this.#controlStream.put(`/setProperty?${property}`, Buffer.from(Plist.serialize(body)), {
+            'Content-Type': 'application/x-apple-binary-plist'
+        });
+    }
+
+    async setupAudioStream(source: AudioSource): Promise<void> {
+        this.#audioStream = new AudioStream(this);
+        await this.#audioStream.setup();
+        await this.#audioStream.stream(source, this.#discoveryResult.address);
     }
 
     useTimingServer(timingServer: TimingServer): void {

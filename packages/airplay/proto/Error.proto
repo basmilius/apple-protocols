@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+import "Dictionary.proto";
+
+message Error {
+    optional string domain = 1;
+    optional int32 code = 2;
+    optional string localizedDescription = 3;
+    optional string localizedFailureReason = 4;
+    repeated Error underlyingErrors = 5;
+    optional string debugMessage = 6;
+    optional Dictionary userInfo = 100;
+}

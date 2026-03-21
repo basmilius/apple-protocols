@@ -94,6 +94,23 @@ export function deviceInfo(pairingId: Buffer): [Proto.ProtocolMessage, DescExten
     ];
 }
 
+export function modifyOutputContext(addingDevices: string[] = [], removingDevices: string[] = [], settingDevices: string[] = []): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.MODIFY_OUTPUT_CONTEXT_REQUEST_MESSAGE);
+    const message = create(Proto.ModifyOutputContextRequestMessageSchema, {
+        type: Proto.ModifyOutputContextRequestType_Enum.SharedAudioPresentation,
+        addingDevices,
+        removingDevices,
+        settingDevices
+    });
+
+    setExtension(protocolMessage, Proto.modifyOutputContextRequestMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.modifyOutputContextRequestMessage
+    ];
+}
+
 export function getState(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_STATE_MESSAGE);
     const message = create(Proto.GetStateMessageSchema, {});
@@ -190,6 +207,26 @@ export function sendButtonEvent(usagePage: number, usage: number, buttonDown: bo
     ];
 }
 
+export function sendCommandWithSkipInterval(command: Proto.Command, skipInterval: number): [Proto.ProtocolMessage, DescExtension] {
+    return sendCommand(command, create(Proto.CommandOptionsSchema, { skipInterval }));
+}
+
+export function sendCommandWithPlaybackPosition(command: Proto.Command, playbackPosition: number): [Proto.ProtocolMessage, DescExtension] {
+    return sendCommand(command, create(Proto.CommandOptionsSchema, { playbackPosition }));
+}
+
+export function sendCommandWithPlaybackRate(command: Proto.Command, playbackRate: number): [Proto.ProtocolMessage, DescExtension] {
+    return sendCommand(command, create(Proto.CommandOptionsSchema, { playbackRate }));
+}
+
+export function sendCommandWithShuffleMode(command: Proto.Command, shuffleMode: Proto.ShuffleMode_Enum): [Proto.ProtocolMessage, DescExtension] {
+    return sendCommand(command, create(Proto.CommandOptionsSchema, { shuffleMode }));
+}
+
+export function sendCommandWithRepeatMode(command: Proto.Command, repeatMode: Proto.RepeatMode_Enum): [Proto.ProtocolMessage, DescExtension] {
+    return sendCommand(command, create(Proto.CommandOptionsSchema, { repeatMode }));
+}
+
 export function sendCommand(command: Proto.Command, options?: Proto.CommandOptions): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_COMMAND_MESSAGE);
     const message = create(Proto.SendCommandMessageSchema, {
@@ -202,6 +239,26 @@ export function sendCommand(command: Proto.Command, options?: Proto.CommandOptio
     return [
         protocolMessage,
         Proto.sendCommandMessage
+    ];
+}
+
+export function sendVirtualTouchEvent(x: number, y: number, phase: number, finger: number): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_VIRTUAL_TOUCH_EVENT_MESSAGE);
+    const message = create(Proto.SendVirtualTouchEventMessageSchema, {
+        virtualDeviceID: 1n,
+        event: create(Proto.VirtualTouchEventSchema, {
+            x: BigInt(x),
+            y: BigInt(y),
+            phase,
+            finger
+        })
+    });
+
+    setExtension(protocolMessage, Proto.sendVirtualTouchEventMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.sendVirtualTouchEventMessage
     ];
 }
 

@@ -1,11 +1,11 @@
-import { Discovery } from '@basmilius/apple-common';
+import { Discovery, type Storage } from '@basmilius/apple-common';
 import * as CompanionLink from '@basmilius/apple-companion-link';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
 import { startSavingLogs } from './logger';
 
-export default async function (): Promise<void> {
+export default async function (storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
     const spinner = ora('Searching for Companion Link devices...').start();
@@ -31,14 +31,7 @@ export default async function (): Promise<void> {
     });
 
     const device = devices.find(d => d.id === response.device)!;
-    const isAppleTV = device.txt.model.startsWith('AppleTV');
-
-    if (!isAppleTV) {
-        console.error(`Device ${device.fqdn} (${device.id}) is not supported, only Apple TV's can be verified.`);
-        return;
-    }
-
-    const credentials = await getSavedCredentials(device);
+    const credentials = getSavedCredentials(storage, device, 'companionLink');
 
     startSavingLogs();
 

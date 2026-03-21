@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { type AudioSource, type Context, randomInt32, randomInt64 } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
+import { NTP, Plist } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import type Protocol from './protocol';
 
@@ -11,14 +11,12 @@ const BYTES_PER_CHANNEL = 2;
 const FRAMES_PER_PACKET = 352;
 const LATENCY_FRAMES = 11025;
 const PACKET_BACKLOG_SIZE = 1000;
+const SYNC_INTERVAL = 1000;
 
 // Audio formats:
 // 262_144 (0x40000) = AAC-ELD (what iOS uses, requires encoding)
 // 4_194_304 (0x400000) = PCM 44100/16/2 (raw PCM, big-endian)
-const AUDIO_FORMAT_AAC_ELD = 262144;
 const AUDIO_FORMAT_PCM = 4194304;
-
-// Use PCM for now since we're sending raw PCM data
 const AUDIO_FORMAT = AUDIO_FORMAT_PCM;
 
 type AudioStreamContext = {
@@ -32,9 +30,17 @@ type AudioStreamContext = {
     headTs: number;
     latency: number;
     paddingSent: number;
-}
+    totalFrames: number;
+};
 
 const USE_ENCRYPTION = true;
+
+const ntpFromTs = (timestamp: number, sampleRate: number): bigint => {
+    const seconds = Math.floor(timestamp / sampleRate);
+    const fraction = ((timestamp % sampleRate) * 0xFFFFFFFF) / sampleRate;
+
+    return (BigInt(seconds) << 32n) | BigInt(Math.floor(fraction));
+};
 
 export default class AudioStream {
     readonly #protocol: Protocol;
@@ -48,6 +54,8 @@ export default class AudioStream {
     #remoteControlPort: number = 0;
     #packetBacklog: Map<number, Buffer> = new Map();
     #ssrc: number = 0;
+    #syncInterval?: NodeJS.Timeout;
+    #streamContext?: AudioStreamContext;
 
     constructor(protocol: Protocol) {
         this.#protocol = protocol;
@@ -62,6 +70,8 @@ export default class AudioStream {
 
         // Create local UDP socket for control (RTCP)
         this.#controlSocket = createSocket('udp4');
+        this.#controlSocket.on('message', (data, rinfo) => this.#onControlMessage(data, rinfo));
+
         await new Promise<void>((resolve, reject) => {
             this.#controlSocket!.once('error', reject);
             this.#controlSocket!.bind(0, () => {
@@ -81,9 +91,10 @@ export default class AudioStream {
 
         const setupBody = Plist.serialize({
             streams: [{
-                audioFormat: AUDIO_FORMAT,
-                audioMode: 'moviePlayback',
-                ct: USE_ENCRYPTION ? 2 : 0,
+                audioFormat: 0x800,
+                audioMode: 'default',
+                controlPort: this.#controlPort,
+                ct: 1,
                 isMedia: true,
                 latencyMax: 88200,
                 latencyMin: 11025,
@@ -92,15 +103,7 @@ export default class AudioStream {
                 sr: SAMPLE_RATE,
                 streamConnectionID,
                 supportsDynamicStreamID: false,
-                type: 96,
-                streamConnections: {
-                    streamConnectionTypeRTP: {
-                        streamConnectionKeyUseStreamEncryptionKey: true
-                    },
-                    streamConnectionTypeRTCP: {
-                        streamConnectionKeyPort: this.#controlPort
-                    }
-                }
+                type: 0x60
             }]
         });
 
@@ -123,13 +126,11 @@ export default class AudioStream {
 
         if (plist.streams && plist.streams.length > 0) {
             const streamInfo = plist.streams[0];
-            const connections = streamInfo.streamConnections;
 
-            // Get ports from the new response format
-            this.#dataPort = connections?.streamConnectionTypeRTP?.streamConnectionKeyPort & 0xFFFF;
-            this.#remoteControlPort = connections?.streamConnectionTypeRTCP?.streamConnectionKeyPort & 0xFFFF;
+            this.#dataPort = streamInfo.dataPort & 0xFFFF;
+            this.#remoteControlPort = streamInfo.controlPort & 0xFFFF;
 
-            this.#context.logger.info('[audio]', `Audio stream setup: rtpPort=${this.#dataPort}, rtcpPort=${this.#remoteControlPort}`);
+            this.#context.logger.info('[audio]', `Audio stream setup: dataPort=${this.#dataPort}, controlPort=${this.#remoteControlPort}`);
         } else {
             throw new Error('No stream info in SETUP response');
         }
@@ -170,20 +171,20 @@ export default class AudioStream {
                 frameSize,
                 packetSize,
                 rtpSeq: randomInt32() & 0xFFFF,
-                rtpTime: randomInt32() >>> 0,
+                rtpTime: 0,
                 headTs: 0,
                 latency: LATENCY_FRAMES,
-                paddingSent: 0
+                paddingSent: 0,
+                totalFrames: 0
             };
+            this.#streamContext = ctx;
 
-            ctx.headTs = ctx.rtpTime;
-
-            // this.#context.logger.debug('[audio]', 'Sending FLUSH...');
-            // await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
-            //     'Range': 'npt=0-',
-            //     'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
-            // });
-            // this.#context.logger.debug('[audio]', 'FLUSH complete');
+            this.#context.logger.debug('[audio]', 'Sending FLUSH...');
+            await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
+                'Range': 'npt=0-',
+                'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
+            });
+            this.#context.logger.debug('[audio]', 'FLUSH complete');
 
             let firstPacket = true;
             let packetCount = 0;
@@ -192,8 +193,8 @@ export default class AudioStream {
             this.#context.logger.info('[audio]', 'Starting audio stream...');
             this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
 
-            // Clear packet backlog
             this.#packetBacklog.clear();
+            this.#startSync();
 
             while (true) {
                 const framesSent = await this.#sendPacket(source, firstPacket, ctx);
@@ -207,10 +208,10 @@ export default class AudioStream {
                 firstPacket = false;
 
                 if (packetCount % 100 === 0) {
-                    this.#context.logger.debug('[audio]', `Sent ${packetCount} packets`);
+                    this.#context.logger.debug('[audio]', `Sent ${packetCount} packets, ${ctx.totalFrames} frames`);
                 }
 
-                const expectedTime = (ctx.headTs - ctx.rtpTime) / SAMPLE_RATE * 1000;
+                const expectedTime = ctx.totalFrames / SAMPLE_RATE * 1000;
                 const actualTime = performance.now() - startTime;
                 const sleepTime = expectedTime - actualTime;
 
@@ -221,9 +222,13 @@ export default class AudioStream {
 
             this.#context.logger.info('[audio]', `Audio stream finished, sent ${packetCount} packets`);
 
-            // this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
-            // await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
+            this.#stopSync();
+
+            this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
+            await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
+            this.#context.logger.debug('[audio]', 'TEARDOWN complete');
         } catch (err) {
+            this.#stopSync();
             this.#dataSocket?.close();
             this.#dataSocket = undefined;
             this.#packetBacklog.clear();
@@ -275,10 +280,12 @@ export default class AudioStream {
         await this.#send(packet);
 
         // Update context
+        const framesSent = Math.floor(frames.length / ctx.frameSize);
         ctx.rtpSeq = (ctx.rtpSeq + 1) & 0xFFFF;
-        ctx.headTs = (ctx.headTs + FRAMES_PER_PACKET) >>> 0;
+        ctx.headTs = (ctx.headTs + framesSent) >>> 0;
+        ctx.totalFrames += framesSent;
 
-        return Math.floor(frames.length / ctx.frameSize);
+        return framesSent;
     }
 
     #storePacket(seqno: number, packet: Buffer): void {
@@ -323,7 +330,7 @@ export default class AudioStream {
 
     #send(data: Buffer): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.#dataSocket.send(data, err => err ? reject(err) : resolve());
+            this.#dataSocket!.send(data, err => err ? reject(err) : resolve());
         });
     }
 
@@ -331,7 +338,76 @@ export default class AudioStream {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    #startSync(): void {
+        if (this.#syncInterval) {
+            return;
+        }
+
+        let firstPacket = true;
+
+        const sendSync = () => {
+            if (!this.#controlSocket || !this.#streamContext || !this.#remoteControlPort) {
+                return;
+            }
+
+            const ctx = this.#streamContext;
+            const currentTime = ntpFromTs(ctx.headTs, ctx.sampleRate);
+            const [currentSec, currentFrac] = NTP.parts(currentTime);
+
+            const packet = Buffer.allocUnsafe(20);
+            packet.writeUInt8(firstPacket ? 0x90 : 0x80, 0);
+            packet.writeUInt8(0xD4, 1);
+            packet.writeUInt16BE(0x0007, 2);
+            packet.writeUInt32BE((ctx.headTs - ctx.latency) >>> 0, 4);
+            packet.writeUInt32BE(currentSec, 8);
+            packet.writeUInt32BE(currentFrac, 12);
+            packet.writeUInt32BE(ctx.headTs >>> 0, 16);
+
+            firstPacket = false;
+
+            this.#controlSocket.send(packet, this.#remoteControlPort, this.#protocol.discoveryResult.address);
+        };
+
+        sendSync();
+        this.#syncInterval = setInterval(sendSync, SYNC_INTERVAL);
+    }
+
+    #stopSync(): void {
+        if (this.#syncInterval) {
+            clearInterval(this.#syncInterval);
+            this.#syncInterval = undefined;
+        }
+
+        this.#streamContext = undefined;
+    }
+
+    #onControlMessage(data: Buffer, rinfo: { address: string; port: number }): void {
+        const actualType = data[1] & 0x7F;
+
+        if (actualType === 0x55) {
+            this.#retransmitPackets(data, rinfo);
+        }
+    }
+
+    #retransmitPackets(data: Buffer, addr: { address: string; port: number }): void {
+        const lostSeqno = data.readUInt16BE(4);
+        const lostPackets = data.readUInt16BE(6);
+
+        for (let i = 0; i < lostPackets; i++) {
+            const seqno = (lostSeqno + i) & 0xFFFF;
+            const packet = this.#packetBacklog.get(seqno);
+
+            if (packet) {
+                const originalSeqno = packet.subarray(2, 4);
+                const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), originalSeqno, packet]);
+
+                this.#controlSocket?.send(resp, addr.port, addr.address);
+            }
+        }
+    }
+
     close(): void {
+        this.#stopSync();
         this.#controlSocket?.close();
         this.#controlSocket = undefined;
         this.#dataSocket?.close();

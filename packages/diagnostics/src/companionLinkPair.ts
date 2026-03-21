@@ -1,11 +1,10 @@
-import { Discovery } from '@basmilius/apple-common';
+import { Discovery, type Storage } from '@basmilius/apple-common';
 import * as CompanionLink from '@basmilius/apple-companion-link';
-import { write } from 'bun';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import { startSavingLogs } from './logger';
 
-export default async function (): Promise<void> {
+export default async function (storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
     const spinner = ora('Searching for Companion Link devices...').start();
@@ -31,12 +30,6 @@ export default async function (): Promise<void> {
     });
 
     const device = devices.find(d => d.id === response.device)!;
-    const isAppleTV = device.txt.model.startsWith('AppleTV');
-
-    if (!isAppleTV) {
-        console.error(`Device ${device.fqdn} (${device.id}) is not supported.`);
-        return;
-    }
 
     startSavingLogs();
 
@@ -50,20 +43,12 @@ export default async function (): Promise<void> {
         message: 'Enter PIN'
     }).then((r: Record<string, string>) => r.pin));
 
-    console.log('Credentials:');
-    console.log({
-        accessoryIdentifier: credentials.accessoryIdentifier,
-        accessoryLongTermPublicKey: credentials.accessoryLongTermPublicKey.toString('hex'),
-        pairingId: credentials.pairingId.toString('hex'),
-        publicKey: credentials.publicKey.toString('hex'),
-        secretKey: credentials.secretKey.toString('hex')
+    storage.setDevice(device.id, {
+        identifier: device.id,
+        name: device.fqdn
     });
+    storage.setCredentials(device.id, 'companionLink', credentials);
+    await storage.save();
 
-    await write(`${device.fqdn}.ap-creds`, JSON.stringify({
-        accessoryIdentifier: credentials.accessoryIdentifier,
-        accessoryLongTermPublicKey: credentials.accessoryLongTermPublicKey.toString('hex'),
-        pairingId: credentials.pairingId.toString('hex'),
-        publicKey: credentials.publicKey.toString('hex'),
-        secretKey: credentials.secretKey.toString('hex')
-    }));
+    console.log('Credentials saved.');
 }

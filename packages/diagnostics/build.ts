@@ -20,7 +20,7 @@ for (const [outfile, target] of targets) {
     await build({
         entrypoints: ['src/index.ts'],
         bytecode: true,
-        minify: true,
+        minify: false,
         sourcemap: 'none',
         target: 'bun',
         plugins: [

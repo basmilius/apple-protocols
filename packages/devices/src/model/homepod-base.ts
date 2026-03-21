@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
-import type { DiscoveryResult } from '@basmilius/apple-common';
+import type { AudioSource, DiscoveryResult } from '@basmilius/apple-common';
 import * as AirPlay from '@basmilius/apple-airplay';
-import { AirPlayDevice } from '../airplay';
+import { type AirPlayClient, AirPlayDevice, type AirPlayRemote, type AirPlayState, type AirPlayVolume } from '../airplay';
 
 type EventMap = {
     connected: [];
@@ -13,12 +13,24 @@ export default abstract class extends EventEmitter<EventMap> {
         return this.#airplay;
     }
 
+    get remote(): AirPlayRemote {
+        return this.#airplay.remote;
+    }
+
+    get state(): AirPlayState {
+        return this.#airplay.state;
+    }
+
+    get volumeControl(): AirPlayVolume {
+        return this.#airplay.volume;
+    }
+
     get bundleIdentifier(): string | null {
-        return this.#airplay.state.nowPlayingClient?.bundleIdentifier ?? null;
+        return this.#nowPlayingClient?.bundleIdentifier ?? null;
     }
 
     get displayName(): string | null {
-        return this.#airplay.state.nowPlayingClient?.displayName ?? null;
+        return this.#nowPlayingClient?.displayName ?? null;
     }
 
     get isConnected(): boolean {
@@ -26,23 +38,47 @@ export default abstract class extends EventEmitter<EventMap> {
     }
 
     get isPlaying(): boolean {
-        return this.playbackState === AirPlay.Proto.PlaybackState_Enum.Playing;
+        return this.#nowPlayingClient?.isPlaying ?? false;
+    }
+
+    get title(): string {
+        return this.#nowPlayingClient?.title ?? '';
+    }
+
+    get artist(): string {
+        return this.#nowPlayingClient?.artist ?? '';
+    }
+
+    get album(): string {
+        return this.#nowPlayingClient?.album ?? '';
+    }
+
+    get duration(): number {
+        return this.#nowPlayingClient?.duration ?? 0;
+    }
+
+    get elapsedTime(): number {
+        return this.#nowPlayingClient?.elapsedTime ?? 0;
     }
 
     get playbackQueue(): AirPlay.Proto.PlaybackQueue | null {
-        return this.#airplay.state.nowPlayingClient?.playbackQueue ?? null;
+        return this.#nowPlayingClient?.playbackQueue ?? null;
     }
 
     get playbackState(): AirPlay.Proto.PlaybackState_Enum {
-        return this.#airplay.state.nowPlayingClient?.playbackState ?? AirPlay.Proto.PlaybackState_Enum.Unknown;
+        return this.#nowPlayingClient?.playbackState ?? AirPlay.Proto.PlaybackState_Enum.Unknown;
     }
 
     get playbackStateTimestamp(): number {
-        return this.#airplay.state.nowPlayingClient?.playbackStateTimestamp ?? -1;
+        return this.#nowPlayingClient?.playbackStateTimestamp ?? -1;
     }
 
     get volume(): number {
         return this.#airplay.state.volume ?? 0;
+    }
+
+    get #nowPlayingClient(): AirPlayClient | null {
+        return this.#airplay.state.nowPlayingClient;
     }
 
     readonly #airplay: AirPlayDevice;
@@ -87,6 +123,10 @@ export default abstract class extends EventEmitter<EventMap> {
 
     async previous(): Promise<void> {
         await this.#airplay.sendCommand(AirPlay.Proto.Command.PreviousInContext);
+    }
+
+    async streamAudio(source: AudioSource): Promise<void> {
+        await this.#airplay.streamAudio(source);
     }
 
     async getCommandInfo(command: AirPlay.Proto.Command): Promise<AirPlay.Proto.CommandInfo | null> {

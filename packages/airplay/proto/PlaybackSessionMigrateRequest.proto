@@ -1,0 +1,28 @@
+syntax = "proto2";
+
+import "ContentItem.proto";
+import "PlayerPath.proto";
+import "PlaybackSessionMigrateRequestEvent.proto";
+import "PlaybackSessionRequest.proto";
+import "SendCommandResultMessage.proto";
+import "Common.proto";
+
+message PlaybackSessionMigrateRequest {
+    optional string requestId = 1;
+    optional int32 playerOptions = 2;
+    optional EndpointOptions.Enum endpointOptions = 3;
+    repeated PlaybackSessionMigrateRequestEvent events = 4;
+    optional double playbackPosition = 5;
+    optional ContentItem contentItem = 6;
+    optional PlayerPath playerPath = 7;
+    optional PlaybackState.Enum playbackState = 8;
+    optional double playbackRate = 9;
+    optional PlaybackSessionRequest playbackSessionRequest = 10;
+    optional bool allowFadeTransition = 11;
+    optional uint32 originatorType = 12;
+    optional uint32 destinationTypes = 13;
+    optional string initiator = 14;
+    optional PlayerPath resolvedPlayerPath = 15;
+    optional SendCommandResultStatus setPlaybackSessionCommandStatus = 16;
+    optional RecipeType.Enum recipeType = 17;
+}

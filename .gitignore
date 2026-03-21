@@ -1,5 +1,6 @@
 .idea/
 .audio/
+.claude/
 .log/
 dist/
 node_modules/

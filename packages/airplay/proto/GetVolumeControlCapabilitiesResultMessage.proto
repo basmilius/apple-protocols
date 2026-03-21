@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+import "VolumeControlAvailabilityMessage.proto";
+
+extend ProtocolMessage {
+    optional GetVolumeControlCapabilitiesResultMessage getVolumeControlCapabilitiesResultMessage = 67;
+}
+
+message GetVolumeControlCapabilitiesResultMessage {
+    optional VolumeControlAvailabilityMessage capabilities = 1;
+}

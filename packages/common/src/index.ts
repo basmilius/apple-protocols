@@ -3,8 +3,36 @@ export {
 } from 'uuid';
 
 export {
+    AirPlayFeatureFlags,
+    describeFlags,
+    getPairingRequirement,
+    getProtocolVersion,
+    hasFeatureFlag,
+    isPasswordRequired,
+    isRemoteControlSupported,
+    parseFeatures,
+    type AirPlayFeatureFlagName,
+    type PairingRequirement
+} from './airplayFeatures';
+
+export {
+    JsonStorage,
+    MemoryStorage,
+    Storage,
+    type ProtocolType,
+    type StorageData,
+    type StoredDevice
+} from './storage';
+
+export {
     Discovery
 } from './discovery';
+
+export {
+    multicast as mdnsMulticast,
+    unicast as mdnsUnicast,
+    type MdnsService
+} from './mdns';
 
 export {
     prompt,
@@ -67,6 +95,7 @@ export type {
 } from './audioSource';
 
 export type {
+    CombinedDiscoveryResult,
     ConnectionState,
     DiscoveryResult,
     EventMap

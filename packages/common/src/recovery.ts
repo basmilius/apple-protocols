@@ -20,6 +20,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
     #attempt: number = 0;
     #errors: Error[] = [];
     #isRecovering: boolean = false;
+    #isScheduledReconnecting: boolean = false;
     #retryTimeout?: NodeJS.Timeout;
     #reconnectInterval?: NodeJS.Timeout;
     #disposed: boolean = false;
@@ -138,15 +139,19 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
         this.#stopReconnectInterval();
 
         this.#reconnectInterval = setInterval(async () => {
-            if (this.#isRecovering || this.#disposed) {
+            if (this.#isRecovering || this.#disposed || this.#isScheduledReconnecting) {
                 return;
             }
+
+            this.#isScheduledReconnecting = true;
 
             try {
                 await this.#options.onReconnect();
             } catch (_) {
                 // Scheduled reconnect failures are silent; unexpected
                 // disconnects will trigger recovery via handleDisconnect.
+            } finally {
+                this.#isScheduledReconnecting = false;
             }
         }, this.#options.reconnectInterval);
     }

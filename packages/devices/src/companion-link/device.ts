@@ -39,6 +39,9 @@ export default class extends EventEmitter<EventMap> {
         return this.#textInputState;
     }
 
+    #onMediaControl = (data: unknown): void => {
+        this.emit('mediaControl' as any, data);
+    };
     #textInputState: TextInputState = {isActive: false, documentText: '', isSecure: false, keyboardType: 0, autocorrection: false, autocapitalization: false};
 
     constructor(discoveryResult: DiscoveryResult) {
@@ -193,9 +196,7 @@ export default class extends EventEmitter<EventMap> {
 
     async #subscribe(): Promise<void> {
         // Register listeners on the stream directly.
-        this.#protocol.stream.on('_iMC', (data: unknown) => {
-            this.emit('mediaControl' as any, data);
-        });
+        this.#protocol.stream.on('_iMC', this.#onMediaControl);
         this.#protocol.stream.on('SystemStatus', this.onSystemStatus);
         this.#protocol.stream.on('TVSystemStatus', this.onTVSystemStatus);
         this.#protocol.stream.on('_tiStarted', this.#onTextInputStarted);
@@ -209,6 +210,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #unsubscribe(): Promise<void> {
+        this.#protocol.stream.off('_iMC', this.#onMediaControl);
         this.#protocol.stream.off('SystemStatus', this.onSystemStatus);
         this.#protocol.stream.off('TVSystemStatus', this.onTVSystemStatus);
         this.#protocol.stream.off('_tiStarted', this.#onTextInputStarted);

@@ -41,7 +41,7 @@ export class Pairing {
         const [, response] = await this.#stream.exchange(frameType, {
             _pd: data,
             _pwTy: 1
-        });
+        }, 30000);
 
         if (typeof response !== 'object' || response === null) {
             throw new InvalidResponseError('Invalid response from receiver.');
@@ -103,7 +103,7 @@ export class Verify {
         const [, response] = await this.#stream.exchange(frameType, {
             _pd: data,
             _auTy: 4
-        });
+        }, 30000);
 
         if (typeof response !== 'object' || response === null) {
             throw new InvalidResponseError('Invalid response from receiver.');

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { DataStreamMessage, Proto, Protocol } from '@basmilius/apple-airplay';
+import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
 import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
@@ -48,6 +48,8 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
+    readonly #boundOnError = (err: Error) => this.#onError(err);
+    readonly #boundOnTimeout = () => this.#onTimeout();
     readonly #remote: Remote;
     readonly #state: State;
     readonly #volume: Volume;
@@ -56,6 +58,8 @@ export default class extends EventEmitter<EventMap> {
     #discoveryResult: DiscoveryResult;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
+    #prevDataStream?: DataStream;
+    #prevEventStream?: EventStream;
     #protocol!: Protocol;
     #timingServer?: TimingServer;
 
@@ -182,13 +186,22 @@ export default class extends EventEmitter<EventMap> {
         }
 
         try {
+            // Remove listeners from previous streams (prevents accumulation on reconnect).
+            this.#prevDataStream?.off('error', this.#boundOnError);
+            this.#prevDataStream?.off('timeout', this.#boundOnTimeout);
+            this.#prevEventStream?.off('error', this.#boundOnError);
+            this.#prevEventStream?.off('timeout', this.#boundOnTimeout);
+
             await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
             await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
-            this.#protocol.dataStream.on('error', this.#onError.bind(this));
-            this.#protocol.dataStream.on('timeout', this.#onTimeout.bind(this));
-            this.#protocol.eventStream.on('error', this.#onError.bind(this));
-            this.#protocol.eventStream.on('timeout', this.#onTimeout.bind(this));
+            this.#protocol.dataStream.on('error', this.#boundOnError);
+            this.#protocol.dataStream.on('timeout', this.#boundOnTimeout);
+            this.#protocol.eventStream.on('error', this.#boundOnError);
+            this.#protocol.eventStream.on('timeout', this.#boundOnTimeout);
+
+            this.#prevDataStream = this.#protocol.dataStream;
+            this.#prevEventStream = this.#protocol.eventStream;
 
             if (this.#feedbackInterval) {
                 clearInterval(this.#feedbackInterval);

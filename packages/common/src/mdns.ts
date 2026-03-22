@@ -129,10 +129,13 @@ export function createQueryPackets(services: string[], qtype: number = QueryType
 
 // --- DNS Packet Decoding ---
 
+const MAX_POINTER_JUMPS = 128;
+
 const decodeQName = (buf: Buffer, offset: number): [string, number] => {
     const labels: string[] = [];
     let currentOffset = offset;
     let jumped = false;
+    let jumps = 0;
     let returnOffset = offset;
 
     while (currentOffset < buf.byteLength) {
@@ -148,6 +151,10 @@ const decodeQName = (buf: Buffer, offset: number): [string, number] => {
 
         // Name compression pointer (upper 2 bits = 11)
         if ((length & 0xC0) === 0xC0) {
+            if (++jumps > MAX_POINTER_JUMPS) {
+                break;
+            }
+
             const pointer = ((length & 0x3F) << 8) | buf[currentOffset + 1];
 
             if (!jumped) {

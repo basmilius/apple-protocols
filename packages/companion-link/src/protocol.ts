@@ -93,7 +93,8 @@ export default class Protocol {
     async disconnect(): Promise<void> {
         try {
             await this.gracefulStop();
-        } catch (_) {
+        } catch (err) {
+            this.#context.logger.warn('[companion-link]', 'Graceful stop failed during disconnect', err);
         }
 
         await this.#stream.disconnect();
@@ -106,9 +107,15 @@ export default class Protocol {
 
         this.deregisterInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
 
-        try { await this.tiStop(); } catch (_) {}
-        try { await this.touchStop(); } catch (_) {}
-        try { await this.sessionStop(); } catch (_) {}
+        try { await this.tiStop(); } catch (err) {
+            this.#context.logger.warn('[companion-link]', 'tiStop failed', err);
+        }
+        try { await this.touchStop(); } catch (err) {
+            this.#context.logger.warn('[companion-link]', 'touchStop failed', err);
+        }
+        try { await this.sessionStop(); } catch (err) {
+            this.#context.logger.warn('[companion-link]', 'sessionStop failed', err);
+        }
     }
 
     async fetchMediaControlStatus(): Promise<void> {

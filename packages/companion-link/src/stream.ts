@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { ConnectionClosedError, type Context, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
+import { ConnectionClosedError, type Context, EncryptionAwareConnection, EncryptionState, TimeoutError } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
@@ -7,13 +7,16 @@ import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './fr
 const HEADER_SIZE = 4;
 const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
 const PAIRING_QUEUE_IDENTIFIER = -1;
+const DEFAULT_EXCHANGE_TIMEOUT = 10000;
+
+type QueueEntry = [resolve: Function, reject: Function, timer: NodeJS.Timeout];
 
 export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
     get #encryptionState(): EncryptionState {
         return this._encryption;
     }
 
-    readonly #queue: Map<number, [Function, Function]> = new Map();
+    readonly #queue: Map<number, QueueEntry> = new Map();
     #buffer: Buffer = Buffer.alloc(0);
     #xid: number;
 
@@ -34,15 +37,22 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         await super.disconnect();
     }
 
-    async exchange(type: number, obj: Record<string, unknown>): Promise<[number, unknown]> {
+    async exchange(type: number, obj: Record<string, unknown>, timeout: number = DEFAULT_EXCHANGE_TIMEOUT): Promise<[number, unknown]> {
         const _x = this.#xid;
+        const isPairing = PairingFrameTypes.includes(type);
+        const queueKey = isPairing ? PAIRING_QUEUE_IDENTIFIER : _x;
 
-        return new Promise<[number, number]>((resolve, reject) => {
-            if (PairingFrameTypes.includes(type)) {
-                this.#queue.set(PAIRING_QUEUE_IDENTIFIER, [resolve, reject]);
-            } else {
-                this.#queue.set(_x, [resolve, reject]);
-            }
+        return new Promise<[number, unknown]>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.#queue.delete(queueKey);
+                reject(new TimeoutError(`Exchange timed out for type ${type}`));
+            }, timeout);
+
+            this.#queue.set(queueKey, [
+                (value: [number, unknown]) => { clearTimeout(timer); resolve(value); },
+                (err: Error) => { clearTimeout(timer); reject(err); },
+                timer
+            ]);
 
             this.sendOPack(type, obj);
         });
@@ -91,7 +101,8 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         const error = new ConnectionClosedError('Stream cleanup.');
 
-        for (const [, reject] of this.#queue.values()) {
+        for (const [, reject, timer] of this.#queue.values()) {
+            clearTimeout(timer);
             reject(error);
         }
 
@@ -101,7 +112,8 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     #onClose(): void {
         const error = new ConnectionClosedError('Connection closed while waiting for response.');
 
-        for (const [, reject] of this.#queue.values()) {
+        for (const [, reject, timer] of this.#queue.values()) {
+            clearTimeout(timer);
             reject(error);
         }
 
@@ -151,7 +163,8 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     }
 
     #onError(err: Error): void {
-        for (const [, reject] of this.#queue.values()) {
+        for (const [, reject, timer] of this.#queue.values()) {
+            clearTimeout(timer);
             reject(err);
         }
 
@@ -191,7 +204,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
             const _x = Number(payload['_x']);
 
             if (this.#queue.has(_x)) {
-                const [resolve] = this.#queue.get(_x);
+                const [resolve] = this.#queue.get(_x)!;
                 resolve([header, payload]);
                 this.#queue.delete(_x);
                 return;
@@ -200,7 +213,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         // Pairing responses have no _x.
         if (this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
-            const [resolve] = this.#queue.get(PAIRING_QUEUE_IDENTIFIER);
+            const [resolve] = this.#queue.get(PAIRING_QUEUE_IDENTIFIER)!;
             resolve([header, payload]);
             this.#queue.delete(PAIRING_QUEUE_IDENTIFIER);
             return;

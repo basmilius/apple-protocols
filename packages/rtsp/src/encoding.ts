@@ -62,6 +62,11 @@ export function buildResponse(options: BuildResponseOptions): Buffer {
 
 export function parseRequest(buffer: Buffer): RtspRequest | null {
     const headerLength = buffer.indexOf('\r\n\r\n');
+
+    if (headerLength === -1) {
+        return null;
+    }
+
     const {headers, method, path} = parseRequestHeaders(buffer.subarray(0, headerLength));
 
     let contentLength = headers['Content-Length'] ? Number(headers['Content-Length']) : 0;
@@ -89,6 +94,11 @@ export function parseRequest(buffer: Buffer): RtspRequest | null {
 
 export function parseResponse(buffer: Buffer): RtspResponse | null {
     const headerLength = buffer.indexOf('\r\n\r\n');
+
+    if (headerLength === -1) {
+        return null;
+    }
+
     const {headers, status, statusText} = parseResponseHeaders(buffer.subarray(0, headerLength));
 
     let contentLength = headers['Content-Length'] ? Number(headers['Content-Length']) : 0;

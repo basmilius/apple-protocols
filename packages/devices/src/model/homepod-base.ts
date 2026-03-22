@@ -125,6 +125,18 @@ export default abstract class extends EventEmitter<EventMap> {
         await this.#airplay.sendCommand(AirPlay.Proto.Command.PreviousInContext);
     }
 
+    async playUrl(url: string, position: number = 0): Promise<void> {
+        await this.#airplay.playUrl(url, position);
+    }
+
+    async waitForPlaybackEnd(): Promise<void> {
+        await this.#airplay.waitForPlaybackEnd();
+    }
+
+    stopPlayUrl(): void {
+        this.#airplay.stopPlayUrl();
+    }
+
     async streamAudio(source: AudioSource): Promise<void> {
         await this.#airplay.streamAudio(source);
     }

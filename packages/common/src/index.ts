@@ -118,6 +118,7 @@ export {
     EncryptionError,
     InvalidResponseError,
     PairingError,
+    PlaybackError,
     SetupError,
     TimeoutError
 } from './errors';

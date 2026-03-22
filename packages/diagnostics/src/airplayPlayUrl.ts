@@ -54,16 +54,44 @@ export default async function (storage: Storage): Promise<void> {
         keys.controllerToAccessoryKey
     );
 
-    const feedbackInterval = setInterval(() => protocol.feedback(), 2000);
-
     console.log(`Playing ${url}...`);
 
     try {
         await protocol.playUrl(url, keys.sharedSecret, keys.pairingId);
-        console.log('Playback started. Press Control-C to stop.');
+        console.log('Playback started. Monitoring status...');
+
+        // Poll playback info while playing.
+        const pollInterval = setInterval(async () => {
+            const info = await protocol.getPlaybackInfo();
+
+            if (info) {
+                const parts: string[] = [];
+
+                if (info.duration !== undefined) {
+                    const pos = info.position ?? 0;
+                    const dur = info.duration;
+                    const pct = dur > 0 ? Math.round((pos / dur) * 100) : 0;
+                    parts.push(`${pos.toFixed(1)}s / ${dur.toFixed(1)}s (${pct}%)`);
+                }
+
+                if (info.rate !== undefined) {
+                    parts.push(`rate=${info.rate}`);
+                }
+
+                if (parts.length > 0) {
+                    console.log(`  [playback] ${parts.join(' | ')}`);
+                }
+            }
+        }, 2000);
+
+        await protocol.waitForPlaybackEnd();
+
+        clearInterval(pollInterval);
+        console.log('Playback finished.');
     } catch (err) {
-        console.error('Failed to play URL:', err);
-        clearInterval(feedbackInterval);
+        console.error('Playback error:', err);
+    } finally {
+        protocol.stopPlayUrl();
         protocol.disconnect();
         timingServer.close();
     }

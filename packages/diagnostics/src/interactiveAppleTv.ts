@@ -29,6 +29,7 @@ Available commands:
   clear                            Clear text input
   keyboard                         Show keyboard state
   stream <url>                     Stream audio from URL
+  playurl <url>                    Play URL on device
   info                             Show now playing info
   fetch                            Request playback queue from device
   dump                             Dump raw metadata fields
@@ -295,6 +296,20 @@ export default async function (storage: Storage): Promise<void> {
                             log('command', 'Stream complete');
                         } else {
                             log('error', 'Usage: stream <url>');
+                        }
+                        break;
+                    case 'playurl':
+                        if (args[0]) {
+                            log('info', `Playing URL ${args[0]}...`);
+                            await device.airplay.playUrl(args[0]);
+                            log('command', 'Playback started');
+                            device.airplay.waitForPlaybackEnd().then(() => {
+                                log('event', 'URL playback ended');
+                            }).catch((err) => {
+                                log('error', `URL playback error: ${err}`);
+                            });
+                        } else {
+                            log('error', 'Usage: playurl <url>');
                         }
                         break;
                     case 'info':

@@ -3,7 +3,9 @@ import { prompt } from 'enquirer';
 
 import { stopSavingLogs } from './logger';
 import airplayListen from './airplayListen';
+import airplayLiveStream from './airplayLiveStream';
 import airplayMonitor from './airplayMonitor';
+import airplayMultiRoom from './airplayMultiRoom';
 import airplayPlayUrl from './airplayPlayUrl';
 import airplayStreamAudio from './airplayStreamAudio';
 import airplayPair from './airplayPair';
@@ -51,6 +53,8 @@ while (true) {
             {message: 'AirPlay Monitor', name: 'airplay-monitor'},
             {message: 'AirPlay Play URL', name: 'airplay-play-url'},
             {message: 'AirPlay Stream Audio', name: 'airplay-stream-audio'},
+            {message: 'AirPlay Live Stream (sine wave)', name: 'airplay-live-stream'},
+            {message: 'AirPlay Multi-Room', name: 'airplay-multi-room'},
             {message: 'AirPlay Listen', name: 'airplay-listen'},
             {message: 'HomePod Play Audio (RAOP)', name: 'homepod-play-audio'},
             {message: 'mDNS Scan', name: 'mdns-scan'},
@@ -120,6 +124,16 @@ while (true) {
             case 'airplay-stream-audio':
                 reporter.all();
                 await airplayStreamAudio(storage);
+                break;
+
+            case 'airplay-live-stream':
+                reporter.all();
+                await airplayLiveStream(storage);
+                break;
+
+            case 'airplay-multi-room':
+                reporter.all();
+                await airplayMultiRoom(storage);
                 break;
 
             case 'airplay-listen':

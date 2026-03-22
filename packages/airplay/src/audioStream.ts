@@ -12,6 +12,8 @@ const FRAMES_PER_PACKET = 352;
 const LATENCY_FRAMES = 11025;
 const PACKET_BACKLOG_SIZE = 1000;
 const SYNC_INTERVAL = 1000;
+const MAX_PACKETS_COMPENSATE = 3;
+const SLOW_WARNING_THRESHOLD = 5;
 
 // Audio formats:
 // 262_144 (0x40000) = AAC-ELD (what iOS uses, requires encoding)
@@ -19,7 +21,7 @@ const SYNC_INTERVAL = 1000;
 const AUDIO_FORMAT_PCM = 4194304;
 const AUDIO_FORMAT = AUDIO_FORMAT_PCM;
 
-type AudioStreamContext = {
+export type AudioStreamContext = {
     sampleRate: number;
     channels: number;
     bytesPerChannel: number;
@@ -41,6 +43,8 @@ const ntpFromTs = (timestamp: number, sampleRate: number): bigint => {
 
     return (BigInt(seconds) << 32n) | BigInt(Math.floor(fraction));
 };
+
+export { FRAMES_PER_PACKET, SAMPLE_RATE };
 
 export default class AudioStream {
     readonly #protocol: Protocol;
@@ -145,56 +149,122 @@ export default class AudioStream {
         };
     }
 
-    async stream(source: AudioSource, remoteAddress: string): Promise<void> {
+    /**
+     * Prepare the audio stream for sending. Connects the UDP data socket,
+     * initializes stream context, sends FLUSH, and starts RTCP sync.
+     */
+    async prepare(remoteAddress: string): Promise<AudioStreamContext> {
         if (!this.#controlSocket || !this.#sharedKey || !this.#dataPort) {
             throw new SetupError('Audio stream not setup.');
         }
 
         this.#dataSocket = createSocket('udp4');
 
+        await new Promise<void>((resolve, reject) => {
+            this.#dataSocket!.once('error', reject);
+            this.#dataSocket!.connect(this.#dataPort, remoteAddress, () => {
+                this.#dataSocket!.removeListener('error', reject);
+                resolve();
+            });
+        });
+
+        const frameSize = CHANNELS * BYTES_PER_CHANNEL;
+        const packetSize = FRAMES_PER_PACKET * frameSize;
+
+        const ctx: AudioStreamContext = {
+            sampleRate: SAMPLE_RATE,
+            channels: CHANNELS,
+            bytesPerChannel: BYTES_PER_CHANNEL,
+            frameSize,
+            packetSize,
+            rtpSeq: randomInt32() & 0xFFFF,
+            rtpTime: 0,
+            headTs: 0,
+            latency: LATENCY_FRAMES,
+            paddingSent: 0,
+            totalFrames: 0
+        };
+        this.#streamContext = ctx;
+
+        this.#context.logger.debug('[audio]', 'Sending FLUSH...');
+        await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
+            'Range': 'npt=0-',
+            'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
+        });
+        this.#context.logger.debug('[audio]', 'FLUSH complete');
+
+        this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
+
+        this.#packetBacklog.clear();
+        this.#startSync();
+
+        return ctx;
+    }
+
+    /**
+     * Send pre-read frame data as an RTP packet. Used by AudioMultiplexer
+     * for multi-room streaming where frames are read once and sent to
+     * multiple streams.
+     */
+    async sendFrameData(frames: Buffer, firstPacket: boolean): Promise<number> {
+        if (!this.#streamContext) {
+            throw new SetupError('Audio stream not prepared.');
+        }
+
+        return this.#sendFrameBuffer(frames, firstPacket, this.#streamContext);
+    }
+
+    /**
+     * Send padding frames (silence) after audio ends and TEARDOWN.
+     */
+    async finish(): Promise<void> {
+        if (!this.#streamContext) {
+            return;
+        }
+
+        const ctx = this.#streamContext;
+
+        // Send padding (latency worth of silence).
+        while (ctx.paddingSent < ctx.latency) {
+            const silence = Buffer.alloc(ctx.packetSize, 0);
+            const sent = await this.#sendFrameBuffer(silence, false, ctx);
+
+            if (sent === 0) {
+                break;
+            }
+
+            ctx.paddingSent += sent;
+
+            const expectedTime = ctx.totalFrames / SAMPLE_RATE * 1000;
+            const actualTime = performance.now();
+            const sleepTime = expectedTime - actualTime;
+
+            if (sleepTime > 0) {
+                await this.#sleep(sleepTime);
+            }
+        }
+
+        this.#stopSync();
+
+        this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
+        await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
+        this.#context.logger.debug('[audio]', 'TEARDOWN complete');
+    }
+
+    /**
+     * Stream audio from a source. Convenience method that uses prepare(),
+     * sendFrameData() and finish() internally.
+     */
+    async stream(source: AudioSource, remoteAddress: string): Promise<void> {
+        const ctx = await this.prepare(remoteAddress);
+
         try {
-            await new Promise<void>((resolve, reject) => {
-                this.#dataSocket!.once('error', reject);
-                this.#dataSocket!.connect(this.#dataPort, remoteAddress, () => {
-                    this.#dataSocket.removeListener('error', reject);
-                    resolve();
-                });
-            });
-
-            const frameSize = CHANNELS * BYTES_PER_CHANNEL;
-            const packetSize = FRAMES_PER_PACKET * frameSize;
-
-            const ctx: AudioStreamContext = {
-                sampleRate: SAMPLE_RATE,
-                channels: CHANNELS,
-                bytesPerChannel: BYTES_PER_CHANNEL,
-                frameSize,
-                packetSize,
-                rtpSeq: randomInt32() & 0xFFFF,
-                rtpTime: 0,
-                headTs: 0,
-                latency: LATENCY_FRAMES,
-                paddingSent: 0,
-                totalFrames: 0
-            };
-            this.#streamContext = ctx;
-
-            this.#context.logger.debug('[audio]', 'Sending FLUSH...');
-            await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
-                'Range': 'npt=0-',
-                'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
-            });
-            this.#context.logger.debug('[audio]', 'FLUSH complete');
-
             let firstPacket = true;
             let packetCount = 0;
+            let slowCount = 0;
             const startTime = performance.now();
 
             this.#context.logger.info('[audio]', 'Starting audio stream...');
-            this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
-
-            this.#packetBacklog.clear();
-            this.#startSync();
 
             while (true) {
                 const framesSent = await this.#sendPacket(source, firstPacket, ctx);
@@ -216,7 +286,35 @@ export default class AudioStream {
                 const sleepTime = expectedTime - actualTime;
 
                 if (sleepTime > 0) {
+                    slowCount = 0;
                     await this.#sleep(sleepTime);
+                } else {
+                    // We're behind schedule — send extra packets to catch up.
+                    const framesBehind = Math.floor((-sleepTime / 1000) * SAMPLE_RATE);
+
+                    if (framesBehind >= FRAMES_PER_PACKET) {
+                        const extraPackets = Math.min(
+                            Math.floor(framesBehind / FRAMES_PER_PACKET),
+                            MAX_PACKETS_COMPENSATE
+                        );
+
+                        for (let i = 0; i < extraPackets; i++) {
+                            const extra = await this.#sendPacket(source, false, ctx);
+
+                            if (extra === 0) {
+                                break;
+                            }
+
+                            packetCount++;
+                        }
+                    }
+
+                    slowCount++;
+
+                    if (slowCount >= SLOW_WARNING_THRESHOLD) {
+                        this.#context.logger.warn('[audio]', `Stream is behind schedule (${slowCount} consecutive slow packets, ${Math.abs(sleepTime).toFixed(1)}ms behind)`);
+                        slowCount = 0;
+                    }
                 }
             }
 
@@ -257,6 +355,10 @@ export default class AudioStream {
             frames = padded;
         }
 
+        return this.#sendFrameBuffer(frames, firstPacket, ctx);
+    }
+
+    #sendFrameBuffer(frames: Buffer, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
         // Build RTP header (12 bytes)
         const rtpHeader = Buffer.allocUnsafe(12);
         rtpHeader.writeUInt8(0x80, 0);  // Version 2
@@ -277,15 +379,13 @@ export default class AudioStream {
         // Store for potential retransmission
         this.#storePacket(ctx.rtpSeq, packet);
 
-        await this.#send(packet);
-
         // Update context
         const framesSent = Math.floor(frames.length / ctx.frameSize);
         ctx.rtpSeq = (ctx.rtpSeq + 1) & 0xFFFF;
         ctx.headTs = (ctx.headTs + framesSent) >>> 0;
         ctx.totalFrames += framesSent;
 
-        return framesSent;
+        return this.#send(packet).then(() => framesSent);
     }
 
     #storePacket(seqno: number, packet: Buffer): void {

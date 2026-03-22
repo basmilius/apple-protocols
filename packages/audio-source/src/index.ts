@@ -1,5 +1,6 @@
 export { default as Ffmpeg } from './ffmpeg';
 export { default as File } from './file';
+export { default as Live } from './live';
 export { default as Mp3 } from './mp3';
 export { default as Ogg } from './ogg';
 export { default as Pcm } from './pcm';

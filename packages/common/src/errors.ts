@@ -88,3 +88,10 @@ export class TimeoutError extends AppleProtocolError {
         this.name = 'TimeoutError';
     }
 }
+
+export class PlaybackError extends AppleProtocolError {
+    constructor(message: string) {
+        super(message);
+        this.name = 'PlaybackError';
+    }
+}

@@ -59,6 +59,7 @@ export default class extends EventEmitter<EventMap> {
     #discoveryResult: DiscoveryResult;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
+    #playUrlProtocol?: Protocol;
     #prevDataStream?: DataStream;
     #prevEventStream?: EventStream;
     #protocol!: Protocol;
@@ -112,6 +113,7 @@ export default class extends EventEmitter<EventMap> {
             this.#feedbackInterval = undefined;
         }
 
+        this.#cleanupPlayUrl();
         this.#unsubscribe();
         this.#protocol.disconnect();
     }
@@ -134,6 +136,67 @@ export default class extends EventEmitter<EventMap> {
 
     async setOutputDevices(deviceUIDs: string[]): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext([], [], deviceUIDs));
+    }
+
+    async playUrl(url: string, position: number = 0): Promise<void> {
+        if (!this.#keys) {
+            throw new Error('Not connected. Call connect() first.');
+        }
+
+        // Create a separate protocol instance for URL playback,
+        // just like pyatv does. This avoids conflicting with the
+        // existing remote control session.
+        this.#playUrlProtocol?.disconnect();
+
+        const playProtocol = new Protocol(this.#discoveryResult);
+
+        if (this.#timingServer) {
+            playProtocol.useTimingServer(this.#timingServer);
+        }
+
+        await playProtocol.connect();
+
+        let keys: AccessoryKeys;
+
+        if (this.#credentials) {
+            keys = await playProtocol.verify.start(this.#credentials);
+        } else {
+            await playProtocol.pairing.start();
+            keys = await playProtocol.pairing.transient();
+        }
+
+        playProtocol.controlStream.enableEncryption(
+            keys.accessoryToControllerKey,
+            keys.controllerToAccessoryKey
+        );
+
+        this.#playUrlProtocol = playProtocol;
+
+        await playProtocol.playUrl(url, keys.sharedSecret, keys.pairingId, position);
+    }
+
+    async waitForPlaybackEnd(): Promise<void> {
+        if (!this.#playUrlProtocol) {
+            return;
+        }
+
+        try {
+            await this.#playUrlProtocol.waitForPlaybackEnd();
+        } finally {
+            this.#cleanupPlayUrl();
+        }
+    }
+
+    stopPlayUrl(): void {
+        this.#cleanupPlayUrl();
+    }
+
+    #cleanupPlayUrl(): void {
+        if (this.#playUrlProtocol) {
+            this.#playUrlProtocol.stopPlayUrl();
+            this.#playUrlProtocol.disconnect();
+            this.#playUrlProtocol = undefined;
+        }
     }
 
     async streamAudio(source: AudioSource): Promise<void> {

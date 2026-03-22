@@ -1,10 +1,23 @@
-import { type AudioSource, Context, type DiscoveryResult, getMacAddress, InvalidResponseError, randomInt64, SetupError, type TimingServer, uuid } from '@basmilius/apple-common';
+import { type AudioSource, Context, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, randomInt64, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import AudioStream from './audioStream';
 import ControlStream from './controlStream';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
+
+const FEEDBACK_INTERVAL = 2000;
+const PLAY_RETRIES = 3;
+const PLAYBACK_POLL_INTERVAL = 1000;
+const PLAYBACK_IDLE_THRESHOLD = 5;
+
+export type PlaybackInfo = {
+    duration?: number;
+    position?: number;
+    rate?: number;
+    readyToPlay?: boolean;
+    error?: { code: number; domain: string };
+};
 
 export default class Protocol {
     get context(): Context {
@@ -52,6 +65,7 @@ export default class Protocol {
     #audioStream?: AudioStream;
     #dataStream?: DataStream;
     #eventStream?: EventStream;
+    #playUrlFeedbackInterval?: NodeJS.Timeout;
     #timingServer?: TimingServer;
 
     constructor(discoveryResult: DiscoveryResult) {
@@ -99,6 +113,7 @@ export default class Protocol {
             this.#context.logger.warn('[protocol]', 'Error destroying control stream', err);
         }
 
+        this.#stopPlayUrlFeedback();
         this.#audioStream = undefined;
         this.#dataStream = undefined;
         this.#eventStream = undefined;
@@ -264,34 +279,136 @@ export default class Protocol {
         this.#eventStream.setup(sharedSecret);
         await this.#eventStream.connect();
 
+        // Start feedback loop before RECORD/play (keeps session alive).
+        this.#startPlayUrlFeedback();
+
         await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
 
-        const response = await this.#controlStream.post('/play', {
-            'Content-Location': url,
-            'Start-Position-Seconds': position,
-            uuid: this.#sessionUUID.toUpperCase(),
-            streamType: 1,
-            mediaType: 'file',
-            volume: 1.0,
-            rate: 1.0,
-            clientBundleID: 'com.basmilius.apple-protocols',
-            clientProcName: 'apple-protocols',
-            osBuildVersion: '18C66',
-            model: 'iPhone16,2',
-            SenderMACAddress: getMacAddress().toUpperCase()
-        });
+        // Retry POST /play on 500 errors (device may need time to prepare).
+        let lastStatus = 0;
 
-        this.context.logger.info('[protocol]', `play_url response: ${response.status}`);
+        for (let retry = 0; retry < PLAY_RETRIES; retry++) {
+            const response = await this.#controlStream.post('/play', {
+                'Content-Location': url,
+                'Start-Position-Seconds': position,
+                uuid: this.#sessionUUID.toUpperCase(),
+                streamType: 1,
+                mediaType: 'file',
+                volume: 1.0,
+                rate: 1.0,
+                clientBundleID: 'com.basmilius.apple-protocols',
+                clientProcName: 'apple-protocols',
+                osBuildVersion: '18C66',
+                model: 'iPhone16,2',
+                SenderMACAddress: getMacAddress().toUpperCase()
+            });
 
-        if (response.status !== 200) {
-            throw new InvalidResponseError(`Failed to play URL: ${response.status}`);
+            lastStatus = response.status;
+            this.context.logger.info('[protocol]', `play_url response: ${lastStatus} (attempt ${retry + 1}/${PLAY_RETRIES})`);
+
+            if (lastStatus === 200) {
+                break;
+            }
+
+            if (lastStatus === 500) {
+                this.context.logger.warn('[protocol]', 'play_url returned 500, retrying...');
+                await waitFor(1000);
+                continue;
+            }
+
+            if (lastStatus >= 400) {
+                this.#stopPlayUrlFeedback();
+                throw new PlaybackError(`Failed to play URL: ${lastStatus}`);
+            }
         }
 
-        await this.#putProperty('isInterestedInDateRange', { value: true });
-        await this.#putProperty('actionAtItemEnd', { value: 0 });
+        if (lastStatus !== 200) {
+            this.#stopPlayUrlFeedback();
+            throw new PlaybackError(`Failed to play URL after ${PLAY_RETRIES} retries: ${lastStatus}`);
+        }
+
+        await this.#putProperty('isInterestedInDateRange', {value: true});
+        await this.#putProperty('actionAtItemEnd', {value: 0});
         await this.#controlStream.post('/rate?value=1.000000');
-        await this.#putProperty('forwardEndTime', { value: { flags: 0, value: 0, epoch: 0, timescale: 0 } });
-        await this.#putProperty('reverseEndTime', { value: { flags: 0, value: 0, epoch: 0, timescale: 0 } });
+        await this.#putProperty('forwardEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+        await this.#putProperty('reverseEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+    }
+
+    async getPlaybackInfo(): Promise<PlaybackInfo | null> {
+        try {
+            const response = await this.#controlStream.get('/playback-info');
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const body = await response.arrayBuffer();
+
+            if (body.byteLength === 0) {
+                return {};
+            }
+
+            return Plist.parse(body) as PlaybackInfo;
+        } catch {
+            return null;
+        }
+    }
+
+    async waitForPlaybackEnd(): Promise<void> {
+        let playbackStarted = false;
+        let idleCount = 0;
+
+        while (true) {
+            const info = await this.getPlaybackInfo();
+
+            if (!info) {
+                this.context.logger.debug('[protocol]', 'Connection lost, assuming playback stopped.');
+                break;
+            }
+
+            if (info.error) {
+                this.#stopPlayUrlFeedback();
+                throw new PlaybackError(`Playback error: ${info.error.code} (${info.error.domain})`);
+            }
+
+            if (info.duration !== undefined) {
+                playbackStarted = true;
+                idleCount = 0;
+            } else if (playbackStarted) {
+                idleCount++;
+
+                if (idleCount >= PLAYBACK_IDLE_THRESHOLD) {
+                    this.context.logger.debug('[protocol]', 'Playback ended.');
+                    break;
+                }
+            }
+
+            await waitFor(PLAYBACK_POLL_INTERVAL);
+        }
+
+        this.#stopPlayUrlFeedback();
+    }
+
+    stopPlayUrl(): void {
+        this.#stopPlayUrlFeedback();
+    }
+
+    #startPlayUrlFeedback(): void {
+        this.#stopPlayUrlFeedback();
+        this.#playUrlFeedbackInterval = setInterval(async () => {
+            try {
+                await this.feedback();
+            } catch (err) {
+                this.#context.logger.warn('[protocol]', 'playUrl feedback error', err);
+            }
+        }, FEEDBACK_INTERVAL);
+    }
+
+    #stopPlayUrlFeedback(): void {
+        if (this.#playUrlFeedbackInterval) {
+            clearInterval(this.#playUrlFeedbackInterval);
+            this.#playUrlFeedbackInterval = undefined;
+        }
     }
 
     async #putProperty(property: string, body: any): Promise<void> {

@@ -15,6 +15,7 @@ Available commands:
   volup, voldown, mute             Volume (HID)
   vol <0-100>                      Volume (absolute %)
   stream <url>                     Stream audio from URL
+  playurl <url>                    Play URL on device
   info                             Show now playing info
   help                             Show this help
   quit                             Disconnect and exit
@@ -123,6 +124,20 @@ export default async function (storage: Storage): Promise<void> {
                             log('command', 'Stream complete');
                         } else {
                             log('error', 'Usage: stream <url>');
+                        }
+                        break;
+                    case 'playurl':
+                        if (args[0]) {
+                            log('info', `Playing URL ${args[0]}...`);
+                            await device.playUrl(args[0]);
+                            log('command', 'Playback started');
+                            device.waitForPlaybackEnd().then(() => {
+                                log('event', 'URL playback ended');
+                            }).catch((err) => {
+                                log('error', `URL playback error: ${err}`);
+                            });
+                        } else {
+                            log('error', 'Usage: playurl <url>');
                         }
                         break;
                     case 'info':

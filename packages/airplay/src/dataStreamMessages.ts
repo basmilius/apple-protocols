@@ -63,7 +63,9 @@ export function deviceInfo(pairingId: Buffer): [Proto.ProtocolMessage, DescExten
         supportsExtendedMotion: true,
         sharedQueueVersion: 2,
         deviceClass: Proto.DeviceClass_Enum.iPhone,
-        logicalDeviceCount: 1
+        logicalDeviceCount: 1,
+        clusterType: 0,
+        isClusterAware: true
         // managedConfigDeviceID: 'c4:c1:7d:93:d2:13',
         // isProxyGroupPlayer: false,
         // groupUID: uuid().toUpperCase(),
@@ -71,8 +73,6 @@ export function deviceInfo(pairingId: Buffer): [Proto.ProtocolMessage, DescExten
         // isAirplayActive: false,
         // systemPodcastApplication: 'com.apple.podcasts',
         // senderDefaultGroupUID: uuid().toUpperCase(),
-        // clusterType: 0,
-        // isClusterAware: true,
         // modelID: 'iPhone16,2',
         // supportsMultiplayer: false,
         // routingContextID: uuid().toUpperCase(),
@@ -100,7 +100,10 @@ export function modifyOutputContext(addingDevices: string[] = [], removingDevice
         type: Proto.ModifyOutputContextRequestType_Enum.SharedAudioPresentation,
         addingDevices,
         removingDevices,
-        settingDevices
+        settingDevices,
+        clusterAwareAddingDevices: addingDevices,
+        clusterAwareRemovingDevices: removingDevices,
+        clusterAwareSettingDevices: settingDevices
     });
 
     setExtension(protocolMessage, Proto.modifyOutputContextRequestMessage, message);

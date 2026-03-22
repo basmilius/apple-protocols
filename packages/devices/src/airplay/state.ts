@@ -92,6 +92,18 @@ export default class extends EventEmitter<EventMap> {
         return this.#outputDevices;
     }
 
+    get clusterID(): string | null {
+        return this.#clusterID;
+    }
+
+    get clusterType(): number {
+        return this.#clusterType;
+    }
+
+    get isClusterAware(): boolean {
+        return this.#isClusterAware;
+    }
+
     get volume(): number {
         return this.#volume;
     }
@@ -112,6 +124,9 @@ export default class extends EventEmitter<EventMap> {
     #nowPlayingSnapshot: NowPlayingSnapshot | null;
     #outputDeviceUID: string | null;
     #outputDevices: Proto.AVOutputDeviceDescriptor[] = [];
+    #clusterID: string | null;
+    #clusterType: number;
+    #isClusterAware: boolean;
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
@@ -207,6 +222,9 @@ export default class extends EventEmitter<EventMap> {
         this.#nowPlayingSnapshot = null;
         this.#outputDeviceUID = null;
         this.#outputDevices = [];
+        this.#clusterID = null;
+        this.#clusterType = 0;
+        this.#isClusterAware = false;
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
@@ -379,7 +397,9 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
-        this.#outputDevices = message.outputDevices;
+        this.#outputDevices = message.clusterAwareOutputDevices?.length > 0
+            ? message.clusterAwareOutputDevices
+            : message.outputDevices;
 
         this.emit('updateOutputDevice', message);
     }
@@ -406,6 +426,9 @@ export default class extends EventEmitter<EventMap> {
 
     #updateOutputDeviceUID(message: Proto.DeviceInfoMessage): void {
         this.#outputDeviceUID = message.clusterID || message.deviceUID || message.uniqueIdentifier || null;
+        this.#clusterID = message.clusterID || null;
+        this.#clusterType = message.clusterType ?? 0;
+        this.#isClusterAware = message.isClusterAware ?? false;
     }
 
     #client(bundleIdentifier: string, displayName: string): Client {

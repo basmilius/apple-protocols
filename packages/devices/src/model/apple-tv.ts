@@ -116,7 +116,13 @@ export default class extends EventEmitter<EventMap> {
         await this.#companionLink.setCredentials(companionLinkCredentials ?? airplayCredentials);
 
         await this.#airplay.connect();
-        await this.#companionLink.connect();
+
+        try {
+            await this.#companionLink.connect();
+        } catch (err) {
+            this.#airplay.disconnectSafely();
+            throw err;
+        }
 
         this.#disconnect = false;
     }

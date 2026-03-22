@@ -77,6 +77,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
     dispose(): void {
         this.#disposed = true;
         this.#isRecovering = false;
+        this.#isScheduledReconnecting = false;
 
         if (this.#retryTimeout) {
             clearTimeout(this.#retryTimeout);

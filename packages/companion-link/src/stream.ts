@@ -110,14 +110,6 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     }
 
     #onClose(): void {
-        const error = new ConnectionClosedError('Connection closed while waiting for response.');
-
-        for (const [, reject, timer] of this.#queue.values()) {
-            clearTimeout(timer);
-            reject(error);
-        }
-
-        this.#queue.clear();
         this.#cleanup();
     }
 

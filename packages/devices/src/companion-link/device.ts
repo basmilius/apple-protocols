@@ -39,6 +39,9 @@ export default class extends EventEmitter<EventMap> {
         return this.#textInputState;
     }
 
+    #boundOnClose = async () => this.#onClose();
+    #boundOnError = async (err: Error) => this.#onError(err);
+    #boundOnTimeout = async () => this.#onTimeout();
     #onMediaControl = (data: unknown): void => {
         this.emit('mediaControl' as any, data);
     };
@@ -58,11 +61,19 @@ export default class extends EventEmitter<EventMap> {
             throw new CredentialsError('Credentials are required to connect to a Companion Link device.');
         }
 
+        // Remove listeners from old protocol before creating a new one.
+        // Prevents stale close events from being treated as unexpected disconnects.
+        if (this.#protocol) {
+            this.#protocol.stream.off('close', this.#boundOnClose);
+            this.#protocol.stream.off('error', this.#boundOnError);
+            this.#protocol.stream.off('timeout', this.#boundOnTimeout);
+        }
+
         this.#disconnect = false;
         this.#protocol = new Protocol(this.#discoveryResult);
-        this.#protocol.stream.on('close', async () => this.#onClose());
-        this.#protocol.stream.on('error', async (err: Error) => this.#onError(err));
-        this.#protocol.stream.on('timeout', async () => this.#onTimeout());
+        this.#protocol.stream.on('close', this.#boundOnClose);
+        this.#protocol.stream.on('error', this.#boundOnError);
+        this.#protocol.stream.on('timeout', this.#boundOnTimeout);
 
         await this.#protocol.connect();
         this.#keys = await this.#protocol.verify.start(this.#credentials);

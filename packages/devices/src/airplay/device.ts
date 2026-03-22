@@ -48,6 +48,7 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
+    readonly #boundOnClose = () => this.#onClose();
     readonly #boundOnError = (err: Error) => this.#onError(err);
     readonly #boundOnTimeout = () => this.#onTimeout();
     readonly #remote: Remote;
@@ -73,13 +74,21 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async connect(): Promise<void> {
+        // Remove listeners from old protocol before creating a new one.
+        // Prevents stale close events from being treated as unexpected disconnects.
+        if (this.#protocol) {
+            this.#protocol.controlStream.off('close', this.#boundOnClose);
+            this.#protocol.controlStream.off('error', this.#boundOnError);
+            this.#protocol.controlStream.off('timeout', this.#boundOnTimeout);
+        }
+
         this.#disconnect = false;
         this.#state.clear();
 
         this.#protocol = new Protocol(this.#discoveryResult);
-        this.#protocol.controlStream.on('close', this.#onClose.bind(this));
-        this.#protocol.controlStream.on('error', this.#onError.bind(this));
-        this.#protocol.controlStream.on('timeout', this.#onTimeout.bind(this));
+        this.#protocol.controlStream.on('close', this.#boundOnClose);
+        this.#protocol.controlStream.on('error', this.#boundOnError);
+        this.#protocol.controlStream.on('timeout', this.#boundOnTimeout);
 
         await this.#protocol.connect();
 

@@ -1,15 +1,10 @@
-import tweetnacl from 'tweetnacl';
+import * as x25519 from '@stablelib/x25519';
 import type { KeyPair } from './types';
 
 export function generateKeyPair(): KeyPair {
-    const keyPair = tweetnacl.box.keyPair();
-
-    return {
-        publicKey: keyPair.publicKey,
-        secretKey: keyPair.secretKey
-    };
+    return x25519.generateKeyPair();
 }
 
 export function generateSharedSecKey(priKey: Uint8Array, pubKey: Uint8Array): Uint8Array {
-    return tweetnacl.scalarMult(priKey, pubKey);
+    return x25519.sharedKey(priKey, pubKey);
 }

@@ -55,6 +55,10 @@ export class Reporter {
         this.#enabled = ['debug', 'error', 'info', 'net', 'raw', 'warn'] as DebugGroup[];
     }
 
+    none(): void {
+        this.#enabled = [];
+    }
+
     disable(group: DebugGroup): void {
         if (this.#enabled.includes(group)) {
             this.#enabled.splice(this.#enabled.indexOf(group), 1);

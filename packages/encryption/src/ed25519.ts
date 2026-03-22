@@ -1,19 +1,14 @@
-import tweetnacl from 'tweetnacl';
+import * as ed25519 from '@stablelib/ed25519';
 import type { KeyPair } from './types';
 
 export function generateKeyPair(): KeyPair {
-    const keyPair = tweetnacl.sign.keyPair();
-
-    return {
-        publicKey: keyPair.publicKey,
-        secretKey: keyPair.secretKey
-    };
+    return ed25519.generateKeyPair();
 }
 
 export function sign(message: Uint8Array, secretKey: Uint8Array): Uint8Array {
-    return tweetnacl.sign.detached(message, secretKey);
+    return ed25519.sign(secretKey, message);
 }
 
 export function verify(message: Uint8Array, signature: Uint8Array, publicKey: Uint8Array): boolean {
-    return tweetnacl.sign.detached.verify(message, signature, publicKey);
+    return ed25519.verify(publicKey, message, signature);
 }

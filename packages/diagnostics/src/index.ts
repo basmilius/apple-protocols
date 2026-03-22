@@ -71,6 +71,7 @@ while (true) {
     ].includes(response.feature);
 
     console.log();
+    reporter.none();
 
     try {
         switch (response.feature) {

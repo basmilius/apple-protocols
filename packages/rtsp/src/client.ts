@@ -16,6 +16,8 @@ export type ExchangeOptions = {
     timeout?: number;
 };
 
+const MAX_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB
+
 export default class RtspClient extends Connection<{}> {
     #buffer: Buffer = Buffer.alloc(0);
     #cseq: number = 0;
@@ -145,6 +147,13 @@ export default class RtspClient extends Connection<{}> {
     #onData(data: Buffer): void {
         try {
             this.#buffer = Buffer.concat([this.#buffer, data]);
+
+            if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
+                this.context.logger.error('[rtsp]', `Buffer exceeded max size (${this.#buffer.byteLength} bytes), resetting.`);
+                this.#buffer = Buffer.alloc(0);
+                this.emit('error', new Error('Buffer overflow: exceeded maximum buffer size'));
+                return;
+            }
 
             const transformed = this.transformIncoming(this.#buffer);
 

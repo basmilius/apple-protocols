@@ -77,19 +77,27 @@ export default class Protocol {
     disconnect(): void {
         try {
             this.#audioStream?.close();
-        } catch {}
+        } catch (err) {
+            this.#context.logger.warn('[protocol]', 'Error closing audio stream', err);
+        }
 
         try {
             this.#dataStream?.destroy();
-        } catch {}
+        } catch (err) {
+            this.#context.logger.warn('[protocol]', 'Error destroying data stream', err);
+        }
 
         try {
             this.#eventStream?.destroy();
-        } catch {}
+        } catch (err) {
+            this.#context.logger.warn('[protocol]', 'Error destroying event stream', err);
+        }
 
         try {
             this.#controlStream.destroy();
-        } catch {}
+        } catch (err) {
+            this.#context.logger.warn('[protocol]', 'Error destroying control stream', err);
+        }
 
         this.#audioStream = undefined;
         this.#dataStream = undefined;

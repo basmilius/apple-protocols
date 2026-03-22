@@ -137,6 +137,11 @@ function parseRequestHeaders(buffer: Buffer): { headers: Record<string, string>;
     const lines = buffer.toString('utf8').split('\r\n');
 
     const rawRequest = lines[0].match(/^(\S+)\s+(\S+)\s+RTSP\/1\.0$/);
+
+    if (!rawRequest) {
+        throw new Error(`Invalid RTSP request line: ${lines[0]}`);
+    }
+
     const method = rawRequest[1] as Method;
     const path = rawRequest[2];
     const headers = parseHeaders(lines.slice(1));
@@ -148,6 +153,11 @@ function parseResponseHeaders(buffer: Buffer): { headers: Record<string, string>
     const lines = buffer.toString('utf8').split('\r\n');
 
     const rawStatus = lines[0].match(/(HTTP|RTSP)\/[\d.]+\s+(\d+)\s+(.+)/);
+
+    if (!rawStatus) {
+        throw new Error(`Invalid RTSP/HTTP response line: ${lines[0]}`);
+    }
+
     const status = Number(rawStatus[2]);
     const statusText = rawStatus[3];
     const headers = parseHeaders(lines.slice(1));

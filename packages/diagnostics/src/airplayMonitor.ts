@@ -1,83 +1,21 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { Discovery, TimingServer, type Storage } from '@basmilius/apple-common';
+import { TimingServer, type Storage } from '@basmilius/apple-common';
 import { AirPlayDevice } from '@basmilius/apple-devices';
-import { prompt } from 'enquirer';
-import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
+import { createMonitorLogger, discoverAndSelectDevice, formatTime, isAppleTVDevice, PlaybackStateLabel } from './shared';
 
-const PlaybackStateLabel: Record<number, string> = {
-    [Proto.PlaybackState_Enum.Unknown]: 'Unknown',
-    [Proto.PlaybackState_Enum.Playing]: 'Playing',
-    [Proto.PlaybackState_Enum.Paused]: 'Paused',
-    [Proto.PlaybackState_Enum.Stopped]: 'Stopped',
-    [Proto.PlaybackState_Enum.Interrupted]: 'Interrupted',
-    [Proto.PlaybackState_Enum.Seeking]: 'Seeking'
-};
-
-const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-const log = (category: string, message: string, ...args: unknown[]): void => {
-    const time = new Date().toLocaleTimeString('nl-NL', { hour12: false });
-    const color = categoryColor(category);
-
-    console.log(`\x1b[90m${time}\x1b[0m ${color}[${category}]\x1b[0m ${message}`, ...args);
-};
-
-const categoryColor = (category: string): string => {
-    switch (category) {
-        case 'state':
-            return '\x1b[36m';
-        case 'now-playing':
-            return '\x1b[35m';
-        case 'volume':
-            return '\x1b[33m';
-        case 'device':
-            return '\x1b[32m';
-        case 'client':
-            return '\x1b[34m';
-        case 'artwork':
-            return '\x1b[38;5;208m';
-        case 'queue':
-            return '\x1b[38;5;147m';
-        case 'connection':
-            return '\x1b[31m';
-        default:
-            return '\x1b[37m';
-    }
-};
+const log = createMonitorLogger();
 
 export default async function (storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
-    const spinner = ora('Searching for AirPlay devices...').start();
+    const discoveryResult = await discoverAndSelectDevice('airplay', 'Which device would you like to monitor?');
 
-    const discovery = Discovery.airplay();
-    const devices = await discovery.find();
-
-    if (devices.length === 0) {
-        spinner.fail('No AirPlay devices found');
+    if (!discoveryResult) {
         return;
     }
 
-    spinner.succeed(`Found ${devices.length} AirPlay devices`);
-
-    const response: Record<string, string> = await prompt({
-        name: 'device',
-        type: 'select',
-        message: 'Which device would you like to monitor?',
-        choices: devices.map(d => ({
-            message: d.fqdn,
-            name: d.id
-        }))
-    });
-
-    const discoveryResult = devices.find(d => d.id === response.device)!;
-    const isAppleTV = discoveryResult.txt.model?.startsWith('AppleTV');
+    const isAppleTV = isAppleTVDevice(discoveryResult);
 
     const device = new AirPlayDevice(discoveryResult);
 

@@ -64,6 +64,15 @@ export class Discovery {
             }
         }
 
+        // Verwijder verlopen cache entries.
+        const now = Date.now();
+
+        for (const [key, entry] of Discovery.#cache) {
+            if (entry.expiresAt <= now) {
+                Discovery.#cache.delete(key);
+            }
+        }
+
         const services = await multicast([this.#service], 4);
         const mapped = services.map(toDiscoveryResult);
 

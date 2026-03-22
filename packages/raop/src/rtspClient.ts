@@ -136,14 +136,16 @@ export default class RaopRtspClient extends RtspClient {
                 if (buffer.length > 0) {
                     try {
                         return Plist.parse(buffer.buffer) as Record<string, unknown>;
-                    } catch {
+                    } catch (err) {
+                        this.context.logger.warn('[raop-rtsp]', 'Failed to parse info plist', err);
                         return {};
                     }
                 }
             }
 
             return {};
-        } catch {
+        } catch (err) {
+            this.context.logger.warn('[raop-rtsp]', 'Failed to get device info', err);
             return {};
         }
     }

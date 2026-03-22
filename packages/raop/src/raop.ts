@@ -174,7 +174,8 @@ class RaopStreamProtocol implements StreamProtocol {
         this.#feedbackInterval = setInterval(async () => {
             try {
                 await this.#rtsp.feedback(true);
-            } catch {
+            } catch (err) {
+                this.#rtsp.context.logger.warn('[raop]', 'Feedback failed', err);
             }
         }, 2000);
     }

@@ -4,32 +4,9 @@ import { Proto } from '@basmilius/apple-airplay';
 import { HomePod } from '@basmilius/apple-devices';
 import { prompt } from 'enquirer';
 import ora from 'ora';
+import { createInteractiveLogger, formatTime, PlaybackStateLabel } from './shared';
 
-const PlaybackStateLabel: Record<number, string> = {
-    [Proto.PlaybackState_Enum.Unknown]: 'Unknown',
-    [Proto.PlaybackState_Enum.Playing]: 'Playing',
-    [Proto.PlaybackState_Enum.Paused]: 'Paused',
-    [Proto.PlaybackState_Enum.Stopped]: 'Stopped',
-    [Proto.PlaybackState_Enum.Interrupted]: 'Interrupted',
-    [Proto.PlaybackState_Enum.Seeking]: 'Seeking'
-};
-
-const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-const log = (category: string, message: string): void => {
-    const time = new Date().toLocaleTimeString('nl-NL', { hour12: false });
-    const colors: Record<string, string> = {
-        event: '\x1b[36m',
-        command: '\x1b[32m',
-        error: '\x1b[31m',
-        info: '\x1b[33m'
-    };
-    console.log(`\x1b[90m${time}\x1b[0m ${colors[category] ?? '\x1b[37m'}[${category}]\x1b[0m ${message}`);
-};
+const log = createInteractiveLogger();
 
 const HELP = `
 Available commands:
@@ -111,12 +88,13 @@ export default async function (storage: Storage): Promise<void> {
     const rl = await import('node:readline');
     const readline = rl.createInterface({ input: process.stdin, output: process.stdout });
 
-    const promptCommand = () => {
-        readline.question('> ', async (input) => {
-            const [cmd, ...args] = input.trim().toLowerCase().split(/\s+/);
+    await new Promise<void>((resolveLoop) => {
+        const promptCommand = () => {
+            readline.question('> ', async (input) => {
+                const [cmd, ...args] = input.trim().toLowerCase().split(/\s+/);
 
-            try {
-                switch (cmd) {
+                try {
+                    switch (cmd) {
                     case 'play': await device.play(); log('command', 'Play'); break;
                     case 'pause': await device.pause(); log('command', 'Pause'); break;
                     case 'playpause': await device.playPause(); log('command', 'PlayPause'); break;
@@ -166,10 +144,10 @@ export default async function (storage: Storage): Promise<void> {
                     case 'help': console.log(HELP); break;
                     case 'quit':
                     case 'exit':
-                        await device.disconnect();
+                        try { await device.disconnect(); } catch {}
                         readline.close();
                         timingServer.close();
-                        process.exit(0);
+                        resolveLoop();
                         return;
                     case '': break;
                     default: log('error', `Unknown command: ${cmd}. Type "help" for commands.`);
@@ -178,9 +156,10 @@ export default async function (storage: Storage): Promise<void> {
                 log('error', `${err}`);
             }
 
-            promptCommand();
-        });
-    };
+                promptCommand();
+            });
+        };
 
-    promptCommand();
+        promptCommand();
+    });
 }

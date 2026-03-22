@@ -29,6 +29,17 @@ abstract class BasePairing {
     }
 }
 
+/**
+ * Implements the HAP (HomeKit Accessory Protocol) Pair-Setup flow using SRP-6a.
+ *
+ * The pairing process uses Secure Remote Password (SRP) for PIN-based authentication,
+ * followed by Ed25519 signature exchange for long-term identity establishment.
+ *
+ * Flow: M1 (salt exchange) → M2 (SRP proof) → M3 (server proof) → M4 (shared secret)
+ *       → M5 (encrypted credential exchange) → M6 (accessory verification)
+ *
+ * For transient pairing (HomePod), only M1-M4 are needed — no long-term credentials are stored.
+ */
 export class AccessoryPair extends BasePairing {
     readonly #name: string;
     readonly #pairingId: Buffer;
@@ -96,6 +107,12 @@ export class AccessoryPair extends BasePairing {
         };
     }
 
+    /**
+     * SRP Step 1: Initiates pair-setup by requesting the accessory's SRP public key and salt.
+     *
+     * Sends: TLV with Method=PairSetup, State=M1, optional Flags (e.g. TransientPairing).
+     * Receives: Accessory's SRP public key (B) and salt for key derivation.
+     */
     async m1(additionalTlv: [number, number | Buffer][] = []): Promise<PairM1> {
         const response = await this.#requestHandler('m1', TLV8.encode([
             [TLV8.Value.Method, TLV8.Method.PairSetup],
@@ -110,6 +127,12 @@ export class AccessoryPair extends BasePairing {
         return {publicKey, salt};
     }
 
+    /**
+     * SRP Step 2: Generates client proof using the PIN.
+     *
+     * Creates an SRP client with the accessory's salt and public key, then computes
+     * the client's public key (A) and proof (M1) which proves knowledge of the PIN.
+     */
     async m2(m1: PairM1, pin: string = AIRPLAY_TRANSIENT_PIN): Promise<PairM2> {
         const srpKey = await SRP.genKey(32);
 
@@ -122,6 +145,12 @@ export class AccessoryPair extends BasePairing {
         return {publicKey, proof};
     }
 
+    /**
+     * SRP Step 3: Sends the client's public key and proof; receives the server's proof.
+     *
+     * Sends: TLV with State=M3, client SRP public key (A), and client proof (M1).
+     * Receives: Server's M2-proof, confirming the accessory also knows the PIN.
+     */
     async m3(m2: PairM2): Promise<PairM3> {
         const response = await this.#requestHandler('m3', TLV8.encode([
             [TLV8.Value.State, TLV8.State.M3],
@@ -135,6 +164,12 @@ export class AccessoryPair extends BasePairing {
         return {serverProof};
     }
 
+    /**
+     * SRP Step 4: Verifies the server's proof and derives the shared secret.
+     *
+     * Validates the server's M2-proof, then computes the SRP session key (K).
+     * This shared secret is the root key for all subsequent HKDF derivations.
+     */
     async m4(m3: PairM3): Promise<PairM4> {
         this.#srp.checkM2(m3.serverProof);
 
@@ -143,6 +178,16 @@ export class AccessoryPair extends BasePairing {
         return {sharedSecret};
     }
 
+    /**
+     * HAP Step 5: Encrypted credential exchange — controller sends its identity.
+     *
+     * Derives a signing key (HKDF with "Pair-Setup-Controller-Sign-Salt/Info") and
+     * a session key (HKDF with "Pair-Setup-Encrypt-Salt/Info") from the SRP shared secret.
+     * Signs [signingKey || pairingId || Ed25519PublicKey] and sends it encrypted
+     * via ChaCha20-Poly1305 (nonce "PS-Msg05").
+     *
+     * Receives: Encrypted accessory credentials (decrypted in M6).
+     */
     async m5(m4: PairM4): Promise<PairM5> {
         const iosDeviceX = hkdf({
             hash: 'sha512',
@@ -197,6 +242,15 @@ export class AccessoryPair extends BasePairing {
         };
     }
 
+    /**
+     * HAP Step 6: Verifies the accessory's identity and extracts long-term credentials.
+     *
+     * Decrypts the accessory's response from M5 via ChaCha20-Poly1305 (nonce "PS-Msg06").
+     * Derives "Accessory X" (HKDF with "Pair-Setup-Accessory-Sign-Salt/Info"), then
+     * verifies the Ed25519 signature over [accessoryX || accessoryId || accessoryPublicKey].
+     *
+     * Returns the accessory's long-term public key and identifier for future Pair-Verify sessions.
+     */
     async m6(m4: PairM4, m5: PairM5): Promise<AccessoryCredentials> {
         const data = Chacha20.decrypt(m5.sessionKey, Buffer.from('PS-Msg06'), null, m5.data, m5.authTag);
         const tlv = TLV8.decode(data);
@@ -233,6 +287,15 @@ export class AccessoryPair extends BasePairing {
     }
 }
 
+/**
+ * Implements the HAP (HomeKit Accessory Protocol) Pair-Verify flow using Curve25519 ECDH.
+ *
+ * Used to re-authenticate a previously paired accessory without needing the PIN again.
+ * Establishes a new session with forward secrecy via ephemeral Curve25519 key exchange.
+ *
+ * Flow: M1 (ephemeral key exchange) → M2 (signature verification)
+ *       → M3 (controller proof) → M4 (session key derivation)
+ */
 export class AccessoryVerify extends BasePairing {
     readonly #ephemeralKeyPair: KeyPair;
     readonly #requestHandler: RequestHandler;
@@ -253,6 +316,12 @@ export class AccessoryVerify extends BasePairing {
         return await this.#m4(m2, credentials.pairingId);
     }
 
+    /**
+     * Pair-Verify Step 1: Ephemeral Curve25519 key exchange initiation.
+     *
+     * Sends: TLV with State=M1 and controller's ephemeral Curve25519 public key.
+     * Receives: Accessory's ephemeral public key and encrypted identity proof.
+     */
     async #m1(): Promise<VerifyM1> {
         const response = await this.#requestHandler('m1', TLV8.encode([
             [TLV8.Value.State, TLV8.State.M1],
@@ -269,6 +338,16 @@ export class AccessoryVerify extends BasePairing {
         };
     }
 
+    /**
+     * Pair-Verify Step 2: ECDH shared secret derivation and accessory signature verification.
+     *
+     * Computes the Curve25519 shared secret, derives a session key via HKDF
+     * ("Pair-Verify-Encrypt-Salt/Info"), then decrypts the accessory's response
+     * via ChaCha20-Poly1305 (nonce "PV-Msg02").
+     *
+     * Verifies the accessory's Ed25519 signature over [serverPubKey || accessoryId || clientPubKey]
+     * and checks the accessory identifier matches the stored credentials.
+     */
     async #m2(localAccessoryIdentifier: string, longTermPublicKey: Buffer, m1: VerifyM1): Promise<VerifyM2> {
         const sharedSecret = Buffer.from(Curve25519.generateSharedSecKey(
             this.#ephemeralKeyPair.secretKey,
@@ -313,6 +392,13 @@ export class AccessoryVerify extends BasePairing {
         };
     }
 
+    /**
+     * Pair-Verify Step 3: Controller authentication proof.
+     *
+     * Signs [clientEphemeralPubKey || pairingId || serverEphemeralPubKey] with the
+     * controller's long-term Ed25519 secret key. Encrypts the signed TLV via
+     * ChaCha20-Poly1305 (nonce "PV-Msg03") and sends it to the accessory.
+     */
     async #m3(pairingId: Buffer, secretKey: Buffer, m2: VerifyM2): Promise<VerifyM3> {
         const iosDeviceInfo = Buffer.concat([
             this.#ephemeralKeyPair.publicKey,
@@ -338,6 +424,12 @@ export class AccessoryVerify extends BasePairing {
         return {};
     }
 
+    /**
+     * Pair-Verify Step 4: Returns the established session keys.
+     *
+     * The shared secret from the ECDH exchange is used by the caller to derive
+     * encryption keys (via HKDF with "Control-Salt" and "Control-Read/Write-Encryption-Key").
+     */
     async #m4(m2: VerifyM2, pairingId: Buffer): Promise<AccessoryKeys> {
         return {
             accessoryToControllerKey: Buffer.alloc(0),

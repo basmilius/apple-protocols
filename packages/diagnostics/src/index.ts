@@ -63,6 +63,13 @@ while (true) {
         process.exit(0);
     }
 
+    const skipReturnPrompt = [
+        'interactive-appletv',
+        'interactive-homepod',
+        'airplay-monitor',
+        'airplay-listen'
+    ].includes(response.feature);
+
     console.log();
 
     try {
@@ -133,10 +140,13 @@ while (true) {
     }
 
     console.log();
-    await prompt({
-        name: '_',
-        type: 'input',
-        message: 'Press Enter to return to the main menu...'
-    });
-    console.log();
+
+    if (!skipReturnPrompt) {
+        await prompt({
+            name: '_',
+            type: 'input',
+            message: 'Press Enter to return to the main menu...'
+        });
+        console.log();
+    }
 }

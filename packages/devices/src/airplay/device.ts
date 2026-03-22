@@ -106,7 +106,8 @@ export default class extends EventEmitter<EventMap> {
     disconnectSafely(): void {
         try {
             this.disconnect();
-        } catch (_) {
+        } catch (err) {
+            this.#protocol?.context?.logger?.warn('[device]', 'Error during safe disconnect', err);
         }
     }
 
@@ -180,29 +181,34 @@ export default class extends EventEmitter<EventMap> {
             this.#protocol.useTimingServer(this.#timingServer);
         }
 
-        await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
-        await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
-
-        this.#protocol.dataStream.on('error', this.#onError.bind(this));
-        this.#protocol.dataStream.on('timeout', this.#onTimeout.bind(this));
-        this.#protocol.eventStream.on('error', this.#onError.bind(this));
-        this.#protocol.eventStream.on('timeout', this.#onTimeout.bind(this));
-
-        if (this.#feedbackInterval) {
-            clearInterval(this.#feedbackInterval);
-        }
-
-        this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
-
         try {
+            await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
+            await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
+
+            this.#protocol.dataStream.on('error', this.#onError.bind(this));
+            this.#protocol.dataStream.on('timeout', this.#onTimeout.bind(this));
+            this.#protocol.eventStream.on('error', this.#onError.bind(this));
+            this.#protocol.eventStream.on('timeout', this.#onTimeout.bind(this));
+
+            if (this.#feedbackInterval) {
+                clearInterval(this.#feedbackInterval);
+            }
+
+            this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
+
             await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
             await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
             await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
 
             this.#protocol.context.logger.info('Protocol ready.');
         } catch (err) {
-            clearInterval(this.#feedbackInterval);
-            this.#feedbackInterval = undefined;
+            if (this.#feedbackInterval) {
+                clearInterval(this.#feedbackInterval);
+                this.#feedbackInterval = undefined;
+            }
+
+            this.#protocol.context.logger.error('[device]', 'Setup failed, cleaning up', err);
+            this.#protocol.disconnect();
 
             throw err;
         }

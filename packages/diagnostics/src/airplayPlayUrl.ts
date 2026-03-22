@@ -1,34 +1,18 @@
 import * as AirPlay from '@basmilius/apple-airplay';
-import { type AccessoryKeys, Discovery, type Storage, TimingServer } from '@basmilius/apple-common';
+import { type AccessoryKeys, type Storage, TimingServer } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
-import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
 import { startSavingLogs } from './logger';
+import { discoverAndSelectDevice, isAppleTVDevice } from './shared';
 
 export default async function (storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
-    const spinner = ora('Searching for AirPlay devices...').start();
+    const device = await discoverAndSelectDevice('airplay', 'Which device would you like to play on?');
 
-    const discovery = Discovery.airplay();
-    const devices = await discovery.find();
-
-    if (devices.length === 0) {
-        spinner.fail('No AirPlay devices found');
+    if (!device) {
         return;
     }
-
-    spinner.succeed(`Found ${devices.length} AirPlay devices`);
-
-    const deviceResponse: Record<string, string> = await prompt({
-        name: 'device',
-        type: 'select',
-        message: 'Which device would you like to play on?',
-        choices: devices.map(d => ({
-            message: d.fqdn,
-            name: d.id
-        }))
-    });
 
     const urlResponse: Record<string, string> = await prompt({
         name: 'url',
@@ -36,9 +20,8 @@ export default async function (storage: Storage): Promise<void> {
         message: 'Enter the URL to play:'
     });
 
-    const device = devices.find(d => d.id === deviceResponse.device)!;
     const url = urlResponse.url;
-    const isAppleTV = device.txt.model?.startsWith('AppleTV');
+    const isAppleTV = isAppleTVDevice(device);
 
     startSavingLogs();
 

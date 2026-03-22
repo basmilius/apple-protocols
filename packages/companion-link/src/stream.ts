@@ -5,6 +5,7 @@ import { Chacha20 } from '@basmilius/apple-encryption';
 import { FrameType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
 const HEADER_SIZE = 4;
+const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
 const PAIRING_QUEUE_IDENTIFIER = -1;
 
 export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
@@ -110,6 +111,13 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
     async #onData(data: Buffer): Promise<void> {
         this.#buffer = Buffer.concat([this.#buffer, data]);
+
+        if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
+            this.context.logger.error('[companion-link]', `Buffer exceeded max size (${this.#buffer.byteLength} bytes), resetting connection.`);
+            this.#buffer = Buffer.alloc(0);
+            this.emit('error', new Error('Buffer overflow: exceeded maximum buffer size'));
+            return;
+        }
 
         try {
             while (this.#buffer.byteLength >= HEADER_SIZE) {

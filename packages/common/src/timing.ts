@@ -27,13 +27,20 @@ export class TimingServer {
 
     listen(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            this.#socket.once('error', reject);
-            this.#socket.once('listening', () => {
-                this.#socket.removeListener('error', reject);
+            const onError = (err: Error) => {
+                this.#socket.removeListener('listening', onListening);
+                reject(err);
+            };
+
+            const onListening = () => {
+                this.#socket.removeListener('error', onError);
                 this.#onListening();
                 resolve();
-            });
-            this.#socket.bind(0, resolve);
+            };
+
+            this.#socket.once('error', onError);
+            this.#socket.once('listening', onListening);
+            this.#socket.bind(0);
         });
     }
 

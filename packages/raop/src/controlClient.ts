@@ -16,7 +16,6 @@ export default class ControlClient extends EventEmitter {
     #context: StreamContext;
     #packetBacklog: PacketFifo;
     #syncTask?: NodeJS.Timeout;
-    #abortController?: AbortController;
     #localPort?: number;
 
     constructor(context: StreamContext, packetBacklog: PacketFifo) {
@@ -66,16 +65,10 @@ export default class ControlClient extends EventEmitter {
             throw new Error('Already running');
         }
 
-        this.#abortController = new AbortController();
         this.#startSyncTask(remoteAddr, this.#context.controlPort);
     }
 
     stop(): void {
-        if (this.#abortController) {
-            this.#abortController.abort();
-            this.#abortController = undefined;
-        }
-
         if (this.#syncTask) {
             clearInterval(this.#syncTask);
             this.#syncTask = undefined;
@@ -124,6 +117,11 @@ export default class ControlClient extends EventEmitter {
             const seqno = (request.lostSeqno + i) & 0xFFFF;
             if (this.#packetBacklog.has(seqno)) {
                 const packet = this.#packetBacklog.get(seqno)!;
+
+                if (packet.byteLength < 4) {
+                    continue;
+                }
+
                 const originalSeqno = packet.subarray(2, 4);
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), originalSeqno, packet]);
 

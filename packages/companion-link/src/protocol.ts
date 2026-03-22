@@ -73,6 +73,7 @@ export default class Protocol {
     readonly #stream: Stream;
     readonly #verify: Verify;
     #sessionId: bigint = 0n;
+    #sessionIdLocal: number = 0;
 
     constructor(discoveryResult: DiscoveryResult) {
         this.#context = new Context(discoveryResult.id);
@@ -343,6 +344,7 @@ export default class Protocol {
 
         const result = objectOrFail<any>(payload);
         const remoteSid = Number(result?._c?._sid ?? 0);
+        this.#sessionIdLocal = localSid;
         this.#sessionId = (BigInt(remoteSid) << 32n) | BigInt(localSid);
 
         return result;
@@ -358,11 +360,12 @@ export default class Protocol {
             _t: MessageType.Request,
             _c: {
                 _srvT: 'com.apple.tvremoteservices',
-                _sid: Number(this.#sessionId)
+                _sid: this.#sessionIdLocal
             }
         });
 
         this.#sessionId = 0n;
+        this.#sessionIdLocal = 0;
     }
 
     async systemInfo(pairingId: Buffer): Promise<object> {

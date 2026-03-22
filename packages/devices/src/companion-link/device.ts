@@ -31,7 +31,7 @@ export default class extends EventEmitter<EventMap> {
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
-    #heartbeatInterval: NodeJS.Timeout;
+    #heartbeatInterval: NodeJS.Timeout | undefined;
     #keys: AccessoryKeys;
     #protocol!: Protocol;
 
@@ -194,7 +194,11 @@ export default class extends EventEmitter<EventMap> {
             await this.#protocol.touchStart();
             await this.#protocol.tiStart();
 
-            this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
+            this.#heartbeatInterval = setInterval(() => {
+                this.#heartbeat().catch(err => {
+                    this.#protocol.context.logger.error('Heartbeat failed', err);
+                });
+            }, 15000);
 
             await this.#subscribe();
         } catch (err) {

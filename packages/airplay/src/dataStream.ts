@@ -219,6 +219,8 @@ export default class DataStream extends BaseStream<EventMap> {
 
                         // Resolve the oldest outstanding exchange — rply is the
                         // DataStream-level acknowledgment for our sent message.
+                        // FIFO order is guaranteed because we use TCP (ordered delivery)
+                        // and the Apple TV processes requests sequentially.
                         const first = this.#outstanding.entries().next();
 
                         if (!first.done) {

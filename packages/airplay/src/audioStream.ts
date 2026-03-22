@@ -465,7 +465,11 @@ export default class AudioStream {
 
             firstPacket = false;
 
-            this.#controlSocket.send(packet, this.#remoteControlPort, this.#protocol.discoveryResult.address);
+            this.#controlSocket.send(packet, this.#remoteControlPort, this.#protocol.discoveryResult.address, (err) => {
+                if (err) {
+                    this.#protocol.context.logger.warn('[audio]', 'Sync packet send failed', err);
+                }
+            });
         };
 
         sendSync();
@@ -508,10 +512,18 @@ export default class AudioStream {
 
     close(): void {
         this.#stopSync();
-        this.#controlSocket?.close();
+
+        try {
+            this.#controlSocket?.removeAllListeners();
+            this.#controlSocket?.close();
+        } catch {}
         this.#controlSocket = undefined;
-        this.#dataSocket?.close();
+
+        try {
+            this.#dataSocket?.close();
+        } catch {}
         this.#dataSocket = undefined;
+
         this.#packetBacklog.clear();
     }
 }

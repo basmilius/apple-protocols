@@ -64,7 +64,6 @@ export default class StreamClient extends EventEmitter<EventMap> {
     }
 
     close(): void {
-        this.#protocol.teardown();
         this.#controlClient?.close();
     }
 
@@ -183,7 +182,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
             await this.#streamData(source, transport);
         } catch (err) {
             this.#context.logger.error('An error occurred during streaming.', err);
-            throw new Error(`An error occurred during streaming: ${err}`);
+            throw new Error('An error occurred during streaming.', {cause: err});
         } finally {
             this.#packetBacklog.clear();
 

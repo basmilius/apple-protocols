@@ -42,7 +42,7 @@ export default class {
         switch (this.#state.volumeCapabilities) {
             case Proto.VolumeCapabilities_Enum.Absolute:
             case Proto.VolumeCapabilities_Enum.Both:
-                const newVolume = Math.max(0, this.#state.volume + VOLUME_STEP);
+                const newVolume = Math.min(1, Math.max(0, this.#state.volume + VOLUME_STEP));
                 await this.set(newVolume);
                 break;
 

@@ -146,6 +146,10 @@ function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
 }
 
 function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
+    if (offset + len > buf.length) {
+        return 0;
+    }
+
     if (len === 1) {
         return buf[offset];
     } else if (len === 2) {
@@ -468,7 +472,9 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
                 arr.push(result.value);
                 pos = result.offset;
             }
-            pos++;
+            if (pos < data.length) {
+                pos++;
+            }
             value = arr;
         } else {
             const arr = new Array(count);
@@ -494,7 +500,9 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
                 obj[keyResult.value] = valResult.value;
                 pos = valResult.offset;
             }
-            pos++; // skip terminator
+            if (pos < data.length) {
+                pos++;
+            }
         } else {
             for (let i = 0; i < count; i++) {
                 const keyResult = _unpackAt(data, pos, objectList);

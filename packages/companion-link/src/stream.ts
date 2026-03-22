@@ -145,7 +145,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
                     frame = this.#decrypt(frame);
                 }
 
-                const payload = frame.subarray(HEADER_SIZE, totalLength);
+                const payload = frame.subarray(HEADER_SIZE);
                 this.#handle(header, payload);
             }
         } catch (err) {
@@ -176,7 +176,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         const decrypted = Chacha20.decrypt(this.#encryptionState.readKey, nonce, header, ciphertext, authTag);
 
-        return Buffer.concat([header, decrypted, authTag]);
+        return Buffer.concat([header, decrypted]);
     }
 
     #handle(header: Buffer, payload: Buffer): void {

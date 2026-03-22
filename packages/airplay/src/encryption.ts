@@ -15,6 +15,10 @@ export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | 
         const frameLength = data.readUInt16LE(offset);
         offset += 2;
 
+        if (frameLength === 0 || frameLength > 65535) {
+            return false;
+        }
+
         const end = offset + frameLength + 16;
 
         if (end > data.length) {

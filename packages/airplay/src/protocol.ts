@@ -188,6 +188,7 @@ export default class Protocol {
         const eventPort = plist.eventPort & 0xFFFF;
         this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
 
+        this.#eventStream?.destroy();
         this.#eventStream = new EventStream(this.#context, this.#controlStream.address, eventPort);
         this.#eventStream.setup(sharedSecret);
 
@@ -235,6 +236,7 @@ export default class Protocol {
         const eventPort = plist.eventPort & 0xFFFF;
         this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
 
+        this.#eventStream?.destroy();
         this.#eventStream = new EventStream(this.#context, this.#controlStream.address, eventPort);
         this.#eventStream.setup(sharedSecret);
 
@@ -275,6 +277,7 @@ export default class Protocol {
         const setupPlist = Plist.parse(await setupResponse.arrayBuffer()) as any;
         const eventPort = setupPlist.eventPort & 0xFFFF;
 
+        this.#eventStream?.destroy();
         this.#eventStream = new EventStream(this.#context, this.#controlStream.address, eventPort);
         this.#eventStream.setup(sharedSecret);
         await this.#eventStream.connect();

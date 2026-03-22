@@ -2,6 +2,7 @@ import { createConnection } from 'node:net';
 import { parseFeatures } from './airplayFeatures';
 import { waitFor } from './cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from './const';
+import { DiscoveryError } from './errors';
 import { multicast, type MdnsService } from './mdns';
 import type { CombinedDiscoveryResult, DiscoveryResult } from './types';
 
@@ -102,7 +103,7 @@ export class Discovery {
             await waitFor(timeout);
         }
 
-        throw new Error('Device not found after several tries, aborting.');
+        throw new DiscoveryError(`Device '${id}' not found after several tries, aborting.`);
     }
 
     static clearCache(): void {

@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import { Socket } from 'node:net';
 import { SOCKET_TIMEOUT } from './const';
 import type { Context } from './context';
+import { ConnectionClosedError, ConnectionError, ConnectionTimeoutError } from './errors';
 import type { ConnectionState, EventMap } from './types';
 
 const NOOP_PROMISE_HANDLER = {
@@ -93,7 +94,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         }
 
         if (this.#state === 'connecting') {
-            throw new Error('A connection is already being established.');
+            throw new ConnectionError('A connection is already being established.');
         }
 
         this.#retryEnabled = true;
@@ -143,7 +144,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
     write(data: Buffer | Uint8Array): void {
         if (!this.#socket || this.state !== 'connected' || !this.#socket.writable) {
-            this.#emitInternal('error', new Error('Cannot write to a disconnected connection.'));
+            this.#emitInternal('error', new ConnectionClosedError('Cannot write to a disconnected connection.'));
             return;
         }
 
@@ -245,7 +246,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         this.#emitInternal('close', hadError);
 
         if (wasConnected && this.#retryEnabled && hadError) {
-            this.#scheduleRetry(new Error('Connection closed unexpectedly.'));
+            this.#scheduleRetry(new ConnectionClosedError());
         }
     }
 
@@ -295,7 +296,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
     #onTimeout(): void {
         this.#context.logger.error('Connection timed out.');
 
-        const err = new Error('Connection timed out.');
+        const err = new ConnectionTimeoutError();
 
         this.#emitInternal('timeout');
 

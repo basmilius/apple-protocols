@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { type Context, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
+import { ConnectionClosedError, type Context, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
@@ -89,7 +89,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
 
-        const error = new Error('Stream cleanup');
+        const error = new ConnectionClosedError('Stream cleanup.');
 
         for (const [, reject] of this.#queue.values()) {
             reject(error);
@@ -99,7 +99,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     }
 
     #onClose(): void {
-        const error = new Error('Connection closed while waiting for response');
+        const error = new ConnectionClosedError('Connection closed while waiting for response.');
 
         for (const [, reject] of this.#queue.values()) {
             reject(error);

@@ -1,4 +1,4 @@
-import { type Context, randomInt32 } from '@basmilius/apple-common';
+import { ConnectionClosedError, type Context, randomInt32, TimeoutError } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { hkdf } from '@basmilius/apple-encryption';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
@@ -83,7 +83,7 @@ export default class DataStream extends BaseStream<EventMap> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.#outstanding.delete(identifier);
-                reject(new Error(`Exchange timed out for ${identifier}`));
+                reject(new TimeoutError(`Exchange timed out for ${identifier}`));
             }, timeout);
 
             this.#outstanding.set(identifier, { resolve, reject, timer });
@@ -163,7 +163,7 @@ export default class DataStream extends BaseStream<EventMap> {
 
         for (const [id, req] of this.#outstanding) {
             clearTimeout(req.timer);
-            req.reject(new Error('Connection closed.'));
+            req.reject(new ConnectionClosedError());
         }
 
         this.#outstanding.clear();

@@ -1,4 +1,5 @@
 import { DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
+import { CommandError } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 import type Device from './device';
 import type State from './state';
@@ -33,7 +34,7 @@ export default class {
                 break;
 
             default:
-                throw new Error('Volume control is not available.');
+                throw new CommandError('Volume control is not available.');
         }
     }
 
@@ -50,13 +51,13 @@ export default class {
                 break;
 
             default:
-                throw new Error('Volume control is not available.');
+                throw new CommandError('Volume control is not available.');
         }
     }
 
     async get(): Promise<number> {
         if (!this.#state.outputDeviceUID) {
-            throw new Error('No output device active.');
+            throw new CommandError('No output device active.');
         }
 
         const response = await this.#protocol.dataStream.exchange(DataStreamMessage.getVolume(this.#state.outputDeviceUID));
@@ -67,16 +68,16 @@ export default class {
             return message.volume;
         }
 
-        throw new Error('Failed to get volume.');
+        throw new CommandError('Failed to get volume.');
     }
 
     async set(volume: number): Promise<void> {
         if (!this.#state.outputDeviceUID) {
-            throw new Error('No output device active.');
+            throw new CommandError('No output device active.');
         }
 
         if (![Proto.VolumeCapabilities_Enum.Absolute, Proto.VolumeCapabilities_Enum.Both].includes(this.#state.volumeCapabilities)) {
-            throw new Error('Absolute volume control is not available.');
+            throw new CommandError('Absolute volume control is not available.');
         }
 
         volume = Math.min(1, Math.max(0, volume));

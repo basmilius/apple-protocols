@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult } from '@basmilius/apple-common';
+import { CredentialsError, type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult } from '@basmilius/apple-common';
 import { type AttentionState, type ButtonPressType, convertAttentionState, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
 import { Plist } from '@basmilius/apple-encoding';
 import { PROTOCOL } from './const';
@@ -52,7 +52,7 @@ export default class extends EventEmitter<EventMap> {
 
     async connect(): Promise<void> {
         if (!this.#credentials) {
-            throw new Error('Credentials are required to connect to a Companion Link device.');
+            throw new CredentialsError('Credentials are required to connect to a Companion Link device.');
         }
 
         this.#disconnect = false;

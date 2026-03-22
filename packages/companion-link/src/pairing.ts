@@ -1,4 +1,4 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, InvalidResponseError } from '@basmilius/apple-common';
 import { hkdf } from '@basmilius/apple-encryption';
 import { FrameType } from './frame';
 import type Protocol from './protocol';
@@ -44,7 +44,7 @@ export class Pairing {
         });
 
         if (typeof response !== 'object' || response === null) {
-            throw new Error('Invalid response from receiver.');
+            throw new InvalidResponseError('Invalid response from receiver.');
         }
 
         return response['_pd'];
@@ -106,7 +106,7 @@ export class Verify {
         });
 
         if (typeof response !== 'object' || response === null) {
-            throw new Error('Invalid response from receiver.');
+            throw new InvalidResponseError('Invalid response from receiver.');
         }
 
         return response['_pd'];

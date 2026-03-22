@@ -1,4 +1,4 @@
-import { type AudioSource, Context, type DiscoveryResult, getMacAddress, randomInt64, type TimingServer, uuid } from '@basmilius/apple-common';
+import { type AudioSource, Context, type DiscoveryResult, getMacAddress, InvalidResponseError, randomInt64, SetupError, type TimingServer, uuid } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import AudioStream from './audioStream';
@@ -127,7 +127,7 @@ export default class Protocol {
 
         if (response.status !== 200) {
             this.context.logger.error('[protocol]', 'Failed to setup data stream.', response.status, response.statusText, await response.text());
-            throw new Error('Failed to setup data stream.');
+            throw new SetupError('Failed to setup data stream.');
         }
 
         const plist = Plist.parse(await response.arrayBuffer()) as any;
@@ -166,7 +166,7 @@ export default class Protocol {
 
         if (response.status !== 200) {
             this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
-            throw new Error('Failed to setup event stream.');
+            throw new SetupError('Failed to setup event stream.');
         }
 
         const plist = Plist.parse(await response.arrayBuffer()) as any;
@@ -213,7 +213,7 @@ export default class Protocol {
 
         if (response.status !== 200) {
             this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
-            throw new Error('Failed to setup event stream.');
+            throw new SetupError('Failed to setup event stream.');
         }
 
         const plist = Plist.parse(await response.arrayBuffer()) as any;
@@ -254,7 +254,7 @@ export default class Protocol {
         const setupResponse = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, setupBody);
 
         if (setupResponse.status !== 200) {
-            throw new Error(`Failed to setup for playback: ${setupResponse.status}`);
+            throw new SetupError(`Failed to setup for playback: ${setupResponse.status}`);
         }
 
         const setupPlist = Plist.parse(await setupResponse.arrayBuffer()) as any;
@@ -284,7 +284,7 @@ export default class Protocol {
         this.context.logger.info('[protocol]', `play_url response: ${response.status}`);
 
         if (response.status !== 200) {
-            throw new Error(`Failed to play URL: ${response.status}`);
+            throw new InvalidResponseError(`Failed to play URL: ${response.status}`);
         }
 
         await this.#putProperty('isInterestedInDateRange', { value: true });

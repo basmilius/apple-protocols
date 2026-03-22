@@ -1,4 +1,4 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, PairingError } from '@basmilius/apple-common';
 import { hkdf } from '@basmilius/apple-encryption';
 import type ControlStream from './controlStream';
 import type Protocol from './protocol';
@@ -54,7 +54,7 @@ export class Pairing {
         });
 
         if (response.status !== 200) {
-            throw new Error(`Cannot start pairing session. ${response.status} ${response.statusText} ${await response.text()}`);
+            throw new PairingError(`Cannot start pairing session. ${response.status} ${response.statusText} ${await response.text()}`);
         }
     }
 

@@ -75,6 +75,11 @@ export {
 } from './symbols';
 
 export {
+    ConnectionRecovery,
+    type ConnectionRecoveryOptions
+} from './recovery';
+
+export {
     TimingServer
 } from './timing';
 
@@ -89,6 +94,33 @@ export {
     uint16ToBE,
     uint53ToLE
 } from './utils';
+
+export {
+    DeviceModel,
+    DeviceType,
+    getDeviceModelName,
+    getDeviceType,
+    isAirPort,
+    isAppleTV,
+    isHomePod,
+    lookupDeviceModel
+} from './deviceModel';
+
+export {
+    AppleProtocolError,
+    AuthenticationError,
+    CommandError,
+    ConnectionClosedError,
+    ConnectionError,
+    ConnectionTimeoutError,
+    CredentialsError,
+    DiscoveryError,
+    EncryptionError,
+    InvalidResponseError,
+    PairingError,
+    SetupError,
+    TimeoutError
+} from './errors';
 
 export type {
     AudioSource

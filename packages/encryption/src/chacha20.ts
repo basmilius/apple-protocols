@@ -1,5 +1,12 @@
 import { ChaCha20Poly1305 } from '@stablelib/chacha20poly1305';
 
+export class DecryptionError extends Error {
+    constructor(message: string = 'Decryption failed: authentication tag mismatch') {
+        super(message);
+        this.name = 'DecryptionError';
+    }
+}
+
 export const CHACHA20_AUTH_TAG_LENGTH = 16;
 export const CHACHA20_NONCE_LENGTH = 12;
 
@@ -11,7 +18,7 @@ export function decrypt(key: Buffer, nonce: Buffer, aad: Buffer | null, cipherte
     const plaintext = chacha.open(nonce, sealed, aad ?? undefined);
 
     if (!plaintext) {
-        throw new Error('Decryption failed: authentication tag mismatch');
+        throw new DecryptionError();
     }
 
     return Buffer.from(plaintext);

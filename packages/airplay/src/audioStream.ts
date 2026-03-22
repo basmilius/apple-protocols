@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
-import { type AudioSource, type Context, randomInt32, randomInt64 } from '@basmilius/apple-common';
+import { type AudioSource, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
 import { NTP, Plist } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import type Protocol from './protocol';
@@ -118,7 +118,7 @@ export default class AudioStream {
 
         if (response.status !== 200) {
             const text = await response.text();
-            throw new Error(`Failed to setup audio stream: ${response.status} - ${text}`);
+            throw new SetupError(`Failed to setup audio stream: ${response.status} - ${text}`);
         }
 
         const plist = Plist.parse(await response.arrayBuffer()) as any;
@@ -132,7 +132,7 @@ export default class AudioStream {
 
             this.#context.logger.info('[audio]', `Audio stream setup: dataPort=${this.#dataPort}, controlPort=${this.#remoteControlPort}`);
         } else {
-            throw new Error('No stream info in SETUP response');
+            throw new SetupError('No stream info in SETUP response.');
         }
 
         this.#context.logger.debug('[audio]', 'Sending RECORD...');
@@ -147,7 +147,7 @@ export default class AudioStream {
 
     async stream(source: AudioSource, remoteAddress: string): Promise<void> {
         if (!this.#controlSocket || !this.#sharedKey || !this.#dataPort) {
-            throw new Error('Audio stream not setup');
+            throw new SetupError('Audio stream not setup.');
         }
 
         this.#dataSocket = createSocket('udp4');
@@ -306,7 +306,7 @@ export default class AudioStream {
 
     #encryptAudio(data: Buffer, aad: Buffer, seqNumber: number): Buffer {
         if (!this.#sharedKey) {
-            throw new Error('Encryption not setup');
+            throw new EncryptionError('Encryption not setup.');
         }
 
         // Build 12-byte nonce with sequence number in little-endian at the end

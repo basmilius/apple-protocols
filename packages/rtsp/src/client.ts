@@ -1,4 +1,4 @@
-import { Connection, type Context, HTTP_TIMEOUT } from '@basmilius/apple-common';
+import { Connection, ConnectionClosedError, ConnectionTimeoutError, type Context, HTTP_TIMEOUT, InvalidResponseError, TimeoutError } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { type Method, parseResponse } from './encoding';
 
@@ -110,7 +110,7 @@ export default class RtspClient extends Connection<{}> {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.#requests.delete(cseq);
-                reject(new Error(`No response to CSeq ${cseq} (${path})`));
+                reject(new TimeoutError(`No response to CSeq ${cseq} (${path})`));
             }, timeout);
 
             this.#requests.set(cseq, {
@@ -118,7 +118,7 @@ export default class RtspClient extends Connection<{}> {
                     clearTimeout(timer);
 
                     if (!allowError && !response.ok) {
-                        reject(new Error(`RTSP error: ${response.status} ${response.statusText}`));
+                        reject(new InvalidResponseError(`RTSP error: ${response.status} ${response.statusText}`));
                     } else {
                         resolve(response);
                     }
@@ -137,7 +137,7 @@ export default class RtspClient extends Connection<{}> {
         this.#buffer = Buffer.alloc(0);
 
         for (const [cseq, {reject}] of this.#requests) {
-            reject(new Error('Connection closed'));
+            reject(new ConnectionClosedError('Connection closed.'));
             this.#requests.delete(cseq);
         }
 
@@ -199,7 +199,7 @@ export default class RtspClient extends Connection<{}> {
     }
 
     #onTimeout(): void {
-        const err = new Error('Connection timed out');
+        const err = new ConnectionTimeoutError();
 
         for (const [cseq, {reject}] of this.#requests) {
             reject(err);

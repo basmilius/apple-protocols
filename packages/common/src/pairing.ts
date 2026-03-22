@@ -4,6 +4,7 @@ import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
 import type { Context } from './context';
+import { AuthenticationError, PairingError } from './errors';
 
 abstract class BasePairing {
     get context(): Context {
@@ -71,7 +72,7 @@ export class AccessoryPair extends BasePairing {
         const m6 = await this.m6(m4, m5);
 
         if (!m6) {
-            throw new Error('Pairing failed, could not get accessory keys.');
+            throw new PairingError('Pairing failed, could not get accessory keys.');
         }
 
         return m6;
@@ -274,7 +275,7 @@ export class AccessoryPair extends BasePairing {
         ]);
 
         if (!Ed25519.verify(accessoryInfo, accessorySignature, accessoryLongTermPublicKey)) {
-            throw new Error('Invalid accessory signature.');
+            throw new AuthenticationError('Invalid accessory signature.');
         }
 
         return {
@@ -372,7 +373,7 @@ export class AccessoryVerify extends BasePairing {
         const accessorySignature = tlv.get(TLV8.Value.Signature);
 
         if (accessoryIdentifier.toString() !== localAccessoryIdentifier) {
-            throw new Error(`Invalid accessory identifier. Expected ${accessoryIdentifier.toString()} to be ${localAccessoryIdentifier}.`);
+            throw new AuthenticationError(`Invalid accessory identifier. Expected ${accessoryIdentifier.toString()} to be ${localAccessoryIdentifier}.`);
         }
 
         const accessoryInfo = Buffer.concat([
@@ -382,7 +383,7 @@ export class AccessoryVerify extends BasePairing {
         ]);
 
         if (!Ed25519.verify(accessoryInfo, accessorySignature, longTermPublicKey)) {
-            throw new Error('Invalid accessory signature.');
+            throw new AuthenticationError('Invalid accessory signature.');
         }
 
         return {

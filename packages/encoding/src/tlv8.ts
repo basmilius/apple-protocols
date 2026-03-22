@@ -50,26 +50,37 @@ export const Value = {
     Flags: 0x13
 } as const;
 
+export class TLV8PairingError extends Error {
+    readonly code: number | undefined;
+
+    constructor(message: string, code?: number) {
+        super(message);
+        this.name = 'TLV8PairingError';
+        this.code = code;
+    }
+}
+
 export function bail(data: Map<number, Buffer>): never {
     if (data.has(Value.BackOff)) {
         const buffer = data.get(Value.BackOff);
         const time = buffer.readUintLE(0, buffer.length);
 
-        throw new Error(`Device is busy, try again in ${time} seconds.`);
+        throw new TLV8PairingError(`Device is busy, try again in ${time} seconds.`, ErrorCode.BackOff);
     }
 
     if (data.has(Value.Error)) {
+        const code = data.get(Value.Error).readUint8();
         const errorCodeEntries = Object.entries(ErrorCode) as [string, number][];
-        const errorCode = errorCodeEntries.find(([_, code]) => code === data.get(Value.Error).readUint8());
+        const errorCode = errorCodeEntries.find(([_, c]) => c === code);
 
         if (!errorCode) {
-            throw new Error(`Device returned an unknown error code: ${data.get(Value.Error).readUint8()}`);
+            throw new TLV8PairingError(`Device returned an unknown error code: ${code}`, code);
         }
 
-        throw new Error(`Device returned an error code: ${errorCode[0]}`);
+        throw new TLV8PairingError(`Device returned an error code: ${errorCode[0]}`, code);
     }
 
-    throw new Error('Invalid response');
+    throw new TLV8PairingError('Invalid response');
 }
 
 export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffer {

@@ -1,9 +1,9 @@
 import { type DataStream, DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
-import { waitFor } from '@basmilius/apple-common';
+import { CommandError, waitFor } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 import type Device from './device';
 
-export class SendCommandError extends Error {
+export class SendCommandError extends CommandError {
     readonly sendError: Proto.SendError_Enum;
     readonly handlerReturnStatus: Proto.HandlerReturnStatus_Enum;
 

@@ -151,7 +151,15 @@ export default class RtspClient extends Connection<{}> {
             if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
                 this.context.logger.error('[rtsp]', `Buffer exceeded max size (${this.#buffer.byteLength} bytes), resetting.`);
                 this.#buffer = Buffer.alloc(0);
-                this.emit('error', new Error('Buffer overflow: exceeded maximum buffer size'));
+
+                const err = new Error('Buffer overflow: exceeded maximum buffer size');
+
+                for (const [cseq, {reject}] of this.#requests) {
+                    reject(err);
+                    this.#requests.delete(cseq);
+                }
+
+                this.emit('error', err);
                 return;
             }
 

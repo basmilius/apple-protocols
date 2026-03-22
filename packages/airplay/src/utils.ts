@@ -94,7 +94,7 @@ export function readVariant(buf: Buffer, offset = 0): [number, number] {
     let shift = 0;
     let bytesRead = 0;
 
-    while (true) {
+    while (offset + bytesRead < buf.length) {
         const byte = buf[offset + bytesRead++];
         result |= (byte & 0x7f) << shift;
 

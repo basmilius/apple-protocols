@@ -463,7 +463,7 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
 
         if (count === 0xF) {
             const arr: any[] = [];
-            while (data[pos] !== TAG.TERMINATOR) {
+            while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
                 const result = _unpackAt(data, pos, objectList);
                 arr.push(result.value);
                 pos = result.offset;
@@ -488,7 +488,7 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         let pos = offset + 1;
 
         if (count === 0xF) {
-            while (data[pos] !== TAG.TERMINATOR) {
+            while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
                 const keyResult = _unpackAt(data, pos, objectList);
                 const valResult = _unpackAt(data, keyResult.offset, objectList);
                 obj[keyResult.value] = valResult.value;

@@ -121,7 +121,7 @@ export default class ControlClient extends EventEmitter {
 
     #retransmitLostPackets(request: { lostSeqno: number; lostPackets: number }, addr: { address: string; port: number }): void {
         for (let i = 0; i < request.lostPackets; i++) {
-            const seqno = request.lostSeqno + i;
+            const seqno = (request.lostSeqno + i) & 0xFFFF;
             if (this.#packetBacklog.has(seqno)) {
                 const packet = this.#packetBacklog.get(seqno)!;
                 const originalSeqno = packet.subarray(2, 4);

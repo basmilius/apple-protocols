@@ -39,7 +39,26 @@ export default class Client {
     }
 
     get supportedCommands(): Proto.CommandInfo[] {
-        return this.activePlayer?.supportedCommands ?? this.#defaultSupportedCommands;
+        const playerCommands = this.activePlayer?.supportedCommands ?? [];
+
+        if (playerCommands.length === 0) {
+            return this.#defaultSupportedCommands;
+        }
+
+        if (this.#defaultSupportedCommands.length === 0) {
+            return playerCommands;
+        }
+
+        const playerCommandSet = new Set(playerCommands.map(c => c.command));
+        const merged = [...playerCommands];
+
+        for (const cmd of this.#defaultSupportedCommands) {
+            if (!playerCommandSet.has(cmd.command)) {
+                merged.push(cmd);
+            }
+        }
+
+        return merged;
     }
 
     get title(): string {
@@ -102,6 +121,14 @@ export default class Client {
         return this.activePlayer?.elapsedTime ?? 0;
     }
 
+    get artworkId(): string | null {
+        return this.activePlayer?.artworkId ?? null;
+    }
+
+    artworkUrl(width: number = 600, height: number = -1): string | null {
+        return this.activePlayer?.artworkUrl(width, height) ?? null;
+    }
+
     get currentItem(): Proto.ContentItem | null {
         return this.activePlayer?.currentItem ?? null;
     }
@@ -123,7 +150,7 @@ export default class Client {
     }
 
     readonly #bundleIdentifier: string;
-    readonly #displayName: string;
+    #displayName: string;
     #players: Map<string, Player> = new Map();
     #activePlayerId: string | null = null;
     #defaultSupportedCommands: Proto.CommandInfo[] = [];
@@ -160,7 +187,22 @@ export default class Client {
         this.#defaultSupportedCommands = supportedCommands;
     }
 
+    findCommand(command: Proto.Command): Proto.CommandInfo | null {
+        const playerCmd = this.activePlayer?.findCommand(command) ?? null;
+
+        if (playerCmd) {
+            return playerCmd;
+        }
+
+        return this.#defaultSupportedCommands.find(c => c.command === command) ?? null;
+    }
+
     isCommandSupported(command: Proto.Command): boolean {
-        return this.activePlayer?.isCommandSupported(command) ?? false;
+        const info = this.findCommand(command);
+        return info != null && info.enabled !== false;
+    }
+
+    updateDisplayName(displayName: string): void {
+        this.#displayName = displayName;
     }
 }

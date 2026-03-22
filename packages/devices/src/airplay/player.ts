@@ -38,6 +38,14 @@ export default class Player {
     }
 
     get playbackState(): Proto.PlaybackState_Enum {
+        if (this.#playbackState === Proto.PlaybackState_Enum.Playing && this.playbackRate === 0) {
+            return Proto.PlaybackState_Enum.Paused;
+        }
+
+        return this.#playbackState;
+    }
+
+    get rawPlaybackState(): Proto.PlaybackState_Enum {
         return this.#playbackState;
     }
 
@@ -149,6 +157,64 @@ export default class Player {
         return this.currentItem?.metadata ?? null;
     }
 
+    get artworkId(): string | null {
+        const metadata = this.currentItemMetadata;
+
+        if (!metadata) {
+            return null;
+        }
+
+        // Only return an ID if there's evidence artwork exists.
+        if (!metadata.artworkAvailable && !metadata.artworkURL && !metadata.artworkIdentifier) {
+            return null;
+        }
+
+        if (metadata.artworkIdentifier) {
+            return metadata.artworkIdentifier;
+        }
+
+        if (metadata.contentIdentifier) {
+            return metadata.contentIdentifier;
+        }
+
+        return this.currentItem?.identifier ?? null;
+    }
+
+    artworkUrl(width: number = 600, height: number = -1): string | null {
+        const metadata = this.currentItemMetadata;
+
+        // Priority 1: artworkURL — direct URL from metadata (known-good).
+        if (metadata?.artworkURL) {
+            return metadata.artworkURL;
+        }
+
+        // Priority 2: remoteArtworks — URL from remote artwork entries.
+        const item = this.currentItem;
+
+        if (item?.remoteArtworks.length > 0 && item.remoteArtworks[0].artworkURLString) {
+            return item.remoteArtworks[0].artworkURLString;
+        }
+
+        // Priority 3: artworkIdentifier — iTunes template URL with {w}x{h} placeholders.
+        if (metadata?.artworkIdentifier) {
+            try {
+                const url = metadata.artworkIdentifier
+                    .replace('{w}', String(width < 1 ? 999999 : width))
+                    .replace('{h}', String(height < 1 ? 999999 : height))
+                    .replace('{c}', 'bb')
+                    .replace('{f}', 'png');
+
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    return url;
+                }
+            } catch {
+                // Template formatting failed.
+            }
+        }
+
+        return null;
+    }
+
     get currentItemArtwork(): Uint8Array | null {
         const item = this.currentItem;
 
@@ -201,8 +267,13 @@ export default class Player {
         this.#playbackState = Proto.PlaybackState_Enum.Unknown;
     }
 
+    findCommand(command: Proto.Command): Proto.CommandInfo | null {
+        return this.#supportedCommands.find(c => c.command === command) ?? null;
+    }
+
     isCommandSupported(command: Proto.Command): boolean {
-        return this.#supportedCommands.some(c => c.command === command);
+        const info = this.findCommand(command);
+        return info != null && info.enabled !== false;
     }
 
     setNowPlayingInfo(nowPlayingInfo: Proto.NowPlayingInfo): void {

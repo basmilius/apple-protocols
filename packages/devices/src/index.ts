@@ -3,6 +3,7 @@ export {
     AirPlayDevice,
     AirPlayPlayer,
     AirPlayRemote,
+    SendCommandError,
     AirPlayState,
     AirPlayVolume,
     AIRPLAY

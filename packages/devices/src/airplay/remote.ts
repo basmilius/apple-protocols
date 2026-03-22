@@ -3,6 +3,18 @@ import { waitFor } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 import type Device from './device';
 
+export class SendCommandError extends Error {
+    readonly sendError: Proto.SendError_Enum;
+    readonly handlerReturnStatus: Proto.HandlerReturnStatus_Enum;
+
+    constructor(sendError: Proto.SendError_Enum, handlerReturnStatus: Proto.HandlerReturnStatus_Enum) {
+        super(`SendCommand failed: sendError=${Proto.SendError_Enum[sendError]}, handlerReturnStatus=${Proto.HandlerReturnStatus_Enum[handlerReturnStatus]}`);
+        this.name = 'SendCommandError';
+        this.sendError = sendError;
+        this.handlerReturnStatus = handlerReturnStatus;
+    }
+}
+
 export default class {
     get #dataStream(): DataStream {
         return this.#protocol.dataStream;
@@ -121,27 +133,51 @@ export default class {
     }
 
     async commandSkipForward(interval: number = 15): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommandWithSkipInterval(Proto.Command.SkipForward, interval));
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithSkipInterval(Proto.Command.SkipForward, interval));
     }
 
     async commandSkipBackward(interval: number = 15): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommandWithSkipInterval(Proto.Command.SkipBackward, interval));
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithSkipInterval(Proto.Command.SkipBackward, interval));
     }
 
     async commandSeekToPosition(position: number): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommandWithPlaybackPosition(Proto.Command.SeekToPlaybackPosition, position));
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithPlaybackPosition(Proto.Command.SeekToPlaybackPosition, position));
     }
 
     async commandSetShuffleMode(mode: Proto.ShuffleMode_Enum): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommandWithShuffleMode(Proto.Command.ChangeShuffleMode, mode));
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithShuffleMode(Proto.Command.ChangeShuffleMode, mode));
     }
 
     async commandSetRepeatMode(mode: Proto.RepeatMode_Enum): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommandWithRepeatMode(Proto.Command.ChangeRepeatMode, mode));
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithRepeatMode(Proto.Command.ChangeRepeatMode, mode));
     }
 
     async commandChangePlaybackRate(rate: number): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommandWithPlaybackRate(Proto.Command.ChangePlaybackRate, rate));
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithPlaybackRate(Proto.Command.ChangePlaybackRate, rate));
+    }
+
+    async commandAdvanceShuffleMode(): Promise<void> {
+        await this.#sendCommand(Proto.Command.AdvanceShuffleMode);
+    }
+
+    async commandAdvanceRepeatMode(): Promise<void> {
+        await this.#sendCommand(Proto.Command.AdvanceRepeatMode);
+    }
+
+    async commandBeginFastForward(): Promise<void> {
+        await this.#sendCommand(Proto.Command.BeginFastForward);
+    }
+
+    async commandEndFastForward(): Promise<void> {
+        await this.#sendCommand(Proto.Command.EndFastForward);
+    }
+
+    async commandBeginRewind(): Promise<void> {
+        await this.#sendCommand(Proto.Command.BeginRewind);
+    }
+
+    async commandEndRewind(): Promise<void> {
+        await this.#sendCommand(Proto.Command.EndRewind);
     }
 
     async commandNextChapter(): Promise<void> {
@@ -150,6 +186,22 @@ export default class {
 
     async commandPreviousChapter(): Promise<void> {
         await this.#sendCommand(Proto.Command.PreviousChapter);
+    }
+
+    async commandLikeTrack(): Promise<void> {
+        await this.#sendCommand(Proto.Command.LikeTrack);
+    }
+
+    async commandDislikeTrack(): Promise<void> {
+        await this.#sendCommand(Proto.Command.DislikeTrack);
+    }
+
+    async commandBookmarkTrack(): Promise<void> {
+        await this.#sendCommand(Proto.Command.BookmarkTrack);
+    }
+
+    async commandAddNowPlayingItemToLibrary(): Promise<void> {
+        await this.#sendCommand(Proto.Command.AddNowPlayingItemToLibrary);
     }
 
     // Touch/gesture input
@@ -198,8 +250,24 @@ export default class {
 
     // Private helpers
 
-    async #sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendCommand(command, options));
+    async #sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<Proto.SendCommandResultMessage> {
+        const response = await this.#dataStream.exchange(DataStreamMessage.sendCommand(command, options));
+        return this.#checkCommandResult(response);
+    }
+
+    async #sendCommandRaw(message: Parameters<DataStream['exchange']>[0]): Promise<Proto.SendCommandResultMessage> {
+        const response = await this.#dataStream.exchange(message);
+        return this.#checkCommandResult(response);
+    }
+
+    #checkCommandResult(response: Proto.ProtocolMessage): Proto.SendCommandResultMessage {
+        const result = DataStreamMessage.getExtension(response, Proto.sendCommandResultMessage);
+
+        if (result.sendError !== Proto.SendError_Enum.NoError) {
+            throw new SendCommandError(result.sendError, result.handlerReturnStatus);
+        }
+
+        return result;
     }
 
     async #sendTouch(x: number, y: number, phase: number, finger: number): Promise<void> {

@@ -21,6 +21,9 @@ type NowPlayingSnapshot = {
     seasonNumber: number;
     episodeNumber: number;
     contentIdentifier: string;
+    artworkId: string | null;
+    hasArtworkUrl: boolean;
+    hasArtworkData: boolean;
 };
 
 type EventMap = {
@@ -259,6 +262,10 @@ export default class extends EventEmitter<EventMap> {
     onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
+        if (message.client?.bundleIdentifier && message.client?.displayName) {
+            this.#client(message.client.bundleIdentifier, message.client.displayName);
+        }
+
         this.emit('setNowPlayingClient', message);
         this.#emitNowPlayingChangedIfNeeded();
     }
@@ -383,7 +390,13 @@ export default class extends EventEmitter<EventMap> {
 
     #client(bundleIdentifier: string, displayName: string): Client {
         if (bundleIdentifier in this.#clients) {
-            return this.#clients[bundleIdentifier];
+            const client = this.#clients[bundleIdentifier];
+
+            if (displayName) {
+                client.updateDisplayName(displayName);
+            }
+
+            return client;
         } else {
             const client = new Client(bundleIdentifier, displayName);
             this.#clients[bundleIdentifier] = client;
@@ -413,7 +426,10 @@ export default class extends EventEmitter<EventMap> {
             seriesName: player?.seriesName ?? '',
             seasonNumber: player?.seasonNumber ?? 0,
             episodeNumber: player?.episodeNumber ?? 0,
-            contentIdentifier: player?.contentIdentifier ?? ''
+            contentIdentifier: player?.contentIdentifier ?? '',
+            artworkId: player?.artworkId ?? null,
+            hasArtworkUrl: player?.artworkUrl() != null,
+            hasArtworkData: player?.currentItemArtwork != null
         };
     }
 
@@ -446,6 +462,9 @@ export default class extends EventEmitter<EventMap> {
             && a.seriesName === b.seriesName
             && a.seasonNumber === b.seasonNumber
             && a.episodeNumber === b.episodeNumber
-            && a.contentIdentifier === b.contentIdentifier;
+            && a.contentIdentifier === b.contentIdentifier
+            && a.artworkId === b.artworkId
+            && a.hasArtworkUrl === b.hasArtworkUrl
+            && a.hasArtworkData === b.hasArtworkData;
     }
 }

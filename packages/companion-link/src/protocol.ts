@@ -8,6 +8,44 @@ import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from
 import { convertAttentionState } from './utils';
 import Stream from './stream';
 
+const UID = (n: number) => ({'CF$UID': n});
+
+function buildRtiClearPayload(sessionUUID: Buffer): ArrayBuffer {
+    return Plist.serialize({
+        '$version': 100000,
+        '$archiver': 'RTIKeyedArchiver',
+        '$top': {textOperations: UID(1)},
+        '$objects': [
+            '$null',
+            {'$class': UID(7), targetSessionUUID: UID(5), keyboardOutput: UID(2), textToAssert: UID(4)},
+            {'$class': UID(3)},
+            {'$classname': 'TIKeyboardOutput', '$classes': ['TIKeyboardOutput', 'NSObject']},
+            '',
+            {'NS.uuidbytes': sessionUUID.buffer.slice(sessionUUID.byteOffset, sessionUUID.byteOffset + sessionUUID.byteLength) as ArrayBuffer, '$class': UID(6)},
+            {'$classname': 'NSUUID', '$classes': ['NSUUID', 'NSObject']},
+            {'$classname': 'RTITextOperations', '$classes': ['RTITextOperations', 'NSObject']}
+        ]
+    } as any) as ArrayBuffer;
+}
+
+function buildRtiInputPayload(sessionUUID: Buffer, text: string): ArrayBuffer {
+    return Plist.serialize({
+        '$version': 100000,
+        '$archiver': 'RTIKeyedArchiver',
+        '$top': {textOperations: UID(1)},
+        '$objects': [
+            '$null',
+            {keyboardOutput: UID(2), '$class': UID(7), targetSessionUUID: UID(5)},
+            {insertionText: UID(3), '$class': UID(4)},
+            text,
+            {'$classname': 'TIKeyboardOutput', '$classes': ['TIKeyboardOutput', 'NSObject']},
+            {'NS.uuidbytes': sessionUUID.buffer.slice(sessionUUID.byteOffset, sessionUUID.byteOffset + sessionUUID.byteLength) as ArrayBuffer, '$class': UID(6)},
+            {'$classname': 'NSUUID', '$classes': ['NSUUID', 'NSObject']},
+            {'$classname': 'RTITextOperations', '$classes': ['RTITextOperations', 'NSObject']}
+        ]
+    } as any) as ArrayBuffer;
+}
+
 export default class Protocol {
     get context(): Context {
         return this.#context;
@@ -34,6 +72,7 @@ export default class Protocol {
     readonly #pairing: Pairing;
     readonly #stream: Stream;
     readonly #verify: Verify;
+    #sessionId: bigint = 0n;
 
     constructor(discoveryResult: DiscoveryResult) {
         this.#context = new Context(discoveryResult.id);
@@ -52,7 +91,24 @@ export default class Protocol {
     }
 
     async disconnect(): Promise<void> {
+        try {
+            await this.gracefulStop();
+        } catch (_) {
+        }
+
         await this.#stream.disconnect();
+    }
+
+    async gracefulStop(): Promise<void> {
+        if (!this.#stream.isConnected) {
+            return;
+        }
+
+        this.deregisterInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
+
+        try { await this.tiStop(); } catch (_) {}
+        try { await this.touchStop(); } catch (_) {}
+        try { await this.sessionStop(); } catch (_) {}
     }
 
     async fetchMediaControlStatus(): Promise<void> {
@@ -240,19 +296,66 @@ export default class Protocol {
         });
     }
 
+    registerInterests(events: string[]): void {
+        this.#stream.sendOPack(FrameType.OPackEncrypted, {
+            _i: '_interest',
+            _t: MessageType.Event,
+            _c: {
+                _regEvents: events
+            }
+        });
+    }
+
+    deregisterInterests(events: string[]): void {
+        if (!this.#stream.isConnected) {
+            return;
+        }
+
+        this.#stream.sendOPack(FrameType.OPackEncrypted, {
+            _i: '_interest',
+            _t: MessageType.Event,
+            _c: {
+                _deregEvents: events
+            }
+        });
+    }
+
     async sessionStart(): Promise<object> {
+        const localSid = randomInt(0, 2 ** 32 - 1);
+
         const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_sessionStart',
             _t: MessageType.Request,
             _btHP: false,
             _c: {
                 _srvT: 'com.apple.tvremoteservices',
-                _sid: randomInt(0, 2 ** 32 - 1),
+                _sid: localSid,
                 _btHP: false
             }
         });
 
-        return objectOrFail(payload);
+        const result = objectOrFail<any>(payload);
+        const remoteSid = Number(result?._c?._sid ?? 0);
+        this.#sessionId = (BigInt(remoteSid) << 32n) | BigInt(localSid);
+
+        return result;
+    }
+
+    async sessionStop(): Promise<void> {
+        if (this.#sessionId === 0n) {
+            return;
+        }
+
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
+            _i: '_sessionStop',
+            _t: MessageType.Request,
+            _c: {
+                _srvT: 'com.apple.tvremoteservices',
+                _sid: Number(this.#sessionId)
+            }
+        });
+
+        this.#sessionId = 0n;
     }
 
     async systemInfo(pairingId: Buffer): Promise<object> {
@@ -318,6 +421,70 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
+    async textInputCommand(text: string, clearPreviousInput: boolean): Promise<string | null> {
+        // Restart the text input session to get fresh sessionUUID (like pyatv).
+        await this.tiStop();
+        const response = await this.tiStart();
+
+        const tiD = (response as any)?._c?._tiD;
+        if (!tiD) {
+            return null;
+        }
+
+        // Parse sessionUUID from NSKeyedArchiver binary plist.
+        const archive = Plist.parse(Buffer.from(tiD).buffer as ArrayBuffer) as any;
+        const objects = archive?.['$objects'];
+        const top = archive?.['$top'];
+        if (!objects || !top) {
+            return null;
+        }
+
+        // The $top contains sessionUUID as a UID reference into $objects.
+        const ref = top.sessionUUID;
+        const refIndex = typeof ref === 'object' && ref !== null ? ref['CF$UID'] : ref;
+        const sessionUUID = objects[refIndex];
+
+        if (!sessionUUID) {
+            return null;
+        }
+
+        const sessionBytes = Buffer.from(
+            sessionUUID instanceof ArrayBuffer ? sessionUUID
+                : sessionUUID instanceof Uint8Array ? sessionUUID
+                : sessionUUID.buffer ?? sessionUUID
+        );
+
+        if (clearPreviousInput) {
+            this.#sendTextEvent(buildRtiClearPayload(sessionBytes));
+        }
+
+        if (text) {
+            this.#sendTextEvent(buildRtiInputPayload(sessionBytes, text));
+        }
+
+        return text;
+    }
+
+    async tiStop(): Promise<void> {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
+            _i: '_tiStop',
+            _t: MessageType.Request,
+            _btHP: false,
+            _c: {}
+        });
+    }
+
+    #sendTextEvent(tiD: ArrayBuffer): void {
+        this.#stream.sendOPack(FrameType.OPackEncrypted, {
+            _i: '_tiC',
+            _t: MessageType.Event,
+            _c: {
+                _tiV: 1,
+                _tiD: Buffer.from(tiD)
+            }
+        });
+    }
+
     async touchStart(): Promise<object> {
         const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
             _i: '_touchStart',
@@ -331,6 +498,16 @@ export default class Protocol {
         });
 
         return objectOrFail(payload);
+    }
+
+    async touchStop(): Promise<void> {
+        await this.#stream.exchange(FrameType.OPackEncrypted, {
+            _i: '_touchStop',
+            _t: MessageType.Request,
+            _c: {
+                _i: 1
+            }
+        });
     }
 
     async tvrcSessionStart(): Promise<object> {

@@ -12,6 +12,7 @@ type EventMap = {
     readonly rawMessage: [Proto.ProtocolMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
+    readonly keyboard: [Proto.KeyboardMessage];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
@@ -47,6 +48,7 @@ export default class DataStream extends BaseStream<EventMap> {
         this.on('data', this.#onData.bind(this));
         this.on('error', this.#onError.bind(this));
 
+        this.#handlers[Proto.ProtocolMessage_Type.KEYBOARD_MESSAGE] = [Proto.keyboardMessage, this.#onKeyboardMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_UPDATE_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoUpdateMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.ORIGIN_CLIENT_PROPERTIES_MESSAGE] = [Proto.originClientPropertiesMessage, this.#onOriginClientPropertiesMessage.bind(this)];
@@ -269,6 +271,12 @@ export default class DataStream extends BaseStream<EventMap> {
         } else if (message.type !== Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE) {
             this.context.logger.warn('[data]', `Unknown message type ${message.type}.`);
         }
+    }
+
+    #onKeyboardMessage(message: Proto.KeyboardMessage): void {
+        this.context.logger.info('[data]', 'Keyboard message', message);
+
+        this.emit('keyboard', message);
     }
 
     #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): void {

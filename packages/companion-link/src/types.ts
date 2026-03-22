@@ -5,6 +5,15 @@ export type AttentionState =
     | 'awake'
     | 'idle';
 
+export type TextInputState = {
+    readonly isActive: boolean;
+    readonly documentText: string;
+    readonly isSecure: boolean;
+    readonly keyboardType: number;
+    readonly autocorrection: boolean;
+    readonly autocapitalization: boolean;
+};
+
 export type ButtonPressType =
     | 'DoubleTap'
     | 'Hold'

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
 import * as AirPlay from '@basmilius/apple-airplay';
-import type { AttentionState, LaunchableApp, UserAccount } from '@basmilius/apple-companion-link';
+import type { AttentionState, LaunchableApp, TextInputState, UserAccount } from '@basmilius/apple-companion-link';
 import type Client from '../airplay/client';
 import { AirPlayDevice } from '../airplay';
 import type Remote from '../airplay/remote';
@@ -13,6 +13,7 @@ type EventMap = {
     connected: [];
     disconnected: [unexpected: boolean];
     power: [AttentionState];
+    textInput: [TextInputState];
 };
 
 export default class extends EventEmitter<EventMap> {
@@ -107,6 +108,7 @@ export default class extends EventEmitter<EventMap> {
         this.#companionLink.on('connected', () => this.#onConnected());
         this.#companionLink.on('disconnected', unexpected => this.#onDisconnected(unexpected));
         this.#companionLink.on('power', state => this.emit('power', state));
+        this.#companionLink.on('textInput', state => this.emit('textInput', state));
     }
 
     async connect(airplayCredentials: AccessoryCredentials, companionLinkCredentials?: AccessoryCredentials): Promise<void> {
@@ -186,6 +188,18 @@ export default class extends EventEmitter<EventMap> {
 
     async switchUserAccount(accountId: string): Promise<void> {
         await this.#companionLink.switchUserAccount(accountId);
+    }
+
+    async textSet(text: string): Promise<void> {
+        await this.#companionLink.textSet(text);
+    }
+
+    async textAppend(text: string): Promise<void> {
+        await this.#companionLink.textAppend(text);
+    }
+
+    async textClear(): Promise<void> {
+        await this.#companionLink.textClear();
     }
 
     async getCommandInfo(command: AirPlay.Proto.Command): Promise<AirPlay.Proto.CommandInfo | null> {

@@ -198,7 +198,7 @@ export default class extends EventEmitter<EventMap> {
 
             await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
             await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-            await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig());
+            await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig(true, true, true, true, true, true));
 
             this.#protocol.context.logger.info('Protocol ready.');
         } catch (err) {

@@ -1,4 +1,4 @@
-import { Discovery, type Storage } from '@basmilius/apple-common';
+import { Discovery, reporter, type Storage } from '@basmilius/apple-common';
 import { Url } from '@basmilius/apple-audio-source';
 import { Proto } from '@basmilius/apple-airplay';
 import { AppleTV, COMPANION_LINK } from '@basmilius/apple-devices';
@@ -14,7 +14,8 @@ Available commands:
   play, pause, playpause, stop     Playback controls
   next, prev                       Track navigation
   up, down, left, right, select    Navigation
-  menu, home                       Menu navigation
+  menu, home, topmenu              Menu navigation
+  chup, chdown                     Channel up/down
   volup, voldown, mute             Volume (HID)
   vol <0-100>                      Volume (absolute %)
   wake, suspend                    Power
@@ -23,6 +24,10 @@ Available commands:
   users                            List user accounts
   swipe <up|down|left|right>       Swipe gesture
   tap                              Tap gesture
+  type <text>                      Type text (set)
+  append <text>                    Append text
+  clear                            Clear text input
+  keyboard                         Show keyboard state
   stream <url>                     Stream audio from URL
   info                             Show now playing info
   fetch                            Request playback queue from device
@@ -88,6 +93,22 @@ export default async function (storage: Storage): Promise<void> {
     device.on('connected', () => log('event', 'Connected to Apple TV.'));
     device.on('disconnected', (unexpected) => log('event', unexpected ? 'Unexpectedly disconnected!' : 'Disconnected.'));
     device.on('power', (state) => log('event', `Power: ${state}`));
+
+    device.airplay.on('connected', () => log('event', 'AirPlay connected.'));
+    device.airplay.on('disconnected', (u) => log('event', `AirPlay disconnected (unexpected=${u}).`));
+    device.companionLink.on('connected', () => log('event', 'Companion Link connected.'));
+    device.companionLink.on('disconnected', (u) => log('event', `Companion Link disconnected (unexpected=${u}).`));
+
+    device.companionLink.on('connected', () => {
+        const clProtocol = (device.companionLink as any)[COMPANION_LINK];
+        clProtocol.stream.on('error', (err: Error) => {
+            log('error', `CL stream error: ${err.message}`);
+        });
+        clProtocol.stream.on('close', () => {
+            log('error', 'CL stream closed.');
+        });
+    });
+
     (device.companionLink as any).on('mediaControl', (data: any) => {
         log('event', `_iMC: ${JSON.stringify(data)}`);
     });
@@ -121,6 +142,22 @@ export default async function (storage: Storage): Promise<void> {
     device.state.on('clients', (clients) => {
         const names = Object.values(clients).map(c => `${c.displayName} (${c.bundleIdentifier})`);
         log('event', `Clients: ${names.join(', ') || 'none'}`);
+    });
+
+    device.state.on('keyboard', (message) => {
+        const stateLabel = Proto.KeyboardState_Enum[message.state] ?? 'Unknown';
+        const attrs = message.attributes;
+        const details = attrs ? ` title="${attrs.title}" prompt="${attrs.prompt}"` : '';
+        const secure = attrs?.inputTraits?.secureTextEntry ? ' [secure]' : '';
+        log('event', `Keyboard (MRP): ${stateLabel}${details}${secure}`);
+    });
+
+    device.on('textInput', (state) => {
+        if (state.isActive) {
+            log('event', `Keyboard active${state.isSecure ? ' [secure]' : ''} text="${state.documentText}"`);
+        } else {
+            log('event', 'Keyboard dismissed');
+        }
     });
 
     // Connect
@@ -157,6 +194,9 @@ export default async function (storage: Storage): Promise<void> {
                     case 'select': await device.remote.select(); log('command', 'Select'); break;
                     case 'menu': await device.remote.menu(); log('command', 'Menu'); break;
                     case 'home': await device.remote.home(); log('command', 'Home'); break;
+                    case 'topmenu': await device.remote.topMenu(); log('command', 'Top Menu'); break;
+                    case 'chup': await device.remote.channelUp(); log('command', 'Channel Up'); break;
+                    case 'chdown': await device.remote.channelDown(); log('command', 'Channel Down'); break;
                     case 'volup': await device.volumeUp(); log('command', 'Volume Up'); break;
                     case 'voldown': await device.volumeDown(); log('command', 'Volume Down'); break;
                     case 'mute': await device.volumeMute(); log('command', 'Mute'); break;
@@ -206,6 +246,45 @@ export default async function (storage: Storage): Promise<void> {
                     case 'tap':
                         await device.remote.tap(200, 200);
                         log('command', 'Tap');
+                        break;
+                    case 'type':
+                        if (args.length > 0) {
+                            const text = args.join(' ');
+                            await device.textSet(text);
+                            log('command', `Text set: "${text}"`);
+                        } else {
+                            log('error', 'Usage: type <text>');
+                        }
+                        break;
+                    case 'append':
+                        if (args.length > 0) {
+                            const appendText = args.join(' ');
+                            await device.textAppend(appendText);
+                            log('command', `Text appended: "${appendText}"`);
+                        } else {
+                            log('error', 'Usage: append <text>');
+                        }
+                        break;
+                    case 'clear':
+                        await device.textClear();
+                        log('command', 'Text cleared');
+                        break;
+                    case 'keyboard':
+                        const tiState = device.companionLink.textInputState;
+                        log('info', `Active: ${tiState.isActive}`);
+                        if (tiState.isActive) {
+                            log('info', `Text: "${tiState.documentText}"`);
+                            log('info', `Secure: ${tiState.isSecure}`);
+                            log('info', `Keyboard type: ${tiState.keyboardType}`);
+                            log('info', `Autocorrect: ${tiState.autocorrection}`);
+                        }
+                        const kbState = Proto.KeyboardState_Enum[device.state.keyboardState] ?? 'Unknown';
+                        const kbAttrs = device.state.keyboardAttributes;
+                        log('info', `MRP state: ${kbState}`);
+                        if (kbAttrs) {
+                            log('info', `MRP title: ${kbAttrs.title || '(none)'}`);
+                            log('info', `MRP prompt: ${kbAttrs.prompt || '(none)'}`);
+                        }
                         break;
                     case 'stream':
                         if (args[0]) {

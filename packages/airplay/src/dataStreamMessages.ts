@@ -192,6 +192,33 @@ export function playbackQueueRequest(location: number, length: number, artworkWi
     ];
 }
 
+export function getKeyboardSession(): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_KEYBOARD_SESSION_MESSAGE);
+
+    setExtension(protocolMessage, Proto.getKeyboardSessionMessage, '');
+
+    return [
+        protocolMessage,
+        Proto.getKeyboardSessionMessage
+    ];
+}
+
+export function textInput(text: string, actionType: Proto.ActionType_Enum): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.TEXT_INPUT_MESSAGE);
+    const message = create(Proto.TextInputMessageSchema, {
+        timestamp: Date.now() / 1000,
+        text,
+        actionType
+    });
+
+    setExtension(protocolMessage, Proto.textInputMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.textInputMessage
+    ];
+}
+
 export function sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_BUTTON_EVENT_MESSAGE);
     const message = create(Proto.SendButtonEventMessageSchema, {

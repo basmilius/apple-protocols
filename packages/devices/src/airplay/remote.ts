@@ -86,6 +86,10 @@ export default class {
         }
     }
 
+    async stop(): Promise<void> {
+        await this.pressAndRelease(12, 0xB7);
+    }
+
     async next(): Promise<void> {
         await this.pressAndRelease(12, 0xB5);
     }
@@ -104,6 +108,18 @@ export default class {
 
     async mute(): Promise<void> {
         await this.pressAndRelease(12, 0xE2);
+    }
+
+    async topMenu(): Promise<void> {
+        await this.pressAndRelease(12, 0x60);
+    }
+
+    async channelUp(): Promise<void> {
+        await this.pressAndRelease(12, 0x9C);
+    }
+
+    async channelDown(): Promise<void> {
+        await this.pressAndRelease(12, 0x9D);
     }
 
     // SendCommand-based controls
@@ -202,6 +218,24 @@ export default class {
 
     async commandAddNowPlayingItemToLibrary(): Promise<void> {
         await this.#sendCommand(Proto.Command.AddNowPlayingItemToLibrary);
+    }
+
+    // Keyboard/text input
+
+    async textSet(text: string): Promise<void> {
+        await this.#dataStream.send(DataStreamMessage.textInput(text, Proto.ActionType_Enum.Set));
+    }
+
+    async textAppend(text: string): Promise<void> {
+        await this.#dataStream.send(DataStreamMessage.textInput(text, Proto.ActionType_Enum.Insert));
+    }
+
+    async textClear(): Promise<void> {
+        await this.#dataStream.send(DataStreamMessage.textInput('', Proto.ActionType_Enum.ClearAction));
+    }
+
+    async getKeyboardSession(): Promise<void> {
+        await this.#dataStream.send(DataStreamMessage.getKeyboardSession());
     }
 
     // Touch/gesture input

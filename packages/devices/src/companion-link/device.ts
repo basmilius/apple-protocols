@@ -1,12 +1,14 @@
 import { EventEmitter } from 'node:events';
 import type { AccessoryCredentials, AccessoryKeys, DiscoveryResult } from '@basmilius/apple-common';
-import { type AttentionState, type ButtonPressType, convertAttentionState, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type UserAccount } from '@basmilius/apple-companion-link';
+import { type AttentionState, type ButtonPressType, convertAttentionState, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
+import { Plist } from '@basmilius/apple-encoding';
 import { PROTOCOL } from './const';
 
 type EventMap = {
     connected: [];
     disconnected: [unexpected: boolean];
     power: [AttentionState];
+    textInput: [TextInputState];
 };
 
 export default class extends EventEmitter<EventMap> {
@@ -32,6 +34,12 @@ export default class extends EventEmitter<EventMap> {
     #heartbeatInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #protocol!: Protocol;
+
+    get textInputState(): TextInputState {
+        return this.#textInputState;
+    }
+
+    #textInputState: TextInputState = {isActive: false, documentText: '', isSecure: false, keyboardType: 0, autocorrection: false, autocapitalization: false};
 
     constructor(discoveryResult: DiscoveryResult) {
         super();
@@ -116,6 +124,18 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.switchUserAccount(accountId);
     }
 
+    async textSet(text: string): Promise<void> {
+        await this.#protocol.textInputCommand(text, true);
+    }
+
+    async textAppend(text: string): Promise<void> {
+        await this.#protocol.textInputCommand(text, false);
+    }
+
+    async textClear(): Promise<void> {
+        await this.#protocol.textInputCommand('', true);
+    }
+
     async #heartbeat(): Promise<void> {
         try {
             this.#protocol.noOp();
@@ -159,9 +179,6 @@ export default class extends EventEmitter<EventMap> {
             await this.#protocol.tvrcSessionStart();
             await this.#protocol.touchStart();
             await this.#protocol.tiStart();
-            await this.#protocol.subscribe('_iMC', (data: unknown) => {
-                this.emit('mediaControl' as any, data);
-            });
 
             this.#heartbeatInterval = setInterval(async () => await this.#heartbeat(), 15000);
 
@@ -175,20 +192,63 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async #subscribe(): Promise<void> {
-        await this.#protocol.subscribe('SystemStatus', this.onSystemStatus);
-        await this.#protocol.subscribe('TVSystemStatus', this.onTVSystemStatus);
+        // Register listeners on the stream directly.
+        this.#protocol.stream.on('_iMC', (data: unknown) => {
+            this.emit('mediaControl' as any, data);
+        });
+        this.#protocol.stream.on('SystemStatus', this.onSystemStatus);
+        this.#protocol.stream.on('TVSystemStatus', this.onTVSystemStatus);
+        this.#protocol.stream.on('_tiStarted', this.#onTextInputStarted);
+        this.#protocol.stream.on('_tiStopped', this.#onTextInputStopped);
+
+        // Send all interests in a single message (like bunatv).
+        this.#protocol.registerInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
 
         const state = await this.getAttentionState();
         this.emit('power', state);
     }
 
     async #unsubscribe(): Promise<void> {
+        this.#protocol.stream.off('SystemStatus', this.onSystemStatus);
+        this.#protocol.stream.off('TVSystemStatus', this.onTVSystemStatus);
+        this.#protocol.stream.off('_tiStarted', this.#onTextInputStarted);
+        this.#protocol.stream.off('_tiStopped', this.#onTextInputStopped);
+
         try {
-            await this.#protocol.unsubscribe('SystemStatus', this.onSystemStatus);
-            await this.#protocol.unsubscribe('TVSystemStatus', this.onTVSystemStatus);
+            this.#protocol.deregisterInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
         } catch (_) {
         }
     }
+
+    #onTextInputStarted = async (data: unknown): Promise<void> => {
+        try {
+            const payload = data as { readonly _tiV?: number; readonly _tiD?: Uint8Array };
+            let documentText = '';
+            let isSecure = false;
+            let keyboardType = 0;
+            let autocorrection = false;
+            let autocapitalization = false;
+
+            if (payload?._tiD) {
+                const plistData = Plist.parse(Buffer.from(payload._tiD).buffer as ArrayBuffer) as Record<string, unknown>;
+                documentText = (plistData._tiDT as string) ?? '';
+                isSecure = (plistData._tiSR as boolean) ?? false;
+                keyboardType = (plistData._tiKT as number) ?? 0;
+                autocorrection = (plistData._tiAC as boolean) ?? false;
+                autocapitalization = (plistData._tiAP as boolean) ?? false;
+            }
+
+            this.#textInputState = {isActive: true, documentText, isSecure, keyboardType, autocorrection, autocapitalization};
+            this.emit('textInput', this.#textInputState);
+        } catch (err) {
+            this.#protocol.context.logger.error('Text input started parse error', err);
+        }
+    }
+
+    #onTextInputStopped = async (_data: unknown): Promise<void> => {
+        this.#textInputState = {isActive: false, documentText: '', isSecure: false, keyboardType: 0, autocorrection: false, autocapitalization: false};
+        this.emit('textInput', this.#textInputState);
+    };
 
     async onSystemStatus(data: { readonly state: number; }): Promise<void> {
         this.#protocol.context.logger.info('System Status', data);

@@ -31,6 +31,7 @@ type EventMap = {
     readonly clients: [Record<string, Client>];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
+    readonly keyboard: [Proto.KeyboardMessage];
     readonly nowPlayingChanged: [client: Client | null, player: Player | null];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
@@ -65,6 +66,20 @@ export default class extends EventEmitter<EventMap> {
         return this.#clients;
     }
 
+    get isKeyboardActive(): boolean {
+        return this.#keyboardState === Proto.KeyboardState_Enum.DidBeginEditing
+            || this.#keyboardState === Proto.KeyboardState_Enum.Editing
+            || this.#keyboardState === Proto.KeyboardState_Enum.TextDidChange;
+    }
+
+    get keyboardAttributes(): Proto.TextEditingAttributes | null {
+        return this.#keyboardAttributes;
+    }
+
+    get keyboardState(): Proto.KeyboardState_Enum {
+        return this.#keyboardState;
+    }
+
     get nowPlayingClient(): Client | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
@@ -91,6 +106,8 @@ export default class extends EventEmitter<EventMap> {
 
     readonly #device: Device;
     #clients: Record<string, Client>;
+    #keyboardAttributes: Proto.TextEditingAttributes | null;
+    #keyboardState: Proto.KeyboardState_Enum;
     #nowPlayingClientBundleIdentifier: string | null;
     #nowPlayingSnapshot: NowPlayingSnapshot | null;
     #outputDeviceUID: string | null;
@@ -105,6 +122,7 @@ export default class extends EventEmitter<EventMap> {
         this.#device = device;
         this.clear();
 
+        this.onKeyboard = this.onKeyboard.bind(this);
         this.onDeviceInfo = this.onDeviceInfo.bind(this);
         this.onDeviceInfoUpdate = this.onDeviceInfoUpdate.bind(this);
         this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
@@ -128,6 +146,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     [STATE_SUBSCRIBE_SYMBOL](): void {
+        this.#dataStream.on('keyboard', this.onKeyboard);
         this.#dataStream.on('deviceInfo', this.onDeviceInfo);
         this.#dataStream.on('deviceInfoUpdate', this.onDeviceInfoUpdate);
         this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
@@ -157,6 +176,7 @@ export default class extends EventEmitter<EventMap> {
             return;
         }
 
+        dataStream.off('keyboard', this.onKeyboard);
         dataStream.off('deviceInfo', this.onDeviceInfo);
         dataStream.off('deviceInfoUpdate', this.onDeviceInfoUpdate);
         dataStream.off('originClientProperties', this.onOriginClientProperties);
@@ -181,6 +201,8 @@ export default class extends EventEmitter<EventMap> {
 
     clear(): void {
         this.#clients = {};
+        this.#keyboardAttributes = null;
+        this.#keyboardState = Proto.KeyboardState_Enum.Unknown;
         this.#nowPlayingClientBundleIdentifier = null;
         this.#nowPlayingSnapshot = null;
         this.#outputDeviceUID = null;
@@ -188,6 +210,13 @@ export default class extends EventEmitter<EventMap> {
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
+    }
+
+    onKeyboard(message: Proto.KeyboardMessage): void {
+        this.#keyboardState = message.state;
+        this.#keyboardAttributes = message.attributes ?? null;
+
+        this.emit('keyboard', message);
     }
 
     onDeviceInfo(message: Proto.DeviceInfoMessage): void {

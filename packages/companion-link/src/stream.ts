@@ -2,7 +2,7 @@ import { randomInt } from 'node:crypto';
 import { type Context, EncryptionAwareConnection, EncryptionState } from '@basmilius/apple-common';
 import { OPack } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
-import { FrameType, OPackFrameTypes, PairingFrameTypes } from './frame';
+import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
 const HEADER_SIZE = 4;
 const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
@@ -186,32 +186,31 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
 
+        // Match responses to pending exchanges by _x (like bunatv).
         if ('_x' in payload) {
             const _x = Number(payload['_x']);
 
             if (this.#queue.has(_x)) {
                 const [resolve] = this.#queue.get(_x);
                 resolve([header, payload]);
-
                 this.#queue.delete(_x);
-            } else if ('_i' in payload) {
-                this.emit(payload['_i'] as string, payload['_c']);
-            } else {
-                // probably an event
-                const content = payload['_c'];
-                const keys = Object.keys(content).map(k => k.slice(0, -3));
-
-                for (const key of keys) {
-                    this.emit(key, content[key]);
-                }
+                return;
             }
-        } else if (this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
+        }
+
+        // Pairing responses have no _x.
+        if (this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
             const [resolve] = this.#queue.get(PAIRING_QUEUE_IDENTIFIER);
             resolve([header, payload]);
-
             this.#queue.delete(PAIRING_QUEUE_IDENTIFIER);
+            return;
+        }
+
+        // Everything else is an unsolicited message (event).
+        if ('_i' in payload) {
+            this.emit(payload['_i'] as string, payload['_c']);
         } else {
-            this.context.logger.warn('[companion-link]', 'No handler for message', [header, payload]);
+            this.context.logger.warn('[companion-link]', 'Unhandled message', payload);
         }
     }
 }

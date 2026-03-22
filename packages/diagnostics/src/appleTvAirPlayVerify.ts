@@ -45,11 +45,15 @@ export default async function (storage: Storage): Promise<void> {
     const protocol = new AirPlay.Protocol(device);
     await protocol.connect();
 
-    const keys = await protocol.verify.start(credentials);
+    try {
+        const keys = await protocol.verify.start(credentials);
 
-    console.log('Keys:');
-    console.log({
-        accessoryToControllerKey: keys.accessoryToControllerKey.toString('hex'),
-        controllerToAccessoryKey: keys.controllerToAccessoryKey.toString('hex')
-    });
+        console.log('Keys:');
+        console.log({
+            accessoryToControllerKey: keys.accessoryToControllerKey.toString('hex'),
+            controllerToAccessoryKey: keys.controllerToAccessoryKey.toString('hex')
+        });
+    } finally {
+        protocol.disconnect();
+    }
 }

@@ -104,7 +104,8 @@ export default class Protocol {
 
     async setupDataStream(sharedSecret: Buffer, onBeforeConnect?: () => void): Promise<void> {
         const seed = randomInt64();
-        const request = Plist.serialize({
+
+        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, {
             streams: [{
                 controlType: 2,
                 channelID: uuid().toUpperCase(),
@@ -114,10 +115,6 @@ export default class Protocol {
                 wantsDedicatedSocket: true,
                 clientTypeUUID: '1910A70F-DBC0-4242-AF95-115DB30604E1'
             }]
-        });
-
-        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, Buffer.from(request), {
-            'Content-Type': 'application/x-apple-binary-plist'
         });
 
         if (response.status !== 200) {
@@ -157,10 +154,7 @@ export default class Protocol {
             body.timingProtocol = 'NTP';
         }
 
-        const request = Plist.serialize(body);
-        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, Buffer.from(request), {
-            'Content-Type': 'application/x-apple-binary-plist'
-        });
+        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, body);
 
         if (response.status !== 200) {
             this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
@@ -207,10 +201,7 @@ export default class Protocol {
             body.timingProtocol = 'NTP';
         }
 
-        const request = Plist.serialize(body);
-        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, Buffer.from(request), {
-            'Content-Type': 'application/x-apple-binary-plist'
-        });
+        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, body);
 
         if (response.status !== 200) {
             this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
@@ -229,7 +220,6 @@ export default class Protocol {
     }
 
     async playUrl(url: string, sharedSecret: Buffer, pairingId: Buffer, position: number = 0): Promise<void> {
-        // Setup a simple event stream (no isRemoteControlOnly, no audio streaming params)
         const setupBody: Record<string, string | number | boolean> = {
             deviceID: pairingId.toString(),
             sessionUUID: this.#sessionUUID.toUpperCase(),
@@ -253,11 +243,7 @@ export default class Protocol {
             setupBody.timingProtocol = 'None';
         }
 
-        const setupResponse = await this.#controlStream.setup(
-            `/${this.#controlStream.sessionId}`,
-            Buffer.from(Plist.serialize(setupBody)),
-            { 'Content-Type': 'application/x-apple-binary-plist' }
-        );
+        const setupResponse = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, setupBody);
 
         if (setupResponse.status !== 200) {
             throw new Error(`Failed to setup for playback: ${setupResponse.status}`);
@@ -272,8 +258,7 @@ export default class Protocol {
 
         await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
 
-        // Send play request
-        const playBody = Plist.serialize({
+        const response = await this.#controlStream.post('/play', {
             'Content-Location': url,
             'Start-Position-Seconds': position,
             uuid: this.#sessionUUID.toUpperCase(),
@@ -288,17 +273,12 @@ export default class Protocol {
             SenderMACAddress: getMacAddress().toUpperCase()
         });
 
-        const response = await this.#controlStream.post('/play', Buffer.from(playBody), {
-            'Content-Type': 'application/x-apple-binary-plist'
-        });
-
         this.context.logger.info('[protocol]', `play_url response: ${response.status}`);
 
         if (response.status !== 200) {
             throw new Error(`Failed to play URL: ${response.status}`);
         }
 
-        // Set properties needed for playback (based on pyatv)
         await this.#putProperty('isInterestedInDateRange', { value: true });
         await this.#putProperty('actionAtItemEnd', { value: 0 });
         await this.#controlStream.post('/rate?value=1.000000');
@@ -307,9 +287,7 @@ export default class Protocol {
     }
 
     async #putProperty(property: string, body: any): Promise<void> {
-        await this.#controlStream.put(`/setProperty?${property}`, Buffer.from(Plist.serialize(body)), {
-            'Content-Type': 'application/x-apple-binary-plist'
-        });
+        await this.#controlStream.put(`/setProperty?${property}`, body);
     }
 
     async setupAudioStream(source: AudioSource): Promise<void> {

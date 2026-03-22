@@ -35,94 +35,108 @@ console.log();
 console.log('Press Control-C to exit.');
 console.log();
 
-const response: Record<string, string> = await prompt({
-    name: 'feature',
-    type: 'select',
-    message: 'What would you like to test?',
-    choices: [
-        {message: 'Interactive Apple TV', name: 'interactive-appletv'},
-        {message: 'Interactive HomePod', name: 'interactive-homepod'},
-        {message: 'Pair (AirPlay)', name: 'airplay-pair'},
-        {message: 'Pair (Companion Link)', name: 'companion-link-pair'},
-        {message: 'Apple TV Verify (AirPlay)', name: 'appletv-airplay-verify'},
-        {message: 'Apple TV Verify (Companion Link)', name: 'appletv-companion-link-verify'},
-        {message: 'Apple TV Launch App', name: 'appletv-launch-app'},
-        {message: 'AirPlay Monitor', name: 'airplay-monitor'},
-        {message: 'AirPlay Play URL', name: 'airplay-play-url'},
-        {message: 'AirPlay Stream Audio', name: 'airplay-stream-audio'},
-        {message: 'AirPlay Listen', name: 'airplay-listen'},
-        {message: 'HomePod Play Audio (RAOP)', name: 'homepod-play-audio'},
-        {message: 'mDNS Scan', name: 'mdns-scan'}
-    ]
-});
+while (true) {
+    const response: Record<string, string> = await prompt({
+        name: 'feature',
+        type: 'select',
+        message: 'What would you like to test?',
+        choices: [
+            {message: 'Interactive Apple TV', name: 'interactive-appletv'},
+            {message: 'Interactive HomePod', name: 'interactive-homepod'},
+            {message: 'Pair (AirPlay)', name: 'airplay-pair'},
+            {message: 'Pair (Companion Link)', name: 'companion-link-pair'},
+            {message: 'Apple TV Verify (AirPlay)', name: 'appletv-airplay-verify'},
+            {message: 'Apple TV Verify (Companion Link)', name: 'appletv-companion-link-verify'},
+            {message: 'Apple TV Launch App', name: 'appletv-launch-app'},
+            {message: 'AirPlay Monitor', name: 'airplay-monitor'},
+            {message: 'AirPlay Play URL', name: 'airplay-play-url'},
+            {message: 'AirPlay Stream Audio', name: 'airplay-stream-audio'},
+            {message: 'AirPlay Listen', name: 'airplay-listen'},
+            {message: 'HomePod Play Audio (RAOP)', name: 'homepod-play-audio'},
+            {message: 'mDNS Scan', name: 'mdns-scan'},
+            {message: 'Quit', name: 'quit'}
+        ]
+    });
 
-console.log();
+    if (response.feature === 'quit') {
+        stopSavingLogs();
+        process.exit(0);
+    }
 
-switch (response.feature) {
-    case 'interactive-appletv':
-        await interactiveAppleTv(storage);
-        break;
+    console.log();
 
-    case 'interactive-homepod':
-        await interactiveHomePod(storage);
-        break;
+    try {
+        switch (response.feature) {
+            case 'interactive-appletv':
+                await interactiveAppleTv(storage);
+                break;
 
-    case 'airplay-pair':
-        reporter.all();
-        await airplayPair(storage);
-        break;
+            case 'interactive-homepod':
+                await interactiveHomePod(storage);
+                break;
 
-    case 'companion-link-pair':
-        reporter.all();
-        await companionLinkPair(storage);
-        break;
+            case 'airplay-pair':
+                reporter.all();
+                await airplayPair(storage);
+                break;
 
-    case 'appletv-airplay-verify':
-        reporter.all();
-        await appleTvAirPlayVerify(storage);
-        break;
+            case 'companion-link-pair':
+                reporter.all();
+                await companionLinkPair(storage);
+                break;
 
-    case 'appletv-companion-link-verify':
-        reporter.all();
-        await appleTvCompanionLinkVerify(storage);
-        break;
+            case 'appletv-airplay-verify':
+                reporter.all();
+                await appleTvAirPlayVerify(storage);
+                break;
 
-    case 'appletv-launch-app':
-        reporter.all();
-        await appleTvLaunchApp(storage);
-        break;
+            case 'appletv-companion-link-verify':
+                reporter.all();
+                await appleTvCompanionLinkVerify(storage);
+                break;
 
-    case 'airplay-monitor':
-        await airplayMonitor(storage);
-        break;
+            case 'appletv-launch-app':
+                reporter.all();
+                await appleTvLaunchApp(storage);
+                break;
 
-    case 'airplay-play-url':
-        reporter.all();
-        await airplayPlayUrl(storage);
-        break;
+            case 'airplay-monitor':
+                await airplayMonitor(storage);
+                break;
 
-    case 'airplay-stream-audio':
-        reporter.all();
-        await airplayStreamAudio(storage);
-        break;
+            case 'airplay-play-url':
+                reporter.all();
+                await airplayPlayUrl(storage);
+                break;
 
-    case 'airplay-listen':
-        reporter.all();
-        await airplayListen(storage);
-        break;
+            case 'airplay-stream-audio':
+                reporter.all();
+                await airplayStreamAudio(storage);
+                break;
 
-    case 'homepod-play-audio':
-        reporter.all();
-        await homePodPlayAudio();
-        break;
+            case 'airplay-listen':
+                reporter.all();
+                await airplayListen(storage);
+                break;
 
-    case 'mdns-scan':
-        await mdnsScan();
-        break;
+            case 'homepod-play-audio':
+                reporter.all();
+                await homePodPlayAudio();
+                break;
 
-    default:
-        console.error(`Invalid feature ${response.feature}.`);
-        process.exit(1);
+            case 'mdns-scan':
+                await mdnsScan();
+                break;
+        }
+    } catch (err) {
+        console.error('An error occurred:', err);
+    }
+
+    console.log();
+    await prompt({
+        name: '_',
+        type: 'input',
+        message: 'Press Enter to return to the main menu...'
+    });
+    console.log();
 }
-
-console.log('Done');

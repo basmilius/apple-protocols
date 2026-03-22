@@ -50,7 +50,8 @@
     "dependencies": {
         "@basmilius/apple-common": "workspace:*",
         "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*"
+        "@basmilius/apple-encryption": "workspace:*",
+        "@basmilius/apple-rtsp": "workspace:*"
     },
     "devDependencies": {
         "@bufbuild/buf": "^1.66.1",

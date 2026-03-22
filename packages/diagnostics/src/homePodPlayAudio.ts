@@ -51,15 +51,20 @@ export default async function (): Promise<void> {
     console.log(`Model: ${raop.modelName}`);
     console.log(`Address: ${raop.address}`);
 
-    const audioSource = await Url.fromUrl('https://bmcdn.nl/doorbell.pcm');
+    try {
+        const audioSource = await Url.fromUrl('https://bmcdn.nl/doorbell.wav');
 
-    await raop.stream(audioSource, {
-        metadata: {
-            title: 'Doorbell',
-            artist: 'Apple Protocols Diagnostics',
-            album: 'Test Audio',
-            duration: 5
-        },
-        volume: 15
-    });
+        await raop.stream(audioSource, {
+            metadata: {
+                title: 'Doorbell',
+                artist: 'Apple Protocols Diagnostics',
+                album: 'Test Audio',
+                duration: 5
+            },
+            volume: 15
+        });
+    } finally {
+        await raop.close();
+        timingServer.close();
+    }
 }

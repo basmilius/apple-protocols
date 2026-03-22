@@ -43,32 +43,37 @@ export default async function (storage: Storage): Promise<void> {
 
     const protocol = new AirPlay.Protocol(device);
     await protocol.connect();
-    await protocol.pairing.start();
 
-    if (isAppleTV) {
-        const credentials = await protocol.pairing.pin(async () => prompt({
-            name: 'pin',
-            type: 'input',
-            message: 'Enter PIN'
-        }).then((r: Record<string, string>) => r.pin));
+    try {
+        await protocol.pairing.start();
 
-        storage.setDevice(device.id, {
-            identifier: device.id,
-            name: device.fqdn
-        });
-        storage.setCredentials(device.id, 'airplay', credentials);
-        await storage.save();
+        if (isAppleTV) {
+            const credentials = await protocol.pairing.pin(async () => prompt({
+                name: 'pin',
+                type: 'input',
+                message: 'Enter PIN'
+            }).then((r: Record<string, string>) => r.pin));
 
-        console.log('Credentials saved.');
-    }
+            storage.setDevice(device.id, {
+                identifier: device.id,
+                name: device.fqdn
+            });
+            storage.setCredentials(device.id, 'airplay', credentials);
+            await storage.save();
 
-    if (isHomePod) {
-        const keys = await protocol.pairing.transient();
+            console.log('Credentials saved.');
+        }
 
-        console.log('Keys:');
-        console.log({
-            accessoryToControllerKey: keys.accessoryToControllerKey.toString('hex'),
-            controllerToAccessoryKey: keys.controllerToAccessoryKey.toString('hex')
-        });
+        if (isHomePod) {
+            const keys = await protocol.pairing.transient();
+
+            console.log('Keys:');
+            console.log({
+                accessoryToControllerKey: keys.accessoryToControllerKey.toString('hex'),
+                controllerToAccessoryKey: keys.controllerToAccessoryKey.toString('hex')
+            });
+        }
+    } finally {
+        protocol.disconnect();
     }
 }

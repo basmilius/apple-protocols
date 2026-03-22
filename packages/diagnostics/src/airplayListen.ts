@@ -61,6 +61,8 @@ export default async function (storage: Storage): Promise<void> {
 
     if (!keys) {
         console.error('No keys found.');
+        protocol.disconnect();
+        timingServer.close();
         return;
     }
 
@@ -80,7 +82,7 @@ export default async function (storage: Storage): Promise<void> {
     await protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
     await protocol.setupDataStream(keys.sharedSecret);
 
-    setInterval(() => protocol.feedback(), 2000);
+    const feedbackInterval = setInterval(() => protocol.feedback(), 2000);
 
     protocol.dataStream.once('deviceInfo', async () => {
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setConnectionState());
@@ -89,4 +91,15 @@ export default async function (storage: Storage): Promise<void> {
     });
 
     await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
+
+    // Wait until the user presses Enter to stop listening.
+    await new Promise<void>(resolve => {
+        console.log();
+        console.log('Listening for events... Press Enter to stop.');
+        process.stdin.once('data', () => resolve());
+    });
+
+    clearInterval(feedbackInterval);
+    protocol.disconnect();
+    timingServer.close();
 }

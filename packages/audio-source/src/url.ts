@@ -41,13 +41,9 @@ export default class Url implements AudioSource {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        let pcmBuffer: Buffer;
-
-        if (isMp3(buffer) || isOgg(buffer) || isWav(buffer)) {
-            pcmBuffer = await decode(buffer);
-        } else {
-            throw new Error('Unsupported audio format. Please use WAV or MP3.');
-        }
+        const pcmBuffer = (isMp3(buffer) || isOgg(buffer) || isWav(buffer))
+            ? await decode(buffer)
+            : buffer;
 
         const duration = pcmBuffer.length / (DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL) / DEFAULT_SAMPLE_RATE;
 

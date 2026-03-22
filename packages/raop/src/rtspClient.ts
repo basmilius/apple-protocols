@@ -1,15 +1,14 @@
 import { createHash } from 'node:crypto';
-import { Connection, type Context, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
-import { DAAP, Plist, RTSP } from '@basmilius/apple-encoding';
+import { type Context, generateActiveRemoteId, generateDacpId, generateSessionId } from '@basmilius/apple-common';
+import { DAAP, Plist } from '@basmilius/apple-encoding';
+import { RtspClient } from '@basmilius/apple-rtsp';
 import type { MediaMetadata } from './types';
 
 const USER_AGENT = 'AirPlay/550.10';
 const FRAMES_PER_PACKET = 352;
 
-// Used to signal that traffic is to be unencrypted
 const AUTH_SETUP_UNENCRYPTED = Buffer.from([0x01]);
 
-// Static Curve25519 public key for auth-setup (from owntone-server)
 const CURVE25519_PUB_KEY = Buffer.from([
     0x59, 0x02, 0xed, 0xe9, 0x0d, 0x4e, 0xf2, 0xbd,
     0x4c, 0xb6, 0x8a, 0x63, 0x30, 0x03, 0x82, 0x07,
@@ -31,7 +30,7 @@ type DigestInfo = {
     readonly realm: string;
     readonly password: string;
     readonly nonce: string;
-}
+};
 
 function getDigestPayload(method: string, uri: string, info: DigestInfo): string {
     const ha1 = createHash('md5')
@@ -49,10 +48,6 @@ function getDigestPayload(method: string, uri: string, info: DigestInfo): string
     return `Digest username="${info.username}", realm="${info.realm}", nonce="${info.nonce}", uri="${uri}", response="${response}"`;
 }
 
-function generateRandomSessionId(): number {
-    return Math.floor(Math.random() * 0xFFFFFFFF);
-}
-
 function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
     return [
         'v=0',
@@ -66,7 +61,7 @@ function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
     ].join('\r\n') + '\r\n';
 }
 
-export default class RtspClient extends Connection<{}> {
+export default class RaopRtspClient extends RtspClient {
     get activeRemoteId(): string {
         return this.#activeRemoteId;
     }
@@ -99,13 +94,7 @@ export default class RtspClient extends Connection<{}> {
     readonly #rtspSessionId: string;
     readonly #sessionId: number;
     #localIp: string = '0.0.0.0';
-    #buffer: Buffer = Buffer.alloc(0);
-    #cseq: number = 0;
     #digestInfo?: DigestInfo;
-    #requests: Map<number, {
-        resolve: (response: Response) => void;
-        reject: (error: Error) => void;
-    }> = new Map();
 
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
@@ -113,23 +102,37 @@ export default class RtspClient extends Connection<{}> {
         this.#activeRemoteId = generateActiveRemoteId();
         this.#dacpId = generateDacpId();
         this.#rtspSessionId = generateSessionId();
-        this.#sessionId = generateRandomSessionId();
+        this.#sessionId = Math.floor(Math.random() * 0xFFFFFFFF);
 
-        this.on('close', this.#onClose.bind(this));
-        this.on('data', this.#onData.bind(this));
-        this.on('error', this.#onError.bind(this));
-        this.on('timeout', this.#onTimeout.bind(this));
-        this.on('connect', this.#onConnect.bind(this));
+        this.on('connect', () => {
+            this.#localIp = '0.0.0.0';
+        });
+    }
+
+    protected override getDefaultHeaders(): Record<string, string | number> {
+        const headers: Record<string, string | number> = {
+            'DACP-ID': this.#dacpId,
+            'Active-Remote': this.#activeRemoteId,
+            'Client-Instance': this.#dacpId,
+            'User-Agent': USER_AGENT
+        };
+
+        if (this.#digestInfo) {
+            headers['Authorization'] = getDigestPayload('', this.uri, this.#digestInfo);
+        }
+
+        return headers;
     }
 
     async info(): Promise<Record<string, unknown>> {
         try {
-            const response = await this.#exchange('GET', '/info', {
+            const response = await this.exchange('GET', '/info', {
                 allowError: true
             });
 
             if (response.ok) {
                 const buffer = Buffer.from(await response.arrayBuffer());
+
                 if (buffer.length > 0) {
                     try {
                         return Plist.parse(buffer.buffer) as Record<string, unknown>;
@@ -148,7 +151,7 @@ export default class RtspClient extends Connection<{}> {
     async authSetup(): Promise<void> {
         const body = Buffer.concat([AUTH_SETUP_UNENCRYPTED, CURVE25519_PUB_KEY]);
 
-        await this.#exchange('POST', '/auth-setup', {
+        await this.exchange('POST', '/auth-setup', {
             contentType: 'application/octet-stream',
             body,
             protocol: 'HTTP/1.1'
@@ -165,13 +168,12 @@ export default class RtspClient extends Connection<{}> {
             sampleRate
         });
 
-        let response = await this.#exchange('ANNOUNCE', undefined, {
+        let response = await this.exchange('ANNOUNCE', this.uri, {
             contentType: 'application/sdp',
             body,
             allowError: !!password
         });
 
-        // Handle password authentication
         if (response.status === 401 && password) {
             const wwwAuthenticate = response.headers.get('www-authenticate');
 
@@ -186,7 +188,7 @@ export default class RtspClient extends Connection<{}> {
                         nonce: parts[3]
                     };
 
-                    response = await this.#exchange('ANNOUNCE', undefined, {
+                    response = await this.exchange('ANNOUNCE', this.uri, {
                         contentType: 'application/sdp',
                         body
                     });
@@ -198,19 +200,19 @@ export default class RtspClient extends Connection<{}> {
     }
 
     async setup(headers?: Record<string, string>, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
-        return await this.#exchange('SETUP', undefined, {headers, body});
+        return await this.exchange('SETUP', this.uri, {headers, body});
     }
 
     async record(headers?: Record<string, string>): Promise<void> {
-        await this.#exchange('RECORD', undefined, {headers});
+        await this.exchange('RECORD', this.uri, {headers});
     }
 
     async flush(options: { headers: Record<string, string> }): Promise<void> {
-        await this.#exchange('FLUSH', undefined, {headers: options.headers});
+        await this.exchange('FLUSH', this.uri, {headers: options.headers});
     }
 
     async setParameter(name: string, value: string): Promise<void> {
-        await this.#exchange('SET_PARAMETER', undefined, {
+        await this.exchange('SET_PARAMETER', this.uri, {
             contentType: 'text/parameters',
             body: `${name}: ${value}`
         });
@@ -224,7 +226,7 @@ export default class RtspClient extends Connection<{}> {
             duration: metadata.duration
         });
 
-        await this.#exchange('SET_PARAMETER', undefined, {
+        await this.exchange('SET_PARAMETER', this.uri, {
             contentType: 'application/x-dmap-tagged',
             headers: {
                 'Session': session,
@@ -236,11 +238,12 @@ export default class RtspClient extends Connection<{}> {
 
     async setArtwork(session: string, rtpseq: number, rtptime: number, artwork: Buffer): Promise<void> {
         let contentType = 'image/jpeg';
+
         if (artwork[0] === 0x89 && artwork[1] === 0x50) {
             contentType = 'image/png';
         }
 
-        await this.#exchange('SET_PARAMETER', undefined, {
+        await this.exchange('SET_PARAMETER', this.uri, {
             contentType,
             headers: {
                 'Session': session,
@@ -251,172 +254,12 @@ export default class RtspClient extends Connection<{}> {
     }
 
     async feedback(allowError: boolean = false): Promise<Response> {
-        return await this.#exchange('POST', '/feedback', {allowError});
+        return await this.exchange('POST', '/feedback', {allowError});
     }
 
     async teardown(session: string): Promise<void> {
-        await this.#exchange('TEARDOWN', undefined, {
+        await this.exchange('TEARDOWN', this.uri, {
             headers: {'Session': session}
         });
-    }
-
-    async #exchange(
-        method: RTSP.Method,
-        uri?: string,
-        options: {
-            contentType?: string;
-            headers?: Record<string, string>;
-            body?: Buffer | string | Record<string, unknown>;
-            allowError?: boolean;
-            protocol?: 'RTSP/1.0' | 'HTTP/1.1';
-            timeout?: number;
-        } = {}
-    ): Promise<Response> {
-        const {
-            contentType,
-            headers: extraHeaders = {},
-            allowError = false,
-            protocol = 'RTSP/1.0',
-            timeout = HTTP_TIMEOUT
-        } = options;
-        let {body} = options;
-
-        const cseq = this.#cseq++;
-        const targetUri = uri ?? this.uri;
-
-        const headers: Record<string, string | number> = {
-            'CSeq': cseq,
-            'DACP-ID': this.#dacpId,
-            'Active-Remote': this.#activeRemoteId,
-            'Client-Instance': this.#dacpId,
-            'User-Agent': USER_AGENT
-        };
-
-        if (this.#digestInfo) {
-            headers['Authorization'] = getDigestPayload(method, targetUri, this.#digestInfo);
-        }
-
-        Object.assign(headers, extraHeaders);
-
-        if (body && typeof body === 'object' && !Buffer.isBuffer(body)) {
-            headers['Content-Type'] = 'application/x-apple-binary-plist';
-            body = Buffer.from(Plist.serialize(body as {}));
-        } else if (contentType) {
-            headers['Content-Type'] = contentType;
-        }
-
-        let bodyBuffer: Buffer | undefined;
-        if (body) {
-            bodyBuffer = typeof body === 'string' ? Buffer.from(body) : body as Buffer;
-            headers['Content-Length'] = bodyBuffer.length;
-        } else {
-            headers['Content-Length'] = 0;
-        }
-
-        const headerLines = [
-            `${method} ${targetUri} ${protocol}`,
-            ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`),
-            '',
-            ''
-        ].join('\r\n');
-
-        const data = bodyBuffer
-            ? Buffer.concat([Buffer.from(headerLines), bodyBuffer])
-            : Buffer.from(headerLines);
-
-        this.context.logger.net('[rtsp]', method, targetUri, `cseq=${cseq}`);
-
-        return new Promise((resolve, reject) => {
-            this.#requests.set(cseq, {resolve, reject});
-
-            const timer = setTimeout(() => {
-                this.#requests.delete(cseq);
-                reject(new Error(`No response to CSeq ${cseq} (${targetUri})`));
-            }, timeout);
-
-            this.write(data);
-
-            const originalResolve = resolve;
-
-            this.#requests.set(cseq, {
-                resolve: (response) => {
-                    clearTimeout(timer);
-                    if (!allowError && !response.ok) {
-                        reject(new Error(`RTSP error: ${response.status} ${response.statusText}`));
-                    } else {
-                        originalResolve(response);
-                    }
-                },
-                reject: (error) => {
-                    clearTimeout(timer);
-                    reject(error);
-                }
-            });
-        });
-    }
-
-    #onConnect(): void {
-        this.#localIp = '0.0.0.0';
-    }
-
-    #onClose(): void {
-        this.#buffer = Buffer.alloc(0);
-
-        for (const [cseq, {reject}] of this.#requests) {
-            reject(new Error('Connection closed'));
-            this.#requests.delete(cseq);
-        }
-
-        this.context.logger.net('[rtsp]', '#onClose()');
-    }
-
-    #onData(data: Buffer): void {
-        try {
-            this.#buffer = Buffer.concat([this.#buffer, data]);
-
-            while (this.#buffer.byteLength > 0) {
-                const result = RTSP.makeResponse(this.#buffer);
-
-                if (result === null) {
-                    return;
-                }
-
-                this.#buffer = this.#buffer.subarray(result.responseLength);
-
-                const cseqHeader = result.response.headers.get('CSeq');
-                const cseq = cseqHeader ? parseInt(cseqHeader, 10) : -1;
-
-                if (this.#requests.has(cseq)) {
-                    const {resolve} = this.#requests.get(cseq)!;
-                    this.#requests.delete(cseq);
-                    resolve(result.response);
-                } else {
-                    this.context.logger.warn('[rtsp]', `Unexpected response for CSeq ${cseq}`);
-                }
-            }
-        } catch (err) {
-            this.context.logger.error('[rtsp]', '#onData()', err);
-            this.emit('error', err as Error);
-        }
-    }
-
-    #onError(err: Error): void {
-        for (const [cseq, {reject}] of this.#requests) {
-            reject(err);
-            this.#requests.delete(cseq);
-        }
-
-        this.context.logger.error('[rtsp]', '#onError()', err);
-    }
-
-    #onTimeout(): void {
-        const err = new Error('Connection timed out');
-
-        for (const [cseq, {reject}] of this.#requests) {
-            reject(err);
-            this.#requests.delete(cseq);
-        }
-
-        this.context.logger.net('[rtsp]', '#onTimeout()');
     }
 }

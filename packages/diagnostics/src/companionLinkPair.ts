@@ -35,20 +35,25 @@ export default async function (storage: Storage): Promise<void> {
 
     const protocol = new CompanionLink.Protocol(device);
     await protocol.connect();
-    await protocol.pairing.start();
 
-    const credentials = await protocol.pairing.pin(async () => prompt({
-        name: 'pin',
-        type: 'input',
-        message: 'Enter PIN'
-    }).then((r: Record<string, string>) => r.pin));
+    try {
+        await protocol.pairing.start();
 
-    storage.setDevice(device.id, {
-        identifier: device.id,
-        name: device.fqdn
-    });
-    storage.setCredentials(device.id, 'companionLink', credentials);
-    await storage.save();
+        const credentials = await protocol.pairing.pin(async () => prompt({
+            name: 'pin',
+            type: 'input',
+            message: 'Enter PIN'
+        }).then((r: Record<string, string>) => r.pin));
 
-    console.log('Credentials saved.');
+        storage.setDevice(device.id, {
+            identifier: device.id,
+            name: device.fqdn
+        });
+        storage.setCredentials(device.id, 'companionLink', credentials);
+        await storage.save();
+
+        console.log('Credentials saved.');
+    } finally {
+        protocol.disconnect();
+    }
 }

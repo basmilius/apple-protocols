@@ -1,39 +1,66 @@
 export type Method =
+    | 'ANNOUNCE'
+    | 'FLUSH'
     | 'GET'
+    | 'GET_PARAMETER'
     | 'OPTIONS'
     | 'POST'
     | 'PUT'
-    | 'GET_PARAMETER'
-    | 'SET_PARAMETER'
-    | 'ANNOUNCE'
-    | 'FLUSH'
     | 'RECORD'
     | 'SETUP'
+    | 'SET_PARAMETER'
     | 'TEARDOWN';
 
-export function makeHeader(method: Method, path: string, headers: HeadersInit, cseq: number, activeRemote: string, dacpId: string, sessionId: string): string {
-    const lines = [];
-    lines.push(`${method} ${path} RTSP/1.0`);
-    lines.push(`CSeq: ${cseq}`);
-    lines.push(`Active-Remote: ${activeRemote}`);
-    lines.push(`Client-Instance: ${dacpId}`);
-    lines.push(`DACP-ID: ${dacpId}`);
-    lines.push('User-Agent: AirPlay/320.20');
-    lines.push('X-Apple-ProtocolVersion: 1');
-    lines.push(`X-Apple-Session-ID: ${sessionId}`);
-    lines.push('X-ProtocolVersion: 1');
+export type RtspRequest = {
+    readonly headers: Record<string, string>;
+    readonly method: Method;
+    readonly path: string;
+    readonly body: Buffer;
+    readonly requestLength: number;
+};
 
-    for (const [name, value] of Object.entries(headers)) {
-        lines.push(`${name}: ${value}`);
+export type RtspResponse = {
+    readonly response: Response;
+    readonly responseLength: number;
+};
+
+export type BuildResponseOptions = {
+    readonly status: number;
+    readonly statusText: string;
+    readonly headers?: Record<string, string | number>;
+    readonly body?: Buffer;
+    readonly protocol?: 'RTSP/1.0' | 'HTTP/1.1';
+};
+
+export function buildResponse(options: BuildResponseOptions): Buffer {
+    const {
+        status,
+        statusText,
+        headers: extraHeaders = {},
+        body,
+        protocol = 'RTSP/1.0'
+    } = options;
+
+    const headers: Record<string, string | number> = {
+        ...extraHeaders,
+        'Content-Length': body?.byteLength ?? 0
+    };
+
+    const headerLines = [
+        `${protocol} ${status} ${statusText}`,
+        ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`),
+        '',
+        ''
+    ].join('\r\n');
+
+    if (body && body.byteLength > 0) {
+        return Buffer.concat([Buffer.from(headerLines), body]);
     }
 
-    lines.push('');
-    lines.push('');
-
-    return lines.join('\r\n');
+    return Buffer.from(headerLines);
 }
 
-export function makeRequest(buffer: Buffer): HttpRequest | null {
+export function parseRequest(buffer: Buffer): RtspRequest | null {
     const headerLength = buffer.indexOf('\r\n\r\n');
     const {headers, method, path} = parseRequestHeaders(buffer.subarray(0, headerLength));
 
@@ -60,7 +87,7 @@ export function makeRequest(buffer: Buffer): HttpRequest | null {
     };
 }
 
-export function makeResponse(buffer: Buffer): HttpResponse | null {
+export function parseResponse(buffer: Buffer): RtspResponse | null {
     const headerLength = buffer.indexOf('\r\n\r\n');
     const {headers, status, statusText} = parseResponseHeaders(buffer.subarray(0, headerLength));
 
@@ -72,7 +99,6 @@ export function makeResponse(buffer: Buffer): HttpResponse | null {
 
     const responseLength = headerLength + 4 + contentLength;
 
-    // not enough data yet
     if (buffer.byteLength < responseLength) {
         return null;
     }
@@ -107,57 +133,24 @@ function parseHeaders(lines: string[]): Record<string, string> {
     return headers;
 }
 
-function parseRequestHeaders(buffer: Buffer): HttpRequestHeader {
+function parseRequestHeaders(buffer: Buffer): { headers: Record<string, string>; method: Method; path: string } {
     const lines = buffer.toString('utf8').split('\r\n');
 
     const rawRequest = lines[0].match(/^(\S+)\s+(\S+)\s+RTSP\/1\.0$/);
     const method = rawRequest[1] as Method;
     const path = rawRequest[2];
-    const headers: Record<string, string> = parseHeaders(lines.slice(1));
+    const headers = parseHeaders(lines.slice(1));
 
-    return {
-        headers,
-        method,
-        path
-    };
+    return {headers, method, path};
 }
 
-function parseResponseHeaders(buffer: Buffer): HttpResponseHeader {
+function parseResponseHeaders(buffer: Buffer): { headers: Record<string, string>; status: number; statusText: string } {
     const lines = buffer.toString('utf8').split('\r\n');
 
     const rawStatus = lines[0].match(/(HTTP|RTSP)\/[\d.]+\s+(\d+)\s+(.+)/);
     const status = Number(rawStatus[2]);
     const statusText = rawStatus[3];
-    const headers: Record<string, string> = parseHeaders(lines.slice(1));
+    const headers = parseHeaders(lines.slice(1));
 
-    return {
-        headers,
-        status,
-        statusText
-    };
+    return {headers, status, statusText};
 }
-
-type HttpRequestHeader = {
-    readonly headers: Record<string, string>;
-    readonly method: Method;
-    readonly path: string;
-};
-
-type HttpResponseHeader = {
-    readonly headers: Record<string, string>;
-    readonly status: number;
-    readonly statusText: string;
-};
-
-type HttpRequest = {
-    readonly headers: Record<string, string>;
-    readonly method: Method;
-    readonly path: string;
-    readonly body: Buffer;
-    readonly requestLength: number;
-};
-
-type HttpResponse = {
-    readonly response: Response;
-    readonly responseLength: number;
-};

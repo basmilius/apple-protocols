@@ -5,6 +5,7 @@ bun --cwd packages/encryption build
 
 bun --cwd packages/common build
 bun --cwd packages/audio-source build
+bun --cwd packages/rtsp build
 
 bun --cwd packages/airplay build
 bun --cwd packages/companion-link build

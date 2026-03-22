@@ -1,8 +1,8 @@
-import { type Context, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
-import { RTSP } from '@basmilius/apple-encoding';
-import BaseStream from './baseStream';
+import { type Context, EncryptionState, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
+import { RtspClient } from '@basmilius/apple-rtsp';
+import { chacha20Decrypt, chacha20Encrypt } from './encryption';
 
-export default class ControlStream extends BaseStream {
+export default class ControlStream extends RtspClient {
     get activeRemoteId(): string {
         return this.#activeRemoteId;
     }
@@ -15,15 +15,14 @@ export default class ControlStream extends BaseStream {
         return this.#sessionId;
     }
 
+    get isEncrypted(): boolean {
+        return !!this.#encryptionState;
+    }
+
     readonly #activeRemoteId: string;
     readonly #dacpId: string;
     readonly #sessionId: string;
-    #buffer: Buffer = Buffer.alloc(0);
-    #cseq: number = 0;
-    #requesting: boolean = false;
-    #requestTimer?: NodeJS.Timeout;
-    #reject?: (reason: Error) => void;
-    #resolve?: (response: Response) => void;
+    #encryptionState?: EncryptionState;
 
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
@@ -31,163 +30,73 @@ export default class ControlStream extends BaseStream {
         this.#activeRemoteId = generateActiveRemoteId();
         this.#dacpId = generateDacpId();
         this.#sessionId = generateSessionId();
-
-        this.on('close', this.#onClose.bind(this));
-        this.on('data', this.#onData.bind(this));
-        this.on('error', this.#onError.bind(this));
-        this.on('timeout', this.#onTimeout.bind(this));
     }
 
-    async disconnect(): Promise<void> {
-        this.#cleanup();
-        await super.disconnect();
+    enableEncryption(readKey: Buffer, writeKey: Buffer): void {
+        this.#encryptionState = new EncryptionState(readKey, writeKey);
+    }
+
+    protected override getDefaultHeaders(): Record<string, string | number> {
+        return {
+            'Active-Remote': this.#activeRemoteId,
+            'Client-Instance': this.#dacpId,
+            'DACP-ID': this.#dacpId,
+            'User-Agent': 'AirPlay/320.20',
+            'X-Apple-ProtocolVersion': 1,
+            'X-Apple-Session-ID': this.#sessionId,
+            'X-ProtocolVersion': 1
+        };
+    }
+
+    protected override transformIncoming(data: Buffer): Buffer | false {
+        if (!this.#encryptionState) {
+            return data;
+        }
+
+        return chacha20Decrypt(this.#encryptionState, data);
+    }
+
+    protected override transformOutgoing(data: Buffer): Buffer {
+        if (!this.#encryptionState) {
+            return data;
+        }
+
+        return chacha20Encrypt(this.#encryptionState, data);
     }
 
     async flush(uri: string, headers: Record<string, string>): Promise<Response> {
-        return await this.#request('FLUSH', uri, null, headers);
+        return await this.exchange('FLUSH', uri, {headers, allowError: true});
     }
 
-    async get(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.#request('GET', path, null, headers, timeout);
+    async get(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.exchange('GET', path, {headers, timeout, allowError: true});
     }
 
-    async post(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.#request('POST', path, body, headers, timeout);
+    async post(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.exchange('POST', path, {headers, body, timeout, allowError: true});
     }
 
-    async put(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.#request('PUT', path, body, headers, timeout);
+    async put(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.exchange('PUT', path, {headers, body, timeout, allowError: true});
     }
 
-    async record(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.#request('RECORD', path, null, headers, timeout);
+    async record(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.exchange('RECORD', path, {headers, timeout, allowError: true});
     }
 
-    async setup(path: string, body: Buffer | string | null = null, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.#request('SETUP', path, body, headers, timeout);
+    async setup(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.exchange('SETUP', path, {headers, body, timeout, allowError: true});
     }
 
     async setParameter(parameter: string, value: string): Promise<Response> {
-        return await this.#request('SET_PARAMETER', `/${this.sessionId}`, `${parameter}: ${value}\r\n`, {
-            'Content-Type': 'text/parameters'
+        return await this.exchange('SET_PARAMETER', `/${this.sessionId}`, {
+            contentType: 'text/parameters',
+            body: `${parameter}: ${value}\r\n`,
+            allowError: true
         });
     }
 
-    async teardown(path: string, headers: HeadersInit = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.#request('TEARDOWN', path, null, headers, timeout);
-    }
-
-    #cleanup(): void {
-        if (this.#requestTimer) {
-            clearTimeout(this.#requestTimer);
-            this.#requestTimer = undefined;
-        }
-
-        this.#buffer = Buffer.alloc(0);
-        this.#reject = undefined;
-        this.#resolve = undefined;
-        this.#requesting = false;
-    }
-
-    #handle(data: Response, err?: Error): void {
-        if (this.#requestTimer) {
-            clearTimeout(this.#requestTimer);
-            this.#requestTimer = undefined;
-        }
-
-        if (err) {
-            this.#reject?.(err);
-        } else {
-            this.#resolve?.(data);
-        }
-
-        this.#reject = undefined;
-        this.#resolve = undefined;
-        this.#requesting = false;
-    }
-
-    #request(method: RTSP.Method, path: string, body: Buffer | string | null, headers: HeadersInit, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        if (this.#requesting) {
-            return Promise.reject(new Error('Another request is currently being made.'));
-        }
-
-        this.#requesting = true;
-
-        const cseq = this.#cseq++;
-        let data: Buffer;
-
-        if (body) {
-            headers['Content-Length'] = Buffer.byteLength(body);
-
-            data = Buffer.concat([
-                Buffer.from(RTSP.makeHeader(method, path, headers, cseq, this.#activeRemoteId, this.#dacpId, this.#sessionId)),
-                Buffer.from(body)
-            ]);
-        } else {
-            headers['Content-Length'] = 0;
-
-            data = Buffer.from(RTSP.makeHeader(method, path, headers, cseq, this.#activeRemoteId, this.#dacpId, this.#sessionId));
-        }
-
-        this.context.logger.net('[control]', method, path, `cseq = ${cseq}`);
-
-        if (this.isEncrypted) {
-            data = this.encrypt(data);
-        }
-
-        return new Promise((resolve, reject) => {
-            this.#reject = reject;
-            this.#resolve = resolve;
-
-            this.#requestTimer = setTimeout(() => this.#handle(undefined, new Error('Request timed out')), timeout);
-
-            this.write(data);
-        });
-    }
-
-    #onClose(): void {
-        this.#cleanup();
-        this.#handle(undefined, new Error('Connection closed.'));
-        this.context.logger.net('[control]', '#onClose()');
-    }
-
-    #onData(data: Buffer): void {
-        try {
-            this.#buffer = Buffer.concat([this.#buffer, data]);
-
-            if (this.isEncrypted) {
-                const decrypted = this.decrypt(this.#buffer);
-
-                if (!decrypted) {
-                    return;
-                }
-
-                this.#buffer = decrypted;
-            }
-
-            while (this.#buffer.byteLength > 0) {
-                const result = RTSP.makeResponse(this.#buffer);
-
-                if (result === null) {
-                    return;
-                }
-
-                this.#buffer = this.#buffer.subarray(result.responseLength);
-                this.#handle(result.response, undefined);
-            }
-        } catch (err) {
-            this.context.logger.error('[control]', '#onData()', err);
-            this.emit('error', err);
-        }
-    }
-
-    #onError(err: Error): void {
-        this.#handle(undefined, err);
-        this.context.logger.error('[control]', '#onError()', err);
-    }
-
-    #onTimeout(): void {
-        this.#handle(undefined, new Error('Request timed out.'));
-        this.context.logger.net('[control]', '#onTimeout()');
+    async teardown(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
+        return await this.exchange('TEARDOWN', path, {headers, timeout, allowError: true});
     }
 }

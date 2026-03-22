@@ -38,30 +38,34 @@ export default async function (storage: Storage): Promise<void> {
     const protocol = new CompanionLink.Protocol(device);
     await protocol.connect();
 
-    const keys = await protocol.verify.start(credentials);
+    try {
+        const keys = await protocol.verify.start(credentials);
 
-    console.log('Keys:');
-    console.log({
-        accessoryToControllerKey: keys.accessoryToControllerKey.toString('hex'),
-        controllerToAccessoryKey: keys.controllerToAccessoryKey.toString('hex')
-    });
+        console.log('Keys:');
+        console.log({
+            accessoryToControllerKey: keys.accessoryToControllerKey.toString('hex'),
+            controllerToAccessoryKey: keys.controllerToAccessoryKey.toString('hex')
+        });
 
-    console.log();
+        console.log();
 
-    protocol.stream.enableEncryption(
-        keys.accessoryToControllerKey,
-        keys.controllerToAccessoryKey
-    );
+        protocol.stream.enableEncryption(
+            keys.accessoryToControllerKey,
+            keys.controllerToAccessoryKey
+        );
 
-    await protocol.systemInfo(credentials.pairingId);
-    await protocol.sessionStart();
-    await protocol.tvrcSessionStart();
-    await protocol.touchStart();
-    await protocol.tiStart();
+        await protocol.systemInfo(credentials.pairingId);
+        await protocol.sessionStart();
+        await protocol.tvrcSessionStart();
+        await protocol.touchStart();
+        await protocol.tiStart();
 
-    await protocol.unsubscribe('_iMC');
+        await protocol.unsubscribe('_iMC');
 
-    console.log('Launching settings...');
+        console.log('Launching settings...');
 
-    await protocol.launchApp('com.apple.TVSettings');
+        await protocol.launchApp('com.apple.TVSettings');
+    } finally {
+        protocol.disconnect();
+    }
 }

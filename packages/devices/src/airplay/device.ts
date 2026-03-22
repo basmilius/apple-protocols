@@ -188,6 +188,10 @@ export default class extends EventEmitter<EventMap> {
         this.#protocol.eventStream.on('error', this.#onError.bind(this));
         this.#protocol.eventStream.on('timeout', this.#onTimeout.bind(this));
 
+        if (this.#feedbackInterval) {
+            clearInterval(this.#feedbackInterval);
+        }
+
         this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
         try {

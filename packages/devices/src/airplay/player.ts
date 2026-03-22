@@ -121,8 +121,8 @@ export default class Player {
         const npi = this.#nowPlayingInfo;
         const meta = this.currentItemMetadata;
 
-        const npiValid = npi?.elapsedTime != null && npi.timestamp;
-        const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp;
+        const npiValid = npi?.elapsedTime != null && npi.timestamp != null && npi.timestamp !== 0;
+        const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp != null && meta.elapsedTimeTimestamp !== 0;
 
         if (npiValid && metaValid) {
             // After track restarts or seeks, metadata may have a more
@@ -234,19 +234,7 @@ export default class Player {
     }
 
     get currentItemArtworkUrl(): string | null {
-        const metadata = this.currentItemMetadata;
-
-        if (metadata?.artworkURL) {
-            return metadata.artworkURL;
-        }
-
-        const item = this.currentItem;
-
-        if (item?.remoteArtworks.length > 0 && item.remoteArtworks[0].artworkURLString) {
-            return item.remoteArtworks[0].artworkURLString;
-        }
-
-        return null;
+        return this.artworkUrl();
     }
 
     get currentItemLyrics(): Proto.LyricsItem | null {

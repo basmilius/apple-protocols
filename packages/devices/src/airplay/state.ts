@@ -4,6 +4,7 @@ import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './co
 import Client from './client';
 import type Device from './device';
 import type Player from './player';
+import { DEFAULT_PLAYER_ID } from './player';
 
 type NowPlayingSnapshot = {
     bundleIdentifier: string | null;
@@ -190,26 +191,12 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onDeviceInfo(message: Proto.DeviceInfoMessage): void {
-        if (message.clusterID) {
-            this.#outputDeviceUID = message.clusterID;
-        } else if (message.deviceUID) {
-            this.#outputDeviceUID = message.deviceUID;
-        } else if (message.uniqueIdentifier) {
-            this.#outputDeviceUID = message.uniqueIdentifier;
-        }
-
+        this.#updateOutputDeviceUID(message);
         this.emit('deviceInfo', message);
     }
 
     onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
-        if (message.clusterID) {
-            this.#outputDeviceUID = message.clusterID;
-        } else if (message.deviceUID) {
-            this.#outputDeviceUID = message.deviceUID;
-        } else if (message.uniqueIdentifier) {
-            this.#outputDeviceUID = message.uniqueIdentifier;
-        }
-
+        this.#updateOutputDeviceUID(message);
         this.emit('deviceInfoUpdate', message);
     }
 
@@ -284,7 +271,7 @@ export default class extends EventEmitter<EventMap> {
     onSetState(message: Proto.SetStateMessage): void {
         const bundleIdentifier = message.playerPath.client.bundleIdentifier;
         const client = this.#client(bundleIdentifier, message.displayName);
-        const playerIdentifier = message.playerPath?.player?.identifier || 'MediaRemote-DefaultPlayer';
+        const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
         if (message.nowPlayingInfo) {
@@ -313,7 +300,7 @@ export default class extends EventEmitter<EventMap> {
     onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
         const bundleIdentifier = message.playerPath.client.bundleIdentifier;
         const client = this.#client(bundleIdentifier, message.playerPath.client.displayName);
-        const playerIdentifier = message.playerPath?.player?.identifier || 'MediaRemote-DefaultPlayer';
+        const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
         for (const item of message.contentItems) {
@@ -386,6 +373,10 @@ export default class extends EventEmitter<EventMap> {
         this.#volume = message.volume;
 
         this.emit('volumeDidChange', message.volume);
+    }
+
+    #updateOutputDeviceUID(message: Proto.DeviceInfoMessage): void {
+        this.#outputDeviceUID = message.clusterID || message.deviceUID || message.uniqueIdentifier || null;
     }
 
     #client(bundleIdentifier: string, displayName: string): Client {

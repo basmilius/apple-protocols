@@ -15,11 +15,7 @@ export default class Client {
     }
 
     get activePlayer(): Player | null {
-        if (this.#activePlayerId) {
-            return this.#players.get(this.#activePlayerId) ?? null;
-        }
-
-        return this.#players.get(DEFAULT_PLAYER_ID) ?? null;
+        return this.#players.get(this.#activePlayerId ?? DEFAULT_PLAYER_ID) ?? null;
     }
 
     get nowPlayingInfo(): Proto.NowPlayingInfo | null {

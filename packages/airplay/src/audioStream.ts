@@ -15,11 +15,45 @@ const SYNC_INTERVAL = 1000;
 const MAX_PACKETS_COMPENSATE = 3;
 const SLOW_WARNING_THRESHOLD = 5;
 
-// Audio formats:
-// 262_144 (0x40000) = AAC-ELD (what iOS uses, requires encoding)
-// 4_194_304 (0x400000) = PCM 44100/16/2 (raw PCM, big-endian)
-const AUDIO_FORMAT_PCM = 4194304;
-const AUDIO_FORMAT = AUDIO_FORMAT_PCM;
+/**
+ * Compression type values (ct field in SETUP body).
+ * Derived from APAudioFormatIDToAPCompressionType in AirPlaySupport.
+ */
+export const CompressionType = {
+    PCM: 1,
+    ALAC: 2,
+    AAC_LC: 4,
+    AAC_ELD: 8,
+    Opus: 32
+} as const;
+
+/**
+ * Audio format bitmask values (audioFormat field in SETUP body).
+ * Each bit represents a specific samplerate/bitdepth/channels combination.
+ */
+export const AudioFormat = {
+    PCM_8000_16_1: 0x1,
+    PCM_8000_16_2: 0x2,
+    PCM_16000_16_1: 0x4,
+    PCM_16000_16_2: 0x8,
+    PCM_24000_16_1: 0x10,
+    PCM_24000_16_2: 0x20,
+    PCM_32000_16_1: 0x40,
+    PCM_32000_16_2: 0x80,
+    PCM_44100_16_1: 0x100,
+    PCM_44100_16_2: 0x200,
+    PCM_44100_24_1: 0x400,
+    PCM_44100_24_2: 0x800,
+    PCM_48000_16_1: 0x1000,
+    PCM_48000_16_2: 0x2000,
+    PCM_48000_24_1: 0x4000,
+    PCM_48000_24_2: 0x8000,
+    AAC_LC_44100_2: 0x20000,
+    AAC_ELD_44100_2: 0x40000,
+    AAC_ELD_16000_1: 0x100000,
+    ALAC_44100_16_2: 0x400000,
+    ALAC_44100_24_2: 0x800000,
+} as const;
 
 export type AudioStreamContext = {
     sampleRate: number;
@@ -55,6 +89,8 @@ export default class AudioStream {
     #sharedKey?: Buffer;
     #dataPort: number = 0;
     #dataSocket?: UdpSocket;
+    #negotiatedBytesPerChannel: number = BYTES_PER_CHANNEL;
+    #negotiatedSampleRate: number = SAMPLE_RATE;
     #remoteControlPort: number = 0;
     #packetBacklog: Map<number, Buffer> = new Map();
     #ssrc: number = 0;
@@ -93,18 +129,31 @@ export default class AudioStream {
         // Generate a random 64-bit stream connection ID like iOS does
         const streamConnectionID = randomInt64();
 
+        // Select the best supported audio format.
+        // ct = compression type (1=PCM, 2=ALAC, 4=AAC-LC, 8=AAC-ELD)
+        // audioFormat = bitmask for specific variant within that compression type
+        const supportedFormats = this.#protocol.receiverInfo?.supportedAudioFormats as number | undefined;
+        let ct = CompressionType.PCM;
+        let audioFormat: number = AudioFormat.PCM_44100_24_2;
+        let sampleRate = SAMPLE_RATE;
+        let bytesPerChannel = BYTES_PER_CHANNEL;
+
+        if (supportedFormats) {
+            this.#context.logger.info('[audio]', `Receiver supported formats: 0x${supportedFormats.toString(16)}`);
+        }
+
         const setupBody = Plist.serialize({
             streams: [{
-                audioFormat: 0x800,
+                audioFormat,
                 audioMode: 'default',
                 controlPort: this.#controlPort,
-                ct: 1,
+                ct,
                 isMedia: true,
-                latencyMax: 88200,
-                latencyMin: 11025,
+                latencyMax: sampleRate * 2,
+                latencyMin: Math.round(sampleRate * 0.25),
                 shk: shkArrayBuffer,
                 spf: FRAMES_PER_PACKET,
-                sr: SAMPLE_RATE,
+                sr: sampleRate,
                 streamConnectionID,
                 supportsDynamicStreamID: false,
                 type: 0x60
@@ -134,7 +183,9 @@ export default class AudioStream {
             this.#dataPort = streamInfo.dataPort & 0xFFFF;
             this.#remoteControlPort = streamInfo.controlPort & 0xFFFF;
 
-            this.#context.logger.info('[audio]', `Audio stream setup: dataPort=${this.#dataPort}, controlPort=${this.#remoteControlPort}`);
+            this.#negotiatedSampleRate = sampleRate;
+            this.#negotiatedBytesPerChannel = bytesPerChannel;
+            this.#context.logger.info('[audio]', `Audio stream setup: dataPort=${this.#dataPort}, controlPort=${this.#remoteControlPort}, format=0x${audioFormat.toString(16)}, sr=${sampleRate}, bpc=${bytesPerChannel}`);
         } else {
             throw new SetupError('No stream info in SETUP response.');
         }
@@ -168,19 +219,20 @@ export default class AudioStream {
             });
         });
 
-        const frameSize = CHANNELS * BYTES_PER_CHANNEL;
+        const frameSize = CHANNELS * this.#negotiatedBytesPerChannel;
         const packetSize = FRAMES_PER_PACKET * frameSize;
+        const latency = Math.round(this.#negotiatedSampleRate * 0.25);
 
         const ctx: AudioStreamContext = {
-            sampleRate: SAMPLE_RATE,
+            sampleRate: this.#negotiatedSampleRate,
             channels: CHANNELS,
-            bytesPerChannel: BYTES_PER_CHANNEL,
+            bytesPerChannel: this.#negotiatedBytesPerChannel,
             frameSize,
             packetSize,
             rtpSeq: randomInt32() & 0xFFFF,
             rtpTime: 0,
             headTs: 0,
-            latency: LATENCY_FRAMES,
+            latency,
             paddingSent: 0,
             totalFrames: 0
         };

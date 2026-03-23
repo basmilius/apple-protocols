@@ -71,11 +71,22 @@ export type AudioStreamContext = {
 
 const USE_ENCRYPTION = true;
 
-const ntpFromTs = (timestamp: number, sampleRate: number): bigint => {
-    const seconds = Math.floor(timestamp / sampleRate);
-    const fraction = ((timestamp % sampleRate) * 0xFFFFFFFF) / sampleRate;
+/**
+ * Convert an RTP timestamp to a wall-clock NTP timestamp.
+ *
+ * Uses a fixed anchor point established when the stream starts: at that moment
+ * we record both the RTP timestamp and the wall-clock NTP time. For subsequent
+ * packets we compute the elapsed time from the RTP delta and add it to the
+ * anchor NTP time. This gives the receiver a real NTP timestamp it can use for
+ * multi-room synchronization.
+ */
+const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint => {
+    const elapsedSamples = rtpTimestamp - anchorRtp;
+    const elapsedSeconds = Math.floor(elapsedSamples / sampleRate);
+    const elapsedFraction = ((elapsedSamples % sampleRate) * 0xFFFFFFFF) / sampleRate;
+    const elapsedNtp = (BigInt(elapsedSeconds) << 32n) | BigInt(Math.floor(elapsedFraction));
 
-    return (BigInt(seconds) << 32n) | BigInt(Math.floor(fraction));
+    return anchorNtp + elapsedNtp;
 };
 
 export { FRAMES_PER_PACKET, SAMPLE_RATE };
@@ -91,6 +102,8 @@ export default class AudioStream {
     #dataSocket?: UdpSocket;
     #negotiatedBytesPerChannel: number = BYTES_PER_CHANNEL;
     #negotiatedSampleRate: number = SAMPLE_RATE;
+    #anchorRtp: number = 0;
+    #anchorNtp: bigint = 0n;
     #remoteControlPort: number = 0;
     #packetBacklog: Map<number, Buffer> = new Map();
     #ssrc: number = 0;
@@ -223,6 +236,13 @@ export default class AudioStream {
         const packetSize = FRAMES_PER_PACKET * frameSize;
         const latency = Math.round(this.#negotiatedSampleRate * 0.25);
 
+        const initialRtpTime = 0;
+
+        // Establish anchor point: link this RTP timestamp to real wall-clock time.
+        // The receiver uses this to synchronize playback across multiple speakers.
+        this.#anchorRtp = initialRtpTime;
+        this.#anchorNtp = NTP.now();
+
         const ctx: AudioStreamContext = {
             sampleRate: this.#negotiatedSampleRate,
             channels: CHANNELS,
@@ -230,8 +250,8 @@ export default class AudioStream {
             frameSize,
             packetSize,
             rtpSeq: randomInt32() & 0xFFFF,
-            rtpTime: 0,
-            headTs: 0,
+            rtpTime: initialRtpTime,
+            headTs: initialRtpTime,
             latency,
             paddingSent: 0,
             totalFrames: 0
@@ -503,7 +523,7 @@ export default class AudioStream {
             }
 
             const ctx = this.#streamContext;
-            const currentTime = ntpFromTs(ctx.headTs, ctx.sampleRate);
+            const currentTime = rtpToNtp(ctx.headTs, ctx.sampleRate, this.#anchorRtp, this.#anchorNtp);
             const [currentSec, currentFrac] = NTP.parts(currentTime);
 
             const packet = Buffer.allocUnsafe(20);

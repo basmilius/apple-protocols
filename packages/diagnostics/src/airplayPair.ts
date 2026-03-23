@@ -25,6 +25,7 @@ export default async function (storage: Storage): Promise<void> {
 
     const protocol = new AirPlay.Protocol(device);
     await protocol.connect();
+    await protocol.fetchInfo();
 
     try {
         await protocol.pairing.start();

@@ -25,6 +25,7 @@ async function prepareDevice(
     protocol.useTimingServer(timingServer);
 
     await protocol.connect();
+    await protocol.fetchInfo();
 
     let keys: AccessoryKeys;
 

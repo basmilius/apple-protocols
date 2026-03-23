@@ -205,6 +205,7 @@ export default class extends EventEmitter<EventMap> {
         }
 
         await playProtocol.connect();
+        await playProtocol.fetchInfo();
 
         let keys: AccessoryKeys;
 

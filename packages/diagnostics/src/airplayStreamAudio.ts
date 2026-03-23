@@ -26,6 +26,7 @@ export default async function (storage: Storage): Promise<void> {
 
     console.log('Connecting...');
     await protocol.connect();
+    await protocol.fetchInfo();
 
     let keys: AccessoryKeys | undefined;
 

@@ -128,4 +128,18 @@ message CommandInfo {
     repeated QueueEndAction.Enum supportedEndQueueActions = 27;
     optional DisableReason.Enum disableReason = 28;
     repeated PreloadedPlaybackSessionInfo supportedPlaybackSessionIdentifiers = 29;
+    optional bytes proactiveCommandOptions = 30;
+    optional bool vocalsControlActive = 31;
+    optional uint32 vocalsControlLevel = 32;
+    optional uint32 vocalsControlMaxLevel = 33;
+    optional uint32 vocalsControlMinLevel = 34;
+    optional bool vocalsControlContinuous = 35;
+    optional fixed64 sleepTimerTime = 36;
+    optional uint32 sleepTimerStopMode = 37;
+    optional double sleepTimerFireDate = 38;
+    optional bytes dialogOptions = 39;
+    optional string lastSectionContentItemID = 40;
+    optional bool supportsReferencePosition = 41;
+    repeated string playbackSessionRequirements = 42;
+    optional uint32 transitionStyle = 43;
 }

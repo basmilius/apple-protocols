@@ -361,6 +361,21 @@ export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): [Prot
     ];
 }
 
+export function setConversationDetectionEnabled(enabled: boolean, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_CONVERSATION_DETECTION_ENABLED_MESSAGE);
+    const message = create(Proto.SetConversationDetectionEnabledMessageSchema, {
+        enabled,
+        outputDeviceUID
+    });
+
+    setExtension(protocolMessage, Proto.setConversationDetectionEnabledMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.setConversationDetectionEnabledMessage
+    ];
+}
+
 export function wakeDevice(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.WAKE_DEVICE_MESSAGE);
     const message = create(Proto.WakeDeviceMessageSchema, {});

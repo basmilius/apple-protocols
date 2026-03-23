@@ -166,6 +166,16 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    async setConversationDetectionEnabled(enabled: boolean): Promise<void> {
+        const outputDeviceUID = this.#state.outputDeviceUID;
+
+        if (!outputDeviceUID) {
+            throw new Error('No output device active.');
+        }
+
+        await this.#protocol.dataStream.send(DataStreamMessage.setConversationDetectionEnabled(enabled, outputDeviceUID));
+    }
+
     async addOutputDevices(deviceUIDs: string[]): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext(deviceUIDs));
     }

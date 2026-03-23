@@ -14,6 +14,7 @@ const PACKET_BACKLOG_SIZE = 1000;
 const SYNC_INTERVAL = 1000;
 const MAX_PACKETS_COMPENSATE = 3;
 const SLOW_WARNING_THRESHOLD = 5;
+const REDUNDANCY_COUNT = 0;
 
 /**
  * Compression type values (ct field in SETUP body).
@@ -52,7 +53,7 @@ export const AudioFormat = {
     AAC_ELD_44100_2: 0x40000,
     AAC_ELD_16000_1: 0x100000,
     ALAC_44100_16_2: 0x400000,
-    ALAC_44100_24_2: 0x800000,
+    ALAC_44100_24_2: 0x800000
 } as const;
 
 export type AudioStreamContext = {
@@ -104,6 +105,7 @@ export default class AudioStream {
     #negotiatedSampleRate: number = SAMPLE_RATE;
     #anchorRtp: number = 0;
     #anchorNtp: bigint = 0n;
+    #previousFrames: Buffer[] = [];
     #remoteControlPort: number = 0;
     #packetBacklog: Map<number, Buffer> = new Map();
     #ssrc: number = 0;
@@ -169,6 +171,8 @@ export default class AudioStream {
                 sr: sampleRate,
                 streamConnectionID,
                 supportsDynamicStreamID: false,
+                redundantAudio: REDUNDANCY_COUNT > 0,
+                supportsRTPPacketRedundancy: REDUNDANCY_COUNT > 0,
                 type: 0x60
             }]
         });
@@ -432,19 +436,61 @@ export default class AudioStream {
 
     #sendFrameBuffer(frames: Buffer, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
         // Build RTP header (12 bytes)
+        const hasRedundancy = REDUNDANCY_COUNT > 0 && this.#previousFrames.length > 0;
+        const pt = hasRedundancy ? 0x61 : 0x60; // PT 97 for RFC2198, PT 96 for normal
+
         const rtpHeader = Buffer.allocUnsafe(12);
         rtpHeader.writeUInt8(0x80, 0);  // Version 2
-        rtpHeader.writeUInt8(firstPacket ? 0xE0 : 0x60, 1);  // Marker + PT 96
+        rtpHeader.writeUInt8(firstPacket ? (pt | 0x80) : pt, 1);  // Marker + PT
         rtpHeader.writeUInt16BE(ctx.rtpSeq, 2);
         rtpHeader.writeUInt32BE(ctx.headTs >>> 0, 4);
         rtpHeader.writeUInt32BE(this.#ssrc, 8);  // Use random SSRC
+
+        // Build RFC2198 redundancy payload:
+        // [redundant headers (4 bytes each)] [primary header (1 byte)] [redundant data...] [primary data]
+        let audioPayload: Buffer;
+
+        if (hasRedundancy) {
+            const redundantFrames = this.#previousFrames.slice(-REDUNDANCY_COUNT);
+            const headers: Buffer[] = [];
+
+            // Redundant block headers (F=1, 4 bytes each)
+            for (let i = 0; i < redundantFrames.length; i++) {
+                const level = redundantFrames.length - i;
+                const tsOffset = level * FRAMES_PER_PACKET;
+                const blockLen = redundantFrames[i].length;
+                const header = Buffer.allocUnsafe(4);
+
+                // F(1) | PT(7) | timestamp offset(14) | block length(10)
+                // F(1) | PT(7) | timestamp offset(14) | block length(10)
+                header[0] = 0x80 | 96;                            // F=1, PT=96
+                header[1] = ((tsOffset >> 6) & 0xFF);             // timestamp offset high 8 bits
+                header[2] = ((tsOffset & 0x3F) << 2) | ((blockLen >> 8) & 0x03); // ts low 6 + len high 2
+                header[3] = blockLen & 0xFF;                       // block length low 8 bits
+
+                headers.push(header);
+            }
+
+            // Primary block header (F=0, 1 byte)
+            headers.push(Buffer.from([96])); // PT = 96
+
+            audioPayload = Buffer.concat([...headers, ...redundantFrames, frames]);
+        } else {
+            audioPayload = frames;
+        }
+
+        // Store current frames for next packet's redundancy
+        this.#previousFrames.push(Buffer.from(frames));
+        if (this.#previousFrames.length > REDUNDANCY_COUNT) {
+            this.#previousFrames.shift();
+        }
 
         // AAD is bytes 4-12 of RTP header (timestamp + SSRC)
         const aad = rtpHeader.subarray(4, 12);
 
         const payload = USE_ENCRYPTION
-            ? this.#encryptAudio(frames, aad, ctx.rtpSeq)
-            : frames;
+            ? this.#encryptAudio(audioPayload, aad, ctx.rtpSeq)
+            : audioPayload;
 
         const packet = Buffer.concat([rtpHeader, payload]);
 
@@ -596,12 +642,14 @@ export default class AudioStream {
         try {
             this.#controlSocket?.removeAllListeners();
             this.#controlSocket?.close();
-        } catch {}
+        } catch {
+        }
         this.#controlSocket = undefined;
 
         try {
             this.#dataSocket?.close();
-        } catch {}
+        } catch {
+        }
         this.#dataSocket = undefined;
 
         this.#packetBacklog.clear();

@@ -35,6 +35,7 @@ type EventMap = {
 
 export default class DataStream extends BaseStream<EventMap> {
     #buffer: Buffer = Buffer.alloc(0);
+    #encryptedBuffer: Buffer = Buffer.alloc(0);
     #seqno: bigint;
     #outstanding: Map<string, { resolve: Function; reject: Function; timer: NodeJS.Timeout }> = new Map();
     #handlers: Record<number, [DescExtension, Function]> = {};
@@ -160,6 +161,7 @@ export default class DataStream extends BaseStream<EventMap> {
 
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
+        this.#encryptedBuffer = Buffer.alloc(0);
 
         for (const [id, req] of this.#outstanding) {
             clearTimeout(req.timer);
@@ -186,16 +188,19 @@ export default class DataStream extends BaseStream<EventMap> {
 
     async #onData(data: Buffer): Promise<void> {
         try {
-            this.#buffer = Buffer.concat([this.#buffer, data]);
-
             if (this.isEncrypted) {
-                const decrypted = this.decrypt(this.#buffer);
+                this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
+
+                const decrypted = this.decrypt(this.#encryptedBuffer);
 
                 if (!decrypted) {
                     return;
                 }
 
-                this.#buffer = decrypted;
+                this.#encryptedBuffer = Buffer.alloc(0);
+                this.#buffer = Buffer.concat([this.#buffer, decrypted]);
+            } else {
+                this.#buffer = Buffer.concat([this.#buffer, data]);
             }
 
             while (this.#buffer.byteLength > DATA_HEADER_LENGTH) {

@@ -223,6 +223,8 @@ export default class AudioStream {
         }
 
         const ctx = this.#streamContext;
+        const startFrames = ctx.totalFrames;
+        const startTime = performance.now();
 
         // Send padding (latency worth of silence).
         while (ctx.paddingSent < ctx.latency) {
@@ -235,8 +237,8 @@ export default class AudioStream {
 
             ctx.paddingSent += sent;
 
-            const expectedTime = ctx.totalFrames / SAMPLE_RATE * 1000;
-            const actualTime = performance.now();
+            const expectedTime = (ctx.totalFrames - startFrames) / SAMPLE_RATE * 1000;
+            const actualTime = performance.now() - startTime;
             const sleepTime = expectedTime - actualTime;
 
             if (sleepTime > 0) {
@@ -325,12 +327,10 @@ export default class AudioStream {
             this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
             await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
             this.#context.logger.debug('[audio]', 'TEARDOWN complete');
-        } catch (err) {
-            this.#stopSync();
-            this.#dataSocket?.close();
-            this.#dataSocket = undefined;
-            this.#packetBacklog.clear();
 
+            this.close();
+        } catch (err) {
+            this.close();
             throw err;
         }
     }

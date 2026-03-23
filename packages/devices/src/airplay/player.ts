@@ -102,7 +102,7 @@ export default class Player {
     }
 
     get isPlaying(): boolean {
-        return this.#playbackState === Proto.PlaybackState_Enum.Playing;
+        return this.playbackState === Proto.PlaybackState_Enum.Playing;
     }
 
     get shuffleMode(): Proto.ShuffleMode_Enum {

@@ -6,6 +6,7 @@ import BaseStream from './baseStream';
 
 export default class EventStream extends BaseStream {
     #buffer: Buffer = Buffer.alloc(0);
+    #encryptedBuffer: Buffer = Buffer.alloc(0);
 
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
@@ -52,6 +53,7 @@ export default class EventStream extends BaseStream {
 
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
+        this.#encryptedBuffer = Buffer.alloc(0);
     }
 
     async #handle(method: Method, path: string, headers: Record<string, string>, body: Buffer): Promise<void> {
@@ -85,16 +87,19 @@ export default class EventStream extends BaseStream {
 
     async #onData(data: Buffer): Promise<void> {
         try {
-            this.#buffer = Buffer.concat([this.#buffer, data]);
-
             if (this.isEncrypted) {
-                const decrypted = this.decrypt(this.#buffer);
+                this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
+
+                const decrypted = this.decrypt(this.#encryptedBuffer);
 
                 if (!decrypted) {
                     return;
                 }
 
-                this.#buffer = decrypted;
+                this.#encryptedBuffer = Buffer.alloc(0);
+                this.#buffer = Buffer.concat([this.#buffer, decrypted]);
+            } else {
+                this.#buffer = Buffer.concat([this.#buffer, data]);
             }
 
             while (this.#buffer.byteLength > 0) {

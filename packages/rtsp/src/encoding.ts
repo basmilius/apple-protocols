@@ -136,7 +136,10 @@ function parseHeaders(lines: string[]): Record<string, string> {
             continue;
         }
 
-        const name = lines[i].substring(0, colon).trim();
+        // Normalize to capitalized form (e.g. 'content-length' → 'Content-Length')
+        // so lookups like headers['CSeq'] work regardless of sender casing.
+        const rawName = lines[i].substring(0, colon).trim();
+        const name = rawName.replace(/(^|-)(\w)/g, (_, prefix, char) => prefix + char.toUpperCase());
         headers[name] = lines[i].substring(colon + 1).trim();
     }
 
@@ -146,10 +149,10 @@ function parseHeaders(lines: string[]): Record<string, string> {
 function parseRequestHeaders(buffer: Buffer): { headers: Record<string, string>; method: Method; path: string } {
     const lines = buffer.toString('utf8').split('\r\n');
 
-    const rawRequest = lines[0].match(/^(\S+)\s+(\S+)\s+RTSP\/1\.0$/);
+    const rawRequest = lines[0].match(/^(\S+)\s+(\S+)\s+(?:RTSP|HTTP)\/[\d.]+$/);
 
     if (!rawRequest) {
-        throw new Error(`Invalid RTSP request line: ${lines[0]}`);
+        throw new Error(`Invalid RTSP/HTTP request line: ${lines[0]}`);
     }
 
     const method = rawRequest[1] as Method;

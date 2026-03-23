@@ -1,15 +1,11 @@
 const EPOCH = 0x83AA7E80n;
 
 export function now(): bigint {
-    const now = ns() / 1000n;
-    const seconds = now / 1_000_000n;
-    const frac = now - seconds * 1_000_000n;
+    const nowMs = BigInt(Date.now());
+    const seconds = nowMs / 1000n;
+    const frac = nowMs - seconds * 1000n;
 
-    return ((seconds + EPOCH) << 32n) | ((frac << 32n) / 1_000_000n);
-}
-
-export function ns(): bigint {
-    return process.hrtime.bigint();
+    return ((seconds + EPOCH) << 32n) | ((frac << 32n) / 1000n);
 }
 
 export function parts(ntp: bigint): [number, number] {

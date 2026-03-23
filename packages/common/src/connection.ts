@@ -38,6 +38,10 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         return this.#state === 'connected';
     }
 
+    get localAddress(): string {
+        return this.#socket?.localAddress ?? '0.0.0.0';
+    }
+
     get state(): ConnectionState {
         if (this.#state === 'closing' || this.#state === 'failed') {
             return this.#state;
@@ -225,12 +229,16 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             this.#retryTimeout = undefined;
 
             try {
-                // Re-assign the stored handlers
+                // Re-assign the stored handlers so that when retries
+                // are exhausted, the original promise gets rejected.
                 this.#connectPromise = {resolve, reject};
                 await this.#attemptConnect();
                 resolve();
             } catch (retryErr) {
-                // Error handling is done in #onError/#onTimeout
+                // Propagate to the original connect() promise.
+                // Without this, the caller's await connect() hangs
+                // forever when all retry attempts are exhausted.
+                reject(retryErr instanceof Error ? retryErr : new ConnectionError(String(retryErr)));
             }
         }, this.#retryInterval);
     }

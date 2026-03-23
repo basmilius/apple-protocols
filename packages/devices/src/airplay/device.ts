@@ -75,12 +75,18 @@ export default class extends EventEmitter<EventMap> {
     }
 
     async connect(): Promise<void> {
-        // Remove listeners from old protocol before creating a new one.
-        // Prevents stale close events from being treated as unexpected disconnects.
+        // Clean up old protocol before creating a new one.
+        // Prevents stale close events and resource leaks (open sockets, timers).
         if (this.#protocol) {
             this.#protocol.controlStream.off('close', this.#boundOnClose);
             this.#protocol.controlStream.off('error', this.#boundOnError);
             this.#protocol.controlStream.off('timeout', this.#boundOnTimeout);
+
+            try {
+                this.#protocol.disconnect();
+            } catch {
+                // Best-effort cleanup of old protocol.
+            }
         }
 
         this.#disconnect = false;

@@ -20,6 +20,7 @@ const MAX_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB
 
 export default class RtspClient extends Connection<{}> {
     #buffer: Buffer = Buffer.alloc(0);
+    #encryptedBuffer: Buffer = Buffer.alloc(0);
     #cseq: number = 0;
     #requests: Map<number, PendingRequest> = new Map();
 
@@ -135,6 +136,7 @@ export default class RtspClient extends Connection<{}> {
 
     #onClose(): void {
         this.#buffer = Buffer.alloc(0);
+        this.#encryptedBuffer = Buffer.alloc(0);
 
         for (const [cseq, {reject}] of this.#requests) {
             reject(new ConnectionClosedError('Connection closed.'));
@@ -146,10 +148,11 @@ export default class RtspClient extends Connection<{}> {
 
     #onData(data: Buffer): void {
         try {
-            this.#buffer = Buffer.concat([this.#buffer, data]);
+            this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
 
-            if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
-                this.context.logger.error('[rtsp]', `Buffer exceeded max size (${this.#buffer.byteLength} bytes), resetting.`);
+            if (this.#encryptedBuffer.byteLength > MAX_BUFFER_SIZE) {
+                this.context.logger.error('[rtsp]', `Buffer exceeded max size (${this.#encryptedBuffer.byteLength} bytes), resetting.`);
+                this.#encryptedBuffer = Buffer.alloc(0);
                 this.#buffer = Buffer.alloc(0);
 
                 const err = new Error('Buffer overflow: exceeded maximum buffer size');
@@ -163,13 +166,14 @@ export default class RtspClient extends Connection<{}> {
                 return;
             }
 
-            const transformed = this.transformIncoming(this.#buffer);
+            const transformed = this.transformIncoming(this.#encryptedBuffer);
 
             if (transformed === false) {
                 return;
             }
 
-            this.#buffer = transformed;
+            this.#encryptedBuffer = Buffer.alloc(0);
+            this.#buffer = Buffer.concat([this.#buffer, transformed]);
 
             while (this.#buffer.byteLength > 0) {
                 const result = parseResponse(this.#buffer);

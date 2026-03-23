@@ -393,6 +393,7 @@ export default class extends EventEmitter<EventMap> {
     onUpdateClient(message: Proto.UpdateClientMessage): void {
         this.#client(message.client.bundleIdentifier, message.client.displayName);
 
+        this.emit('updateClient', message);
         this.emit('clients', this.#clients);
     }
 

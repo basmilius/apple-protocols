@@ -81,7 +81,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
 
         this.#updateOutputProperties(properties);
 
-        this.#controlClient = new ControlClient(this.#streamContext, this.#packetBacklog);
+        this.#controlClient = new ControlClient(this.#context, this.#streamContext, this.#packetBacklog);
         await this.#controlClient.bind(
             this.#rtsp.connection.localIp,
             this.#settings.protocols.raop.controlPort

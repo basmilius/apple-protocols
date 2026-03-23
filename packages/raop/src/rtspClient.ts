@@ -84,7 +84,7 @@ export default class RaopRtspClient extends RtspClient {
 
     get connection(): { localIp: string; remoteIp: string } {
         return {
-            localIp: this.#localIp,
+            localIp: this.localAddress,
             remoteIp: this.address
         };
     }
@@ -93,7 +93,6 @@ export default class RaopRtspClient extends RtspClient {
     readonly #dacpId: string;
     readonly #rtspSessionId: string;
     readonly #sessionId: number;
-    #localIp: string = '0.0.0.0';
     #digestInfo?: DigestInfo;
 
     constructor(context: Context, address: string, port: number) {
@@ -103,10 +102,6 @@ export default class RaopRtspClient extends RtspClient {
         this.#dacpId = generateDacpId();
         this.#rtspSessionId = generateSessionId();
         this.#sessionId = Math.floor(Math.random() * 0xFFFFFFFF);
-
-        this.on('connect', () => {
-            this.#localIp = '0.0.0.0';
-        });
     }
 
     protected override getDefaultHeaders(): Record<string, string | number> {

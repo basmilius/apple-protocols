@@ -167,6 +167,11 @@ const decodeQName = (buf: Buffer, offset: number): [string, number] => {
         }
 
         currentOffset++;
+
+        if (currentOffset + length > buf.byteLength) {
+            break;
+        }
+
         labels.push(buf.toString('utf-8', currentOffset, currentOffset + length));
         currentOffset += length;
 

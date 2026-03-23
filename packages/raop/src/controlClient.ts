@@ -1,5 +1,6 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
+import type { Context } from '@basmilius/apple-common';
 import { NTP } from '@basmilius/apple-encoding';
 import { decodeRetransmitRequest, PacketFifo, SyncPacket } from './packets';
 import type { StreamContext } from './types';
@@ -12,14 +13,16 @@ function ntpFromTs(timestamp: number, sampleRate: number): bigint {
 }
 
 export default class ControlClient extends EventEmitter {
+    readonly #appContext: Context;
     #transport?: UdpSocket;
     #context: StreamContext;
     #packetBacklog: PacketFifo;
     #syncTask?: NodeJS.Timeout;
     #localPort?: number;
 
-    constructor(context: StreamContext, packetBacklog: PacketFifo) {
+    constructor(appContext: Context, context: StreamContext, packetBacklog: PacketFifo) {
         super();
+        this.#appContext = appContext;
         this.#context = context;
         this.#packetBacklog = packetBacklog;
     }
@@ -33,7 +36,7 @@ export default class ControlClient extends EventEmitter {
             this.#transport = createSocket('udp4');
 
             this.#transport.on('error', (err) => {
-                console.error('Control connection error:', err);
+                this.#appContext.logger.error('[raop-control]', 'Control connection error:', err);
                 reject(err);
             });
 
@@ -108,7 +111,7 @@ export default class ControlClient extends EventEmitter {
         if (actualType === 0x55) {
             this.#retransmitLostPackets(decodeRetransmitRequest(data), rinfo);
         } else {
-            console.debug('Received unhandled control data from', rinfo, data);
+            this.#appContext.logger.debug('[raop-control]', 'Received unhandled control data from', rinfo, data);
         }
     }
 
@@ -129,7 +132,7 @@ export default class ControlClient extends EventEmitter {
                     this.#transport.send(resp, addr.port, addr.address);
                 }
             } else {
-                console.debug(`Packet ${seqno} not in backlog`);
+                this.#appContext.logger.debug('[raop-control]', `Packet ${seqno} not in backlog`);
             }
         }
     }

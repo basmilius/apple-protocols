@@ -4,6 +4,7 @@ import { waitFor } from './cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from './const';
 import { DiscoveryError } from './errors';
 import { multicast, type MdnsService } from './mdns';
+import { Logger } from './reporter';
 import type { CombinedDiscoveryResult, DiscoveryResult } from './types';
 
 type CacheEntry = {
@@ -46,6 +47,8 @@ const tryParseFeatures = (features: string): bigint | undefined => {
         return undefined;
     }
 };
+
+const logger = new Logger('discovery');
 
 export class Discovery {
     static #cache: Map<string, CacheEntry> = new Map();
@@ -94,9 +97,7 @@ export class Discovery {
                 return device;
             }
 
-            console.log();
-            console.log(`Device not found, retrying in ${timeout}ms...`);
-            console.log(devices.map(d => ` ● ${d.id} (${d.fqdn})`).join('\n'));
+            logger.debug(`Device '${id}' not found, retrying in ${timeout}ms...`, devices.map(d => d.id));
 
             tries--;
 

@@ -207,6 +207,12 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             packed = new Uint8Array(9);
             packed[0] = TAG.FLOAT64;
             new DataView(packed.buffer, packed.byteOffset + 1, 8).setFloat64(0, data, true);
+        } else if (data < 0) {
+            // Negative integers must be encoded as 8-byte signed values.
+            packed = new Uint8Array(9);
+            packed[0] = TAG.INT_8BYTE;
+            const view = new DataView(packed.buffer, packed.byteOffset + 1, 8);
+            view.setBigInt64(0, BigInt(data), true);
         } else {
             if (data <= TAG.INT_INLINE_MAX_VALUE) {
                 packed = u8(TAG.INT_BASE + data);

@@ -175,6 +175,27 @@ Alle packages delen deze instellingen:
 - Bound event handlers als `readonly #bound*` class fields
 - Alle exports via `packages/*/src/index.ts`
 
+## Pitfalls & niet-triviale design decisions
+
+### EventStream key swap is bewust
+`eventStream.ts` roept `enableEncryption(writeKey, readKey)` aan — de argumenten lijken omgedraaid, maar dit is correct. De HKDF info-strings zijn benoemd vanuit het perspectief van de Apple TV:
+- `Events-Write-Encryption-Key` = wat de Apple TV naar ons **schrijft** → wij gebruiken dit als **read** (decrypt) key
+- `Events-Read-Encryption-Key` = wat de Apple TV van ons **leest** → wij gebruiken dit als **write** (encrypt) key
+
+Bevestigd via pyatv (`ap2_session.py`: *"Read/Write info reversed here as connection originates from receiver!"*).
+
+### Nonce formaten per protocol
+- **Companion Link**: 12-byte LE counter op offset 0 (de counter is 8 bytes, trailing 4 bytes zijn zero)
+- **AirPlay** (DataStream/EventStream): 4 zero bytes + 8-byte LE counter op offset 4
+
+Beide formaten zijn bevestigd correct via pyatv's `Chacha20Cipher` (12-byte nonce_length) en `Chacha20Cipher8byteNonce` (4-byte pad + 8-byte counter).
+
+### Encrypted/plaintext buffer scheiding
+DataStream, EventStream en RtspClient gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Deze scheiding is essentieel: zonder dit wordt bij gedeeltelijke frames (partial TCP delivery) plaintext gemixed met nieuwe encrypted data, waardoor de ChaCha20 decoder de plaintext als frame-header interpreteert → corrupt gedrag of deadlock.
+
+### NTP timestamps moeten wall-clock zijn
+`NTP.now()` in `encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.
+
 ## CI/CD
 
 Enige workflow: `.github/workflows/released.yml` (trigger: GitHub Release). Vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt alles, publiceert naar npm. Geen PR/push CI.

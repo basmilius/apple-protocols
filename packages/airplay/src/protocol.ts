@@ -180,6 +180,10 @@ export default class Protocol {
         await this.#controlStream.post('/feedback', undefined, undefined, 1900);
     }
 
+    async setVolume(volume: number): Promise<void> {
+        await this.#controlStream.setVolume(volume);
+    }
+
     async setupDataStream(sharedSecret: Buffer, onBeforeConnect?: () => void): Promise<void> {
         const seed = randomInt64();
 

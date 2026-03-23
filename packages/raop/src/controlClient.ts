@@ -132,7 +132,14 @@ export default class ControlClient extends EventEmitter {
                     this.#transport.send(resp, addr.port, addr.address);
                 }
             } else {
-                this.#appContext.logger.debug('[raop-control]', `Packet ${seqno} not in backlog`);
+                // Futile retransmit response — packet is no longer in our backlog.
+                const seqBuf = Buffer.alloc(2);
+                seqBuf.writeUInt16BE(seqno);
+                const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), seqBuf, Buffer.alloc(4)]);
+
+                if (this.#transport) {
+                    this.#transport.send(resp, addr.port, addr.address);
+                }
             }
         }
     }

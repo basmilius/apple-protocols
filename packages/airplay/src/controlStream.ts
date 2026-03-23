@@ -94,6 +94,12 @@ export default class ControlStream extends RtspClient {
         });
     }
 
+    async setVolume(volume: number): Promise<Response> {
+        return await this.exchange('POST', `/volume?volume=${volume.toFixed(6)}`, {
+            allowError: true
+        });
+    }
+
     async teardown(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('TEARDOWN', path, {headers, timeout, allowError: true});
     }

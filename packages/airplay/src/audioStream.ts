@@ -506,6 +506,14 @@ export default class AudioStream {
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), originalSeqno, packet]);
 
                 this.#controlSocket?.send(resp, addr.port, addr.address);
+            } else {
+                // Futile retransmit response — packet is no longer in our backlog.
+                // Tell the receiver so it can skip waiting for a timeout.
+                const seqBuf = Buffer.alloc(2);
+                seqBuf.writeUInt16BE(seqno);
+                const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), seqBuf, Buffer.alloc(4)]);
+
+                this.#controlSocket?.send(resp, addr.port, addr.address);
             }
         }
     }

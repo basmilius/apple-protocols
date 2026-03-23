@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+    optional CreateHostedEndpointRequest createHostedEndpointRequest = 96;
+}
+
+message CreateHostedEndpointRequest {
+    repeated string outputDeviceUIDs = 1;
+}

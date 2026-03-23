@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+import "GroupSession.proto";
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+    optional GroupSessionIdentityShareReplyMessage groupSessionIdentityShareReplyMessage = 107;
+}
+
+message GroupSessionIdentityShareReplyMessage {
+    optional GroupSessionParticipant leaderParticipant = 1;
+    optional GroupSessionParticipant localParticipant = 2;
+}

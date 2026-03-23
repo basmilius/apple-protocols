@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+import "UserIdentity.proto";
+
+extend ProtocolMessage {
+    optional GroupSessionIdentityShareMessage groupSessionIdentityShareMessage = 106;
+}
+
+message GroupSessionIdentityShareMessage {
+    optional UserIdentity identity = 1;
+}

@@ -1,0 +1,8 @@
+syntax = "proto2";
+
+import "ApplicationConnection.proto";
+
+message ApplicationConnectionProtocolMessage {
+    optional ApplicationConnectionContext context = 1;
+    optional ApplicationConnectionMessage applicationMessage = 2;
+}

@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+    optional GroupSessionFastSyncMessage groupSessionFastSyncMessage = 105;
+}
+
+message GroupSessionFastSyncMessage {
+    optional int32 messageType = 1;
+    optional bytes payload = 2;
+}

@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
+import { AirPlayFeature } from '@basmilius/apple-airplay';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Remote from './remote';
 import State from './state';
@@ -24,8 +25,38 @@ export default class extends EventEmitter<EventMap> {
         this.#discoveryResult = discoveryResult;
     }
 
+    get capabilities(): {
+        supportsAudio: boolean;
+        supportsBufferedAudio: boolean;
+        supportsPTP: boolean;
+        supportsRFC2198Redundancy: boolean;
+        supportsHangdogRemoteControl: boolean;
+        supportsUnifiedMediaControl: boolean;
+        supportsTransientPairing: boolean;
+        supportsSystemPairing: boolean;
+        supportsCoreUtilsPairing: boolean;
+    } {
+        const has = (f: bigint) => this.#protocol?.hasReceiverFeature(f) ?? false;
+
+        return {
+            supportsAudio: has(AirPlayFeature.SupportsAirPlayAudio),
+            supportsBufferedAudio: has(AirPlayFeature.SupportsBufferedAudio),
+            supportsPTP: has(AirPlayFeature.SupportsPTP),
+            supportsRFC2198Redundancy: has(AirPlayFeature.SupportsRFC2198Redundancy),
+            supportsHangdogRemoteControl: has(AirPlayFeature.SupportsHangdogRemoteControl),
+            supportsUnifiedMediaControl: has(AirPlayFeature.SupportsUnifiedMediaControl),
+            supportsTransientPairing: has(AirPlayFeature.SupportsHKPairingAndAccessControl),
+            supportsSystemPairing: has(AirPlayFeature.SupportsSystemPairing),
+            supportsCoreUtilsPairing: has(AirPlayFeature.SupportsCoreUtilsPairingAndEncryption)
+        };
+    }
+
     get isConnected(): boolean {
         return this.#protocol?.controlStream?.isConnected ?? false;
+    }
+
+    get receiverInfo(): Record<string, any> | undefined {
+        return this.#protocol?.receiverInfo;
     }
 
     get remote(): Remote {
@@ -57,6 +88,7 @@ export default class extends EventEmitter<EventMap> {
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
+    #identity?: Partial<DeviceIdentity>;
     #feedbackInterval: NodeJS.Timeout;
     #keys: AccessoryKeys;
     #playUrlProtocol?: Protocol;
@@ -65,10 +97,11 @@ export default class extends EventEmitter<EventMap> {
     #protocol!: Protocol;
     #timingServer?: TimingServer;
 
-    constructor(discoveryResult: DiscoveryResult) {
+    constructor(discoveryResult: DiscoveryResult, identity?: Partial<DeviceIdentity>) {
         super();
 
         this.#discoveryResult = discoveryResult;
+        this.#identity = identity;
         this.#remote = new Remote(this);
         this.#state = new State(this);
         this.#volume = new Volume(this);
@@ -92,12 +125,13 @@ export default class extends EventEmitter<EventMap> {
         this.#disconnect = false;
         this.#state.clear();
 
-        this.#protocol = new Protocol(this.#discoveryResult);
+        this.#protocol = new Protocol(this.#discoveryResult, this.#identity);
         this.#protocol.controlStream.on('close', this.#boundOnClose);
         this.#protocol.controlStream.on('error', this.#boundOnError);
         this.#protocol.controlStream.on('timeout', this.#boundOnTimeout);
 
         await this.#protocol.connect();
+        await this.#protocol.fetchInfo();
 
         if (this.#credentials) {
             this.#keys = await this.#protocol.verify.start(this.#credentials);
@@ -154,7 +188,7 @@ export default class extends EventEmitter<EventMap> {
         // existing remote control session.
         this.#playUrlProtocol?.disconnect();
 
-        const playProtocol = new Protocol(this.#discoveryResult);
+        const playProtocol = new Protocol(this.#discoveryResult, this.#identity);
 
         if (this.#timingServer) {
             playProtocol.useTimingServer(this.#timingServer);
@@ -287,9 +321,10 @@ export default class extends EventEmitter<EventMap> {
 
             this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
-            await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId));
+            await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId, this.#protocol.context.identity));
             await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
             await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig(true, true, true, true, true, true));
+            await this.#protocol.dataStream.exchange(DataStreamMessage.getState());
 
             this.#protocol.context.logger.info('Protocol ready.');
         } catch (err) {

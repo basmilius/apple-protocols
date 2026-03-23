@@ -1,0 +1,68 @@
+syntax = "proto2";
+
+import "Common.proto";
+import "RequestDetails.proto";
+import "UserIdentity.proto";
+
+message GroupSessionInfo {
+    optional string identifier = 1;
+    optional string hostDisplayName = 2;
+    optional string equivalentMediaIdentifier = 3;
+    optional GroupSessionRouteType.Enum routeType = 4;
+    optional bool hosted = 5;
+    optional bool placeholder = 6;
+}
+
+message GroupSessionToken {
+    optional string sessionIdentifier = 1;
+    optional string displayName = 2;
+    optional string equivalentMediaIdentifier = 3;
+    optional GroupSessionRouteType.Enum routeType = 4;
+    optional bytes sharedSecret = 5;
+    optional bytes invitationData = 6;
+    optional int32 version = 7;
+}
+
+message GroupSessionParticipant {
+    optional string identifier = 1;
+    optional UserIdentity identity = 2;
+    optional bool connected = 3;
+    optional bool guest = 4;
+    optional bool hidden = 5;
+}
+
+message GroupSessionJoinRequest {
+    optional string identifier = 1;
+    optional UserIdentity identity = 2;
+    optional bytes oobKeys = 3;
+}
+
+message GroupSessionJoinResponse {
+    optional string joinURL = 1;
+    optional bytes publicSigningKeyData = 2;
+}
+
+message GroupSessionRemoveRequest {
+    optional string participantIdentifier = 1;
+}
+
+message GroupTopologyModificationRequest {
+    enum Type {
+        Unknown = 0;
+        AddOutputDevices = 1;
+        RemoveOutputDevices = 2;
+        SetOutputDevices = 3;
+    }
+
+    optional Type type = 1;
+    repeated string outputDeviceUIDs = 2;
+    optional string password = 3;
+    optional RequestDetails details = 4;
+    optional bool fadeAudio = 5;
+    optional bool muteUntilFinished = 6;
+    optional bool shouldClearPredictedRoutes = 7;
+    optional bool shouldModifyPredictedRoutes = 8;
+    optional bool shouldNotPauseIfLastDeviceRemoved = 9;
+    optional bool shouldWaitForUpdatedOutputDevices = 10;
+    optional bool suppressErrorDialog = 11;
+}

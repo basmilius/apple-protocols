@@ -39,12 +39,10 @@ export default class ControlStream extends RtspClient {
     protected override getDefaultHeaders(): Record<string, string | number> {
         return {
             'Active-Remote': this.#activeRemoteId,
-            'Client-Instance': this.#dacpId,
             'DACP-ID': this.#dacpId,
-            'User-Agent': 'AirPlay/320.20',
+            'User-Agent': `AirPlay/${this.context.identity.sourceVersion}`,
             'X-Apple-ProtocolVersion': 1,
-            'X-Apple-Session-ID': this.#sessionId,
-            'X-ProtocolVersion': 1
+            'X-Apple-Session-ID': this.#sessionId
         };
     }
 

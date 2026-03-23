@@ -1,0 +1,20 @@
+syntax = "proto2";
+
+message SendCommandResultHandlerDialogActionType {
+    enum Enum {
+        Dismiss = 0;
+        Default = 1;
+    }
+}
+
+message SendCommandResultHandlerDialogAction {
+    optional string title = 1;
+    optional SendCommandResultHandlerDialogActionType.Enum type = 2;
+    optional bytes event = 3;
+}
+
+message SendCommandResultHandlerDialog {
+    optional string localizedTitle = 1;
+    optional string localizedMessage = 2;
+    repeated SendCommandResultHandlerDialogAction actions = 3;
+}

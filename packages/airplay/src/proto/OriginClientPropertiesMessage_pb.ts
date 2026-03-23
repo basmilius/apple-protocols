@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file OriginClientPropertiesMessage.proto.
  */
 export const file_OriginClientPropertiesMessage: GenFile = /*@__PURE__*/
-  fileDesc("CiNPcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZS5wcm90byI9Ch1PcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZRIcChRsYXN0UGxheWluZ1RpbWVzdGFtcBgBIAEoATp2Ch1vcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRhXIAEoCzIeLk9yaWdpbkNsaWVudFByb3BlcnRpZXNNZXNzYWdlUh1vcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZQ", [file_ProtocolMessage]);
+  fileDesc("CiNPcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZS5wcm90byJeCh1PcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZRIcChRsYXN0UGxheWluZ1RpbWVzdGFtcBgBIAEoARIfChdkZXZpY2VQbGF5YmFja1Nlc3Npb25JRBgCIAEoCTp2Ch1vcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRhXIAEoCzIeLk9yaWdpbkNsaWVudFByb3BlcnRpZXNNZXNzYWdlUh1vcmlnaW5DbGllbnRQcm9wZXJ0aWVzTWVzc2FnZQ", [file_ProtocolMessage]);
 
 /**
  * @generated from message OriginClientPropertiesMessage
@@ -22,6 +22,11 @@ export type OriginClientPropertiesMessage = Message<"OriginClientPropertiesMessa
    * @generated from field: optional double lastPlayingTimestamp = 1;
    */
   lastPlayingTimestamp: number;
+
+  /**
+   * @generated from field: optional string devicePlaybackSessionID = 2;
+   */
+  devicePlaybackSessionID: string;
 };
 
 /**

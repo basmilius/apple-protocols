@@ -1,4 +1,4 @@
-import { uint16ToBE, uuid } from '@basmilius/apple-common';
+import { type DeviceIdentity, uint16ToBE, uuid } from '@basmilius/apple-common';
 import { create, DescExtension, type Extendee, type ExtensionValueShape, getExtension as _getExtension, setExtension } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 
@@ -44,15 +44,15 @@ export function configureConnection(groupId: string): [Proto.ProtocolMessage, De
     ];
 }
 
-export function deviceInfo(pairingId: Buffer): [Proto.ProtocolMessage, DescExtension] {
+export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE);
     const message = create(Proto.DeviceInfoMessageSchema, {
         uniqueIdentifier: pairingId.toString(),
-        name: 'iPhone van Bas',
+        name: identity.name,
         localizedModelName: 'iPhone',
-        systemBuildVersion: '18C66',
-        applicationBundleIdentifier: 'com.apple.TVRemote',
-        applicationBundleVersion: '344.28',
+        systemBuildVersion: identity.osBuildVersion,
+        applicationBundleIdentifier: identity.applicationBundleIdentifier,
+        applicationBundleVersion: identity.applicationBundleVersion,
         protocolVersion: 1,
         lastSupportedMessageType: 129,
         supportsSystemPairing: true,
@@ -64,26 +64,11 @@ export function deviceInfo(pairingId: Buffer): [Proto.ProtocolMessage, DescExten
         sharedQueueVersion: 2,
         deviceClass: Proto.DeviceClass_Enum.iPhone,
         logicalDeviceCount: 1,
+        modelID: identity.model,
         clusterType: 0,
-        isClusterAware: true
-        // managedConfigDeviceID: 'c4:c1:7d:93:d2:13',
-        // isProxyGroupPlayer: false,
-        // groupUID: uuid().toUpperCase(),
-        // isGroupLeader: true,
-        // isAirplayActive: false,
-        // systemPodcastApplication: 'com.apple.podcasts',
-        // senderDefaultGroupUID: uuid().toUpperCase(),
-        // modelID: 'iPhone16,2',
-        // supportsMultiplayer: false,
-        // routingContextID: uuid().toUpperCase(),
-        // airPlayGroupID: uuid().toUpperCase(),
-        // systemBooksApplication: 'com.apple.iBooks',
-        // parentGroupContainsDiscoverableGroupLeader: 1,
-        // groupContainsDiscoverableGroupLeader: 1,
-        // lastKnownClusterType: 2,
-        // supportsOutputContextSync: true,
-        // computerName: 'iPhone van Bas',
-        // configuredClusterSize: 0
+        isClusterAware: true,
+        supportsOutputContextSync: true,
+        computerName: identity.name
     });
 
     setExtension(protocolMessage, Proto.deviceInfoMessage, message);
@@ -184,7 +169,11 @@ export function playbackQueueRequest(location: number, length: number, artworkWi
         includeAlignments: true,
         includeAvailableArtworkFormats: true,
         includeParticipants: true,
-        isLegacyNowPlayingInfoRequest: false
+        isLegacyNowPlayingInfoRequest: false,
+        requestedArtworkFormats: ['MRContentItemArtworkFormatStandard'],
+        requestedRemoteArtworkFormats: ['MRContentItemArtworkFormatStandard'],
+        requestedAnimatedArtworkPreviewFrameFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall'],
+        requestedAnimatedArtworkAssetURLFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall']
     });
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);

@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+    optional PresentRouteAuthorizationStatusMessage presentRouteAuthorizationStatusMessage = 65;
+}
+
+message PresentRouteAuthorizationStatusMessage {
+    optional string route = 1;
+    optional int32 status = 2;
+}

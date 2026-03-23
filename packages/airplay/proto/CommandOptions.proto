@@ -49,6 +49,7 @@ message CommandOptions {
     optional bool preservesQueueEndAction = 48;
     optional string homeKitUserIdentifier = 49;
     optional bool verifySupportedCommands = 50;
+    optional string playbackSessionIdentifier = 51;
     optional uint32 playbackSessionPriority = 52;
     optional string playbackSessionFilePath = 53;
     optional string playbackSessionRevision = 54;

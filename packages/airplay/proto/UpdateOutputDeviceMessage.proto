@@ -45,7 +45,7 @@ message AVOutputDeviceDescriptor {
     optional bool supportsBufferedAirPlay = 29;
     optional bool canPlayEncryptedProgressiveDownloadAssets = 30;
     optional bool canFetchMediaDataFromSender = 31;
-    optional bool resentsOptimizedUserInterfaceWhenPlayingFetchedAudioOnlyAssets = 32;
+    optional bool presentsOptimizedUserInterfaceWhenPlayingFetchedAudioOnlyAssets = 32;
     optional bool isAirPlayReceiverSessionActive = 33;
     optional string parentGroupIdentifier = 34;
     optional bool parentGroupContainsDiscoverableLeader = 35;
@@ -61,7 +61,7 @@ message AVOutputDeviceDescriptor {
     optional bool supportsRapportRemoteControlTransport = 45;
     optional string currentBluetoothListeningMode = 46;
     repeated string availableBluetoothListeningModes = 47;
-    repeated bool supportsMultiplayer = 48;
+    optional bool supportsMultiplayer = 48;
     optional bool producesLowFidelityAudio = 49;
     optional int32 hostDeviceClass = 50;
     optional string airPlayGroupID = 51;
@@ -69,7 +69,7 @@ message AVOutputDeviceDescriptor {
     optional float distance = 53;
     optional bool discoveredOnSameInfra = 54;
     repeated AVOutputDeviceDescriptor activatedClusterMembers = 55;
-    repeated bool pickable = 56;
+    optional bool pickable = 56;
     optional int32 transportType = 57;
     optional string clusterID = 58;
     optional bool isClusterLeader = 59;
@@ -78,7 +78,25 @@ message AVOutputDeviceDescriptor {
     optional string roomID = 62;
     optional string roomName = 63;
     repeated AVOutputDeviceDescriptor allClusterMembers = 64;
+    optional bool supportsConversationDetection = 65;
+    optional bool conversationDetectionEnabled = 66;
     optional bool engageOnClusterActivate = 67;
+    optional bool volumeMuted = 68;
+    optional bytes groupSessionInfo = 69;
+    optional bool supportsBluetoothSharing = 70;
+    optional string deviceEnclosureColor = 71;
+    optional string playingPairedDeviceName = 72;
+    optional bool supportsRapport = 73;
+    optional bool isPickedOnPairedDevice = 74;
+    optional bool supportsHeadTrackedSpatialAudio = 75;
+    optional bool allowsHeadTrackedSpatialAudio = 76;
+    optional bool isHeadTrackedSpatialAudioActive = 77;
+    optional string headTrackedSpatialAudioMode = 78;
+    repeated string dnsNames = 79;
+    optional string alternateTransportType = 80;
+    optional bool deviceIsPlaying = 81;
+    optional bool wasDiscoveredInCache = 82;
+    optional bool representsUGLSender = 83;
 }
 
 message UpdateOutputDeviceMessage {

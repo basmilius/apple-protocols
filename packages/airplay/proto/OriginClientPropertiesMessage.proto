@@ -8,4 +8,5 @@ extend ProtocolMessage {
 
 message OriginClientPropertiesMessage {
     optional double lastPlayingTimestamp = 1;
+    optional string devicePlaybackSessionID = 2;
 }

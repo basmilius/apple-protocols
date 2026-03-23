@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+import "DeviceInfoMessage.proto";
+
+message AirPlayLeaderInfo {
+    optional DeviceInfoMessage deviceInfo = 1;
+}

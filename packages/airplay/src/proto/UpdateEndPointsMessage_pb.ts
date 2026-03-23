@@ -6,13 +6,15 @@ import type { GenExtension, GenFile, GenMessage } from "@bufbuild/protobuf/codeg
 import { extDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { ProtocolMessage } from "./ProtocolMessage_pb";
 import { file_ProtocolMessage } from "./ProtocolMessage_pb";
+import type { AVOutputDeviceDescriptor } from "./UpdateOutputDeviceMessage_pb";
+import { file_UpdateOutputDeviceMessage } from "./UpdateOutputDeviceMessage_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file UpdateEndPointsMessage.proto.
  */
 export const file_UpdateEndPointsMessage: GenFile = /*@__PURE__*/
-  fileDesc("ChxVcGRhdGVFbmRQb2ludHNNZXNzYWdlLnByb3RvIskBChRBVkVuZHBvaW50RGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhgKEHVuaXF1ZUlkZW50aWZpZXIYAiABKAkSFwoPaXNMb2NhbEVuZHBvaW50GAUgASgIEhoKEmluc3RhbmNlSWRlbnRpZmllchgGIAEoCRIaChJpc1Byb3h5R3JvdXBQbGF5ZXIYByABKAgSFgoOY29ubmVjdGlvblR5cGUYCCABKAUSIAoYY2FuTW9kaWZ5R3JvdXBNZW1iZXJzaGlwGAkgASgIIlwKFlVwZGF0ZUVuZFBvaW50c01lc3NhZ2USKAoJZW5kcG9pbnRzGAEgASgLMhUuQVZFbmRwb2ludERlc2NyaXB0b3ISGAoQZW5kcG9pbnRGZWF0dXJlcxgCIAEoBTphChZ1cGRhdGVFbmRQb2ludHNNZXNzYWdlEhAuUHJvdG9jb2xNZXNzYWdlGFMgASgLMhcuVXBkYXRlRW5kUG9pbnRzTWVzc2FnZVIWdXBkYXRlRW5kUG9pbnRzTWVzc2FnZQ", [file_ProtocolMessage]);
+  fileDesc("ChxVcGRhdGVFbmRQb2ludHNNZXNzYWdlLnByb3RvIu8CChRBVkVuZHBvaW50RGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhgKEHVuaXF1ZUlkZW50aWZpZXIYAiABKAkSMAoNb3V0cHV0RGV2aWNlcxgDIAMoCzIZLkFWT3V0cHV0RGV2aWNlRGVzY3JpcHRvchI4ChVkZXNpZ25hdGVkR3JvdXBMZWFkZXIYBCABKAsyGS5BVk91dHB1dERldmljZURlc2NyaXB0b3ISFwoPaXNMb2NhbEVuZHBvaW50GAUgASgIEhoKEmluc3RhbmNlSWRlbnRpZmllchgGIAEoCRIaChJpc1Byb3h5R3JvdXBQbGF5ZXIYByABKAgSFgoOY29ubmVjdGlvblR5cGUYCCABKAUSIAoYY2FuTW9kaWZ5R3JvdXBNZW1iZXJzaGlwGAkgASgIEjgKFXBlcnNvbmFsT3V0cHV0RGV2aWNlcxgKIAMoCzIZLkFWT3V0cHV0RGV2aWNlRGVzY3JpcHRvciJcChZVcGRhdGVFbmRQb2ludHNNZXNzYWdlEigKCWVuZHBvaW50cxgBIAEoCzIVLkFWRW5kcG9pbnREZXNjcmlwdG9yEhgKEGVuZHBvaW50RmVhdHVyZXMYAiABKAU6YQoWdXBkYXRlRW5kUG9pbnRzTWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRhTIAEoCzIXLlVwZGF0ZUVuZFBvaW50c01lc3NhZ2VSFnVwZGF0ZUVuZFBvaW50c01lc3NhZ2U", [file_ProtocolMessage, file_UpdateOutputDeviceMessage]);
 
 /**
  * @generated from message AVEndpointDescriptor
@@ -29,9 +31,16 @@ export type AVEndpointDescriptor = Message<"AVEndpointDescriptor"> & {
   uniqueIdentifier: string;
 
   /**
-   * repeated ... outputDevices = 3;
-   * optional ... designatedGroupLeader = 4;
-   *
+   * @generated from field: repeated AVOutputDeviceDescriptor outputDevices = 3;
+   */
+  outputDevices: AVOutputDeviceDescriptor[];
+
+  /**
+   * @generated from field: optional AVOutputDeviceDescriptor designatedGroupLeader = 4;
+   */
+  designatedGroupLeader?: AVOutputDeviceDescriptor;
+
+  /**
    * @generated from field: optional bool isLocalEndpoint = 5;
    */
   isLocalEndpoint: boolean;
@@ -52,11 +61,14 @@ export type AVEndpointDescriptor = Message<"AVEndpointDescriptor"> & {
   connectionType: number;
 
   /**
-   * repeated ... _personalOutputDevices = 10;
-   *
    * @generated from field: optional bool canModifyGroupMembership = 9;
    */
   canModifyGroupMembership: boolean;
+
+  /**
+   * @generated from field: repeated AVOutputDeviceDescriptor personalOutputDevices = 10;
+   */
+  personalOutputDevices: AVOutputDeviceDescriptor[];
 };
 
 /**

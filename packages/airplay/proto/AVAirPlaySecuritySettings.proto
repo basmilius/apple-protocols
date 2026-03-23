@@ -1,0 +1,6 @@
+syntax = "proto2";
+
+message AVAirPlaySecuritySettings {
+    optional string password = 1;
+    optional int32 securityType = 2;
+}

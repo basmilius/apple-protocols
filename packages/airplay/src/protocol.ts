@@ -1,10 +1,12 @@
-import { type AudioSource, Context, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, randomInt64, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
+import { type AudioSource, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, randomInt64, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import AudioStream from './audioStream';
 import ControlStream from './controlStream';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
+
+import { decodeFeatures, hasFeature, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from './features';
 
 const FEEDBACK_INTERVAL = 2000;
 const PLAY_RETRIES = 3;
@@ -66,10 +68,12 @@ export default class Protocol {
     #dataStream?: DataStream;
     #eventStream?: EventStream;
     #playUrlFeedbackInterval?: NodeJS.Timeout;
+    #receiverFeatures: bigint = 0n;
+    #receiverInfo?: Record<string, any>;
     #timingServer?: TimingServer;
 
-    constructor(discoveryResult: DiscoveryResult) {
-        this.#context = new Context(discoveryResult.id);
+    constructor(discoveryResult: DiscoveryResult, identity?: Partial<DeviceIdentity>) {
+        this.#context = new Context(discoveryResult.id, identity);
         this.#discoveryResult = discoveryResult;
         this.#sessionUUID = uuid();
         this.#controlStream = new ControlStream(this.#context, discoveryResult.address, discoveryResult.service.port);
@@ -77,8 +81,59 @@ export default class Protocol {
         this.#verify = new Verify(this);
     }
 
+    get receiverFeatures(): bigint {
+        return this.#receiverFeatures;
+    }
+
+    get receiverInfo(): Record<string, any> | undefined {
+        return this.#receiverInfo;
+    }
+
+    hasReceiverFeature(feature: bigint): boolean {
+        return hasFeature(this.#receiverFeatures, feature);
+    }
+
     async connect(): Promise<void> {
         await this.#controlStream.connect();
+    }
+
+    async fetchInfo(): Promise<Record<string, any>> {
+        const response = await this.#controlStream.get('/info');
+
+        if (response.status !== 200) {
+            this.context.logger.warn('[protocol]', `GET /info failed: ${response.status}`);
+            return {};
+        }
+
+        const info = Plist.parse(await response.arrayBuffer()) as Record<string, any>;
+        this.#receiverInfo = info;
+
+        const receiverSourceVersion = info.sourceVersion as string | undefined;
+
+        if (info.features != null) {
+            this.#receiverFeatures = BigInt(info.features);
+        }
+
+        this.context.logger.info('[protocol]', `Receiver: ${info.name ?? 'unknown'}, model=${info.model ?? '?'}, sourceVersion=${receiverSourceVersion ?? '?'}`);
+        this.context.logger.info('[protocol]', `Receiver features: ${decodeFeatures(this.#receiverFeatures).join(', ')}`);
+
+        if (info.initialVolume != null) {
+            this.context.logger.info('[protocol]', `Receiver initial volume: ${info.initialVolume}`);
+        }
+
+        // Use the receiver's sourceVersion if it's lower than ours, to avoid
+        // claiming capabilities the receiver doesn't understand.
+        if (receiverSourceVersion) {
+            const ours = parseFloat(this.#context.identity.sourceVersion);
+            const theirs = parseFloat(receiverSourceVersion);
+
+            if (theirs < ours) {
+                this.context.logger.info('[protocol]', `Capping sourceVersion from ${this.#context.identity.sourceVersion} to ${receiverSourceVersion}`);
+                (this.#context.identity as any).sourceVersion = receiverSourceVersion;
+            }
+        }
+
+        return info;
     }
 
     destroy(): void {
@@ -157,17 +212,49 @@ export default class Protocol {
         await this.#dataStream.connect();
     }
 
-    async setupEventStream(sharedSecret: Buffer, pairingId: Buffer): Promise<void> {
-        const body: Record<string, string | number | boolean> = {
+    async #performSetup(body: Record<string, string | number | boolean>, sharedSecret?: Buffer): Promise<any> {
+        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, body);
+
+        if (response.status !== 200) {
+            this.context.logger.error('[protocol]', 'Failed SETUP request.', response.status, response.statusText, await response.text());
+            throw new SetupError('SETUP request failed.');
+        }
+
+        const plist = Plist.parse(await response.arrayBuffer()) as any;
+
+        if (plist.enabledFeatures != null) {
+            this.context.logger.info('[protocol]', `Receiver enabled features: 0x${BigInt(plist.enabledFeatures).toString(16)}`);
+        }
+
+        if (plist.keepAlivePort != null) {
+            this.context.logger.info('[protocol]', `Receiver keep-alive port: ${plist.keepAlivePort}`);
+        }
+
+        return plist;
+    }
+
+    #setupBody(pairingId: Buffer, features: bigint): Record<string, any> {
+        const id = this.#context.identity;
+
+        return {
             deviceID: pairingId.toString(),
+            features: Number(features & 0xFFFFFFFFn),
+            featuresEx: Number(features >> 32n),
             macAddress: getMacAddress().toUpperCase(),
-            name: 'Homey Pro',
-            model: 'iPhone16,2',
-            osBuildVersion: '18C66',
-            osName: 'iPhone OS',
-            osVersion: '14.3',
-            sourceVersion: '320.20',
+            model: id.model,
+            name: id.name,
+            osBuildVersion: id.osBuildVersion,
+            osName: id.osName,
+            osVersion: id.osVersion,
+            sourceVersion: id.sourceVersion,
             sessionUUID: this.#sessionUUID,
+            sessionCorrelationUUID: this.#sessionUUID.toUpperCase()
+        };
+    }
+
+    async setupEventStream(sharedSecret: Buffer, pairingId: Buffer): Promise<void> {
+        const body: Record<string, any> = {
+            ...this.#setupBody(pairingId, SENDER_FEATURES_REMOTE_CONTROL),
             timingProtocol: 'None',
             isRemoteControlOnly: true
         };
@@ -177,15 +264,9 @@ export default class Protocol {
             body.timingProtocol = 'NTP';
         }
 
-        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, body);
-
-        if (response.status !== 200) {
-            this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
-            throw new SetupError('Failed to setup event stream.');
-        }
-
-        const plist = Plist.parse(await response.arrayBuffer()) as any;
+        const plist = await this.#performSetup(body, sharedSecret);
         const eventPort = plist.eventPort & 0xFFFF;
+
         this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
 
         this.#eventStream?.destroy();
@@ -199,21 +280,12 @@ export default class Protocol {
     async setupEventStreamForAudioStreaming(sharedSecret: Buffer, pairingId: Buffer): Promise<void> {
         const groupUUID = uuid().toUpperCase();
 
-        const body: Record<string, string | number | boolean> = {
-            deviceID: pairingId.toString(),
+        const body: Record<string, any> = {
+            ...this.#setupBody(pairingId, SENDER_FEATURES_AUDIO),
             groupContainsGroupLeader: false,
             groupUUID,
             isMultiSelectAirPlay: true,
-            macAddress: getMacAddress().toUpperCase(),
-            model: 'iPhone16,2',
-            name: 'Homey Pro',
-            osBuildVersion: '22A3354',
-            osName: 'iPhone OS',
-            osVersion: '18.0',
             senderSupportsRelay: false,
-            sessionCorrelationUUID: this.#sessionUUID.toUpperCase(),
-            sessionUUID: this.#sessionUUID.toUpperCase(),
-            sourceVersion: '935.7.1',
             statsCollectionEnabled: false,
             supportsGroupCohesion: true,
             timingProtocol: 'None',
@@ -225,15 +297,9 @@ export default class Protocol {
             body.timingProtocol = 'NTP';
         }
 
-        const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, body);
-
-        if (response.status !== 200) {
-            this.context.logger.error('[protocol]', 'Failed to setup event stream.', response.status, response.statusText, await response.text());
-            throw new SetupError('Failed to setup event stream.');
-        }
-
-        const plist = Plist.parse(await response.arrayBuffer()) as any;
+        const plist = await this.#performSetup(body, sharedSecret);
         const eventPort = plist.eventPort & 0xFFFF;
+
         this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
 
         this.#eventStream?.destroy();
@@ -245,18 +311,10 @@ export default class Protocol {
     }
 
     async playUrl(url: string, sharedSecret: Buffer, pairingId: Buffer, position: number = 0): Promise<void> {
-        const setupBody: Record<string, string | number | boolean> = {
-            deviceID: pairingId.toString(),
-            sessionUUID: this.#sessionUUID.toUpperCase(),
+        const setupBody: Record<string, any> = {
+            ...this.#setupBody(pairingId, SENDER_FEATURES_AUDIO),
             isMultiSelectAirPlay: true,
             groupContainsGroupLeader: false,
-            macAddress: getMacAddress().toUpperCase(),
-            model: 'iPhone16,2',
-            name: 'apple-protocols',
-            osBuildVersion: '18C66',
-            osName: 'iPhone OS',
-            osVersion: '14.3',
-            sourceVersion: '320.20',
             senderSupportsRelay: false,
             statsCollectionEnabled: false
         };
@@ -300,9 +358,9 @@ export default class Protocol {
                 volume: 1.0,
                 rate: 1.0,
                 clientBundleID: 'com.basmilius.apple-protocols',
-                clientProcName: 'apple-protocols',
-                osBuildVersion: '18C66',
-                model: 'iPhone16,2',
+                clientProcName: this.#context.identity.name,
+                osBuildVersion: this.#context.identity.osBuildVersion,
+                model: this.#context.identity.model,
                 SenderMACAddress: getMacAddress().toUpperCase()
             });
 

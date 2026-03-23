@@ -28,6 +28,7 @@ export default async function (storage: Storage): Promise<void> {
 
     const protocol = new AirPlay.Protocol(device);
     await protocol.connect();
+    await protocol.fetchInfo();
 
     let keys: AccessoryKeys | undefined;
 
@@ -71,7 +72,7 @@ export default async function (storage: Storage): Promise<void> {
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setReadyState());
     });
 
-    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId, protocol.context.identity));
 
     // Wait until the user presses Enter to stop listening.
     await new Promise<void>(resolve => {

@@ -1,0 +1,6 @@
+syntax = "proto2";
+
+message Diagnostic {
+    optional double dateGenerated = 1;
+    optional string diagnosticInfo = 2;
+}

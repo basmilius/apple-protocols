@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+message UserIdentity {
+    enum Type {
+        Unknown = 0;
+        AppleID = 1;
+        DeviceLocal = 2;
+    }
+
+    optional string identifier = 1;
+    optional string displayName = 2;
+    optional Type type = 3;
+}

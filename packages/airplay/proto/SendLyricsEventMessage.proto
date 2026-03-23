@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+import "LyricsEvent.proto";
+import "PlayerPath.proto";
 import "ProtocolMessage.proto";
 
 extend ProtocolMessage {
@@ -7,4 +9,6 @@ extend ProtocolMessage {
 }
 
 message SendLyricsEventMessage {
+    optional LyricsEvent event = 1;
+    optional PlayerPath playerPath = 2;
 }

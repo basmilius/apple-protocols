@@ -1,0 +1,25 @@
+syntax = "proto2";
+
+import "DeviceInfoMessage.proto";
+import "PlayerPath.proto";
+
+message ApplicationConnectionContext {
+    optional string identifier = 1;
+    optional string serviceName = 2;
+    optional PlayerPath destinationPlayerPath = 3;
+}
+
+message ApplicationConnectionRequestInfo {
+    optional string client = 1;
+    optional DeviceInfoMessage deviceInfo = 2;
+}
+
+message ApplicationConnectionMessageHeader {
+    optional int32 type = 1;
+    optional int32 identifier = 2;
+}
+
+message ApplicationConnectionMessage {
+    optional ApplicationConnectionMessageHeader header = 1;
+    optional bytes underlyingMessage = 2;
+}

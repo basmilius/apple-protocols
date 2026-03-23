@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file NowPlayingInfo.proto.
  */
 export const file_NowPlayingInfo: GenFile = /*@__PURE__*/
-  fileDesc("ChROb3dQbGF5aW5nSW5mby5wcm90byLBAwoOTm93UGxheWluZ0luZm8SDQoFYWxidW0YASABKAkSDgoGYXJ0aXN0GAIgASgJEhAKCGR1cmF0aW9uGAMgASgBEhMKC2VsYXBzZWRUaW1lGAQgASgBEhQKDHBsYXliYWNrUmF0ZRgFIAEoAhIkCgpyZXBlYXRNb2RlGAYgASgOMhAuUmVwZWF0TW9kZS5FbnVtEiYKC3NodWZmbGVNb2RlGAcgASgOMhEuU2h1ZmZsZU1vZGUuRW51bRIRCgl0aW1lc3RhbXAYCCABKAESDQoFdGl0bGUYCSABKAkSGAoQdW5pcXVlSWRlbnRpZmllchgKIAEoBBIXCg9pc0V4cGxpY2l0VHJhY2sYCyABKAgSEgoKaXNNdXNpY0FwcBgMIAEoCBIeChZyYWRpb1N0YXRpb25JZGVudGlmaWVyGA0gASgDEhgKEHJhZGlvU3RhdGlvbkhhc2gYDiABKAkSGAoQcmFkaW9TdGF0aW9uTmFtZRgPIAEoCRIZChFhcnR3b3JrRGF0YURpZ2VzdBgQIAEoDBIUCgxpc0Fsd2F5c0xpdmUYESABKAgSFwoPaXNBZHZlcnRpc2VtZW50GBIgASgI", [file_Common]);
+  fileDesc("ChROb3dQbGF5aW5nSW5mby5wcm90byLZAwoOTm93UGxheWluZ0luZm8SDQoFYWxidW0YASABKAkSDgoGYXJ0aXN0GAIgASgJEhAKCGR1cmF0aW9uGAMgASgBEhMKC2VsYXBzZWRUaW1lGAQgASgBEhQKDHBsYXliYWNrUmF0ZRgFIAEoAhIkCgpyZXBlYXRNb2RlGAYgASgOMhAuUmVwZWF0TW9kZS5FbnVtEiYKC3NodWZmbGVNb2RlGAcgASgOMhEuU2h1ZmZsZU1vZGUuRW51bRIRCgl0aW1lc3RhbXAYCCABKAESDQoFdGl0bGUYCSABKAkSGAoQdW5pcXVlSWRlbnRpZmllchgKIAEoBBIXCg9pc0V4cGxpY2l0VHJhY2sYCyABKAgSEgoKaXNNdXNpY0FwcBgMIAEoCBIeChZyYWRpb1N0YXRpb25JZGVudGlmaWVyGA0gASgDEhgKEHJhZGlvU3RhdGlvbkhhc2gYDiABKAkSGAoQcmFkaW9TdGF0aW9uTmFtZRgPIAEoCRIZChFhcnR3b3JrRGF0YURpZ2VzdBgQIAEoDBIUCgxpc0Fsd2F5c0xpdmUYESABKAgSFwoPaXNBZHZlcnRpc2VtZW50GBIgASgIEhYKDmlzSW5UcmFuc2l0aW9uGBMgASgI", [file_Common]);
 
 /**
  * @generated from message NowPlayingInfo
@@ -107,6 +107,11 @@ export type NowPlayingInfo = Message<"NowPlayingInfo"> & {
    * @generated from field: optional bool isAdvertisement = 18;
    */
   isAdvertisement: boolean;
+
+  /**
+   * @generated from field: optional bool isInTransition = 19;
+   */
+  isInTransition: boolean;
 };
 
 /**

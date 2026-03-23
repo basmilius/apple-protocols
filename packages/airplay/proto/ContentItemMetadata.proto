@@ -210,4 +210,20 @@ message ContentItemMetadata {
     optional FormatTier.Enum formatTierPreference = 95;
     optional AudioRoute audioRoute = 96;
     repeated AudioFormat alternativeFormats = 97;
+    optional bool isAdvertisement = 98;
+    optional bool hasAlternativeFormats = 99;
+    optional string participantName = 100;
+    optional string participantIdentifier = 101;
+    optional string classicalWork = 102;
+    optional int64 reportingAdamID = 103;
+    optional int64 lyricsAdamID = 104;
+    optional int64 iTunesStoreAlbumArtistIdentifier = 105;
+    optional string durationStringLocalizationKey = 106;
+    optional bool isResolvableParticipant = 107;
+    optional string internationalStandardRecordingCode = 108;
+    optional bool isInTransition = 109;
+    optional bool excludeFromSuggestions = 110;
+    optional bool transcriptAlignmentsAvailable = 111;
+    optional string subtitleShort = 112;
+    optional bytes transitionInfoData = 113;
 }

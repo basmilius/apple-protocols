@@ -21,4 +21,5 @@ message NowPlayingInfo {
     optional bytes artworkDataDigest = 16;
     optional bool isAlwaysLive = 17;
     optional bool isAdvertisement = 18;
+    optional bool isInTransition = 19;
 }

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file UpdateOutputDeviceMessage.proto.
  */
 export const file_UpdateOutputDeviceMessage: GenFile = /*@__PURE__*/
-  fileDesc("Ch9VcGRhdGVPdXRwdXREZXZpY2VNZXNzYWdlLnByb3RvIlUKGEFWT3V0cHV0RGV2aWNlU291cmNlSW5mbxIZChFyb3V0aW5nQ29udGV4dFVJRBgBIAEoCRIeChZtdWx0aXBsZUJ1aWx0SW5EZXZpY2VzGAIgASgIIvUPChhBVk91dHB1dERldmljZURlc2NyaXB0b3ISDAoEbmFtZRgBIAEoCRIYChB1bmlxdWVJZGVudGlmaWVyGAIgASgJEg8KB2dyb3VwSUQYAyABKAkSDwoHbW9kZWxJRBgEIAEoCRISCgptYWNBZGRyZXNzGAUgASgMEh0KFWNhbkFjY2Vzc1JlbW90ZUFzc2V0cxgGIAEoCBIcChRpc1JlbW90ZUNvbnRyb2xsYWJsZRgHIAEoCBIVCg1pc0dyb3VwTGVhZGVyGAggASgIEhMKC2lzR3JvdXBhYmxlGAkgASgIEiQKCmRldmljZVR5cGUYCiABKA4yEC5EZXZpY2VUeXBlLkVudW0SKgoNZGV2aWNlU3ViVHlwZRgLIAEoDjITLkRldmljZVN1YlR5cGUuRW51bRIdChVtb2RlbFNwZWNpZmljSW5mb0RhdGEYDCABKAwSFAoMYmF0dGVyeUxldmVsGA0gASgCEhUKDWlzTG9jYWxEZXZpY2UYDiABKAgSHgoWc3VwcG9ydHNFeHRlcm5hbFNjcmVlbhgPIAEoCBIdChVyZXF1aXJlc0F1dGhvcml6YXRpb24YECABKAgSKAogc2hvdWxkRm9yY2VSZW1vdGVDb250cm9sYWJpbGxpdHkYESABKAgSLQoKc291cmNlSW5mbxgSIAEoCzIZLkFWT3V0cHV0RGV2aWNlU291cmNlSW5mbxIZChFpc0RldmljZUdyb3VwYWJsZRgTIAEoCBIkChxjYW5SZWxheUNvbW11bmljYXRpb25DaGFubmVsGBQgASgIEhcKD2xvZ2ljYWxEZXZpY2VJRBgVIAEoCRIaChJpc1Byb3h5R3JvdXBQbGF5ZXIYFiABKAgSFwoPZmlybXdhcmVWZXJzaW9uGBcgASgJEg4KBnZvbHVtZRgYIAEoAhIgChhpc1ZvbHVtZUNvbnRyb2xBdmFpbGFibGUYGSABKAgSGwoTY2FuQWNjZXNzQXBwbGVNdXNpYxgaIAEoCBIjChtjYW5BY2Nlc3NpQ2xvdWRNdXNpY0xpYnJhcnkYGyABKAgSIAoYZ3JvdXBDb250YWluc0dyb3VwTGVhZGVyGBwgASgIEh8KF3N1cHBvcnRzQnVmZmVyZWRBaXJQbGF5GB0gASgIEjEKKWNhblBsYXlFbmNyeXB0ZWRQcm9ncmVzc2l2ZURvd25sb2FkQXNzZXRzGB4gASgIEiMKG2NhbkZldGNoTWVkaWFEYXRhRnJvbVNlbmRlchgfIAEoCBJGCj5yZXNlbnRzT3B0aW1pemVkVXNlckludGVyZmFjZVdoZW5QbGF5aW5nRmV0Y2hlZEF1ZGlvT25seUFzc2V0cxggIAEoCBImCh5pc0FpclBsYXlSZWNlaXZlclNlc3Npb25BY3RpdmUYISABKAgSHQoVcGFyZW50R3JvdXBJZGVudGlmaWVyGCIgASgJEi0KJXBhcmVudEdyb3VwQ29udGFpbnNEaXNjb3ZlcmFibGVMZWFkZXIYIyABKAgSGAoQaXNBZGRlZFRvSG9tZUtpdBgkIAEoCBIaChJ2b2x1bWVDYXBhYmlsaXRpZXMYJSABKAUSEwoLYmx1ZXRvb3RoSUQYJiABKAkSEwoLc3VwcG9ydHNIQVAYJyABKAgSGQoRdXNpbmdKU09OUHJvdG9jb2wYKCABKAgSNgoTY2x1c3RlckNvbXBvc2l0aW9ucxgpIAMoCzIZLkFWT3V0cHV0RGV2aWNlRGVzY3JpcHRvchITCgtjbHVzdGVyVHlwZRgqIAEoDRISCgpwcmltYXJ5VUlEGCsgASgJEh0KFWNvbmZpZ3VyZWRDbHVzdGVyU2l6ZRgsIAEoDRItCiVzdXBwb3J0c1JhcHBvcnRSZW1vdGVDb250cm9sVHJhbnNwb3J0GC0gASgIEiUKHWN1cnJlbnRCbHVldG9vdGhMaXN0ZW5pbmdNb2RlGC4gASgJEigKIGF2YWlsYWJsZUJsdWV0b290aExpc3RlbmluZ01vZGVzGC8gAygJEhsKE3N1cHBvcnRzTXVsdGlwbGF5ZXIYMCADKAgSIAoYcHJvZHVjZXNMb3dGaWRlbGl0eUF1ZGlvGDEgASgIEhcKD2hvc3REZXZpY2VDbGFzcxgyIAEoBRIWCg5haXJQbGF5R3JvdXBJRBgzIAEoCRIgChhzdXBwb3J0c1NoYXJlUGxheUhhbmRvZmYYNCABKAgSEAoIZGlzdGFuY2UYNSABKAISHQoVZGlzY292ZXJlZE9uU2FtZUluZnJhGDYgASgIEjoKF2FjdGl2YXRlZENsdXN0ZXJNZW1iZXJzGDcgAygLMhkuQVZPdXRwdXREZXZpY2VEZXNjcmlwdG9yEhAKCHBpY2thYmxlGDggAygIEhUKDXRyYW5zcG9ydFR5cGUYOSABKAUSEQoJY2x1c3RlcklEGDogASgJEhcKD2lzQ2x1c3RlckxlYWRlchg7IAEoCBIYChBpc0FwcGxlQWNjZXNzb3J5GDwgASgIEh4KFnBhcmVudFVuaXF1ZUlkZW50aWZpZXIYPSABKAkSDgoGcm9vbUlEGD4gASgJEhAKCHJvb21OYW1lGD8gASgJEjQKEWFsbENsdXN0ZXJNZW1iZXJzGEAgAygLMhkuQVZPdXRwdXREZXZpY2VEZXNjcmlwdG9yEh8KF2VuZ2FnZU9uQ2x1c3RlckFjdGl2YXRlGEMgASgIIqABChlVcGRhdGVPdXRwdXREZXZpY2VNZXNzYWdlEjAKDW91dHB1dERldmljZXMYASADKAsyGS5BVk91dHB1dERldmljZURlc2NyaXB0b3ISEwoLZW5kcG9pbnRVSUQYAiABKAkSPAoZY2x1c3RlckF3YXJlT3V0cHV0RGV2aWNlcxgDIAMoCzIZLkFWT3V0cHV0RGV2aWNlRGVzY3JpcHRvcjpqChl1cGRhdGVPdXRwdXREZXZpY2VNZXNzYWdlEhAuUHJvdG9jb2xNZXNzYWdlGEUgASgLMhouVXBkYXRlT3V0cHV0RGV2aWNlTWVzc2FnZVIZdXBkYXRlT3V0cHV0RGV2aWNlTWVzc2FnZQ", [file_ProtocolMessage, file_Common]);
+  fileDesc("Ch9VcGRhdGVPdXRwdXREZXZpY2VNZXNzYWdlLnByb3RvIlUKGEFWT3V0cHV0RGV2aWNlU291cmNlSW5mbxIZChFyb3V0aW5nQ29udGV4dFVJRBgBIAEoCRIeChZtdWx0aXBsZUJ1aWx0SW5EZXZpY2VzGAIgASgIIrAUChhBVk91dHB1dERldmljZURlc2NyaXB0b3ISDAoEbmFtZRgBIAEoCRIYChB1bmlxdWVJZGVudGlmaWVyGAIgASgJEg8KB2dyb3VwSUQYAyABKAkSDwoHbW9kZWxJRBgEIAEoCRISCgptYWNBZGRyZXNzGAUgASgMEh0KFWNhbkFjY2Vzc1JlbW90ZUFzc2V0cxgGIAEoCBIcChRpc1JlbW90ZUNvbnRyb2xsYWJsZRgHIAEoCBIVCg1pc0dyb3VwTGVhZGVyGAggASgIEhMKC2lzR3JvdXBhYmxlGAkgASgIEiQKCmRldmljZVR5cGUYCiABKA4yEC5EZXZpY2VUeXBlLkVudW0SKgoNZGV2aWNlU3ViVHlwZRgLIAEoDjITLkRldmljZVN1YlR5cGUuRW51bRIdChVtb2RlbFNwZWNpZmljSW5mb0RhdGEYDCABKAwSFAoMYmF0dGVyeUxldmVsGA0gASgCEhUKDWlzTG9jYWxEZXZpY2UYDiABKAgSHgoWc3VwcG9ydHNFeHRlcm5hbFNjcmVlbhgPIAEoCBIdChVyZXF1aXJlc0F1dGhvcml6YXRpb24YECABKAgSKAogc2hvdWxkRm9yY2VSZW1vdGVDb250cm9sYWJpbGxpdHkYESABKAgSLQoKc291cmNlSW5mbxgSIAEoCzIZLkFWT3V0cHV0RGV2aWNlU291cmNlSW5mbxIZChFpc0RldmljZUdyb3VwYWJsZRgTIAEoCBIkChxjYW5SZWxheUNvbW11bmljYXRpb25DaGFubmVsGBQgASgIEhcKD2xvZ2ljYWxEZXZpY2VJRBgVIAEoCRIaChJpc1Byb3h5R3JvdXBQbGF5ZXIYFiABKAgSFwoPZmlybXdhcmVWZXJzaW9uGBcgASgJEg4KBnZvbHVtZRgYIAEoAhIgChhpc1ZvbHVtZUNvbnRyb2xBdmFpbGFibGUYGSABKAgSGwoTY2FuQWNjZXNzQXBwbGVNdXNpYxgaIAEoCBIjChtjYW5BY2Nlc3NpQ2xvdWRNdXNpY0xpYnJhcnkYGyABKAgSIAoYZ3JvdXBDb250YWluc0dyb3VwTGVhZGVyGBwgASgIEh8KF3N1cHBvcnRzQnVmZmVyZWRBaXJQbGF5GB0gASgIEjEKKWNhblBsYXlFbmNyeXB0ZWRQcm9ncmVzc2l2ZURvd25sb2FkQXNzZXRzGB4gASgIEiMKG2NhbkZldGNoTWVkaWFEYXRhRnJvbVNlbmRlchgfIAEoCBJHCj9wcmVzZW50c09wdGltaXplZFVzZXJJbnRlcmZhY2VXaGVuUGxheWluZ0ZldGNoZWRBdWRpb09ubHlBc3NldHMYICABKAgSJgoeaXNBaXJQbGF5UmVjZWl2ZXJTZXNzaW9uQWN0aXZlGCEgASgIEh0KFXBhcmVudEdyb3VwSWRlbnRpZmllchgiIAEoCRItCiVwYXJlbnRHcm91cENvbnRhaW5zRGlzY292ZXJhYmxlTGVhZGVyGCMgASgIEhgKEGlzQWRkZWRUb0hvbWVLaXQYJCABKAgSGgoSdm9sdW1lQ2FwYWJpbGl0aWVzGCUgASgFEhMKC2JsdWV0b290aElEGCYgASgJEhMKC3N1cHBvcnRzSEFQGCcgASgIEhkKEXVzaW5nSlNPTlByb3RvY29sGCggASgIEjYKE2NsdXN0ZXJDb21wb3NpdGlvbnMYKSADKAsyGS5BVk91dHB1dERldmljZURlc2NyaXB0b3ISEwoLY2x1c3RlclR5cGUYKiABKA0SEgoKcHJpbWFyeVVJRBgrIAEoCRIdChVjb25maWd1cmVkQ2x1c3RlclNpemUYLCABKA0SLQolc3VwcG9ydHNSYXBwb3J0UmVtb3RlQ29udHJvbFRyYW5zcG9ydBgtIAEoCBIlCh1jdXJyZW50Qmx1ZXRvb3RoTGlzdGVuaW5nTW9kZRguIAEoCRIoCiBhdmFpbGFibGVCbHVldG9vdGhMaXN0ZW5pbmdNb2RlcxgvIAMoCRIbChNzdXBwb3J0c011bHRpcGxheWVyGDAgASgIEiAKGHByb2R1Y2VzTG93RmlkZWxpdHlBdWRpbxgxIAEoCBIXCg9ob3N0RGV2aWNlQ2xhc3MYMiABKAUSFgoOYWlyUGxheUdyb3VwSUQYMyABKAkSIAoYc3VwcG9ydHNTaGFyZVBsYXlIYW5kb2ZmGDQgASgIEhAKCGRpc3RhbmNlGDUgASgCEh0KFWRpc2NvdmVyZWRPblNhbWVJbmZyYRg2IAEoCBI6ChdhY3RpdmF0ZWRDbHVzdGVyTWVtYmVycxg3IAMoCzIZLkFWT3V0cHV0RGV2aWNlRGVzY3JpcHRvchIQCghwaWNrYWJsZRg4IAEoCBIVCg10cmFuc3BvcnRUeXBlGDkgASgFEhEKCWNsdXN0ZXJJRBg6IAEoCRIXCg9pc0NsdXN0ZXJMZWFkZXIYOyABKAgSGAoQaXNBcHBsZUFjY2Vzc29yeRg8IAEoCBIeChZwYXJlbnRVbmlxdWVJZGVudGlmaWVyGD0gASgJEg4KBnJvb21JRBg+IAEoCRIQCghyb29tTmFtZRg/IAEoCRI0ChFhbGxDbHVzdGVyTWVtYmVycxhAIAMoCzIZLkFWT3V0cHV0RGV2aWNlRGVzY3JpcHRvchIlCh1zdXBwb3J0c0NvbnZlcnNhdGlvbkRldGVjdGlvbhhBIAEoCBIkChxjb252ZXJzYXRpb25EZXRlY3Rpb25FbmFibGVkGEIgASgIEh8KF2VuZ2FnZU9uQ2x1c3RlckFjdGl2YXRlGEMgASgIEhMKC3ZvbHVtZU11dGVkGEQgASgIEhgKEGdyb3VwU2Vzc2lvbkluZm8YRSABKAwSIAoYc3VwcG9ydHNCbHVldG9vdGhTaGFyaW5nGEYgASgIEhwKFGRldmljZUVuY2xvc3VyZUNvbG9yGEcgASgJEh8KF3BsYXlpbmdQYWlyZWREZXZpY2VOYW1lGEggASgJEhcKD3N1cHBvcnRzUmFwcG9ydBhJIAEoCBIeChZpc1BpY2tlZE9uUGFpcmVkRGV2aWNlGEogASgIEicKH3N1cHBvcnRzSGVhZFRyYWNrZWRTcGF0aWFsQXVkaW8YSyABKAgSJQodYWxsb3dzSGVhZFRyYWNrZWRTcGF0aWFsQXVkaW8YTCABKAgSJwofaXNIZWFkVHJhY2tlZFNwYXRpYWxBdWRpb0FjdGl2ZRhNIAEoCBIjChtoZWFkVHJhY2tlZFNwYXRpYWxBdWRpb01vZGUYTiABKAkSEAoIZG5zTmFtZXMYTyADKAkSHgoWYWx0ZXJuYXRlVHJhbnNwb3J0VHlwZRhQIAEoCRIXCg9kZXZpY2VJc1BsYXlpbmcYUSABKAgSHAoUd2FzRGlzY292ZXJlZEluQ2FjaGUYUiABKAgSGwoTcmVwcmVzZW50c1VHTFNlbmRlchhTIAEoCCKgAQoZVXBkYXRlT3V0cHV0RGV2aWNlTWVzc2FnZRIwCg1vdXRwdXREZXZpY2VzGAEgAygLMhkuQVZPdXRwdXREZXZpY2VEZXNjcmlwdG9yEhMKC2VuZHBvaW50VUlEGAIgASgJEjwKGWNsdXN0ZXJBd2FyZU91dHB1dERldmljZXMYAyADKAsyGS5BVk91dHB1dERldmljZURlc2NyaXB0b3I6agoZdXBkYXRlT3V0cHV0RGV2aWNlTWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRhFIAEoCzIaLlVwZGF0ZU91dHB1dERldmljZU1lc3NhZ2VSGXVwZGF0ZU91dHB1dERldmljZU1lc3NhZ2U", [file_ProtocolMessage, file_Common]);
 
 /**
  * @generated from message AVOutputDeviceSourceInfo
@@ -198,9 +198,9 @@ export type AVOutputDeviceDescriptor = Message<"AVOutputDeviceDescriptor"> & {
   canFetchMediaDataFromSender: boolean;
 
   /**
-   * @generated from field: optional bool resentsOptimizedUserInterfaceWhenPlayingFetchedAudioOnlyAssets = 32;
+   * @generated from field: optional bool presentsOptimizedUserInterfaceWhenPlayingFetchedAudioOnlyAssets = 32;
    */
-  resentsOptimizedUserInterfaceWhenPlayingFetchedAudioOnlyAssets: boolean;
+  presentsOptimizedUserInterfaceWhenPlayingFetchedAudioOnlyAssets: boolean;
 
   /**
    * @generated from field: optional bool isAirPlayReceiverSessionActive = 33;
@@ -278,9 +278,9 @@ export type AVOutputDeviceDescriptor = Message<"AVOutputDeviceDescriptor"> & {
   availableBluetoothListeningModes: string[];
 
   /**
-   * @generated from field: repeated bool supportsMultiplayer = 48;
+   * @generated from field: optional bool supportsMultiplayer = 48;
    */
-  supportsMultiplayer: boolean[];
+  supportsMultiplayer: boolean;
 
   /**
    * @generated from field: optional bool producesLowFidelityAudio = 49;
@@ -318,9 +318,9 @@ export type AVOutputDeviceDescriptor = Message<"AVOutputDeviceDescriptor"> & {
   activatedClusterMembers: AVOutputDeviceDescriptor[];
 
   /**
-   * @generated from field: repeated bool pickable = 56;
+   * @generated from field: optional bool pickable = 56;
    */
-  pickable: boolean[];
+  pickable: boolean;
 
   /**
    * @generated from field: optional int32 transportType = 57;
@@ -363,9 +363,99 @@ export type AVOutputDeviceDescriptor = Message<"AVOutputDeviceDescriptor"> & {
   allClusterMembers: AVOutputDeviceDescriptor[];
 
   /**
+   * @generated from field: optional bool supportsConversationDetection = 65;
+   */
+  supportsConversationDetection: boolean;
+
+  /**
+   * @generated from field: optional bool conversationDetectionEnabled = 66;
+   */
+  conversationDetectionEnabled: boolean;
+
+  /**
    * @generated from field: optional bool engageOnClusterActivate = 67;
    */
   engageOnClusterActivate: boolean;
+
+  /**
+   * @generated from field: optional bool volumeMuted = 68;
+   */
+  volumeMuted: boolean;
+
+  /**
+   * @generated from field: optional bytes groupSessionInfo = 69;
+   */
+  groupSessionInfo: Uint8Array;
+
+  /**
+   * @generated from field: optional bool supportsBluetoothSharing = 70;
+   */
+  supportsBluetoothSharing: boolean;
+
+  /**
+   * @generated from field: optional string deviceEnclosureColor = 71;
+   */
+  deviceEnclosureColor: string;
+
+  /**
+   * @generated from field: optional string playingPairedDeviceName = 72;
+   */
+  playingPairedDeviceName: string;
+
+  /**
+   * @generated from field: optional bool supportsRapport = 73;
+   */
+  supportsRapport: boolean;
+
+  /**
+   * @generated from field: optional bool isPickedOnPairedDevice = 74;
+   */
+  isPickedOnPairedDevice: boolean;
+
+  /**
+   * @generated from field: optional bool supportsHeadTrackedSpatialAudio = 75;
+   */
+  supportsHeadTrackedSpatialAudio: boolean;
+
+  /**
+   * @generated from field: optional bool allowsHeadTrackedSpatialAudio = 76;
+   */
+  allowsHeadTrackedSpatialAudio: boolean;
+
+  /**
+   * @generated from field: optional bool isHeadTrackedSpatialAudioActive = 77;
+   */
+  isHeadTrackedSpatialAudioActive: boolean;
+
+  /**
+   * @generated from field: optional string headTrackedSpatialAudioMode = 78;
+   */
+  headTrackedSpatialAudioMode: string;
+
+  /**
+   * @generated from field: repeated string dnsNames = 79;
+   */
+  dnsNames: string[];
+
+  /**
+   * @generated from field: optional string alternateTransportType = 80;
+   */
+  alternateTransportType: string;
+
+  /**
+   * @generated from field: optional bool deviceIsPlaying = 81;
+   */
+  deviceIsPlaying: boolean;
+
+  /**
+   * @generated from field: optional bool wasDiscoveredInCache = 82;
+   */
+  wasDiscoveredInCache: boolean;
+
+  /**
+   * @generated from field: optional bool representsUGLSender = 83;
+   */
+  representsUGLSender: boolean;
 };
 
 /**

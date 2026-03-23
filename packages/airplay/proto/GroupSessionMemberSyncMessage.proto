@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+import "GroupSession.proto";
+import "ProtocolMessage.proto";
+
+extend ProtocolMessage {
+    optional GroupSessionMemberSyncMessage groupSessionMemberSyncMessage = 109;
+}
+
+message GroupSessionMemberSyncMessage {
+    repeated GroupSessionParticipant members = 1;
+    repeated GroupSessionParticipant participants = 2;
+    repeated GroupSessionParticipant pendingParticipants = 3;
+}

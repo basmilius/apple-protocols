@@ -4,6 +4,10 @@
 
 import type { GenExtension, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { extDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { LyricsEvent } from "./LyricsEvent_pb";
+import { file_LyricsEvent } from "./LyricsEvent_pb";
+import type { PlayerPath } from "./PlayerPath_pb";
+import { file_PlayerPath } from "./PlayerPath_pb";
 import type { ProtocolMessage } from "./ProtocolMessage_pb";
 import { file_ProtocolMessage } from "./ProtocolMessage_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,12 +16,21 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file SendLyricsEventMessage.proto.
  */
 export const file_SendLyricsEventMessage: GenFile = /*@__PURE__*/
-  fileDesc("ChxTZW5kTHlyaWNzRXZlbnRNZXNzYWdlLnByb3RvIhgKFlNlbmRMeXJpY3NFdmVudE1lc3NhZ2U6YQoWc2VuZEx5cmljc0V2ZW50TWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRgwIAEoCzIXLlNlbmRMeXJpY3NFdmVudE1lc3NhZ2VSFnNlbmRMeXJpY3NFdmVudE1lc3NhZ2U", [file_ProtocolMessage]);
+  fileDesc("ChxTZW5kTHlyaWNzRXZlbnRNZXNzYWdlLnByb3RvIlYKFlNlbmRMeXJpY3NFdmVudE1lc3NhZ2USGwoFZXZlbnQYASABKAsyDC5MeXJpY3NFdmVudBIfCgpwbGF5ZXJQYXRoGAIgASgLMgsuUGxheWVyUGF0aDphChZzZW5kTHlyaWNzRXZlbnRNZXNzYWdlEhAuUHJvdG9jb2xNZXNzYWdlGDAgASgLMhcuU2VuZEx5cmljc0V2ZW50TWVzc2FnZVIWc2VuZEx5cmljc0V2ZW50TWVzc2FnZQ", [file_LyricsEvent, file_PlayerPath, file_ProtocolMessage]);
 
 /**
  * @generated from message SendLyricsEventMessage
  */
 export type SendLyricsEventMessage = Message<"SendLyricsEventMessage"> & {
+  /**
+   * @generated from field: optional LyricsEvent event = 1;
+   */
+  event?: LyricsEvent;
+
+  /**
+   * @generated from field: optional PlayerPath playerPath = 2;
+   */
+  playerPath?: PlayerPath;
 };
 
 /**

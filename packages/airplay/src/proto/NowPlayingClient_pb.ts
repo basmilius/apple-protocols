@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file NowPlayingClient.proto.
  */
 export const file_NowPlayingClient: GenFile = /*@__PURE__*/
-  fileDesc("ChZOb3dQbGF5aW5nQ2xpZW50LnByb3RvIugBChBOb3dQbGF5aW5nQ2xpZW50EhkKEXByb2Nlc3NJZGVudGlmaWVyGAEgASgFEhgKEGJ1bmRsZUlkZW50aWZpZXIYAiABKAkSKQohcGFyZW50QXBwbGljYXRpb25CdW5kbGVJZGVudGlmaWVyGAMgASgJEh0KFXByb2Nlc3NVc2VySWRlbnRpZmllchgEIAEoBRIcChRub3dQbGF5aW5nVmlzaWJpbGl0eRgFIAEoBRITCgtkaXNwbGF5TmFtZRgHIAEoCRIiChpidW5kbGVJZGVudGlmaWVySGllcmFyY2h5cxgIIAMoCQ");
+  fileDesc("ChZOb3dQbGF5aW5nQ2xpZW50LnByb3RvIqcCChBOb3dQbGF5aW5nQ2xpZW50EhkKEXByb2Nlc3NJZGVudGlmaWVyGAEgASgFEhgKEGJ1bmRsZUlkZW50aWZpZXIYAiABKAkSKQohcGFyZW50QXBwbGljYXRpb25CdW5kbGVJZGVudGlmaWVyGAMgASgJEh0KFXByb2Nlc3NVc2VySWRlbnRpZmllchgEIAEoBRIcChRub3dQbGF5aW5nVmlzaWJpbGl0eRgFIAEoBRIRCgl0aW50Q29sb3IYBiABKAwSEwoLZGlzcGxheU5hbWUYByABKAkSIgoaYnVuZGxlSWRlbnRpZmllckhpZXJhcmNoeXMYCCADKAkSDwoHaWNvblVSTBgJIAEoCRIZChFpc0VtcHR5RGVwcmVjYXRlZBgKIAEoCA");
 
 /**
  * @generated from message NowPlayingClient
@@ -42,8 +42,11 @@ export type NowPlayingClient = Message<"NowPlayingClient"> & {
   nowPlayingVisibility: number;
 
   /**
-   *    optional TintColor tintColor = 6;
-   *
+   * @generated from field: optional bytes tintColor = 6;
+   */
+  tintColor: Uint8Array;
+
+  /**
    * @generated from field: optional string displayName = 7;
    */
   displayName: string;
@@ -52,6 +55,16 @@ export type NowPlayingClient = Message<"NowPlayingClient"> & {
    * @generated from field: repeated string bundleIdentifierHierarchys = 8;
    */
   bundleIdentifierHierarchys: string[];
+
+  /**
+   * @generated from field: optional string iconURL = 9;
+   */
+  iconURL: string;
+
+  /**
+   * @generated from field: optional bool isEmptyDeprecated = 10;
+   */
+  isEmptyDeprecated: boolean;
 };
 
 /**

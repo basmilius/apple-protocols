@@ -58,6 +58,20 @@ enum Command {
     SetPriorityForPlaybackSession = 61;
     DiscardPlaybackSession = 62;
     Reshuffle = 63;
+    SetRepeatMode = 64;
+    SetShuffleMode = 65;
+    SetSleepTimer = 66;
+    SetVolume = 67;
+    AdjustVolume = 68;
+    InitiatePlayback = 69;
+    InitializePlaybackQueue = 70;
+    GetPlaybackQueue = 71;
+    GetPlaybackState = 72;
+    GetPlaybackSession = 73;
+    CoordinatePlayback = 74;
+    LeaveSharedPlaybackSession = 75;
+    PrepareVocalsControl = 76;
+    EnhanceDialogue = 77;
     ChangeQueueEndAction = 135;
 }
 

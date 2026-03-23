@@ -66,4 +66,10 @@ message DeviceInfoMessage {
     optional string computerName = 50;
     optional uint32 configuredClusterSize = 51;
     optional PreferredEncoding.Enum preferredEncoding = 52;
+    optional bytes groupSessionToken = 53;
+    optional DeviceInfoMessage leaderDeviceInfo = 54;
+    optional bool isClusterLeader = 55;
+    optional string activeSystemEndpointUID = 56;
+    optional bool isEligibleForHostingGroupSessionExcludingAcknowledgements = 57;
+    optional bool parentGroupSupportsGroupCohesion = 58;
 }

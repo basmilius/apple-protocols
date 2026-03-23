@@ -52,7 +52,8 @@ export class Reporter {
     #enabled: DebugGroup[] = [];
 
     all(): void {
-        this.#enabled = ['debug', 'error', 'info', 'net', 'raw', 'warn'] as DebugGroup[];
+        // this.#enabled = ['debug', 'error', 'info', 'net', 'raw', 'warn'] as DebugGroup[];
+        this.#enabled = ['debug', 'error', 'info', 'net', 'warn'] as DebugGroup[];
     }
 
     none(): void {

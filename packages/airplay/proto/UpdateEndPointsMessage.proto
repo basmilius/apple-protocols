@@ -1,6 +1,7 @@
 syntax = "proto2";
 
 import "ProtocolMessage.proto";
+import "UpdateOutputDeviceMessage.proto";
 
 extend ProtocolMessage {
     optional UpdateEndPointsMessage updateEndPointsMessage = 83;
@@ -9,14 +10,14 @@ extend ProtocolMessage {
 message AVEndpointDescriptor {
     optional string name = 1;
     optional string uniqueIdentifier = 2;
-    // repeated ... outputDevices = 3;
-    // optional ... designatedGroupLeader = 4;
+    repeated AVOutputDeviceDescriptor outputDevices = 3;
+    optional AVOutputDeviceDescriptor designatedGroupLeader = 4;
     optional bool isLocalEndpoint = 5;
     optional string instanceIdentifier = 6;
     optional bool isProxyGroupPlayer = 7;
     optional int32 connectionType = 8;
     optional bool canModifyGroupMembership = 9;
-    // repeated ... _personalOutputDevices = 10;
+    repeated AVOutputDeviceDescriptor personalOutputDevices = 10;
 }
 
 message UpdateEndPointsMessage {

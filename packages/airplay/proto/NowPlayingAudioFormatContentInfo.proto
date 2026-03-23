@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+import "ContentItemMetadata.proto";
+
+message NowPlayingAudioFormatContentInfo {
+    optional AudioFormat audioFormat = 1;
+    optional string bundleID = 2;
+    optional int32 pid = 3;
+    optional int64 audioSessionID = 4;
+    optional int32 channelCount = 5;
+    optional int32 renderingMode = 6;
+    optional bool spatialized = 7;
+    optional bool eligibleForSpatialization = 8;
+    optional int32 intendedSpatialExperience = 9;
+    optional int32 resolvedSpatialExperience = 10;
+    optional AudioFormat bestAvailableContent = 11;
+}

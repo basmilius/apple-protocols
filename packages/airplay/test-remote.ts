@@ -64,7 +64,7 @@ async function homepod(): Promise<void> {
     });
 
     // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.configureConnection(``));
-    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId, protocol.context.identity));
 }
 
 async function tv(): Promise<void> {
@@ -131,7 +131,7 @@ async function tv(): Promise<void> {
         // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, false));
     });
 
-    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId));
+    await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId, protocol.context.identity));
 }
 
 async function tvPair(): Promise<void> {

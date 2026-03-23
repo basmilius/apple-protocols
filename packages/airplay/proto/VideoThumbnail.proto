@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+message VideoThumbnail {
+    optional bytes imageData = 1;
+    optional double time = 2;
+}
+
+message VideoThumbnailRequest {
+    optional int32 thumbnailsWidth = 1;
+    optional int32 thumbnailsHeight = 2;
+    repeated double timeIntervals = 3;
+}

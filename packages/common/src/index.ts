@@ -46,7 +46,8 @@ export {
 } from './connection';
 
 export {
-    Context
+    Context,
+    type DeviceIdentity
 } from './context';
 
 export {

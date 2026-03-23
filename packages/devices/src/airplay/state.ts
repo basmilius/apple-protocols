@@ -15,6 +15,7 @@ type NowPlayingSnapshot = {
     album: string;
     genre: string;
     duration: number;
+    playbackRate: number;
     shuffleMode: Proto.ShuffleMode_Enum;
     repeatMode: Proto.RepeatMode_Enum;
     mediaType: Proto.ContentItemMetadata_MediaType;
@@ -25,10 +26,13 @@ type NowPlayingSnapshot = {
     artworkId: string | null;
     hasArtworkUrl: boolean;
     hasArtworkData: boolean;
+    isAlwaysLive: boolean;
+    isAdvertisement: boolean;
 };
 
 type EventMap = {
     readonly clients: [Record<string, Client>];
+    readonly configureConnection: [Proto.ConfigureConnectionMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
     readonly keyboard: [Proto.KeyboardMessage];
@@ -51,6 +55,15 @@ type EventMap = {
     readonly volumeControlAvailability: [boolean, Proto.VolumeCapabilities_Enum];
     readonly volumeControlCapabilitiesDidChange: [boolean, Proto.VolumeCapabilities_Enum];
     readonly volumeDidChange: [number];
+    readonly volumeMutedDidChange: [boolean];
+
+    // Granular high-level events (like Apple's NowPlayingController delegate callbacks)
+    readonly activePlayerChanged: [client: Client | null, player: Player | null];
+    readonly artworkChanged: [client: Client, player: Player];
+    readonly lyricsEvent: [event: Proto.LyricsEvent, playerPath: Proto.PlayerPath | undefined];
+    readonly playbackQueueChanged: [client: Client, player: Player];
+    readonly playbackStateChanged: [client: Client, player: Player, oldState: Proto.PlaybackState_Enum, newState: Proto.PlaybackState_Enum];
+    readonly supportedCommandsChanged: [client: Client, player: Player, commands: Proto.CommandInfo[]];
 };
 
 export default class extends EventEmitter<EventMap> {
@@ -104,6 +117,10 @@ export default class extends EventEmitter<EventMap> {
         return this.#isClusterAware;
     }
 
+    get isClusterLeader(): boolean {
+        return this.#isClusterLeader;
+    }
+
     get volume(): number {
         return this.#volume;
     }
@@ -114,6 +131,10 @@ export default class extends EventEmitter<EventMap> {
 
     get volumeCapabilities(): Proto.VolumeCapabilities_Enum {
         return this.#volumeCapabilities;
+    }
+
+    get volumeMuted(): boolean {
+        return this.#volumeMuted;
     }
 
     readonly #device: Device;
@@ -127,9 +148,11 @@ export default class extends EventEmitter<EventMap> {
     #clusterID: string | null;
     #clusterType: number;
     #isClusterAware: boolean;
+    #isClusterLeader: boolean;
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
+    #volumeMuted: boolean;
 
     constructor(device: Device) {
         super();
@@ -137,6 +160,7 @@ export default class extends EventEmitter<EventMap> {
         this.#device = device;
         this.clear();
 
+        this.onConfigureConnection = this.onConfigureConnection.bind(this);
         this.onKeyboard = this.onKeyboard.bind(this);
         this.onDeviceInfo = this.onDeviceInfo.bind(this);
         this.onDeviceInfoUpdate = this.onDeviceInfoUpdate.bind(this);
@@ -145,6 +169,7 @@ export default class extends EventEmitter<EventMap> {
         this.onRemoveClient = this.onRemoveClient.bind(this);
         this.onRemovePlayer = this.onRemovePlayer.bind(this);
         this.onSendCommandResult = this.onSendCommandResult.bind(this);
+        this.onSendLyricsEvent = this.onSendLyricsEvent.bind(this);
         this.onSetArtwork = this.onSetArtwork.bind(this);
         this.onSetDefaultSupportedCommands = this.onSetDefaultSupportedCommands.bind(this);
         this.onSetNowPlayingClient = this.onSetNowPlayingClient.bind(this);
@@ -158,9 +183,11 @@ export default class extends EventEmitter<EventMap> {
         this.onVolumeControlAvailability = this.onVolumeControlAvailability.bind(this);
         this.onVolumeControlCapabilitiesDidChange = this.onVolumeControlCapabilitiesDidChange.bind(this);
         this.onVolumeDidChange = this.onVolumeDidChange.bind(this);
+        this.onVolumeMutedDidChange = this.onVolumeMutedDidChange.bind(this);
     }
 
     [STATE_SUBSCRIBE_SYMBOL](): void {
+        this.#dataStream.on('configureConnection', this.onConfigureConnection);
         this.#dataStream.on('keyboard', this.onKeyboard);
         this.#dataStream.on('deviceInfo', this.onDeviceInfo);
         this.#dataStream.on('deviceInfoUpdate', this.onDeviceInfoUpdate);
@@ -169,6 +196,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('removeClient', this.onRemoveClient);
         this.#dataStream.on('removePlayer', this.onRemovePlayer);
         this.#dataStream.on('sendCommandResult', this.onSendCommandResult);
+        this.#dataStream.on('sendLyricsEvent', this.onSendLyricsEvent);
         this.#dataStream.on('setArtwork', this.onSetArtwork);
         this.#dataStream.on('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
         this.#dataStream.on('setNowPlayingClient', this.onSetNowPlayingClient);
@@ -182,6 +210,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('volumeControlAvailability', this.onVolumeControlAvailability);
         this.#dataStream.on('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
         this.#dataStream.on('volumeDidChange', this.onVolumeDidChange);
+        this.#dataStream.on('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
     [STATE_UNSUBSCRIBE_SYMBOL](): void {
@@ -191,6 +220,7 @@ export default class extends EventEmitter<EventMap> {
             return;
         }
 
+        dataStream.off('configureConnection', this.onConfigureConnection);
         dataStream.off('keyboard', this.onKeyboard);
         dataStream.off('deviceInfo', this.onDeviceInfo);
         dataStream.off('deviceInfoUpdate', this.onDeviceInfoUpdate);
@@ -199,6 +229,7 @@ export default class extends EventEmitter<EventMap> {
         dataStream.off('removeClient', this.onRemoveClient);
         dataStream.off('removePlayer', this.onRemovePlayer);
         dataStream.off('sendCommandResult', this.onSendCommandResult);
+        dataStream.off('sendLyricsEvent', this.onSendLyricsEvent);
         dataStream.off('setArtwork', this.onSetArtwork);
         dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
         dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
@@ -212,6 +243,7 @@ export default class extends EventEmitter<EventMap> {
         dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
         dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
         dataStream.off('volumeDidChange', this.onVolumeDidChange);
+        dataStream.off('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
     clear(): void {
@@ -225,9 +257,15 @@ export default class extends EventEmitter<EventMap> {
         this.#clusterID = null;
         this.#clusterType = 0;
         this.#isClusterAware = false;
+        this.#isClusterLeader = false;
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
+        this.#volumeMuted = false;
+    }
+
+    onConfigureConnection(message: Proto.ConfigureConnectionMessage): void {
+        this.emit('configureConnection', message);
     }
 
     onKeyboard(message: Proto.KeyboardMessage): void {
@@ -238,12 +276,12 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onDeviceInfo(message: Proto.DeviceInfoMessage): void {
-        this.#updateOutputDeviceUID(message);
+        this.#updateDeviceInfo(message);
         this.emit('deviceInfo', message);
     }
 
     onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
-        this.#updateOutputDeviceUID(message);
+        this.#updateDeviceInfo(message);
         this.emit('deviceInfoUpdate', message);
     }
 
@@ -272,12 +310,19 @@ export default class extends EventEmitter<EventMap> {
         this.emit('clients', this.#clients);
 
         if (wasActive) {
+            this.#emitActivePlayerChanged();
             this.#emitNowPlayingChangedIfNeeded();
         }
     }
 
     onSendCommandResult(message: Proto.SendCommandResultMessage): void {
         this.emit('sendCommandResult', message);
+    }
+
+    onSendLyricsEvent(message: Proto.SendLyricsEventMessage): void {
+        if (message.event) {
+            this.emit('lyricsEvent', message.event, message.playerPath);
+        }
     }
 
     onSetArtwork(message: Proto.SetArtworkMessage): void {
@@ -294,6 +339,7 @@ export default class extends EventEmitter<EventMap> {
     }
 
     onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
+        const oldBundleId = this.#nowPlayingClientBundleIdentifier;
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
         if (message.client?.bundleIdentifier && message.client?.displayName) {
@@ -301,14 +347,24 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.emit('setNowPlayingClient', message);
+
+        if (oldBundleId !== this.#nowPlayingClientBundleIdentifier) {
+            this.#emitActivePlayerChanged();
+        }
+
         this.#emitNowPlayingChangedIfNeeded();
     }
 
     onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+            const oldActiveId = client.activePlayer?.identifier;
             client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
             client.setActivePlayer(message.playerPath.player.identifier);
+
+            if (oldActiveId !== message.playerPath.player.identifier) {
+                this.#emitActivePlayerChanged();
+            }
         }
 
         this.emit('setNowPlayingPlayer', message);
@@ -320,26 +376,40 @@ export default class extends EventEmitter<EventMap> {
         const client = this.#client(bundleIdentifier, message.displayName);
         const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
+        const isActiveClient = bundleIdentifier === this.#nowPlayingClientBundleIdentifier;
+
+        if (message.playbackState) {
+            const oldState = player.playbackState;
+            player.setPlaybackState(message.playbackState, message.playbackStateTimestamp);
+
+            if (isActiveClient && oldState !== player.playbackState) {
+                this.emit('playbackStateChanged', client, player, oldState, player.playbackState);
+            }
+        }
 
         if (message.nowPlayingInfo) {
             player.setNowPlayingInfo(message.nowPlayingInfo);
         }
 
-        if (message.playbackState) {
-            player.setPlaybackState(message.playbackState, message.playbackStateTimestamp);
-        }
-
         if (message.supportedCommands) {
             player.setSupportedCommands(message.supportedCommands.supportedCommands);
+
+            if (isActiveClient) {
+                this.emit('supportedCommandsChanged', client, player, player.supportedCommands);
+            }
         }
 
         if (message.playbackQueue) {
             player.setPlaybackQueue(message.playbackQueue);
+
+            if (isActiveClient) {
+                this.emit('playbackQueueChanged', client, player);
+            }
         }
 
         this.emit('setState', message);
 
-        if (bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
+        if (isActiveClient) {
             this.#emitNowPlayingChangedIfNeeded();
         }
     }
@@ -363,6 +433,13 @@ export default class extends EventEmitter<EventMap> {
 
     onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
         this.emit('updateContentItemArtwork', message);
+
+        const client = this.nowPlayingClient;
+        const player = client?.activePlayer;
+
+        if (client && player) {
+            this.emit('artworkChanged', client, player);
+        }
     }
 
     onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
@@ -386,6 +463,7 @@ export default class extends EventEmitter<EventMap> {
         this.emit('removePlayer', message);
 
         if (message.playerPath?.client?.bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
+            this.#emitActivePlayerChanged();
             this.#emitNowPlayingChangedIfNeeded();
         }
     }
@@ -425,11 +503,18 @@ export default class extends EventEmitter<EventMap> {
         this.emit('volumeDidChange', message.volume);
     }
 
-    #updateOutputDeviceUID(message: Proto.DeviceInfoMessage): void {
+    onVolumeMutedDidChange(message: Proto.VolumeMutedDidChangeMessage): void {
+        this.#volumeMuted = message.isMuted;
+
+        this.emit('volumeMutedDidChange', this.#volumeMuted);
+    }
+
+    #updateDeviceInfo(message: Proto.DeviceInfoMessage): void {
         this.#outputDeviceUID = message.clusterID || message.deviceUID || message.uniqueIdentifier || null;
         this.#clusterID = message.clusterID || null;
         this.#clusterType = message.clusterType ?? 0;
         this.#isClusterAware = message.isClusterAware ?? false;
+        this.#isClusterLeader = message.isClusterLeader ?? false;
     }
 
     #client(bundleIdentifier: string, displayName: string): Client {
@@ -464,6 +549,7 @@ export default class extends EventEmitter<EventMap> {
             album: player?.album ?? '',
             genre: player?.genre ?? '',
             duration: player?.duration ?? 0,
+            playbackRate: player?.playbackRate ?? 0,
             shuffleMode: player?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown,
             repeatMode: player?.repeatMode ?? Proto.RepeatMode_Enum.Unknown,
             mediaType: player?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType,
@@ -473,8 +559,15 @@ export default class extends EventEmitter<EventMap> {
             contentIdentifier: player?.contentIdentifier ?? '',
             artworkId: player?.artworkId ?? null,
             hasArtworkUrl: player?.artworkUrl() != null,
-            hasArtworkData: player?.currentItemArtwork != null
+            hasArtworkData: player?.currentItemArtwork != null,
+            isAlwaysLive: player?.nowPlayingInfo?.isAlwaysLive ?? false,
+            isAdvertisement: player?.nowPlayingInfo?.isAdvertisement ?? false
         };
+    }
+
+    #emitActivePlayerChanged(): void {
+        const client = this.nowPlayingClient;
+        this.emit('activePlayerChanged', client, client?.activePlayer ?? null);
     }
 
     #emitNowPlayingChangedIfNeeded(): void {
@@ -500,6 +593,7 @@ export default class extends EventEmitter<EventMap> {
             && a.album === b.album
             && a.genre === b.genre
             && a.duration === b.duration
+            && a.playbackRate === b.playbackRate
             && a.shuffleMode === b.shuffleMode
             && a.repeatMode === b.repeatMode
             && a.mediaType === b.mediaType
@@ -509,6 +603,8 @@ export default class extends EventEmitter<EventMap> {
             && a.contentIdentifier === b.contentIdentifier
             && a.artworkId === b.artworkId
             && a.hasArtworkUrl === b.hasArtworkUrl
-            && a.hasArtworkData === b.hasArtworkData;
+            && a.hasArtworkData === b.hasArtworkData
+            && a.isAlwaysLive === b.isAlwaysLive
+            && a.isAdvertisement === b.isAdvertisement;
     }
 }

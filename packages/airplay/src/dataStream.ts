@@ -8,8 +8,73 @@ import BaseStream from './baseStream';
 
 const DATA_HEADER_LENGTH = 32;
 
+/**
+ * Decodes a NSKeyedArchiver binary plist into a plain array of objects.
+ * Resolves CF$UID references and strips NSObject class metadata.
+ */
+const decodeNSKeyedArchiverArray = (data: Uint8Array): unknown[] => {
+    const buf = data;
+    const archive = Plist.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer) as any;
+    const objects = archive?.['$objects'];
+
+    if (!objects) {
+        return [];
+    }
+
+    const resolve = (ref: unknown): unknown => {
+        if (ref && typeof ref === 'object' && 'CF$UID' in (ref as any)) {
+            return resolve(objects[(ref as any)['CF$UID']]);
+        }
+
+        if (ref === '$null') {
+            return null;
+        }
+
+        if (ref && typeof ref === 'object') {
+            const obj = ref as Record<string, unknown>;
+
+            // NSArray
+            if (obj['NS.objects'] && Array.isArray(obj['NS.objects'])) {
+                return (obj['NS.objects'] as unknown[]).map(resolve);
+            }
+
+            // NSDictionary
+            if (obj['NS.keys'] && Array.isArray(obj['NS.keys'])) {
+                const keys = (obj['NS.keys'] as unknown[]).map(resolve) as string[];
+                const values = (obj['NS.objects'] as unknown[]).map(resolve);
+                const result: Record<string, unknown> = {};
+
+                for (let i = 0; i < keys.length; i++) {
+                    result[keys[i]] = values[i];
+                }
+
+                return result;
+            }
+
+            // Plain object — resolve all values, skip $class
+            const result: Record<string, unknown> = {};
+
+            for (const [key, value] of Object.entries(obj)) {
+                if (key === '$class' || key === '$classname' || key === '$classes') {
+                    continue;
+                }
+
+                result[key] = resolve(value);
+            }
+
+            return result;
+        }
+
+        return ref;
+    };
+
+    const root = resolve(archive['$top']?.root ?? archive['$top']);
+    return Array.isArray(root) ? root : [root];
+};
+
 type EventMap = {
     readonly rawMessage: [Proto.ProtocolMessage];
+    readonly configureConnection: [Proto.ConfigureConnectionMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
     readonly keyboard: [Proto.KeyboardMessage];
@@ -18,6 +83,7 @@ type EventMap = {
     readonly removeClient: [Proto.RemoveClientMessage];
     readonly removePlayer: [Proto.RemovePlayerMessage];
     readonly sendCommandResult: [Proto.SendCommandResultMessage];
+    readonly sendLyricsEvent: [Proto.SendLyricsEventMessage];
     readonly setArtwork: [Proto.SetArtworkMessage];
     readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
     readonly setNowPlayingClient: [Proto.SetNowPlayingClientMessage];
@@ -31,6 +97,7 @@ type EventMap = {
     readonly volumeControlAvailability: [Proto.VolumeControlAvailabilityMessage];
     readonly volumeControlCapabilitiesDidChange: [Proto.VolumeControlCapabilitiesDidChangeMessage];
     readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
+    readonly volumeMutedDidChange: [Proto.VolumeMutedDidChangeMessage];
 };
 
 export default class DataStream extends BaseStream<EventMap> {
@@ -70,6 +137,9 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_CONTROL_AVAILABILITY_MESSAGE] = [Proto.volumeControlAvailabilityMessage, this.#onVolumeControlAvailabilityMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE] = [Proto.volumeControlCapabilitiesDidChangeMessage, this.#onVolumeControlCapabilitiesDidChangeMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_DID_CHANGE_MESSAGE] = [Proto.volumeDidChangeMessage, this.#onVolumeDidChangeMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.VOLUME_MUTED_DID_CHANGE_MESSAGE] = [Proto.volumeMutedDidChangeMessage, this.#onVolumeMutedDidChangeMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.SEND_LYRICS_EVENT] = [Proto.sendLyricsEventMessage, this.#onSendLyricsEventMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE] = [Proto.configureConnectionMessage, this.#onConfigureConnectionMessage.bind(this)];
     }
 
     async disconnect(): Promise<void> {
@@ -274,7 +344,12 @@ export default class DataStream extends BaseStream<EventMap> {
         // Always dispatch to type handlers (state tracking, events, etc.)
         if (message.type in this.#handlers) {
             const [extension, handler] = this.#handlers[message.type];
-            handler(getExtension(message, extension));
+
+            try {
+                handler(getExtension(message, extension));
+            } catch (err) {
+                this.context.logger.error('[data]', `Failed to parse extension for message type ${message.type}:`, err);
+            }
         } else if (message.type !== Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE) {
             this.context.logger.warn('[data]', `Unknown message type ${message.type}.`);
         }
@@ -404,5 +479,23 @@ export default class DataStream extends BaseStream<EventMap> {
         this.context.logger.info('[data]', 'VolumeDidChange message', message);
 
         this.emit('volumeDidChange', message);
+    }
+
+    #onVolumeMutedDidChangeMessage(message: Proto.VolumeMutedDidChangeMessage): void {
+        this.context.logger.info('[data]', 'VolumeMutedDidChange message', message);
+
+        this.emit('volumeMutedDidChange', message);
+    }
+
+    #onSendLyricsEventMessage(message: Proto.SendLyricsEventMessage): void {
+        this.context.logger.raw('[data]', 'SendLyricsEvent message', message);
+
+        this.emit('sendLyricsEvent', message);
+    }
+
+    #onConfigureConnectionMessage(message: Proto.ConfigureConnectionMessage): void {
+        this.context.logger.info('[data]', 'ConfigureConnection message', message);
+
+        this.emit('configureConnection', message);
     }
 }

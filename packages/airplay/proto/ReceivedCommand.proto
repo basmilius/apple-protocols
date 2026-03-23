@@ -1,0 +1,20 @@
+syntax = "proto2";
+
+import "CommandOptions.proto";
+import "PlayerPath.proto";
+
+message ReceivedCommandAppOptions {
+    optional bool launchApplication = 1;
+}
+
+message ReceivedCommand {
+    optional int32 command = 1;
+    optional CommandOptions options = 2;
+    optional ReceivedCommandAppOptions appOptions = 3;
+    optional PlayerPath playerPath = 4;
+    optional string originUID = 5;
+    optional string remoteControlInterfaceID = 6;
+    optional string senderAppDisplayID = 7;
+    optional string destinationAppDisplayID = 8;
+    optional int32 destinationAppProcessID = 9;
+}

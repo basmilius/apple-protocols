@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+import "LyricsItem.proto";
+
+message LyricsEvent {
+    optional double startTime = 1;
+    optional double endTime = 2;
+    optional LyricsToken token = 3;
+}

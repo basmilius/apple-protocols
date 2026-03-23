@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+import "RequestDetails.proto";
+
+extend ProtocolMessage {
+    optional MicrophoneConnectionRequestMessage microphoneConnectionRequestMessage = 91;
+}
+
+message MicrophoneConnectionRequestMessage {
+    optional RequestDetails details = 1;
+    optional string rapportIdentifier = 2;
+}

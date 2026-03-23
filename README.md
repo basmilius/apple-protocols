@@ -1,57 +1,248 @@
 # Apple Protocols
 
-This repository provides TypeScript implementations of several proprietary Apple network protocols. It was developed for use with [Apple for Homey Pro](https://github.com/basmilius/homey-apple).
+TypeScript monorepo with implementations of proprietary Apple network protocols: **AirPlay 2**, **RAOP**, **Companion Link**, and supporting layers. Built with [Bun](https://bun.sh/) workspaces.
 
-## ⚙️ Requirements
+Developed for use with [Apple for Homey Pro](https://github.com/basmilius/homey-apple).
+
+## Requirements
 
 - [Bun](https://bun.sh/)
 - [Node.js](https://nodejs.org/)
-- An Apple TV (for testing)
-- Patience — these are low-level protocols
+- An Apple TV or HomePod (for testing)
 
-## 🚀 Getting Started
+## Getting started
 
-1. Install dependencies using `bun install`.
-
-## 📡 Protocols
-
-### AirPlay 2
-
-Implementation of Apple’s AirPlay 2 protocol stack.
-
-_Currently under development._
-
-### Companion Link
-
-**Path**: packages/companion-link
-
-Implements the Companion Link protocol, primarily used for communication with Apple TV devices.
-The protocol uses a binary format transmitted over TCP.
-
-#### 🧱 Build
-
-To build the @basmilius/apple-companion-link package:
-
-```shell
-bun --cwd packages/companion-link build
+```bash
+bun install
+bash build.sh
 ```
 
-#### 🔍 Discover Devices
+`build.sh` builds all packages in dependency order. Each package runs `tsgo --noEmit && tsdown` (type-check + bundle).
 
-To find Companion Link–enabled devices via mDNS on your local network:
+## Packages
 
-```shell
-bun --cwd packages/companion-link find
+| Package                           | Path                      | Description                                                           |
+|-----------------------------------|---------------------------|-----------------------------------------------------------------------|
+| `@basmilius/apple-encoding`       | `packages/encoding`       | Plist, OPack, TLV8, DAAP, NTP encoding/decoding                       |
+| `@basmilius/apple-encryption`     | `packages/encryption`     | Ed25519, Curve25519, ChaCha20-Poly1305, HKDF, SRP                     |
+| `@basmilius/apple-common`         | `packages/common`         | mDNS discovery, HAP pairing (M1-M6 + verify), credential storage      |
+| `@basmilius/apple-audio-source`   | `packages/audio-source`   | Audio decoders: MP3, OGG, WAV, FLAC, QOA, PCM, FFmpeg, URL            |
+| `@basmilius/apple-rtsp`           | `packages/rtsp`           | RTSP client with encryption support                                   |
+| `@basmilius/apple-airplay`        | `packages/airplay`        | AirPlay 2: control/data/audio/event streams, 117 protobuf definitions |
+| `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing             |
+| `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                         |
+| `@basmilius/apple-devices`        | `packages/devices`        | Device abstractions: AppleTV, HomePod, HomePodMini                    |
+| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Interactive test/debug tools (standalone binaries)                    |
+
+### Dependency graph
+
+```
+@basmilius/apple-devices
+  ├── @basmilius/apple-airplay
+  │     ├── @basmilius/apple-rtsp
+  │     ├── @basmilius/apple-common
+  │     │     ├── @basmilius/apple-encoding
+  │     │     └── @basmilius/apple-encryption
+  │     ├── @basmilius/apple-encoding
+  │     └── @basmilius/apple-encryption
+  ├── @basmilius/apple-companion-link
+  │     ├── @basmilius/apple-common
+  │     ├── @basmilius/apple-encoding
+  │     └── @basmilius/apple-encryption
+  ├── @basmilius/apple-common
+  └── @basmilius/apple-encoding
 ```
 
-#### 🧪 Test
+## Usage
 
-You can run a test script against a target Apple TV.
+The `@basmilius/apple-devices` package provides the high-level API. The examples below assume all packages are built.
 
-1. Update the FQDN in src/test.ts to match your target device.
-2. Make sure that you call `pair()` first, so that device credentials are created.
-3. When credentials are available, update the file and run `verify()`.
+### Discovering devices
 
-```shell
-bun --cwd packages/companion-link watch:test
+```ts
+import { Discovery } from '@basmilius/apple-common';
+
+// Find all AirPlay devices on the network.
+const discovery = Discovery.airplay();
+const devices = await discovery.find();
+
+// Wait for a specific device by hostname.
+const result = await discovery.findUntil('Living-Room.local');
+
+// Discover all protocols at once (AirPlay + Companion Link + RAOP).
+const all = await Discovery.discoverAll();
 ```
+
+### Pairing
+
+Pairing is required once per Apple TV. HomePods use transient pairing and don't need stored credentials.
+
+```ts
+import * as AirPlay from '@basmilius/apple-airplay';
+
+const protocol = new AirPlay.Protocol(discoveryResult);
+await protocol.connect();
+await protocol.pairing.start();
+
+// A PIN is shown on the Apple TV screen.
+const credentials = await protocol.pairing.pin(async () => {
+    return '1234'; // prompt the user for the PIN
+});
+
+// Store credentials for future connections.
+protocol.disconnect();
+```
+
+### Connecting to a HomePod
+
+HomePods use transient pairing — no stored credentials needed.
+
+```ts
+import { HomePod } from '@basmilius/apple-devices';
+
+const device = new HomePod(discoveryResult);
+await device.connect();
+```
+
+### Connecting to an Apple TV
+
+Apple TV requires credentials from a previous pairing.
+
+```ts
+import { AppleTV } from '@basmilius/apple-devices';
+
+const device = new AppleTV(airplayResult, companionLinkResult);
+await device.connect(credentials);
+```
+
+### Remote control
+
+```ts
+// HID-based navigation
+await device.remote.up();
+await device.remote.down();
+await device.remote.select();
+await device.remote.menu();
+await device.remote.home();
+
+// Playback commands
+await device.play();
+await device.pause();
+await device.next();
+await device.previous();
+
+// Volume
+await device.volumeControl.set(0.5);
+await device.volumeControl.up();
+await device.volumeControl.down();
+
+// Seek and shuffle
+await device.remote.commandSkipForward(15);
+await device.remote.commandSeekToPosition(60);
+await device.remote.commandSetShuffleMode(Proto.ShuffleMode_Enum.Songs);
+```
+
+### Now playing state
+
+```ts
+device.state.on('nowPlayingChanged', (client, player) => {
+    console.log(client.bundleIdentifier); // 'com.apple.Music'
+    console.log(client.title);
+    console.log(client.artist);
+    console.log(client.isPlaying);
+});
+
+device.state.on('volumeDidChange', (volume) => {
+    console.log(volume); // 0.0 – 1.0
+});
+
+// Or read directly
+const {title, artist, album, duration, elapsedTime, isPlaying} = device;
+```
+
+### Streaming audio
+
+```ts
+import { Url } from '@basmilius/apple-audio-source';
+
+// Client-side streaming: decode locally and send PCM via RTP.
+const source = await Url.fromUrl('https://example.com/song.mp3');
+await device.streamAudio(source);
+
+// URL playback: device fetches and plays the URL itself.
+await device.playUrl('https://example.com/video.mp4');
+await device.playUrl('https://example.com/stream.m3u8', 30); // start at 30s
+```
+
+### Apple TV specific (Companion Link)
+
+```ts
+const apps = await device.getLaunchableApps();
+await device.launchApp('com.apple.TV');
+
+const users = await device.getUserAccounts();
+await device.switchUserAccount(accountId);
+
+await device.turnOn();
+await device.turnOff();
+```
+
+## Development
+
+### Building a single package
+
+```bash
+# Type-check + bundle
+bun --cwd packages/airplay build
+
+# Watch mode (bundle only, no type-check)
+bun --cwd packages/airplay dev
+```
+
+### Regenerating protobuf definitions
+
+```bash
+bun --cwd packages/airplay gen:proto
+```
+
+This runs [Buf](https://buf.build/) over the 117 `.proto` files in `packages/airplay/proto/` and outputs TypeScript to `packages/airplay/src/proto/`.
+
+### Diagnostics
+
+The `diagnostics` package builds standalone binaries for interactive testing and debugging:
+
+```bash
+bun --cwd packages/diagnostics build
+```
+
+This produces cross-platform binaries in `packages/diagnostics/dist/`:
+
+| Binary                           | Platform            |
+|----------------------------------|---------------------|
+| `ap-diagnostics-macos-arm64`     | macOS Apple Silicon |
+| `ap-diagnostics-macos-x64`       | macOS Intel         |
+| `ap-diagnostics-linux-arm64`     | Linux ARM64         |
+| `ap-diagnostics-linux-x64`       | Linux x64           |
+| `ap-diagnostics-windows-x64.exe` | Windows x64         |
+
+The tool provides an interactive menu for pairing, remote control, audio streaming, URL playback, mDNS scanning, and more.
+
+### Testing against devices
+
+```bash
+# Interactive Apple TV test
+bun --cwd packages/devices test:appletv
+
+# Interactive HomePod test
+bun --cwd packages/devices test:homepod
+
+# AirPlay audio streaming test
+bun --cwd packages/airplay test:audio
+
+# AirPlay remote control test
+bun --cwd packages/airplay test:remote
+```
+
+## License
+
+MIT

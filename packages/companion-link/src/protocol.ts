@@ -516,7 +516,7 @@ export default class Protocol {
      */
     subscribe(event: string, fn: (data: unknown) => void): void {
         if (!this.#stream.isConnected) {
-            this.#context.logger.warn('[companion-link]', `Cannot subscribe to ${event}: stream not connected.`);
+            this.#context.logger.warn('[companion-link]', `Cannot subscribe to ${event} while disconnected; retry after connect.`);
             return;
         }
 
@@ -537,6 +537,7 @@ export default class Protocol {
         }
 
         if (!this.#stream.isConnected) {
+            // Skip deregister frame while offline: there is no active transport to send it on.
             return;
         }
 

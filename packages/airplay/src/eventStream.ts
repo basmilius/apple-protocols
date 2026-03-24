@@ -11,9 +11,13 @@ export default class EventStream extends BaseStream {
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
-        this.on('close', this.#onClose.bind(this));
-        this.on('data', this.#onData.bind(this));
-        this.on('error', this.#onError.bind(this));
+        this.onStreamClose = this.onStreamClose.bind(this);
+        this.onStreamData = this.onStreamData.bind(this);
+        this.onStreamError = this.onStreamError.bind(this);
+
+        this.on('close', this.onStreamClose);
+        this.on('data', this.onStreamData);
+        this.on('error', this.onStreamError);
     }
 
     async disconnect(): Promise<void> {
@@ -77,15 +81,15 @@ export default class EventStream extends BaseStream {
         }
     }
 
-    #onClose(): void {
+    onStreamClose(): void {
         this.#cleanup();
     }
 
-    #onError(err: Error): void {
-        this.context.logger.error('[event]', '#onError()', err);
+    onStreamError(err: Error): void {
+        this.context.logger.error('[event]', 'onStreamError()', err);
     }
 
-    async #onData(data: Buffer): Promise<void> {
+    async onStreamData(data: Buffer): Promise<void> {
         try {
             if (this.isEncrypted) {
                 this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
@@ -113,7 +117,7 @@ export default class EventStream extends BaseStream {
                 await this.#handle(result.method, result.path, result.headers, result.body);
             }
         } catch (err) {
-            this.context.logger.error('[event]', '#onData()', err);
+            this.context.logger.error('[event]', 'onStreamData()', err);
             this.emit('error', err);
         }
     }

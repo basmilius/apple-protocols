@@ -15,9 +15,13 @@ export class TimingServer {
         this.#logger = new Logger('timing-server');
         this.#socket = createSocket('udp4');
 
-        this.#socket.on('connect', this.#onConnect.bind(this));
-        this.#socket.on('error', this.#onError.bind(this));
-        this.#socket.on('message', this.#onMessage.bind(this));
+        this.onConnect = this.onConnect.bind(this);
+        this.onError = this.onError.bind(this);
+        this.onMessage = this.onMessage.bind(this);
+
+        this.#socket.on('connect', this.onConnect);
+        this.#socket.on('error', this.onError);
+        this.#socket.on('message', this.onMessage);
     }
 
     close(): void {
@@ -44,12 +48,12 @@ export class TimingServer {
         });
     }
 
-    #onConnect(): void {
+    onConnect(): void {
         this.#socket.setRecvBufferSize(16384);
         this.#socket.setSendBufferSize(16384);
     }
 
-    #onError(err: Error): void {
+    onError(err: Error): void {
         this.#logger.error('Timing server error', err);
     }
 
@@ -58,7 +62,7 @@ export class TimingServer {
         this.#port = port;
     }
 
-    #onMessage(data: Buffer, info: RemoteInfo): void {
+    onMessage(data: Buffer, info: RemoteInfo): void {
         try {
             const request = NTP.decode(data);
             const ntp = NTP.now();

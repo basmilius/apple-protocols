@@ -58,9 +58,13 @@ export default class DataStream extends BaseStream<EventMap> {
 
         this.#seqno = 0x100000000n + BigInt(randomInt32());
 
-        this.on('close', this.#onClose.bind(this));
-        this.on('data', this.#onData.bind(this));
-        this.on('error', this.#onError.bind(this));
+        this.onStreamClose = this.onStreamClose.bind(this);
+        this.onStreamData = this.onStreamData.bind(this);
+        this.onStreamError = this.onStreamError.bind(this);
+
+        this.on('close', this.onStreamClose);
+        this.on('data', this.onStreamData);
+        this.on('error', this.onStreamError);
 
         this.#handlers[Proto.ProtocolMessage_Type.KEYBOARD_MESSAGE] = [Proto.keyboardMessage, this.#onKeyboardMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE] = [Proto.deviceInfoMessage, this.#onDeviceInfoMessage.bind(this)];
@@ -187,12 +191,12 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#outstanding.clear();
     }
 
-    #onClose(): void {
+    onStreamClose(): void {
         this.#cleanup();
     }
 
-    #onError(err: Error): void {
-        this.context.logger.error('[data]', '#onError()', err);
+    onStreamError(err: Error): void {
+        this.context.logger.error('[data]', 'onStreamError()', err);
 
         for (const [id, req] of this.#outstanding) {
             clearTimeout(req.timer);
@@ -202,7 +206,7 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#outstanding.clear();
     }
 
-    async #onData(data: Buffer): Promise<void> {
+    async onStreamData(data: Buffer): Promise<void> {
         try {
             if (this.isEncrypted) {
                 this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
@@ -265,7 +269,7 @@ export default class DataStream extends BaseStream<EventMap> {
                 }
             }
         } catch (err) {
-            this.context.logger.error('[data]', '#onData()', err);
+            this.context.logger.error('[data]', 'onStreamData()', err);
             this.emit('error', err);
         }
     }

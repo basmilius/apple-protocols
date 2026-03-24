@@ -27,10 +27,15 @@ export default class RtspClient extends Connection<{}> {
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
-        this.on('close', this.#onClose.bind(this));
-        this.on('data', this.#onData.bind(this));
-        this.on('error', this.#onError.bind(this));
-        this.on('timeout', this.#onTimeout.bind(this));
+        this.onRtspClose = this.onRtspClose.bind(this);
+        this.onRtspData = this.onRtspData.bind(this);
+        this.onRtspError = this.onRtspError.bind(this);
+        this.onRtspTimeout = this.onRtspTimeout.bind(this);
+
+        this.on('close', this.onRtspClose);
+        this.on('data', this.onRtspData);
+        this.on('error', this.onRtspError);
+        this.on('timeout', this.onRtspTimeout);
     }
 
     /**
@@ -134,7 +139,7 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
-    #onClose(): void {
+    onRtspClose(): void {
         this.#buffer = Buffer.alloc(0);
         this.#encryptedBuffer = Buffer.alloc(0);
 
@@ -143,10 +148,10 @@ export default class RtspClient extends Connection<{}> {
             this.#requests.delete(cseq);
         }
 
-        this.context.logger.net('[rtsp]', '#onClose()');
+        this.context.logger.net('[rtsp]', 'onRtspClose()');
     }
 
-    #onData(data: Buffer): void {
+    onRtspData(data: Buffer): void {
         try {
             this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
 
@@ -196,21 +201,21 @@ export default class RtspClient extends Connection<{}> {
                 }
             }
         } catch (err) {
-            this.context.logger.error('[rtsp]', '#onData()', err);
+            this.context.logger.error('[rtsp]', 'onRtspData()', err);
             this.emit('error', err as Error);
         }
     }
 
-    #onError(err: Error): void {
+    onRtspError(err: Error): void {
         for (const [cseq, {reject}] of this.#requests) {
             reject(err);
             this.#requests.delete(cseq);
         }
 
-        this.context.logger.error('[rtsp]', '#onError()', err);
+        this.context.logger.error('[rtsp]', 'onRtspError()', err);
     }
 
-    #onTimeout(): void {
+    onRtspTimeout(): void {
         const err = new ConnectionTimeoutError();
 
         for (const [cseq, {reject}] of this.#requests) {
@@ -218,6 +223,6 @@ export default class RtspClient extends Connection<{}> {
             this.#requests.delete(cseq);
         }
 
-        this.context.logger.net('[rtsp]', '#onTimeout()');
+        this.context.logger.net('[rtsp]', 'onRtspTimeout()');
     }
 }

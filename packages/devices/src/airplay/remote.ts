@@ -284,18 +284,28 @@ export default class {
 
     // Private helpers
 
-    async #sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<Proto.SendCommandResultMessage> {
+    async #sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<Proto.SendCommandResultMessage | undefined> {
         const response = await this.#dataStream.exchange(DataStreamMessage.sendCommand(command, options));
         return this.#checkCommandResult(response);
     }
 
-    async #sendCommandRaw(message: Parameters<DataStream['exchange']>[0]): Promise<Proto.SendCommandResultMessage> {
+    async #sendCommandRaw(message: Parameters<DataStream['exchange']>[0]): Promise<Proto.SendCommandResultMessage | undefined> {
         const response = await this.#dataStream.exchange(message);
         return this.#checkCommandResult(response);
     }
 
-    #checkCommandResult(response: Proto.ProtocolMessage): Proto.SendCommandResultMessage {
-        const result = DataStreamMessage.getExtension(response, Proto.sendCommandResultMessage);
+    #checkCommandResult(response: Proto.ProtocolMessage): Proto.SendCommandResultMessage | undefined {
+        let result: Proto.SendCommandResultMessage | undefined;
+
+        try {
+            result = DataStreamMessage.getExtension(response, Proto.sendCommandResultMessage);
+        } catch {
+            return undefined;
+        }
+
+        if (!result) {
+            return undefined;
+        }
 
         if (result.sendError !== Proto.SendError_Enum.NoError) {
             throw new SendCommandError(result.sendError, result.handlerReturnStatus);

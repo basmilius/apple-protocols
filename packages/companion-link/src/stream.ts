@@ -27,9 +27,13 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         this.#xid = randomInt(0, 2 ** 16);
 
-        this.on('close', this.#onClose.bind(this));
-        this.on('data', this.#onData.bind(this));
-        this.on('error', this.#onError.bind(this));
+        this.onStreamClose = this.onStreamClose.bind(this);
+        this.onStreamData = this.onStreamData.bind(this);
+        this.onStreamError = this.onStreamError.bind(this);
+
+        this.on('close', this.onStreamClose);
+        this.on('data', this.onStreamData);
+        this.on('error', this.onStreamError);
     }
 
     async disconnect(): Promise<void> {
@@ -109,11 +113,11 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.#queue.clear();
     }
 
-    #onClose(): void {
+    onStreamClose(): void {
         this.#cleanup();
     }
 
-    async #onData(data: Buffer): Promise<void> {
+    async onStreamData(data: Buffer): Promise<void> {
         this.#buffer = Buffer.concat([this.#buffer, data]);
 
         if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
@@ -149,12 +153,12 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
                 this.#handle(header, payload);
             }
         } catch (err) {
-            this.context.logger.error('[companion-link]', '#onData()', err);
+            this.context.logger.error('[companion-link]', 'onStreamData()', err);
             this.emit('error', err);
         }
     }
 
-    #onError(err: Error): void {
+    onStreamError(err: Error): void {
         for (const [, reject, timer] of this.#queue.values()) {
             clearTimeout(timer);
             reject(err);

@@ -44,7 +44,11 @@ async function prepareDevice(
 
     await protocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
 
-    const feedbackInterval = setInterval(() => protocol.feedback().catch(() => {}), 2000);
+    const feedbackInterval = setInterval(() => {
+        protocol.feedback().catch(err => {
+            context.logger.debug('[airplay-multi-room]', 'Ignoring feedback error.', err);
+        });
+    }, 2000);
 
     await protocol.controlStream.setParameter('volume', '-20');
 

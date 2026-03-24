@@ -465,6 +465,8 @@ export class EncryptionAwareConnection<TEventMap extends EventMap> extends Conne
  * to ensure unique nonces for ChaCha20-Poly1305.
  */
 export class EncryptionState {
+    static readonly MAX_SAFE_NONCE_COUNTER = Number.MAX_SAFE_INTEGER;
+
     /** The 32-byte key used to decrypt incoming data. */
     readKey: Buffer;
     /** Monotonically increasing counter used as part of the read nonce. */
@@ -483,5 +485,31 @@ export class EncryptionState {
         this.readKey = readKey;
         this.writeCount = 0;
         this.writeKey = writeKey;
+    }
+
+    nextReadCounter(): bigint {
+        const counter = this.readCount;
+        this.readCount = this.#nextCounter(counter, 'read');
+
+        return BigInt(counter);
+    }
+
+    nextWriteCounter(): bigint {
+        const counter = this.writeCount;
+        this.writeCount = this.#nextCounter(counter, 'write');
+
+        return BigInt(counter);
+    }
+
+    #nextCounter(counter: number, direction: 'read' | 'write'): number {
+        if (!Number.isSafeInteger(counter) || counter < 0) {
+            throw new ConnectionError(`Invalid ${direction} nonce counter.`);
+        }
+
+        if (counter >= EncryptionState.MAX_SAFE_NONCE_COUNTER) {
+            throw new ConnectionError(`Exceeded maximum safe ${direction} nonce counter; reconnect required.`);
+        }
+
+        return counter + 1;
     }
 }

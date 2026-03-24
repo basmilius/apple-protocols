@@ -110,7 +110,11 @@ export default async function (storage: Storage): Promise<void> {
     console.log('Setting up event stream...');
     await protocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
 
-    const feedbackInterval = setInterval(() => protocol.feedback().catch(() => {}), 2000);
+    const feedbackInterval = setInterval(() => {
+        protocol.feedback().catch(err => {
+            protocol.context.logger.debug('[airplay-live-stream]', 'Ignoring feedback error.', err);
+        });
+    }, 2000);
 
     console.log('Setting volume...');
     await protocol.controlStream.setParameter('volume', '-20');

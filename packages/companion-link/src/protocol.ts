@@ -515,6 +515,11 @@ export default class Protocol {
      * @param fn - The callback to invoke when the event is received.
      */
     subscribe(event: string, fn: (data: unknown) => void): void {
+        if (!this.#stream.isConnected) {
+            this.#context.logger.warn('[companion-link]', `Cannot subscribe to ${event}: stream not connected.`);
+            return;
+        }
+
         this.#stream.on(event, fn);
         this.#sendEvent(Message.registerInterests([event]));
     }
@@ -527,12 +532,12 @@ export default class Protocol {
      * @param fn - Optional specific callback to remove. If omitted, only deregisters the interest.
      */
     unsubscribe(event: string, fn?: (data: unknown) => void): void {
-        if (!this.#stream.isConnected) {
-            return;
-        }
-
         if (fn) {
             this.#stream.off(event, fn);
+        }
+
+        if (!this.#stream.isConnected) {
+            return;
         }
 
         this.#sendEvent(Message.deregisterInterests([event]));

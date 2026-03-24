@@ -527,12 +527,12 @@ export default class Protocol {
      * @param fn - Optional specific callback to remove. If omitted, only deregisters the interest.
      */
     unsubscribe(event: string, fn?: (data: unknown) => void): void {
-        if (!this.#stream.isConnected) {
-            return;
-        }
-
         if (fn) {
             this.#stream.off(event, fn);
+        }
+
+        if (!this.#stream.isConnected) {
+            return;
         }
 
         this.#sendEvent(Message.deregisterInterests([event]));

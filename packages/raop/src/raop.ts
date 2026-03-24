@@ -324,13 +324,15 @@ class RaopStreamProtocol implements StreamProtocol {
  * @returns A new mutable stream context ready for use in a streaming session.
  */
 function createStreamContext(): StreamContext {
+    const rtptime = Math.floor(Math.random() * 0xFFFFFFFF);
+
     return {
         sampleRate: SAMPLE_RATE,
         channels: CHANNELS,
         bytesPerChannel: BYTES_PER_CHANNEL,
         rtpseq: Math.floor(Math.random() * 65536),
-        rtptime: Math.floor(Math.random() * 0xFFFFFFFF),
-        headTs: 0,
+        rtptime,
+        headTs: rtptime,
         latency: Math.floor(SAMPLE_RATE * 2),
         serverPort: 0,
         controlPort: 0,

@@ -54,8 +54,6 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
-        this.debug(true);
-
         this.#xid = randomInt(0, 2 ** 16);
 
         this.onStreamClose = this.onStreamClose.bind(this);
@@ -280,7 +278,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
      * @param payload - The raw payload buffer (OPack-encoded).
      */
     #handle(header: Buffer, payload: Buffer): void {
-        const type = header.readInt8();
+        const type = header.readUint8();
 
         if (!OPackFrameTypes.includes(type)) {
             this.context.logger.warn('[companion-link]', 'Packet not handled, no opack frame.');

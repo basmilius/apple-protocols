@@ -125,6 +125,9 @@ export default class Protocol {
         try { await this.touchStop(); } catch (err) {
             this.#context.logger.warn('[companion-link]', 'touchStop failed', err);
         }
+        try { await this.tvrcSessionStop(); } catch (err) {
+            this.#context.logger.warn('[companion-link]', 'tvrcSessionStop failed', err);
+        }
         try { await this.sessionStop(); } catch (err) {
             this.#context.logger.warn('[companion-link]', 'sessionStop failed', err);
         }
@@ -229,6 +232,14 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
+    /**
+     * Stops the TV Remote Control session, deactivating the `tvremoted` process
+     * on the Apple TV.
+     */
+    async tvrcSessionStop(): Promise<void> {
+        await this.#exchange(Message.tvrcSessionStop());
+    }
+
     // --- HID ---
 
     /**
@@ -301,8 +312,8 @@ export default class Protocol {
      * @param x - Horizontal position in the touchpad coordinate space (0-1000).
      * @param y - Vertical position in the touchpad coordinate space (0-1000).
      */
-    async sendTouchEvent(finger: number, phase: number, x: number, y: number): Promise<void> {
-        await this.#exchange(Message.touchEvent(finger, phase, x, y));
+    sendTouchEvent(finger: number, phase: number, x: number, y: number): void {
+        this.#sendEvent(Message.touchEvent(finger, phase, x, y));
     }
 
     // --- Text Input ---

@@ -125,6 +125,7 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
 
         // Register interests individually (like Apple does).
         this.#protocol.registerInterests(['_iMC']);
+        this.#protocol.registerInterests(['SystemStatus']);
         this.#protocol.registerInterests(['TVSystemStatus']);
         this.#protocol.registerInterests(['NowPlayingInfo']);
         this.#protocol.registerInterests(['SupportedActions']);
@@ -148,6 +149,7 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
 
         try {
             this.#protocol.deregisterInterests(['_iMC']);
+            this.#protocol.deregisterInterests(['SystemStatus']);
             this.#protocol.deregisterInterests(['TVSystemStatus']);
             this.#protocol.deregisterInterests(['NowPlayingInfo']);
             this.#protocol.deregisterInterests(['SupportedActions']);

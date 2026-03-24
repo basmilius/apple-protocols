@@ -160,6 +160,13 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             return;
         }
 
+        // If socket is already destroyed/closed, just cleanup directly
+        // to avoid hanging on a 'close' event that will never fire.
+        if (this.#socket.destroyed || this.#socket.readyState === 'closed') {
+            this.#cleanup();
+            return;
+        }
+
         return new Promise(resolve => {
             this.#state = 'closing';
             this.#socket.once('close', () => {
@@ -228,6 +235,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             this.#connectPromise = {resolve, reject};
 
             this.#socket?.removeAllListeners();
+            this.#socket?.destroy();
             this.#socket = undefined;
 
             this.#socket = new Socket();
@@ -386,9 +394,10 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);
-        } else {
-            this.#state = 'failed';
         }
+        // Don't set 'failed' here for connected state — let onClose handle retry.
+        // Setting 'failed' before onClose fires would cause onClose to see
+        // wasConnected=false, preventing the retry logic from triggering.
     }
 
     /**

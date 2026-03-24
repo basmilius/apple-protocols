@@ -401,7 +401,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
         this.#packetBacklog.set(rtpseq, packet);
 
         this.#streamContext.rtpseq = (this.#streamContext.rtpseq + 1) % (2 ** 16);
-        this.#streamContext.headTs += Math.floor(frames.length / this.#streamContext.frameSize);
+        this.#streamContext.headTs = (this.#streamContext.headTs + Math.floor(frames.length / this.#streamContext.frameSize)) >>> 0;
 
         return Math.floor(frames.length / this.#streamContext.frameSize);
     }

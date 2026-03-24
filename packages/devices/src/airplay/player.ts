@@ -409,7 +409,7 @@ export default class Player {
 
         if (item.metadata != null && existing.metadata != null) {
             for (const [key, value] of Object.entries(item.metadata)) {
-                if (value != null) {
+                if (value != null && !key.startsWith('$')) {
                     (existing.metadata as any)[key] = value;
                 }
             }

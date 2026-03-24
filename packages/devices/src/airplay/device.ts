@@ -194,6 +194,7 @@ export default class extends EventEmitter<EventMap> {
         this.#cleanupPlayUrl();
         this.#unsubscribe();
         this.#protocol.disconnect();
+        this.emit('disconnected', false);
     }
 
     /** Disconnects gracefully, swallowing any errors during cleanup. */
@@ -273,26 +274,34 @@ export default class extends EventEmitter<EventMap> {
             playProtocol.useTimingServer(this.#timingServer);
         }
 
-        await playProtocol.connect();
-        await playProtocol.fetchInfo();
+        try {
+            await playProtocol.connect();
+            await playProtocol.fetchInfo();
 
-        let keys: AccessoryKeys;
+            let keys: AccessoryKeys;
 
-        if (this.#credentials) {
-            keys = await playProtocol.verify.start(this.#credentials);
-        } else {
-            await playProtocol.pairing.start();
-            keys = await playProtocol.pairing.transient();
+            if (this.#credentials) {
+                keys = await playProtocol.verify.start(this.#credentials);
+            } else {
+                await playProtocol.pairing.start();
+                keys = await playProtocol.pairing.transient();
+            }
+
+            playProtocol.controlStream.enableEncryption(
+                keys.accessoryToControllerKey,
+                keys.controllerToAccessoryKey
+            );
+
+            this.#playUrlProtocol = playProtocol;
+
+            await playProtocol.playUrl(url, keys.sharedSecret, keys.pairingId, position);
+        } catch (err) {
+            if (this.#playUrlProtocol !== playProtocol) {
+                playProtocol.disconnect();
+            }
+
+            throw err;
         }
-
-        playProtocol.controlStream.enableEncryption(
-            keys.accessoryToControllerKey,
-            keys.controllerToAccessoryKey
-        );
-
-        this.#playUrlProtocol = playProtocol;
-
-        await playProtocol.playUrl(url, keys.sharedSecret, keys.pairingId, position);
     }
 
     /** Waits for the current URL playback to finish, then cleans up the play URL protocol. */
@@ -373,12 +382,13 @@ export default class extends EventEmitter<EventMap> {
     onClose(): void {
         this.#protocol.context.logger.net('onClose() called on airplay device.');
 
-        if (!this.#disconnect) {
-            this.disconnectSafely();
-            this.emit('disconnected', true);
-        } else {
-            this.emit('disconnected', false);
+        if (this.#disconnect) {
+            return;
         }
+
+        this.#disconnect = true;
+        this.disconnectSafely();
+        this.emit('disconnected', true);
     }
 
     /**

@@ -1,5 +1,5 @@
 import type { AudioSource, Context } from '@basmilius/apple-common';
-import AudioStream, { FRAMES_PER_PACKET, SAMPLE_RATE } from './audioStream';
+import AudioStream, { FRAMES_PER_PACKET } from './audioStream';
 import type Protocol from './protocol';
 
 /** Maximum number of extra packets to send when catching up from being behind schedule. */
@@ -86,12 +86,13 @@ export default class AudioMultiplexer {
         }));
 
         // Prepare all streams in parallel (connect UDP, FLUSH, start sync).
-        await Promise.all(this.#targets.map(async (target) => {
-            await target.stream.prepare(target.protocol.discoveryResult.address);
+        const contexts = await Promise.all(this.#targets.map(async (target) => {
+            return target.stream.prepare(target.protocol.discoveryResult.address);
         }));
 
-        const frameSize = 2 * 2; // CHANNELS * BYTES_PER_CHANNEL
-        const packetSize = FRAMES_PER_PACKET * frameSize;
+        // Use the negotiated format from the first target for frame/packet sizing.
+        const sampleRate = contexts[0].sampleRate;
+        const packetSize = contexts[0].packetSize;
 
         try {
             let firstPacket = true;
@@ -129,7 +130,7 @@ export default class AudioMultiplexer {
                     this.#context.logger.debug('[multiplexer]', `Sent ${packetCount} packets to ${this.#targets.length} device(s)`);
                 }
 
-                const expectedTime = totalFrames / SAMPLE_RATE * 1000;
+                const expectedTime = totalFrames / sampleRate * 1000;
                 const actualTime = performance.now() - startTime;
                 const sleepTime = expectedTime - actualTime;
 
@@ -137,7 +138,7 @@ export default class AudioMultiplexer {
                     slowCount = 0;
                     await this.#sleep(sleepTime);
                 } else {
-                    const framesBehind = Math.floor((-sleepTime / 1000) * SAMPLE_RATE);
+                    const framesBehind = Math.floor((-sleepTime / 1000) * sampleRate);
 
                     if (framesBehind >= FRAMES_PER_PACKET) {
                         const extraPackets = Math.min(
@@ -178,9 +179,10 @@ export default class AudioMultiplexer {
 
             this.#context.logger.info('[multiplexer]', `Multi-room stream finished, sent ${packetCount} packets to ${this.#targets.length} device(s)`);
 
-            // Finish all streams in parallel (padding + TEARDOWN).
+            // Finish all streams in parallel (padding + TEARDOWN) and close UDP sockets.
             await Promise.all(this.#targets.map(async (target) => {
                 await target.stream.finish();
+                target.stream.close();
             }));
         } catch (err) {
             // Clean up all streams on error.

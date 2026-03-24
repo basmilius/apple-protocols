@@ -373,6 +373,10 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The remove client message.
      */
     onRemoveClient(message: Proto.RemoveClientMessage): void {
+        if (!message.client?.bundleIdentifier) {
+            return;
+        }
+
         if (!(message.client.bundleIdentifier in this.#clients)) {
             return;
         }
@@ -491,7 +495,12 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The set state message.
      */
     onSetState(message: Proto.SetStateMessage): void {
-        const bundleIdentifier = message.playerPath.client.bundleIdentifier;
+        const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
+
+        if (!bundleIdentifier) {
+            return;
+        }
+
         const client = this.#client(bundleIdentifier, message.displayName);
         const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
@@ -539,8 +548,13 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The update content item message.
      */
     onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
-        const bundleIdentifier = message.playerPath.client.bundleIdentifier;
-        const client = this.#client(bundleIdentifier, message.playerPath.client.displayName);
+        const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
+
+        if (!bundleIdentifier) {
+            return;
+        }
+
+        const client = this.#client(bundleIdentifier, message.playerPath?.client?.displayName ?? '');
         const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
 
@@ -614,6 +628,10 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The update client message.
      */
     onUpdateClient(message: Proto.UpdateClientMessage): void {
+        if (!message.client?.bundleIdentifier) {
+            return;
+        }
+
         this.#client(message.client.bundleIdentifier, message.client.displayName);
 
         this.emit('updateClient', message);
@@ -651,6 +669,10 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The volume capabilities change message.
      */
     onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
+        if (!message.capabilities) {
+            return;
+        }
+
         this.#volumeAvailable = message.capabilities.volumeControlAvailable;
         this.#volumeCapabilities = message.capabilities.volumeCapabilities;
 

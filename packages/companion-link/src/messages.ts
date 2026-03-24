@@ -65,6 +65,9 @@ export function systemInfo(pairingId: Buffer, name: string = 'AP Companion Link'
         _bf: 0,
         _cf: 512,
         _clFl: 128,
+        // TODO: These identifiers are hardcoded. Ideally they should be persisted per-controller
+        // so the Apple TV recognizes the same remote across sessions. Using random IDs causes the
+        // Apple TV to treat each connection as a new remote.
         _i: 'b561af32aea6',
         _idsID: pairingId.toString(),
         _pubID: 'DA:6D:1E:D8:A0:4F',
@@ -203,7 +206,7 @@ export function touchStop(): OPackMessage {
  * @returns The touch event request message.
  */
 export function touchEvent(finger: number, phase: number, x: number, y: number): OPackMessage {
-    return request('_touchC', { _tFg: finger, _tPh: phase, _tX: OPack.float(x), _tY: OPack.float(y) });
+    return event('_touchC', { _tFg: finger, _tPh: phase, _tX: OPack.float(x), _tY: OPack.float(y) });
 }
 
 // --- Text Input ---
@@ -461,6 +464,8 @@ export function toggleSystemAppearance(light: boolean): OPackMessage {
  * @returns The toggle reduce loud sounds request message.
  */
 export function toggleReduceLoudSounds(enabled: boolean): OPackMessage {
+    // NOTE: The key 'ReduceLoundSoundsEnabled' contains a typo ('Lound' instead of 'Loud'),
+    // but this is the actual protocol key used by Apple's implementation. Do not correct it.
     return request('ToggleReduceLoudSounds', { ReduceLoundSoundsEnabled: enabled });
 }
 

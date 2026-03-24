@@ -447,6 +447,11 @@ export default class extends EventEmitter<EventMap> {
                 }
             }, 15000);
 
+            // Remove old forwarding listeners to prevent leaks on reconnect.
+            if (this.#state) {
+                this.#state.removeAllListeners();
+            }
+
             // Create state and wire up event forwarding.
             this.#state = new CompanionLinkState(this.#protocol);
             this.#state.on('attentionStateChanged', (s) => this.emit('attentionStateChanged', s));

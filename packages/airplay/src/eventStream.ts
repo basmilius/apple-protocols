@@ -132,6 +132,7 @@ export default class EventStream extends BaseStream {
 
             default:
                 this.context.logger.warn('[event]', 'No handler for url', key);
+                this.respond(200, 'OK', { 'CSeq': headers['CSeq'] ?? 0 });
                 break;
         }
     }

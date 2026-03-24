@@ -6,18 +6,32 @@ import { decodeRetransmitRequest, PacketFifo, SyncPacket } from './packets';
 import type { StreamContext } from './types';
 
 /**
- * Converts an RTP timestamp to a 64-bit NTP timestamp by splitting it
- * into seconds and fractional components based on the sample rate.
+ * Converts an RTP timestamp to a wall-clock NTP timestamp using anchor points.
  *
- * @param timestamp - RTP timestamp in audio frames.
+ * Uses a fixed anchor pair (RTP timestamp + NTP time) established when the
+ * stream starts. The elapsed samples from the anchor are computed with 32-bit
+ * unsigned wrap handling, then converted to an NTP offset added to the anchor NTP.
+ *
+ * @param rtpTimestamp - Current RTP timestamp in audio frames.
  * @param sampleRate - Audio sample rate in Hz.
- * @returns 64-bit NTP timestamp (upper 32 bits = seconds, lower 32 bits = fraction).
+ * @param anchorRtp - RTP timestamp at the anchor point.
+ * @param anchorNtp - NTP timestamp at the anchor point.
+ * @returns 64-bit NTP wall-clock timestamp.
  */
-function ntpFromTs(timestamp: number, sampleRate: number): bigint {
-    const seconds = Math.floor(timestamp / sampleRate);
-    const fraction = ((timestamp % sampleRate) * 0xFFFFFFFF) / sampleRate;
+function ntpFromTs(rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint {
+    let elapsedSamples: number;
+    if (rtpTimestamp >= anchorRtp) {
+        elapsedSamples = rtpTimestamp - anchorRtp;
+    } else {
+        // 32-bit unsigned wrap
+        elapsedSamples = (0x100000000 - anchorRtp) + rtpTimestamp;
+    }
 
-    return (BigInt(seconds) << 32n) | BigInt(Math.floor(fraction));
+    const elapsedSeconds = Math.floor(elapsedSamples / sampleRate);
+    const elapsedFraction = ((elapsedSamples % sampleRate) * 0xFFFFFFFF) / sampleRate;
+    const elapsedNtp = (BigInt(elapsedSeconds) << 32n) | BigInt(Math.floor(elapsedFraction));
+
+    return anchorNtp + elapsedNtp;
 }
 
 /**
@@ -40,6 +54,10 @@ export default class ControlClient extends EventEmitter {
     #syncTask?: NodeJS.Timeout;
     /** Local UDP port assigned after binding. */
     #localPort?: number;
+    /** RTP timestamp at the anchor point for NTP conversion. */
+    #anchorRtp: number = 0;
+    /** NTP wall-clock timestamp at the anchor point. */
+    #anchorNtp: bigint = 0n;
 
     /**
      * Creates a new control client.
@@ -116,6 +134,10 @@ export default class ControlClient extends EventEmitter {
             throw new Error('Already running');
         }
 
+        // Establish wall-clock anchor: link current headTs to real NTP time.
+        this.#anchorRtp = this.#context.headTs;
+        this.#anchorNtp = NTP.now();
+
         this.#startSyncTask(remoteAddr, this.#context.controlPort);
     }
 
@@ -142,7 +164,7 @@ export default class ControlClient extends EventEmitter {
         const sendSync = () => {
             if (!this.#transport) return;
 
-            const currentTime = ntpFromTs(this.#context.headTs, this.#context.sampleRate);
+            const currentTime = ntpFromTs(this.#context.headTs, this.#context.sampleRate, this.#anchorRtp, this.#anchorNtp);
             const [currentSec, currentFrac] = NTP.parts(currentTime);
 
             const packet = SyncPacket.encode(

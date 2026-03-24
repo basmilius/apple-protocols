@@ -123,7 +123,14 @@ const USE_ENCRYPTION = true;
  * multi-room synchronization.
  */
 const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint => {
-    const elapsedSamples = rtpTimestamp - anchorRtp;
+    let elapsedSamples: number;
+    if (rtpTimestamp >= anchorRtp) {
+        elapsedSamples = rtpTimestamp - anchorRtp;
+    } else {
+        // 32-bit unsigned wrap
+        elapsedSamples = (0x100000000 - anchorRtp) + rtpTimestamp;
+    }
+
     const elapsedSeconds = Math.floor(elapsedSamples / sampleRate);
     const elapsedFraction = ((elapsedSamples % sampleRate) * 0xFFFFFFFF) / sampleRate;
     const elapsedNtp = (BigInt(elapsedSeconds) << 32n) | BigInt(Math.floor(elapsedFraction));
@@ -237,11 +244,16 @@ export default class AudioStream {
         let ct = CompressionType.PCM;
         let audioFormat: number = AudioFormat.PCM_44100_24_2;
         let sampleRate = SAMPLE_RATE;
-        let bytesPerChannel = BYTES_PER_CHANNEL;
 
         if (supportedFormats) {
             this.#context.logger.info('[audio]', `Receiver supported formats: 0x${supportedFormats.toString(16)}`);
         }
+
+        // TODO(audio-format): bytesPerChannel should be 3 for 24-bit formats, but our audio
+        // sources currently produce 16-bit PCM. Using bytesPerChannel=2 with a 24-bit audioFormat
+        // works because the receiver compensates, but this is technically incorrect. Revisit when
+        // audio sources support 24-bit output.
+        let bytesPerChannel = BYTES_PER_CHANNEL;
 
         const setupBody = Plist.serialize({
             streams: [{
@@ -409,7 +421,7 @@ export default class AudioStream {
 
             ctx.paddingSent += sent;
 
-            const expectedTime = (ctx.totalFrames - startFrames) / SAMPLE_RATE * 1000;
+            const expectedTime = (ctx.totalFrames - startFrames) / ctx.sampleRate * 1000;
             const actualTime = performance.now() - startTime;
             const sleepTime = expectedTime - actualTime;
 
@@ -462,7 +474,7 @@ export default class AudioStream {
                     this.#context.logger.debug('[audio]', `Sent ${packetCount} packets, ${ctx.totalFrames} frames`);
                 }
 
-                const expectedTime = ctx.totalFrames / SAMPLE_RATE * 1000;
+                const expectedTime = ctx.totalFrames / ctx.sampleRate * 1000;
                 const actualTime = performance.now() - startTime;
                 const sleepTime = expectedTime - actualTime;
 
@@ -471,7 +483,7 @@ export default class AudioStream {
                     await this.#sleep(sleepTime);
                 } else {
                     // We're behind schedule — send extra packets to catch up.
-                    const framesBehind = Math.floor((-sleepTime / 1000) * SAMPLE_RATE);
+                    const framesBehind = Math.floor((-sleepTime / 1000) * ctx.sampleRate);
 
                     if (framesBehind >= FRAMES_PER_PACKET) {
                         const extraPackets = Math.min(

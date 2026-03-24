@@ -8,6 +8,54 @@ import EventStream from './eventStream';
 
 import { decodeFeatures, hasFeature, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from './features';
 
+/**
+ * Compares two semver-like version strings component by component.
+ *
+ * @param a - First version string (e.g. "935.7.1").
+ * @param b - Second version string (e.g. "935.7").
+ * @returns Negative if a < b, positive if a > b, 0 if equal.
+ */
+/**
+ * Parses a feature value from /info which can be a number, hex string, or decimal string.
+ */
+function parseFeatureValue(value: unknown): number {
+    if (typeof value === 'number') {
+        return value;
+    }
+
+    const str = String(value);
+
+    if (str.startsWith('0x') || str.startsWith('0X')) {
+        return parseInt(str, 16);
+    }
+
+    const asInt = parseInt(str, 10);
+
+    if (!isNaN(asInt)) {
+        return asInt;
+    }
+
+    // Last resort: try hex without prefix (e.g. "1a0")
+    const asHex = parseInt(str, 16);
+    return isNaN(asHex) ? 0 : asHex;
+}
+
+function compareVersions(a: string, b: string): number {
+    const pa = a.split('.').map(Number);
+    const pb = b.split('.').map(Number);
+
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const na = pa[i] ?? 0;
+        const nb = pb[i] ?? 0;
+
+        if (na !== nb) {
+            return na - nb;
+        }
+    }
+
+    return 0;
+}
+
 /** Interval in milliseconds between feedback keepalive requests during URL playback. */
 const FEEDBACK_INTERVAL = 2000;
 
@@ -103,6 +151,7 @@ export default class Protocol {
     readonly #verify: Verify;
     #audioStream?: AudioStream;
     #dataStream?: DataStream;
+    #effectiveSourceVersion?: string;
     #eventStream?: EventStream;
     #playUrlFeedbackInterval?: NodeJS.Timeout;
     #receiverFeatures: bigint = 0n;
@@ -172,7 +221,13 @@ export default class Protocol {
         const receiverSourceVersion = info.sourceVersion as string | undefined;
 
         if (info.features != null) {
-            this.#receiverFeatures = BigInt(info.features);
+            let features = BigInt(parseFeatureValue(info.features));
+
+            if (info.featuresEx != null) {
+                features |= BigInt(parseFeatureValue(info.featuresEx)) << 32n;
+            }
+
+            this.#receiverFeatures = features;
         }
 
         this.context.logger.info('[protocol]', `Receiver: ${info.name ?? 'unknown'}, model=${info.model ?? '?'}, sourceVersion=${receiverSourceVersion ?? '?'}`);
@@ -185,12 +240,9 @@ export default class Protocol {
         // Use the receiver's sourceVersion if it's lower than ours, to avoid
         // claiming capabilities the receiver doesn't understand.
         if (receiverSourceVersion) {
-            const ours = parseFloat(this.#context.identity.sourceVersion);
-            const theirs = parseFloat(receiverSourceVersion);
-
-            if (theirs < ours) {
+            if (compareVersions(String(this.#context.identity.sourceVersion), receiverSourceVersion) > 0) {
                 this.context.logger.info('[protocol]', `Capping sourceVersion from ${this.#context.identity.sourceVersion} to ${receiverSourceVersion}`);
-                (this.#context.identity as any).sourceVersion = receiverSourceVersion;
+                this.#effectiveSourceVersion = receiverSourceVersion;
             }
         }
 
@@ -361,7 +413,7 @@ export default class Protocol {
             osBuildVersion: id.osBuildVersion,
             osName: id.osName,
             osVersion: id.osVersion,
-            sourceVersion: id.sourceVersion,
+            sourceVersion: this.#effectiveSourceVersion ?? id.sourceVersion,
             sessionUUID: this.#sessionUUID,
             sessionCorrelationUUID: this.#sessionUUID.toUpperCase()
         };
@@ -497,54 +549,64 @@ export default class Protocol {
 
         await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
 
-        // Retry POST /play on 500 errors (device may need time to prepare).
-        let lastStatus = 0;
+        try {
+            // Retry POST /play on 500 errors (device may need time to prepare).
+            let lastStatus = 0;
 
-        for (let retry = 0; retry < PLAY_RETRIES; retry++) {
-            const response = await this.#controlStream.post('/play', {
-                'Content-Location': url,
-                'Start-Position-Seconds': position,
-                uuid: this.#sessionUUID.toUpperCase(),
-                streamType: 1,
-                mediaType: 'file',
-                volume: 1.0,
-                rate: 1.0,
-                clientBundleID: 'com.basmilius.apple-protocols',
-                clientProcName: this.#context.identity.name,
-                osBuildVersion: this.#context.identity.osBuildVersion,
-                model: this.#context.identity.model,
-                SenderMACAddress: getMacAddress().toUpperCase()
-            });
+            for (let retry = 0; retry < PLAY_RETRIES; retry++) {
+                const response = await this.#controlStream.post('/play', {
+                    'Content-Location': url,
+                    'Start-Position-Seconds': position,
+                    uuid: this.#sessionUUID.toUpperCase(),
+                    streamType: 1,
+                    mediaType: 'file',
+                    volume: 1.0,
+                    rate: 1.0,
+                    clientBundleID: 'com.basmilius.apple-protocols',
+                    clientProcName: this.#context.identity.name,
+                    osBuildVersion: this.#context.identity.osBuildVersion,
+                    model: this.#context.identity.model,
+                    SenderMACAddress: getMacAddress().toUpperCase()
+                });
 
-            lastStatus = response.status;
-            this.context.logger.info('[protocol]', `play_url response: ${lastStatus} (attempt ${retry + 1}/${PLAY_RETRIES})`);
+                lastStatus = response.status;
+                this.context.logger.info('[protocol]', `play_url response: ${lastStatus} (attempt ${retry + 1}/${PLAY_RETRIES})`);
 
-            if (lastStatus === 200) {
-                break;
+                if (lastStatus === 200) {
+                    break;
+                }
+
+                if (lastStatus === 500) {
+                    this.context.logger.warn('[protocol]', 'play_url returned 500, retrying...');
+                    await waitFor(1000);
+                    continue;
+                }
+
+                if (lastStatus >= 400) {
+                    this.#stopPlayUrlFeedback();
+                    throw new PlaybackError(`Failed to play URL: ${lastStatus}`);
+                }
             }
 
-            if (lastStatus === 500) {
-                this.context.logger.warn('[protocol]', 'play_url returned 500, retrying...');
-                await waitFor(1000);
-                continue;
-            }
-
-            if (lastStatus >= 400) {
+            if (lastStatus !== 200) {
                 this.#stopPlayUrlFeedback();
-                throw new PlaybackError(`Failed to play URL: ${lastStatus}`);
+                throw new PlaybackError(`Failed to play URL after ${PLAY_RETRIES} retries: ${lastStatus}`);
             }
-        }
 
-        if (lastStatus !== 200) {
-            this.#stopPlayUrlFeedback();
-            throw new PlaybackError(`Failed to play URL after ${PLAY_RETRIES} retries: ${lastStatus}`);
-        }
+            await this.#putProperty('isInterestedInDateRange', {value: true});
+            await this.#putProperty('actionAtItemEnd', {value: 0});
+            await this.#controlStream.post('/rate?value=1.000000');
+            await this.#putProperty('forwardEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+            await this.#putProperty('reverseEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+        } catch (err) {
+            try {
+                await this.#controlStream.teardown(`/${this.#controlStream.sessionId}`);
+            } catch (teardownErr) {
+                this.#context.logger.warn('[protocol]', 'TEARDOWN after playUrl failure also failed', teardownErr);
+            }
 
-        await this.#putProperty('isInterestedInDateRange', {value: true});
-        await this.#putProperty('actionAtItemEnd', {value: 0});
-        await this.#controlStream.post('/rate?value=1.000000');
-        await this.#putProperty('forwardEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
-        await this.#putProperty('reverseEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+            throw err;
+        }
     }
 
     /**

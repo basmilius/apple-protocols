@@ -11,7 +11,7 @@ import * as Proto from './proto';
  * @param counter - Monotonically increasing counter value.
  * @returns 12-byte nonce buffer.
  */
-export function nonce(counter: number): Buffer {
+export function nonce(counter: number | bigint): Buffer {
     const nonceArray = new Uint8Array(12);
     const view = new DataView(nonceArray.buffer);
     view.setBigUint64(4, BigInt(counter), true);

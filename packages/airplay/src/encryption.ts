@@ -44,7 +44,7 @@ export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | 
 
         const plaintext = Chacha20.decrypt(
             state.readKey,
-            nonce(Number(state.nextReadCounter())),
+            nonce(state.nextReadCounter()),
             Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)),
             ciphertext,
             authTag
@@ -83,7 +83,7 @@ export function chacha20Encrypt(state: EncryptionState, data: Buffer): Buffer {
 
         const encrypted = Chacha20.encrypt(
             state.writeKey,
-            nonce(Number(state.nextWriteCounter())),
+            nonce(state.nextWriteCounter()),
             leLength,
             frame
         );

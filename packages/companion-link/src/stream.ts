@@ -259,7 +259,7 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         const ciphertext = payload.subarray(0, payload.byteLength - 16);
 
         const nonce = Buffer.alloc(12);
-        nonce.writeBigUint64LE(this.#encryptionState.nextReadCounter(), 0);
+        nonce.writeBigUInt64LE(this.#encryptionState.nextReadCounter(), 0);
 
         const decrypted = Chacha20.decrypt(this.#encryptionState.readKey, nonce, header, ciphertext, authTag);
 

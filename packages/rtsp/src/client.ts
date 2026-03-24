@@ -2,28 +2,65 @@ import { Connection, ConnectionClosedError, ConnectionTimeoutError, type Context
 import { Plist } from '@basmilius/apple-encoding';
 import { type Method, parseResponse } from './encoding';
 
+/**
+ * Represents a pending RTSP request awaiting its response, tracked by CSeq number.
+ */
 type PendingRequest = {
+    /** Resolves the pending promise with the received response. */
     resolve: (response: Response) => void;
+    /** Rejects the pending promise with an error (e.g. timeout, connection closed). */
     reject: (error: Error) => void;
 };
 
+/**
+ * Options for configuring an RTSP/HTTP request-response exchange.
+ */
 export type ExchangeOptions = {
+    /** Explicit Content-Type header. Automatically set to `application/x-apple-binary-plist` when body is a plain object. */
     contentType?: string;
+    /** Additional headers to include in the request. Merged after default headers. */
     headers?: Record<string, string>;
+    /** Request body. Plain objects are serialized as binary plist; strings and buffers are sent as-is. */
     body?: Buffer | string | Record<string, unknown>;
+    /** When `true`, non-OK responses resolve instead of rejecting with {@link InvalidResponseError}. */
     allowError?: boolean;
+    /** Protocol version for the request line. Defaults to `'RTSP/1.0'`. */
     protocol?: 'RTSP/1.0' | 'HTTP/1.1';
+    /** Response timeout in milliseconds. Defaults to `HTTP_TIMEOUT`. */
     timeout?: number;
 };
 
+/** Maximum allowed buffer size (2 MB) before resetting to prevent memory exhaustion. */
 const MAX_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB
 
+/**
+ * RTSP client for Apple protocol communication over TCP.
+ *
+ * Extends {@link Connection} with RTSP-specific request/response handling, including
+ * CSeq-based request tracking, automatic body serialization (binary plist for objects),
+ * and support for encryption via overridable transform hooks. Maintains separate buffers
+ * for encrypted and decrypted data to prevent corruption during partial TCP delivery.
+ *
+ * Subclasses should override {@link transformIncoming} and {@link transformOutgoing} to
+ * add encryption/decryption, and {@link getDefaultHeaders} to inject per-request headers.
+ */
 export default class RtspClient extends Connection<{}> {
+    /** Accumulates decrypted plaintext data waiting to be parsed as RTSP responses. */
     #buffer: Buffer = Buffer.alloc(0);
+    /** Accumulates raw encrypted TCP data before transformation/decryption. */
     #encryptedBuffer: Buffer = Buffer.alloc(0);
+    /** Monotonically increasing RTSP CSeq counter for request tracking. */
     #cseq: number = 0;
+    /** Map of in-flight requests keyed by CSeq, awaiting their matching response. */
     #requests: Map<number, PendingRequest> = new Map();
 
+    /**
+     * Creates a new RTSP client and binds internal event handlers.
+     *
+     * @param context - Device context providing logger and configuration.
+     * @param address - The target host address to connect to.
+     * @param port - The target TCP port to connect to.
+     */
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
@@ -39,26 +76,59 @@ export default class RtspClient extends Connection<{}> {
     }
 
     /**
-     * Override to provide default headers for every request.
+     * Returns default headers that are included in every outgoing request.
+     *
+     * Override in subclasses to inject session-specific headers (e.g. DACP-ID,
+     * Active-Remote). These headers are placed after CSeq but before any
+     * per-request headers from {@link ExchangeOptions.headers}.
+     *
+     * @returns A record of header name-value pairs.
      */
     protected getDefaultHeaders(): Record<string, string | number> {
         return {};
     }
 
     /**
-     * Override to transform incoming data before RTSP parsing (e.g. decryption).
+     * Transforms incoming raw TCP data before RTSP response parsing.
+     *
+     * Override in subclasses to perform decryption. Return `false` if the buffer
+     * does not yet contain enough data for a complete decryption block, signaling
+     * that more data should be accumulated before retrying.
+     *
+     * @param data - The raw (potentially encrypted) incoming data buffer.
+     * @returns The transformed (decrypted) buffer, or `false` if more data is needed.
      */
     protected transformIncoming(data: Buffer): Buffer | false {
         return data;
     }
 
     /**
-     * Override to transform outgoing data after RTSP formatting (e.g. encryption).
+     * Transforms outgoing data after RTSP request formatting.
+     *
+     * Override in subclasses to perform encryption on the fully formatted
+     * request buffer before it is written to the socket.
+     *
+     * @param data - The fully formatted RTSP request buffer (headers + body).
+     * @returns The transformed (encrypted) buffer ready for transmission.
      */
     protected transformOutgoing(data: Buffer): Buffer {
         return data;
     }
 
+    /**
+     * Sends an RTSP/HTTP request and waits for the matching response.
+     *
+     * Automatically assigns a CSeq header, serializes the body (plain objects become
+     * binary plist), applies outgoing transformation (e.g. encryption), and tracks
+     * the pending response via a timeout-guarded promise.
+     *
+     * @param method - The RTSP/HTTP method verb.
+     * @param path - The request target path.
+     * @param options - Additional request configuration.
+     * @returns The response from the remote device.
+     * @throws TimeoutError if no response is received within the configured timeout.
+     * @throws InvalidResponseError if the response has a non-OK status and `allowError` is not set.
+     */
     protected async exchange(method: Method, path: string, options: ExchangeOptions = {}): Promise<Response> {
         const {
             contentType,
@@ -139,6 +209,12 @@ export default class RtspClient extends Connection<{}> {
         });
     }
 
+    /**
+     * Handles TCP connection close events.
+     *
+     * Resets both internal buffers and rejects all pending requests with a
+     * {@link ConnectionClosedError}.
+     */
     onRtspClose(): void {
         this.#buffer = Buffer.alloc(0);
         this.#encryptedBuffer = Buffer.alloc(0);
@@ -151,6 +227,19 @@ export default class RtspClient extends Connection<{}> {
         this.context.logger.net('[rtsp]', 'onRtspClose()');
     }
 
+    /**
+     * Handles incoming TCP data by accumulating, transforming, and parsing RTSP responses.
+     *
+     * Raw data is first appended to the encrypted buffer, then passed through
+     * {@link transformIncoming} for decryption. The resulting plaintext is appended
+     * to the parse buffer and consumed as complete RTSP responses. Each response is
+     * matched to its pending request via the CSeq header.
+     *
+     * If the buffer exceeds {@link MAX_BUFFER_SIZE}, all buffers are reset and
+     * pending requests are rejected to prevent memory exhaustion.
+     *
+     * @param data - Raw TCP data received from the socket.
+     */
     onRtspData(data: Buffer): void {
         try {
             this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
@@ -206,6 +295,11 @@ export default class RtspClient extends Connection<{}> {
         }
     }
 
+    /**
+     * Handles socket error events by rejecting all pending requests with the error.
+     *
+     * @param err - The error that occurred on the socket.
+     */
     onRtspError(err: Error): void {
         for (const [cseq, {reject}] of this.#requests) {
             reject(err);
@@ -215,6 +309,10 @@ export default class RtspClient extends Connection<{}> {
         this.context.logger.error('[rtsp]', 'onRtspError()', err);
     }
 
+    /**
+     * Handles socket timeout events by rejecting all pending requests with a
+     * {@link ConnectionTimeoutError}.
+     */
     onRtspTimeout(): void {
         const err = new ConnectionTimeoutError();
 

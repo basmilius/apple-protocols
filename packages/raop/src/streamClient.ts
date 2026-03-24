@@ -9,16 +9,35 @@ import ControlClient from './controlClient';
 import Statistics from './statistics';
 import RtspClient from './rtspClient';
 
+/**
+ * Event map for the StreamClient, emitted during the audio streaming lifecycle.
+ */
 export type EventMap = {
+    /** Emitted when audio playback starts, providing current playback info. */
     readonly playing: [playbackInfo: PlaybackInfo];
+    /** Emitted when audio playback stops (either naturally or via stop()). */
     readonly stopped: [];
 };
 
+/**
+ * Core streaming engine for RAOP audio. Manages the complete audio streaming
+ * lifecycle: initialization (encryption/metadata negotiation, control channel
+ * setup), real-time PCM packet sending with timing compensation, metadata
+ * and artwork publishing, and teardown.
+ *
+ * Uses a Statistics tracker to maintain real-time pacing and compensates
+ * for slow packet sending by bursting additional packets when falling behind.
+ */
 export default class StreamClient extends EventEmitter<EventMap> {
+    /** Device info dictionary fetched from the receiver during initialization. */
     get info(): Record<string, unknown> {
         return this.#info;
     }
 
+    /**
+     * Current playback info snapshot, substituting fallback metadata
+     * if the caller provided no metadata.
+     */
     get playbackInfo(): PlaybackInfo {
         return {
             metadata: this.#isMetadataEmpty(this.#metadata) ? MISSING_METADATA : this.#metadata,
@@ -26,6 +45,10 @@ export default class StreamClient extends EventEmitter<EventMap> {
         };
     }
 
+    /**
+     * Whether MFi-SAP auth-setup is required, determined by the device's
+     * supported encryption types and model name (AirPort devices only).
+     */
     get #requiresAuthSetup(): boolean {
         const modelName = this.#properties.get('am') ?? '';
 
@@ -35,22 +58,46 @@ export default class StreamClient extends EventEmitter<EventMap> {
         );
     }
 
+    /** Application context for logging. */
     readonly #context: Context;
+    /** RAOP RTSP client for protocol commands. */
     readonly #rtsp: RtspClient;
+    /** Shared mutable streaming state. */
     readonly #streamContext: StreamContext;
+    /** Port configuration settings. */
     readonly #settings: Settings;
+    /** Protocol abstraction for transport-level operations. */
     readonly #protocol: StreamProtocol;
+    /** FIFO backlog of recently sent packets for retransmission. */
     readonly #packetBacklog: PacketFifo;
+    /** NTP timing server for clock synchronization with the receiver. */
     readonly #timingServer: TimingServer;
 
+    /** UDP control channel client, created during initialization. */
     #controlClient?: ControlClient;
+    /** Bitmask of receiver-supported encryption types. */
     #encryptionTypes: EncryptionType = EncryptionType.Unknown;
+    /** Bitmask of receiver-supported metadata types. */
     #metadataTypes: MetadataType = MetadataType.NotSupported;
+    /** Current track metadata. */
     #metadata: MediaMetadata = EMPTY_METADATA;
+    /** Device info dictionary from the receiver. */
     #info: Record<string, unknown> = {};
+    /** mDNS TXT record properties for the device. */
     #properties: Map<string, string> = new Map();
+    /** Flag controlling the streaming loop; set to false to stop. */
     #isPlaying: boolean = false;
 
+    /**
+     * Creates a new stream client.
+     *
+     * @param context - Application context for logging.
+     * @param rtsp - Connected RAOP RTSP client.
+     * @param streamContext - Shared mutable streaming state.
+     * @param protocol - Protocol handler for transport operations.
+     * @param settings - Port configuration settings.
+     * @param timingServer - NTP timing server.
+     */
     constructor(context: Context, rtsp: RtspClient, streamContext: StreamContext, protocol: StreamProtocol, settings: Settings, timingServer: TimingServer) {
         super();
 
@@ -63,10 +110,20 @@ export default class StreamClient extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
+    /**
+     * Closes the control channel, releasing its UDP socket.
+     */
     close(): void {
         this.#controlClient?.close();
     }
 
+    /**
+     * Initializes the streaming session by parsing device capabilities,
+     * binding the control channel, fetching device info, performing
+     * auth-setup if required, and running the protocol SETUP handshake.
+     *
+     * @param properties - mDNS TXT record key-value pairs for the device.
+     */
     async initialize(properties: Map<string, string>): Promise<void> {
         this.#properties = properties;
         this.#encryptionTypes = getEncryptionTypes(properties);
@@ -100,16 +157,38 @@ export default class StreamClient extends EventEmitter<EventMap> {
         await this.#protocol.setup(this.#timingServer.port, this.#controlClient.port);
     }
 
+    /**
+     * Signals the streaming loop to stop after the current packet.
+     * The `sendAudio()` call will return after teardown completes.
+     */
     stop(): void {
         this.#context.logger.debug('Stopping audio playback');
         this.#isPlaying = false;
     }
 
+    /**
+     * Changes the playback volume on the receiver via RTSP SET_PARAMETER.
+     *
+     * @param volume - Volume level in dBFS.
+     */
     async setVolume(volume: number): Promise<void> {
         await this.#rtsp.setParameter('volume', String(volume));
         this.#streamContext.volume = volume;
     }
 
+    /**
+     * Main entry point for streaming audio. Resets the stream context,
+     * connects the UDP audio transport, publishes metadata/artwork/progress,
+     * starts the RTSP RECORD session, and enters the real-time streaming loop.
+     *
+     * On completion or error, performs full teardown: clears the packet backlog,
+     * sends RTSP TEARDOWN, closes the UDP transport, and emits 'stopped'.
+     *
+     * @param source - Audio source providing PCM frames to stream.
+     * @param metadata - Track metadata to display on the receiver.
+     * @param volume - Optional initial volume as a percentage (0-100), converted to dBFS.
+     * @throws When streaming encounters an unrecoverable error.
+     */
     async sendAudio(source: AudioSource, metadata: MediaMetadata = EMPTY_METADATA, volume?: number): Promise<void> {
         if (!this.#controlClient) {
             throw new Error('Not initialized');
@@ -198,6 +277,16 @@ export default class StreamClient extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Real-time audio streaming loop. Reads PCM frames from the source,
+     * sends them as RTP packets over UDP, and uses wall-clock timing to
+     * maintain real-time pacing. When falling behind, sends compensating
+     * burst packets (up to MAX_PACKETS_COMPENSATE). Logs periodic
+     * throughput statistics and slow-sender warnings.
+     *
+     * @param source - Audio source to read frames from.
+     * @param transport - UDP socket connected to the receiver's audio port.
+     */
     async #streamData(source: AudioSource, transport: UdpSocket): Promise<void> {
         const stats = new Statistics(this.#streamContext.sampleRate);
 
@@ -273,6 +362,17 @@ export default class StreamClient extends EventEmitter<EventMap> {
         this.#context.logger.debug(`Audio finished sending in ${(elapsedNs / 1e9).toFixed(3)}s`);
     }
 
+    /**
+     * Reads one packet's worth of audio frames from the source and sends
+     * it as an RTP packet. If the source is exhausted, sends silence
+     * padding until the latency buffer is filled. Undersized frames
+     * are zero-padded to the expected packet size.
+     *
+     * @param source - Audio source to read frames from.
+     * @param firstPacket - Whether this is the first packet (uses marker payload type 0xE0).
+     * @param transport - UDP socket connected to the receiver's audio port.
+     * @returns Number of audio frames sent, or 0 when padding is exhausted.
+     */
     async #sendPacket(source: AudioSource, firstPacket: boolean, transport: UdpSocket): Promise<number> {
         if (this.#streamContext.paddingSent >= this.#streamContext.latency) {
             return 0;
@@ -306,6 +406,15 @@ export default class StreamClient extends EventEmitter<EventMap> {
         return Math.floor(frames.length / this.#streamContext.frameSize);
     }
 
+    /**
+     * Sends multiple packets in a burst to compensate for falling behind
+     * real-time playback. Stops early if the source is exhausted.
+     *
+     * @param source - Audio source to read frames from.
+     * @param transport - UDP socket connected to the receiver's audio port.
+     * @param count - Number of packets to send.
+     * @returns A tuple of [total frames sent, whether more packets are available].
+     */
     async #sendNumberOfPackets(source: AudioSource, transport: UdpSocket, count: number): Promise<[number, boolean]> {
         let totalFrames = 0;
 
@@ -321,6 +430,13 @@ export default class StreamClient extends EventEmitter<EventMap> {
         return [totalFrames, true];
     }
 
+    /**
+     * Checks whether the given metadata has all empty/default values,
+     * indicating no real metadata was provided by the caller.
+     *
+     * @param metadata - Metadata to check.
+     * @returns True if all fields are empty or zero.
+     */
     #isMetadataEmpty(metadata: MediaMetadata): boolean {
         return metadata.title === ''
             && metadata.artist === ''
@@ -328,6 +444,12 @@ export default class StreamClient extends EventEmitter<EventMap> {
             && metadata.duration === 0;
     }
 
+    /**
+     * Updates the stream context audio format from mDNS TXT record
+     * properties (sample rate, channels, bytes per channel).
+     *
+     * @param properties - mDNS TXT record key-value pairs.
+     */
     #updateOutputProperties(properties: Map<string, string>): void {
         const [sampleRate, channels, bytesPerChannel] = getAudioProperties(properties);
 

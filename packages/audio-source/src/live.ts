@@ -1,25 +1,47 @@
 import type { AudioSource } from '@basmilius/apple-common';
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
 
+/** Default ring buffer duration in seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;
 
+/**
+ * Audio source for live/real-time PCM audio input using a ring buffer.
+ * Producers write PCM data via {@link write}, and consumers read it
+ * via {@link readFrames}. When the buffer is full, the oldest data
+ * is silently dropped to make room for new data.
+ */
 export default class Live implements AudioSource {
+    /** Duration is always Infinity for live sources. */
     readonly duration: number = Infinity;
+
+    /** Size of a single audio frame in bytes. */
     readonly #frameSize: number;
 
-    // Ring buffer
+    /** Fixed-size ring buffer for PCM data. */
     readonly #buffer: Buffer;
+
+    /** Total capacity of the ring buffer in bytes. */
     readonly #capacity: number;
+
+    /** Current read position in the ring buffer. */
     #readPos: number = 0;
+
+    /** Current write position in the ring buffer. */
     #writePos: number = 0;
+
+    /** Number of bytes currently available for reading. */
     #available: number = 0;
 
-    // State
+    /** Whether the source has been signaled as ended via {@link end}. */
     #ended: boolean = false;
+
+    /** Whether the source has been started via {@link start}. */
     #started: boolean = false;
 
-    // Consumer waiting for data
+    /** Resolve function for a pending consumer waiting for data. */
     #pendingResolve: ((value: Buffer | null) => void) | null = null;
+
+    /** Number of bytes the pending consumer is waiting for. */
     #pendingBytes: number = 0;
 
     /**
@@ -55,9 +77,10 @@ export default class Live implements AudioSource {
     }
 
     /**
-     * Write PCM data into the ring buffer. If the buffer is full,
-     * oldest data is dropped to make room.
+     * Writes PCM data into the ring buffer. If the buffer is full,
+     * the oldest data is dropped to make room for new data.
      *
+     * @param data - PCM audio data to write into the ring buffer.
      * @returns The number of bytes actually written.
      */
     write(data: Buffer): number {
@@ -119,6 +142,14 @@ export default class Live implements AudioSource {
         }
     }
 
+    /**
+     * Reads the specified number of audio frames from the ring buffer.
+     * Blocks until enough data is available, the stream ends, or data
+     * is written by the producer.
+     *
+     * @param count - Number of audio frames to read.
+     * @returns A buffer containing the requested PCM data, or null if the stream has ended.
+     */
     async readFrames(count: number): Promise<Buffer | null> {
         const bytesNeeded = count * this.#frameSize;
 
@@ -141,6 +172,10 @@ export default class Live implements AudioSource {
         });
     }
 
+    /**
+     * Resets the ring buffer to its initial state, clearing all data
+     * and re-enabling writes after an {@link end} call.
+     */
     async reset(): Promise<void> {
         this.#readPos = 0;
         this.#writePos = 0;
@@ -150,15 +185,29 @@ export default class Live implements AudioSource {
         this.#pendingBytes = 0;
     }
 
+    /**
+     * Marks the live source as started, allowing data to flow.
+     */
     async start(): Promise<void> {
         this.#started = true;
     }
 
+    /**
+     * Stops the live source and signals end-of-stream. Any pending
+     * consumer will receive remaining data or null.
+     */
     async stop(): Promise<void> {
         this.#started = false;
         this.end();
     }
 
+    /**
+     * Reads the specified number of bytes from the ring buffer,
+     * handling wrap-around at the buffer boundary.
+     *
+     * @param bytes - Number of bytes to read.
+     * @returns A new buffer containing the read data.
+     */
     #read(bytes: number): Buffer {
         const result = Buffer.allocUnsafe(bytes);
         const firstChunk = Math.min(bytes, this.#capacity - this.#readPos);
@@ -175,6 +224,10 @@ export default class Live implements AudioSource {
         return result;
     }
 
+    /**
+     * Attempts to fulfill a pending consumer's read request if enough
+     * data has accumulated in the ring buffer.
+     */
     #tryFulfillPending(): void {
         if (!this.#pendingResolve || this.#available < this.#pendingBytes) {
             return;

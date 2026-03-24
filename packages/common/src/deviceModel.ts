@@ -1,3 +1,4 @@
+/** Known Apple device models that can be discovered and controlled via AirPlay/Companion Link. */
 export enum DeviceModel {
     Unknown = 0,
 
@@ -19,6 +20,7 @@ export enum DeviceModel {
     AirPortExpressGen2 = 21,
 }
 
+/** High-level device categories derived from the specific device model. */
 export enum DeviceType {
     Unknown = 0,
     AppleTV = 1,
@@ -26,6 +28,7 @@ export enum DeviceType {
     AirPort = 3,
 }
 
+/** Maps Apple model identifiers (e.g. "AppleTV6,2") to known device models. */
 const MODEL_IDENTIFIERS: Record<string, DeviceModel> = {
     'AppleTV2,1': DeviceModel.AppleTVGen2,
     'AppleTV3,1': DeviceModel.AppleTVGen3,
@@ -45,6 +48,7 @@ const MODEL_IDENTIFIERS: Record<string, DeviceModel> = {
     'AirPort10,115': DeviceModel.AirPortExpressGen2,
 };
 
+/** Maps Apple internal code names (e.g. "J305AP") to known device models. */
 const INTERNAL_NAMES: Record<string, DeviceModel> = {
     'K66AP': DeviceModel.AppleTVGen2,
     'J33AP': DeviceModel.AppleTVGen3,
@@ -56,6 +60,7 @@ const INTERNAL_NAMES: Record<string, DeviceModel> = {
     'B520AP': DeviceModel.HomePodMini,
 };
 
+/** Human-readable display names for each device model. */
 const MODEL_NAMES: Record<DeviceModel, string> = {
     [DeviceModel.Unknown]: 'Unknown',
     [DeviceModel.AppleTVGen2]: 'Apple TV (2nd generation)',
@@ -71,6 +76,7 @@ const MODEL_NAMES: Record<DeviceModel, string> = {
     [DeviceModel.AirPortExpressGen2]: 'AirPort Express (2nd generation)',
 };
 
+/** Maps each device model to its high-level device type category. */
 const MODEL_TYPES: Record<DeviceModel, DeviceType> = {
     [DeviceModel.Unknown]: DeviceType.Unknown,
     [DeviceModel.AppleTVGen2]: DeviceType.AppleTV,
@@ -86,20 +92,56 @@ const MODEL_TYPES: Record<DeviceModel, DeviceType> = {
     [DeviceModel.AirPortExpressGen2]: DeviceType.AirPort,
 };
 
+/**
+ * Resolves an Apple model identifier or internal code name to a known device model.
+ *
+ * @param identifier - Model identifier (e.g. "AppleTV6,2") or internal name (e.g. "J305AP").
+ * @returns The matching device model, or {@link DeviceModel.Unknown} if unrecognized.
+ */
 export const lookupDeviceModel = (identifier: string): DeviceModel =>
     MODEL_IDENTIFIERS[identifier] ?? INTERNAL_NAMES[identifier] ?? DeviceModel.Unknown;
 
+/**
+ * Returns the human-readable display name for a device model.
+ *
+ * @param model - The device model to look up.
+ * @returns A display name like "Apple TV 4K (2nd generation)", or "Unknown".
+ */
 export const getDeviceModelName = (model: DeviceModel): string =>
     MODEL_NAMES[model] ?? 'Unknown';
 
+/**
+ * Returns the high-level device type category for a device model.
+ *
+ * @param model - The device model to categorize.
+ * @returns The device type (AppleTV, HomePod, AirPort, or Unknown).
+ */
 export const getDeviceType = (model: DeviceModel): DeviceType =>
     MODEL_TYPES[model] ?? DeviceType.Unknown;
 
+/**
+ * Checks whether the given model is an Apple TV.
+ *
+ * @param model - The device model to check.
+ * @returns True if the model is any Apple TV generation.
+ */
 export const isAppleTV = (model: DeviceModel): boolean =>
     getDeviceType(model) === DeviceType.AppleTV;
 
+/**
+ * Checks whether the given model is a HomePod.
+ *
+ * @param model - The device model to check.
+ * @returns True if the model is any HomePod variant.
+ */
 export const isHomePod = (model: DeviceModel): boolean =>
     getDeviceType(model) === DeviceType.HomePod;
 
+/**
+ * Checks whether the given model is an AirPort Express.
+ *
+ * @param model - The device model to check.
+ * @returns True if the model is any AirPort Express generation.
+ */
 export const isAirPort = (model: DeviceModel): boolean =>
     getDeviceType(model) === DeviceType.AirPort;

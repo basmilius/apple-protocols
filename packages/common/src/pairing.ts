@@ -6,17 +6,33 @@ import { AIRPLAY_TRANSIENT_PIN } from './const';
 import type { Context } from './context';
 import { AuthenticationError, PairingError } from './errors';
 
+/**
+ * Abstract base class for HAP pairing operations. Provides shared TLV8
+ * decoding with automatic error checking.
+ */
 abstract class BasePairing {
+    /** The shared context carrying device identity and logger. */
     get context(): Context {
         return this.#context;
     }
 
     readonly #context: Context;
 
+    /**
+     * @param context - Shared context for logging and device identity.
+     */
     constructor(context: Context) {
         this.#context = context;
     }
 
+    /**
+     * Decodes a TLV8 buffer and checks for error codes. If the TLV contains
+     * an error value, it throws via TLV8.bail.
+     *
+     * @param buffer - The raw TLV8-encoded response.
+     * @returns A map of TLV type numbers to their buffer values.
+     * @throws If the TLV contains an error value.
+     */
     tlv(buffer: Buffer): Map<number, Buffer> {
         const data = TLV8.decode(buffer);
 
@@ -42,13 +58,23 @@ abstract class BasePairing {
  * For transient pairing (HomePod), only M1-M4 are needed — no long-term credentials are stored.
  */
 export class AccessoryPair extends BasePairing {
+    /** Human-readable name sent to the accessory during pairing. */
     readonly #name: string;
+    /** Unique pairing identifier (UUID) for this controller. */
     readonly #pairingId: Buffer;
+    /** Protocol-specific callback for sending TLV8-encoded pair-setup requests. */
     readonly #requestHandler: RequestHandler;
+    /** Ed25519 public key for long-term identity. */
     #publicKey: Buffer;
+    /** Ed25519 secret key for signing identity proofs. */
     #secretKey: Buffer;
+    /** SRP client instance used for PIN-based authentication. */
     #srp: SrpClient;
 
+    /**
+     * @param context - Shared context for logging and device identity.
+     * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
+     */
     constructor(context: Context, requestHandler: RequestHandler) {
         super(context);
 
@@ -57,12 +83,22 @@ export class AccessoryPair extends BasePairing {
         this.#requestHandler = requestHandler;
     }
 
+    /** Generates a new Ed25519 key pair for long-term identity. Must be called before pin() or transient(). */
     async start(): Promise<void> {
         const keyPair = Ed25519.generateKeyPair();
         this.#publicKey = Buffer.from(keyPair.publicKey);
         this.#secretKey = Buffer.from(keyPair.secretKey);
     }
 
+    /**
+     * Performs the full PIN-based pair-setup flow (M1 through M6).
+     * Prompts for a PIN via the provided callback, then completes SRP authentication
+     * and Ed25519 credential exchange with the accessory.
+     *
+     * @param askPin - Async callback that returns the user-entered PIN.
+     * @returns Long-term credentials for future pair-verify sessions.
+     * @throws {PairingError} If any step fails.
+     */
     async pin(askPin: () => Promise<string>): Promise<AccessoryCredentials> {
         const m1 = await this.m1();
         const m2 = await this.m2(m1, await askPin());
@@ -78,6 +114,15 @@ export class AccessoryPair extends BasePairing {
         return m6;
     }
 
+    /**
+     * Performs the transient (non-persistent) pair-setup flow (M1 through M4 only).
+     * Uses the default transient PIN ('3939'). No long-term credentials are stored;
+     * session keys are derived directly from the SRP shared secret.
+     *
+     * Primarily used for HomePod connections where persistent pairing is not required.
+     *
+     * @returns Session keys for the current connection (not reusable across sessions).
+     */
     async transient(): Promise<AccessoryKeys> {
         const m1 = await this.m1([[TLV8.Value.Flags, TLV8.Flags.TransientPairing]]);
         const m2 = await this.m2(m1);
@@ -298,9 +343,15 @@ export class AccessoryPair extends BasePairing {
  *       → M3 (controller proof) → M4 (session key derivation)
  */
 export class AccessoryVerify extends BasePairing {
+    /** Ephemeral Curve25519 key pair for forward-secrecy ECDH exchange. */
     readonly #ephemeralKeyPair: KeyPair;
+    /** Protocol-specific callback for sending TLV8-encoded pair-verify requests. */
     readonly #requestHandler: RequestHandler;
 
+    /**
+     * @param context - Shared context for logging and device identity.
+     * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
+     */
     constructor(context: Context, requestHandler: RequestHandler) {
         super(context);
 
@@ -308,6 +359,15 @@ export class AccessoryVerify extends BasePairing {
         this.#requestHandler = requestHandler;
     }
 
+    /**
+     * Performs the full pair-verify flow (M1 through M4) using stored credentials
+     * from a previous pair-setup. Establishes a new session with forward secrecy
+     * via ephemeral Curve25519 key exchange.
+     *
+     * @param credentials - Long-term credentials from a previous pair-setup.
+     * @returns Session keys derived from the ECDH shared secret.
+     * @throws {AuthenticationError} If the accessory's identity cannot be verified.
+     */
     async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
         const m1 = await this.#m1();
         const m2 = await this.#m2(credentials.accessoryIdentifier, credentials.accessoryLongTermPublicKey, m1);
@@ -441,56 +501,90 @@ export class AccessoryVerify extends BasePairing {
     }
 }
 
+/**
+ * Callback for sending TLV8-encoded pair-setup/pair-verify requests.
+ * Implementations typically wrap HTTP POST or OPack frame sends.
+ *
+ * @param step - The pairing step identifier ('m1', 'm3', or 'm5').
+ * @param data - The TLV8-encoded request payload.
+ * @returns The TLV8-encoded response from the accessory.
+ */
 type RequestHandler = (step: 'm1' | 'm3' | 'm5', data: Buffer) => Promise<Buffer>;
 
+/** Pair-Setup M1 result: the accessory's SRP public key and salt. */
 type PairM1 = {
     readonly publicKey: Buffer;
     readonly salt: Buffer;
 }
 
+/** Pair-Setup M2 result: the client's SRP public key and proof. */
 type PairM2 = {
     readonly publicKey: Buffer;
     readonly proof: Buffer;
 };
 
+/** Pair-Setup M3 result: the server's SRP proof. */
 type PairM3 = {
     readonly serverProof: Buffer;
 };
 
+/** Pair-Setup M4 result: the derived SRP shared secret. */
 type PairM4 = {
     readonly sharedSecret: Buffer;
 };
 
+/** Pair-Setup M5 result: the encrypted accessory response data and session key. */
 type PairM5 = {
     readonly authTag: Buffer;
     readonly data: Buffer;
     readonly sessionKey: Buffer;
 };
 
+/** Pair-Verify M1 result: the accessory's ephemeral public key and encrypted identity proof. */
 type VerifyM1 = {
     readonly encryptedData: Buffer;
     readonly serverPublicKey: Buffer;
 };
 
+/** Pair-Verify M2 result: the ECDH shared secret and derived session key. */
 type VerifyM2 = {
     readonly serverEphemeralPublicKey: Buffer;
     readonly sessionKey: Buffer;
     readonly sharedSecret: Buffer;
 };
 
+/** Pair-Verify M3 result: empty (controller proof was sent, no data returned). */
 type VerifyM3 = {};
 
+/**
+ * Long-term pairing credentials obtained from a successful PIN-based pair-setup.
+ * Stored persistently and used for subsequent pair-verify sessions without
+ * requiring the PIN again.
+ */
 export type AccessoryCredentials = {
+    /** The accessory's unique identifier string. */
     readonly accessoryIdentifier: string;
+    /** The accessory's Ed25519 long-term public key for signature verification. */
     readonly accessoryLongTermPublicKey: Buffer;
+    /** This controller's unique pairing identifier (UUID). */
     readonly pairingId: Buffer;
+    /** This controller's Ed25519 public key. */
     readonly publicKey: Buffer;
+    /** This controller's Ed25519 secret key for signing proofs. */
     readonly secretKey: Buffer;
 };
 
+/**
+ * Session keys derived from a pairing flow (either transient pair-setup or pair-verify).
+ * Used to derive encryption keys for the subsequent encrypted connection.
+ */
 export type AccessoryKeys = {
+    /** This controller's pairing identifier. */
     readonly pairingId: Buffer;
+    /** The ECDH or SRP shared secret, root key for HKDF derivation. */
     readonly sharedSecret: Buffer;
+    /** Derived key for decrypting data sent by the accessory (may be empty after pair-verify). */
     readonly accessoryToControllerKey: Buffer;
+    /** Derived key for encrypting data sent to the accessory (may be empty after pair-verify). */
     readonly controllerToAccessoryKey: Buffer;
 };

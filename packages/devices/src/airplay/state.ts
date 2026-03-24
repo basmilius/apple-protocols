@@ -6,6 +6,11 @@ import type Device from './device';
 import type Player from './player';
 import { DEFAULT_PLAYER_ID } from './player';
 
+/**
+ * Snapshot of the current now-playing state, used for change detection.
+ * Compared field-by-field to avoid emitting redundant 'nowPlayingChanged' events
+ * when nothing meaningful has changed.
+ */
 type NowPlayingSnapshot = {
     bundleIdentifier: string | null;
     playerIdentifier: string | null;
@@ -30,6 +35,13 @@ type NowPlayingSnapshot = {
     isAdvertisement: boolean;
 };
 
+/**
+ * Events emitted by AirPlayState.
+ *
+ * Low-level events mirror DataStream protocol messages 1:1.
+ * High-level events (activePlayerChanged, artworkChanged, etc.) provide
+ * pre-resolved Client/Player references for convenience.
+ */
 type EventMap = {
     readonly clients: [Record<string, Client>];
     readonly configureConnection: [Proto.ConfigureConnectionMessage];
@@ -66,73 +78,96 @@ type EventMap = {
     readonly supportedCommandsChanged: [client: Client, player: Player, commands: Proto.CommandInfo[]];
 };
 
+/**
+ * Tracks the complete state of an AirPlay device: clients, players, now-playing,
+ * volume, keyboard, output devices, and cluster info.
+ * Listens to DataStream protocol messages and emits both low-level (1:1 with protocol)
+ * and high-level (deduplicated, resolved) events.
+ */
 export default class extends EventEmitter<EventMap> {
+    /** @returns The DataStream for event subscription. */
     get #dataStream(): DataStream {
         return this.#protocol.dataStream;
     }
 
+    /** @returns The underlying AirPlay Protocol instance. */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
 
+    /** All known clients (apps) keyed by bundle identifier. */
     get clients(): Record<string, Client> {
         return this.#clients;
     }
 
+    /** Whether a keyboard/text input session is currently active on the Apple TV. */
     get isKeyboardActive(): boolean {
         return this.#keyboardState === Proto.KeyboardState_Enum.DidBeginEditing
             || this.#keyboardState === Proto.KeyboardState_Enum.Editing
             || this.#keyboardState === Proto.KeyboardState_Enum.TextDidChange;
     }
 
+    /** Text editing attributes for the active keyboard session, or null. */
     get keyboardAttributes(): Proto.TextEditingAttributes | null {
         return this.#keyboardAttributes;
     }
 
+    /** Current keyboard state enum value. */
     get keyboardState(): Proto.KeyboardState_Enum {
         return this.#keyboardState;
     }
 
+    /** The currently active now-playing client, or null if nothing is playing. */
     get nowPlayingClient(): Client | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
 
+    /** UID of the primary output device (used for volume control and multi-room). */
     get outputDeviceUID(): string | null {
         return this.#outputDeviceUID;
     }
 
+    /** List of all output device descriptors in the current AirPlay group. */
     get outputDevices(): Proto.AVOutputDeviceDescriptor[] {
         return this.#outputDevices;
     }
 
+    /** Cluster identifier for multi-room groups, or null. */
     get clusterID(): string | null {
         return this.#clusterID;
     }
 
+    /** Cluster type code (0 if not clustered). */
     get clusterType(): number {
         return this.#clusterType;
     }
 
+    /** Whether this device is aware of multi-room clusters. */
     get isClusterAware(): boolean {
         return this.#isClusterAware;
     }
 
+    /** Whether this device is the leader of its multi-room cluster. */
     get isClusterLeader(): boolean {
         return this.#isClusterLeader;
     }
 
+    /** Current volume level (0.0 - 1.0). */
     get volume(): number {
         return this.#volume;
     }
 
+    /** Whether volume control is available on this device. */
     get volumeAvailable(): boolean {
         return this.#volumeAvailable;
     }
 
+    /** Volume capabilities (absolute, relative, both, or none). */
     get volumeCapabilities(): Proto.VolumeCapabilities_Enum {
         return this.#volumeCapabilities;
     }
 
+    /** Whether the device is currently muted. */
     get volumeMuted(): boolean {
         return this.#volumeMuted;
     }
@@ -154,6 +189,11 @@ export default class extends EventEmitter<EventMap> {
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
     #volumeMuted: boolean;
 
+    /**
+     * Creates a new AirPlayState tracker.
+     *
+     * @param device - The AirPlay device to track state for.
+     */
     constructor(device: Device) {
         super();
 
@@ -186,6 +226,7 @@ export default class extends EventEmitter<EventMap> {
         this.onVolumeMutedDidChange = this.onVolumeMutedDidChange.bind(this);
     }
 
+    /** Subscribes to all DataStream events to track device state. Called internally via symbol. */
     [STATE_SUBSCRIBE_SYMBOL](): void {
         this.#dataStream.on('configureConnection', this.onConfigureConnection);
         this.#dataStream.on('keyboard', this.onKeyboard);
@@ -213,6 +254,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
+    /** Unsubscribes from all DataStream events. Called internally via symbol. */
     [STATE_UNSUBSCRIBE_SYMBOL](): void {
         const dataStream = this.#dataStream;
 
@@ -246,6 +288,7 @@ export default class extends EventEmitter<EventMap> {
         dataStream.off('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
+    /** Resets all state to initial/default values. Called on connect and reconnect. */
     clear(): void {
         this.#clients = {};
         this.#keyboardAttributes = null;
@@ -264,10 +307,20 @@ export default class extends EventEmitter<EventMap> {
         this.#volumeMuted = false;
     }
 
+    /**
+     * Handles a ConfigureConnection message from the Apple TV.
+     *
+     * @param message - The configure connection message.
+     */
     onConfigureConnection(message: Proto.ConfigureConnectionMessage): void {
         this.emit('configureConnection', message);
     }
 
+    /**
+     * Handles keyboard state changes. Updates internal state and emits 'keyboard'.
+     *
+     * @param message - The keyboard message with state and attributes.
+     */
     onKeyboard(message: Proto.KeyboardMessage): void {
         this.#keyboardState = message.state;
         this.#keyboardAttributes = message.attributes ?? null;
@@ -275,24 +328,50 @@ export default class extends EventEmitter<EventMap> {
         this.emit('keyboard', message);
     }
 
+    /**
+     * Handles initial device info. Updates output device UID and cluster info.
+     *
+     * @param message - The device info message.
+     */
     onDeviceInfo(message: Proto.DeviceInfoMessage): void {
         this.#updateDeviceInfo(message);
         this.emit('deviceInfo', message);
     }
 
+    /**
+     * Handles device info updates (e.g. cluster changes). Updates output device UID and cluster info.
+     *
+     * @param message - The device info update message.
+     */
     onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
         this.#updateDeviceInfo(message);
         this.emit('deviceInfoUpdate', message);
     }
 
+    /**
+     * Handles origin client properties updates.
+     *
+     * @param message - The origin client properties message.
+     */
     onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): void {
         this.emit('originClientProperties', message);
     }
 
+    /**
+     * Handles player client properties updates.
+     *
+     * @param message - The player client properties message.
+     */
     onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): void {
         this.emit('playerClientProperties', message);
     }
 
+    /**
+     * Handles removal of a client (app). Clears the now-playing reference if
+     * the removed client was the active one.
+     *
+     * @param message - The remove client message.
+     */
     onRemoveClient(message: Proto.RemoveClientMessage): void {
         if (!(message.client.bundleIdentifier in this.#clients)) {
             return;
@@ -315,20 +394,41 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles command result notifications from the Apple TV.
+     *
+     * @param message - The send command result message.
+     */
     onSendCommandResult(message: Proto.SendCommandResultMessage): void {
         this.emit('sendCommandResult', message);
     }
 
+    /**
+     * Handles lyrics events (time-synced lyrics updates).
+     *
+     * @param message - The lyrics event message.
+     */
     onSendLyricsEvent(message: Proto.SendLyricsEventMessage): void {
         if (message.event) {
             this.emit('lyricsEvent', message.event, message.playerPath);
         }
     }
 
+    /**
+     * Handles artwork set notifications.
+     *
+     * @param message - The set artwork message.
+     */
     onSetArtwork(message: Proto.SetArtworkMessage): void {
         this.emit('setArtwork', message);
     }
 
+    /**
+     * Handles default supported commands for a client. These serve as fallback
+     * commands when a player has no commands of its own.
+     *
+     * @param message - The set default supported commands message.
+     */
     onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.supportedCommands) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
@@ -338,6 +438,12 @@ export default class extends EventEmitter<EventMap> {
         this.emit('setDefaultSupportedCommands', message);
     }
 
+    /**
+     * Handles the now-playing client changing (e.g. user switches app).
+     * Updates the active client reference and emits change events.
+     *
+     * @param message - The set now-playing client message.
+     */
     onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
         const oldBundleId = this.#nowPlayingClientBundleIdentifier;
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
@@ -355,6 +461,12 @@ export default class extends EventEmitter<EventMap> {
         this.#emitNowPlayingChangedIfNeeded();
     }
 
+    /**
+     * Handles the active player changing within a client (e.g. PiP player becomes active).
+     * Creates the player if needed and sets it as the active player.
+     *
+     * @param message - The set now-playing player message.
+     */
     onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
@@ -371,6 +483,13 @@ export default class extends EventEmitter<EventMap> {
         this.#emitNowPlayingChangedIfNeeded();
     }
 
+    /**
+     * Handles comprehensive state updates. Processes playback state, now-playing info,
+     * supported commands, and playback queue in a single message.
+     * Emits granular events for each changed aspect.
+     *
+     * @param message - The set state message.
+     */
     onSetState(message: Proto.SetStateMessage): void {
         const bundleIdentifier = message.playerPath.client.bundleIdentifier;
         const client = this.#client(bundleIdentifier, message.displayName);
@@ -414,6 +533,11 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles content item updates (metadata, artwork, lyrics changes for existing items).
+     *
+     * @param message - The update content item message.
+     */
     onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
         const bundleIdentifier = message.playerPath.client.bundleIdentifier;
         const client = this.#client(bundleIdentifier, message.playerPath.client.displayName);
@@ -431,6 +555,11 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles artwork updates for content items. Emits 'artworkChanged' if a client and player are active.
+     *
+     * @param message - The update content item artwork message.
+     */
     onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
         this.emit('updateContentItemArtwork', message);
 
@@ -442,6 +571,11 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles player registration or update. Creates the player if it does not exist.
+     *
+     * @param message - The update player message.
+     */
     onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
@@ -451,6 +585,12 @@ export default class extends EventEmitter<EventMap> {
         this.emit('updatePlayer', message);
     }
 
+    /**
+     * Handles player removal. Removes the player from its client and emits
+     * active player changed events if the removed player was active.
+     *
+     * @param message - The remove player message.
+     */
     onRemovePlayer(message: Proto.RemovePlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#clients[message.playerPath.client.bundleIdentifier];
@@ -468,6 +608,11 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles client (app) registration or display name update.
+     *
+     * @param message - The update client message.
+     */
     onUpdateClient(message: Proto.UpdateClientMessage): void {
         this.#client(message.client.bundleIdentifier, message.client.displayName);
 
@@ -475,6 +620,11 @@ export default class extends EventEmitter<EventMap> {
         this.emit('clients', this.#clients);
     }
 
+    /**
+     * Handles output device list updates. Prefers cluster-aware devices when available.
+     *
+     * @param message - The update output device message.
+     */
     onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
         this.#outputDevices = message.clusterAwareOutputDevices?.length > 0
             ? message.clusterAwareOutputDevices
@@ -483,6 +633,11 @@ export default class extends EventEmitter<EventMap> {
         this.emit('updateOutputDevice', message);
     }
 
+    /**
+     * Handles volume control availability changes.
+     *
+     * @param message - The volume control availability message.
+     */
     onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): void {
         this.#volumeAvailable = message.volumeControlAvailable;
         this.#volumeCapabilities = message.volumeCapabilities;
@@ -490,6 +645,11 @@ export default class extends EventEmitter<EventMap> {
         this.emit('volumeControlAvailability', message.volumeControlAvailable, message.volumeCapabilities);
     }
 
+    /**
+     * Handles volume capabilities changes (e.g. device gains or loses absolute volume support).
+     *
+     * @param message - The volume capabilities change message.
+     */
     onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
         this.#volumeAvailable = message.capabilities.volumeControlAvailable;
         this.#volumeCapabilities = message.capabilities.volumeCapabilities;
@@ -497,18 +657,33 @@ export default class extends EventEmitter<EventMap> {
         this.emit('volumeControlCapabilitiesDidChange', message.capabilities.volumeControlAvailable, message.capabilities.volumeCapabilities);
     }
 
+    /**
+     * Handles volume level changes.
+     *
+     * @param message - The volume change message.
+     */
     onVolumeDidChange(message: Proto.VolumeDidChangeMessage): void {
         this.#volume = message.volume;
 
         this.emit('volumeDidChange', message.volume);
     }
 
+    /**
+     * Handles mute state changes.
+     *
+     * @param message - The volume muted change message.
+     */
     onVolumeMutedDidChange(message: Proto.VolumeMutedDidChangeMessage): void {
         this.#volumeMuted = message.isMuted;
 
         this.emit('volumeMutedDidChange', this.#volumeMuted);
     }
 
+    /**
+     * Extracts output device UID and cluster information from a device info message.
+     *
+     * @param message - The device info message.
+     */
     #updateDeviceInfo(message: Proto.DeviceInfoMessage): void {
         this.#outputDeviceUID = message.clusterID || message.deviceUID || message.uniqueIdentifier || null;
         this.#clusterID = message.clusterID || null;
@@ -517,6 +692,14 @@ export default class extends EventEmitter<EventMap> {
         this.#isClusterLeader = message.isClusterLeader ?? false;
     }
 
+    /**
+     * Gets or creates a Client for the given bundle identifier.
+     * Updates the display name if the client already exists.
+     *
+     * @param bundleIdentifier - The app's bundle identifier.
+     * @param displayName - The app's display name.
+     * @returns The existing or newly created Client.
+     */
     #client(bundleIdentifier: string, displayName: string): Client {
         if (bundleIdentifier in this.#clients) {
             const client = this.#clients[bundleIdentifier];
@@ -536,6 +719,11 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Creates a snapshot of the current now-playing state for change detection.
+     *
+     * @returns A NowPlayingSnapshot of the current state.
+     */
     #createNowPlayingSnapshot(): NowPlayingSnapshot {
         const client = this.nowPlayingClient;
         const player = client?.activePlayer ?? null;
@@ -565,11 +753,13 @@ export default class extends EventEmitter<EventMap> {
         };
     }
 
+    /** Emits the 'activePlayerChanged' event with the current client and player. */
     #emitActivePlayerChanged(): void {
         const client = this.nowPlayingClient;
         this.emit('activePlayerChanged', client, client?.activePlayer ?? null);
     }
 
+    /** Emits 'nowPlayingChanged' only if the now-playing snapshot has actually changed. */
     #emitNowPlayingChangedIfNeeded(): void {
         const snapshot = this.#createNowPlayingSnapshot();
         const previous = this.#nowPlayingSnapshot;
@@ -584,6 +774,13 @@ export default class extends EventEmitter<EventMap> {
         this.emit('nowPlayingChanged', client, client?.activePlayer ?? null);
     }
 
+    /**
+     * Compares two NowPlayingSnapshot instances field-by-field for equality.
+     *
+     * @param a - First snapshot.
+     * @param b - Second snapshot.
+     * @returns True if all fields are equal.
+     */
     #snapshotsEqual(a: NowPlayingSnapshot, b: NowPlayingSnapshot): boolean {
         return a.bundleIdentifier === b.bundleIdentifier
             && a.playerIdentifier === b.playerIdentifier

@@ -2,8 +2,18 @@
 import getType from 'audio-type';
 import AudioBufferShim from 'audio-buffer';
 
+/** AudioBuffer implementation: uses the native Web Audio API version if available, otherwise falls back to a shim. */
 const AudioBuffer = globalThis.AudioBuffer || AudioBufferShim;
 
+/**
+ * Decodes an encoded audio buffer into an AudioBuffer by detecting
+ * the format and dispatching to the appropriate WASM-based decoder.
+ * Supported formats: OGG Vorbis, MP3, FLAC, WAV, and QOA.
+ *
+ * @param buf - Encoded audio data as a Buffer, ArrayBuffer, or typed array.
+ * @returns An AudioBuffer containing the decoded channel data.
+ * @throws Error if the input is invalid, the format cannot be detected, or no decoder is available.
+ */
 export default async function audioDecode(buf: any): Promise<any> {
     if (!buf && !(buf.length || buf.buffer)) throw Error('Bad decode target');
     buf = new Uint8Array(buf.buffer || buf);
@@ -17,7 +27,18 @@ export default async function audioDecode(buf: any): Promise<any> {
     return decoders[type](buf);
 };
 
+/**
+ * Registry of format-specific audio decoders. Each decoder is lazily
+ * initialized on first use and reused (with reset) for subsequent calls.
+ * Decoder instances are stored as properties on the function itself.
+ */
 export const decoders: Record<string, any> = {
+    /**
+     * Decodes OGG Vorbis audio using the WASM-based OggVorbisDecoder.
+     *
+     * @param buf - Raw OGG Vorbis data.
+     * @returns An AudioBuffer with the decoded audio.
+     */
     async oga(buf: any) {
         let {decoder} = decoders.oga;
         if (!decoder) {
@@ -26,6 +47,12 @@ export const decoders: Record<string, any> = {
         } else await decoder.reset();
         return buf && createBuffer(await decoder.decodeFile(buf));
     },
+    /**
+     * Decodes MP3 audio using the WASM-based MPEGDecoder.
+     *
+     * @param buf - Raw MP3 data.
+     * @returns An AudioBuffer with the decoded audio.
+     */
     async mp3(buf: any) {
         let {decoder} = decoders.mp3;
         if (!decoder) {
@@ -34,6 +61,12 @@ export const decoders: Record<string, any> = {
         } else await decoder.reset();
         return buf && createBuffer(await decoder.decode(buf));
     },
+    /**
+     * Decodes FLAC audio using the WASM-based FLACDecoder.
+     *
+     * @param buf - Raw FLAC data.
+     * @returns An AudioBuffer with the decoded audio.
+     */
     async flac(buf: any) {
         let {decoder} = decoders.flac;
         if (!decoder) {
@@ -50,6 +83,13 @@ export const decoders: Record<string, any> = {
     //     } else await decoder.reset();
     //     return buf && createBuffer(await decoder.decodeFile(buf));
     // },
+    /**
+     * Decodes WAV audio using node-wav, with a fallback to a custom
+     * decoder for WAVE_FORMAT_EXTENSIBLE (0xFFFE) files.
+     *
+     * @param buf - Raw WAV data.
+     * @returns An AudioBuffer with the decoded audio.
+     */
     async wav(buf: any) {
         let {decode} = decoders.wav;
         if (!decode) {
@@ -64,6 +104,12 @@ export const decoders: Record<string, any> = {
             return buf && createBuffer(decodeWavExtensible(buf));
         }
     },
+    /**
+     * Decodes QOA (Quite OK Audio) format using the qoa-format library.
+     *
+     * @param buf - Raw QOA data.
+     * @returns An AudioBuffer with the decoded audio.
+     */
     async qoa(buf: any) {
         let {decode} = decoders.qoa;
         if (!decode) {
@@ -73,6 +119,16 @@ export const decoders: Record<string, any> = {
     }
 };
 
+/**
+ * Custom WAV decoder for WAVE_FORMAT_EXTENSIBLE (0xFFFE) files that
+ * node-wav does not support. Parses fmt and data chunks, handles
+ * 8/16/24/32-bit integer and 32/64-bit float samples, and normalizes
+ * all output to Float32 channel data.
+ *
+ * @param buf - Raw WAV data as a Uint8Array.
+ * @returns An object with `channelData` (Float32Array per channel) and `sampleRate`.
+ * @throws Error if the WAV format is unsupported or no data chunk is found.
+ */
 function decodeWavExtensible(buf) {
     const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
     let offset = 12; // skip RIFF header + WAVE
@@ -171,6 +227,14 @@ function decodeWavExtensible(buf) {
     return { channelData, sampleRate };
 }
 
+/**
+ * Creates an AudioBuffer from decoded channel data and sample rate.
+ *
+ * @param decoded - Decoded audio data containing channel arrays and sample rate.
+ * @param decoded.channelData - Array of Float32Arrays, one per channel.
+ * @param decoded.sampleRate - Sample rate of the decoded audio in Hz.
+ * @returns An AudioBuffer populated with the channel data.
+ */
 function createBuffer({channelData, sampleRate}) {
     let audioBuffer = new AudioBuffer({
         sampleRate,

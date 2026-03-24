@@ -1,3 +1,4 @@
+/** Type definition for the AirPlay feature flags bitmask object. */
 type AirPlayFeatureFlagsType = {
     readonly SupportsAirPlayVideoV1: bigint;
     readonly SupportsAirPlayPhoto: bigint;
@@ -45,6 +46,11 @@ type AirPlayFeatureFlagsType = {
     readonly SupportsRFC2198Redundancy: bigint;
 };
 
+/**
+ * AirPlay feature flags as a bitmask of bigint values. Each flag corresponds to a specific
+ * capability advertised by an AirPlay device in its mDNS TXT record "features" field.
+ * The bit positions match Apple's internal AirPlayFeatureFlags enum.
+ */
 export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
     SupportsAirPlayVideoV1: 1n << 0n,
     SupportsAirPlayPhoto: 1n << 1n,
@@ -92,14 +98,30 @@ export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
     SupportsRFC2198Redundancy: 1n << 61n
 };
 
+/** String union of all known AirPlay feature flag names. */
 export type AirPlayFeatureFlagName = keyof typeof AirPlayFeatureFlags;
 
+/** The type of pairing required to connect to an AirPlay device. */
 export type PairingRequirement = 'none' | 'pin' | 'transient' | 'homekit';
 
+/** Bitmask in the "sf" (status flags) TXT field indicating password protection. */
 const PASSWORD_BIT = 0x80n;
+
+/** Bitmask in the "sf" TXT field indicating legacy pairing (PIN required). */
 const LEGACY_PAIRING_BIT = 0x200n;
+
+/** Bitmask in the "sf" TXT field indicating a PIN is required. */
 const PIN_REQUIRED_BIT = 0x8n;
 
+/**
+ * Parses an AirPlay features string into a single bigint bitmask.
+ * Features are advertised as either a single hex value or two comma-separated
+ * 32-bit hex values (low,high) which are combined into a 64-bit bitmask.
+ *
+ * @param features - The features string from the mDNS TXT record.
+ * @returns The combined feature flags as a bigint.
+ * @throws If the features string has an unexpected format.
+ */
 export function parseFeatures(features: string): bigint {
     const parts = features.split(',').map(part => part.trim());
 
@@ -117,10 +139,24 @@ export function parseFeatures(features: string): bigint {
     throw new Error(`Invalid features format: ${features}`);
 }
 
+/**
+ * Checks whether a specific feature flag is set in a features bitmask.
+ *
+ * @param features - The combined feature flags bitmask.
+ * @param flag - The specific flag to check for.
+ * @returns True if the flag is set.
+ */
 export function hasFeatureFlag(features: bigint, flag: bigint): boolean {
     return (features & flag) !== 0n;
 }
 
+/**
+ * Returns the names of all feature flags that are set in the given bitmask.
+ * Useful for debugging and diagnostics output.
+ *
+ * @param features - The combined feature flags bitmask.
+ * @returns An array of feature flag names that are active.
+ */
 export function describeFlags(features: bigint): AirPlayFeatureFlagName[] {
     const result: AirPlayFeatureFlagName[] = [];
 
@@ -133,6 +169,14 @@ export function describeFlags(features: bigint): AirPlayFeatureFlagName[] {
     return result;
 }
 
+/**
+ * Determines the AirPlay protocol version supported by a device based on its
+ * mDNS TXT record properties. AirPlay 2 is indicated by the presence of
+ * SupportsUnifiedMediaControl or SupportsCoreUtilsPairingAndEncryption flags.
+ *
+ * @param txt - The key-value properties from the device's mDNS TXT record.
+ * @returns 1 for legacy AirPlay, 2 for AirPlay 2.
+ */
 export function getProtocolVersion(txt: Record<string, string>): 1 | 2 {
     const featuresStr = txt.features ?? txt.ft;
 
@@ -153,6 +197,14 @@ export function getProtocolVersion(txt: Record<string, string>): 1 | 2 {
     return 1;
 }
 
+/**
+ * Determines the pairing requirement for an AirPlay device based on its
+ * feature flags and status flags. The hierarchy is:
+ * HomeKit pairing > PIN required > Transient (system) pairing > Legacy PIN > None.
+ *
+ * @param txt - The key-value properties from the device's mDNS TXT record.
+ * @returns The pairing requirement type.
+ */
 export function getPairingRequirement(txt: Record<string, string>): PairingRequirement {
     const featuresStr = txt.features ?? txt.ft;
 
@@ -182,6 +234,13 @@ export function getPairingRequirement(txt: Record<string, string>): PairingRequi
     return 'none';
 }
 
+/**
+ * Checks whether the AirPlay device requires a password to connect.
+ * Determined by the "pw" TXT field or the password bit in the "sf" status flags.
+ *
+ * @param txt - The key-value properties from the device's mDNS TXT record.
+ * @returns True if a password is required.
+ */
 export function isPasswordRequired(txt: Record<string, string>): boolean {
     if (txt.pw === 'true') {
         return true;
@@ -192,6 +251,13 @@ export function isPasswordRequired(txt: Record<string, string>): boolean {
     return (sf & PASSWORD_BIT) !== 0n;
 }
 
+/**
+ * Checks whether the AirPlay device supports remote control (Hangdog protocol).
+ * Only devices with the SupportsHangdogRemoteControl flag can receive HID events.
+ *
+ * @param txt - The key-value properties from the device's mDNS TXT record.
+ * @returns True if remote control is supported (typically Apple TV only).
+ */
 export function isRemoteControlSupported(txt: Record<string, string>): boolean {
     const featuresStr = txt.features ?? txt.ft;
 

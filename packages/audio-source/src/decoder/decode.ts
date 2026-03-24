@@ -2,6 +2,15 @@ import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from
 import { convertPcm } from './pcm';
 import audioDecode from './audioDecode';
 
+/**
+ * Decodes an encoded audio buffer (MP3, OGG, WAV, FLAC, QOA) into
+ * signed 16-bit big-endian stereo PCM at the default sample rate.
+ * If the decoded audio has a different sample rate, it is resampled
+ * using linear interpolation.
+ *
+ * @param buffer - Encoded audio data to decode.
+ * @returns A buffer containing signed 16-bit big-endian interleaved stereo PCM.
+ */
 export default async function (buffer: Buffer): Promise<Buffer> {
     const audioBuffer = await audioDecode(buffer);
 

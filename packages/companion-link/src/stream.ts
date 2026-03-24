@@ -4,22 +4,53 @@ import { OPack } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
+/** Size of the frame header in bytes (1 byte type + 3 bytes payload length). */
 const HEADER_SIZE = 4;
+
+/** Maximum allowed buffer size (1 MB) before the connection is reset to prevent memory exhaustion. */
 const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+
+/** Special queue key for pairing exchanges, which lack the `_x` correlation field. */
 const PAIRING_QUEUE_IDENTIFIER = -1;
+
+/** Default timeout in milliseconds for request/response exchanges. */
 const DEFAULT_EXCHANGE_TIMEOUT = 10000;
 
+/** A pending exchange entry: resolve callback, reject callback, and timeout handle. */
 type QueueEntry = [resolve: Function, reject: Function, timer: NodeJS.Timeout];
 
+/**
+ * Companion Link TCP stream with OPack framing and ChaCha20 encryption.
+ *
+ * Handles the wire protocol for sending and receiving OPack-encoded frames over
+ * an encrypted TCP connection to the Apple TV. Provides a request/response exchange
+ * pattern using auto-incrementing `_x` correlation IDs, and emits unsolicited events
+ * for server-initiated messages.
+ *
+ * Frame format: `[type:1][payloadLength:3][payload:N][authTag:16?]`
+ *
+ * Nonce format (Companion Link): 12-byte LE counter at offset 0 (8-byte counter + 4 zero bytes).
+ */
 export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
+    /** Accessor for the parent class's encryption state (keys and nonce counters). */
     get #encryptionState(): EncryptionState {
         return this._encryption;
     }
 
+    /** Pending request/response exchanges keyed by `_x` or {@link PAIRING_QUEUE_IDENTIFIER}. */
     readonly #queue: Map<number, QueueEntry> = new Map();
+
+    /** Accumulation buffer for incomplete incoming TCP frames. */
     #buffer: Buffer = Buffer.alloc(0);
+
+    /** Auto-incrementing exchange correlation counter. */
     #xid: number;
 
+    /**
+     * @param context - The device context providing logger and identity.
+     * @param address - The IP address of the Apple TV.
+     * @param port - The Companion Link TCP port.
+     */
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
@@ -36,11 +67,24 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.on('error', this.onStreamError);
     }
 
+    /**
+     * Disconnects the stream, cleaning up pending exchanges and the read buffer.
+     */
     async disconnect(): Promise<void> {
         this.#cleanup();
         await super.disconnect();
     }
 
+    /**
+     * Sends an OPack message and waits for the correlated response.
+     * Pairing frames use a shared queue key since they don't carry an `_x` field.
+     *
+     * @param type - The frame type to send (see {@link FrameType}).
+     * @param obj - The OPack message object to encode and send.
+     * @param timeout - Maximum time to wait for a response in milliseconds.
+     * @returns A tuple of `[headerByte, decodedPayload]` from the response.
+     * @throws TimeoutError if no response arrives within the timeout.
+     */
     async exchange(type: number, obj: Record<string, unknown>, timeout: number = DEFAULT_EXCHANGE_TIMEOUT): Promise<[number, unknown]> {
         const _x = this.#xid;
         const isPairing = PairingFrameTypes.includes(type);
@@ -62,6 +106,14 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         });
     }
 
+    /**
+     * Sends a raw binary frame over the TCP connection.
+     * Encrypts the payload with ChaCha20-Poly1305 when encryption is active
+     * (except for NoOp frames which are always sent in plaintext).
+     *
+     * @param type - The frame type byte (see {@link FrameType}).
+     * @param payload - The raw payload buffer to send.
+     */
     send(type: number, payload: Buffer): void {
         const encrypt = this.isEncrypted && type !== FrameType.NoOp;
         let payloadLength = payload.byteLength;
@@ -91,6 +143,13 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.write(data);
     }
 
+    /**
+     * Encodes an object as OPack, assigns an `_x` correlation ID, and sends it
+     * as a framed message. The `_x` is auto-assigned if not already present.
+     *
+     * @param type - The frame type byte (see {@link FrameType}).
+     * @param obj - The message object to OPack-encode and send.
+     */
     sendOPack(type: number, obj: Record<string, unknown>): void {
         const _x = this.#xid++;
         obj._x ??= OPack.sizedInteger(_x, 8);
@@ -100,6 +159,10 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.send(type, Buffer.from(OPack.encode(obj)));
     }
 
+    /**
+     * Clears the read buffer and rejects all pending exchanges with a
+     * {@link ConnectionClosedError}.
+     */
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
 
@@ -113,10 +176,20 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.#queue.clear();
     }
 
+    /**
+     * Handles the stream close event by cleaning up pending state.
+     */
     onStreamClose(): void {
         this.#cleanup();
     }
 
+    /**
+     * Handles incoming TCP data by appending it to the accumulation buffer,
+     * then parsing and dispatching complete frames in a loop.
+     * Resets the connection if the buffer exceeds {@link MAX_BUFFER_SIZE}.
+     *
+     * @param data - The raw data chunk received from the TCP socket.
+     */
     async onStreamData(data: Buffer): Promise<void> {
         this.#buffer = Buffer.concat([this.#buffer, data]);
 
@@ -158,6 +231,11 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         }
     }
 
+    /**
+     * Handles stream errors by rejecting all pending exchanges with the error.
+     *
+     * @param err - The error that occurred on the TCP socket.
+     */
     onStreamError(err: Error): void {
         for (const [, reject, timer] of this.#queue.values()) {
             clearTimeout(timer);
@@ -167,6 +245,13 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         this.#queue.clear();
     }
 
+    /**
+     * Decrypts an incoming encrypted frame using ChaCha20-Poly1305.
+     * Uses the Companion Link nonce format: 12-byte LE counter at offset 0.
+     *
+     * @param data - The full encrypted frame (header + ciphertext + auth tag).
+     * @returns The decrypted frame (header + plaintext).
+     */
     #decrypt(data: Buffer): Buffer {
         const header = data.subarray(0, 4);
         const payloadLength = header.readUintBE(1, 3);
@@ -183,6 +268,17 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         return Buffer.concat([header, decrypted]);
     }
 
+    /**
+     * Routes a decoded frame to the appropriate handler: pending exchange response,
+     * pairing response, or emitted event.
+     *
+     * Response matching uses the `_x` correlation ID and only matches frames with
+     * `_t: Response` to avoid confusing server-initiated events that happen to share
+     * the same `_x` value.
+     *
+     * @param header - The 4-byte frame header.
+     * @param payload - The raw payload buffer (OPack-encoded).
+     */
     #handle(header: Buffer, payload: Buffer): void {
         const type = header.readInt8();
 

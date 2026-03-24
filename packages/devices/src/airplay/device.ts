@@ -7,24 +7,42 @@ import Remote from './remote';
 import State from './state';
 import Volume from './volume';
 
+/**
+ * Events emitted by AirPlayDevice.
+ * - `connected` — emitted after the full protocol setup completes.
+ * - `disconnected` — emitted when the connection is lost or explicitly closed.
+ */
 type EventMap = {
     connected: [];
     disconnected: [unexpected: boolean];
 };
 
+/**
+ * High-level abstraction for an AirPlay device (Apple TV or HomePod).
+ * Manages the full lifecycle: connect, pair/verify, set up control/data/event streams,
+ * and provides access to Remote, State, and Volume controllers.
+ * Supports both transient (PIN-less) and credential-based pairing.
+ */
 export default class extends EventEmitter<EventMap> {
+    /** @returns The underlying AirPlay Protocol instance (accessed via symbol for internal use). */
     get [PROTOCOL](): Protocol {
         return this.#protocol;
     }
 
+    /** The mDNS discovery result used to connect to this device. */
     get discoveryResult(): DiscoveryResult {
         return this.#discoveryResult;
     }
 
+    /** Updates the discovery result, e.g. when the device's address changes. */
     set discoveryResult(discoveryResult: DiscoveryResult) {
         this.#discoveryResult = discoveryResult;
     }
 
+    /**
+     * Device capabilities derived from the AirPlay feature flags.
+     * Indicates which protocols and features the receiver supports.
+     */
     get capabilities(): {
         supportsAudio: boolean;
         supportsBufferedAudio: boolean;
@@ -51,30 +69,37 @@ export default class extends EventEmitter<EventMap> {
         };
     }
 
+    /** Whether the control stream TCP connection is currently active. */
     get isConnected(): boolean {
         return this.#protocol?.controlStream?.isConnected ?? false;
     }
 
+    /** Raw receiver info dictionary from the /info endpoint, or undefined before connect. */
     get receiverInfo(): Record<string, any> | undefined {
         return this.#protocol?.receiverInfo;
     }
 
+    /** The Remote controller for HID keys, SendCommand, text input, and touch. */
     get remote(): Remote {
         return this.#remote;
     }
 
+    /** The State tracker for now-playing, volume, keyboard, and output device state. */
     get state(): State {
         return this.#state;
     }
 
+    /** The Volume controller for absolute and relative volume adjustments. */
     get volume(): Volume {
         return this.#volume;
     }
 
+    /** The shared PTP timing server, if one is assigned for multi-room sync. */
     get timingServer(): TimingServer | undefined {
         return this.#timingServer;
     }
 
+    /** Assigns a PTP timing server for multi-room audio synchronization. */
     set timingServer(timingServer: TimingServer | undefined) {
         this.#timingServer = timingServer;
     }
@@ -94,6 +119,12 @@ export default class extends EventEmitter<EventMap> {
     #protocol!: Protocol;
     #timingServer?: TimingServer;
 
+    /**
+     * Creates a new AirPlayDevice.
+     *
+     * @param discoveryResult - The mDNS discovery result for the target device.
+     * @param identity - Optional partial device identity to present during pairing.
+     */
     constructor(discoveryResult: DiscoveryResult, identity?: Partial<DeviceIdentity>) {
         super();
 
@@ -108,6 +139,11 @@ export default class extends EventEmitter<EventMap> {
         this.#volume = new Volume(this);
     }
 
+    /**
+     * Connects to the AirPlay device, performs pairing/verification,
+     * and sets up all streams (control, data, event). Emits 'connected' on success.
+     * If credentials are set, uses pair-verify; otherwise uses transient pairing.
+     */
     async connect(): Promise<void> {
         // Clean up old protocol before creating a new one.
         // Prevents stale close events and resource leaks (open sockets, timers).
@@ -146,6 +182,7 @@ export default class extends EventEmitter<EventMap> {
         this.emit('connected');
     }
 
+    /** Gracefully disconnects from the device, clears intervals, and tears down all streams. */
     disconnect(): void {
         this.#disconnect = true;
 
@@ -159,6 +196,7 @@ export default class extends EventEmitter<EventMap> {
         this.#protocol.disconnect();
     }
 
+    /** Disconnects gracefully, swallowing any errors during cleanup. */
     disconnectSafely(): void {
         try {
             this.disconnect();
@@ -167,6 +205,12 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Enables or disables conversation detection on the output device (HomePod feature).
+     *
+     * @param enabled - Whether to enable conversation detection.
+     * @throws Error when no output device is active.
+     */
     async setConversationDetectionEnabled(enabled: boolean): Promise<void> {
         const outputDeviceUID = this.#state.outputDeviceUID;
 
@@ -177,18 +221,42 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.dataStream.send(DataStreamMessage.setConversationDetectionEnabled(enabled, outputDeviceUID));
     }
 
+    /**
+     * Adds devices to the current multi-room output context.
+     *
+     * @param deviceUIDs - UIDs of the devices to add.
+     */
     async addOutputDevices(deviceUIDs: string[]): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext(deviceUIDs));
     }
 
+    /**
+     * Removes devices from the current multi-room output context.
+     *
+     * @param deviceUIDs - UIDs of the devices to remove.
+     */
     async removeOutputDevices(deviceUIDs: string[]): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext([], deviceUIDs));
     }
 
+    /**
+     * Replaces the entire multi-room output context with the given devices.
+     *
+     * @param deviceUIDs - UIDs of the devices to set as the output context.
+     */
     async setOutputDevices(deviceUIDs: string[]): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.modifyOutputContext([], [], deviceUIDs));
     }
 
+    /**
+     * Plays a URL on the device (the device fetches and plays the content).
+     * Creates a separate Protocol instance to avoid conflicting with the
+     * existing remote control session, following the same approach as pyatv.
+     *
+     * @param url - The media URL to play.
+     * @param position - Start position in seconds (defaults to 0).
+     * @throws Error when not connected.
+     */
     async playUrl(url: string, position: number = 0): Promise<void> {
         if (!this.#keys) {
             throw new Error('Not connected. Call connect() first.');
@@ -227,6 +295,7 @@ export default class extends EventEmitter<EventMap> {
         await playProtocol.playUrl(url, keys.sharedSecret, keys.pairingId, position);
     }
 
+    /** Waits for the current URL playback to finish, then cleans up the play URL protocol. */
     async waitForPlaybackEnd(): Promise<void> {
         if (!this.#playUrlProtocol) {
             return;
@@ -239,10 +308,12 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /** Stops the current URL playback and cleans up the dedicated play URL protocol. */
     stopPlayUrl(): void {
         this.#cleanupPlayUrl();
     }
 
+    /** Stops, disconnects, and discards the dedicated play URL protocol instance. */
     #cleanupPlayUrl(): void {
         if (this.#playUrlProtocol) {
             this.#playUrlProtocol.stopPlayUrl();
@@ -251,22 +322,45 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Streams audio from a source to the device via RAOP/RTP.
+     *
+     * @param source - The audio source to stream (e.g. MP3, WAV, URL, live).
+     */
     async streamAudio(source: AudioSource): Promise<void> {
         await this.#protocol.setupAudioStream(source);
     }
 
+    /**
+     * Requests the playback queue from the device.
+     *
+     * @param length - Maximum number of queue items to retrieve.
+     */
     async requestPlaybackQueue(length: number): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.playbackQueueRequest(0, length));
     }
 
+    /**
+     * Sends a raw MRP command to the device via the DataStream.
+     *
+     * @param command - The command to send.
+     * @param options - Optional command options.
+     */
     async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
         await this.#protocol.dataStream.exchange(DataStreamMessage.sendCommand(command, options));
     }
 
+    /**
+     * Sets the pairing credentials for pair-verify authentication.
+     * Must be called before connect() if credential-based pairing is desired.
+     *
+     * @param credentials - The accessory credentials obtained from pair-setup.
+     */
     setCredentials(credentials: AccessoryCredentials): void {
         this.#credentials = credentials;
     }
 
+    /** Sends a periodic feedback request to keep the AirPlay session alive. */
     async #feedback(): Promise<void> {
         try {
             await this.#protocol.feedback();
@@ -275,6 +369,7 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /** Handles the control stream close event. Emits 'disconnected' with unexpected=true if not intentional. */
     onClose(): void {
         this.#protocol.context.logger.net('onClose() called on airplay device.');
 
@@ -286,15 +381,25 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles stream error events by logging them.
+     *
+     * @param err - The error that occurred.
+     */
     onError(err: Error): void {
         this.#protocol.context.logger.error('AirPlay error', err);
     }
 
+    /** Handles stream timeout events by destroying the control stream. */
     onTimeout(): void {
         this.#protocol.context.logger.error('AirPlay timeout');
         this.#protocol.controlStream.destroy();
     }
 
+    /**
+     * Sets up encryption, event/data streams, feedback interval, and initial state subscriptions.
+     * Called after successful pairing/verification.
+     */
     async #setup(): Promise<void> {
         const keys = this.#keys;
 
@@ -352,10 +457,12 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
+    /** Subscribes the state tracker to DataStream events. */
     #subscribe(): void {
         this.#state[STATE_SUBSCRIBE_SYMBOL]();
     }
 
+    /** Unsubscribes the state tracker from DataStream events. */
     #unsubscribe(): void {
         try {
             this.#state[STATE_UNSUBSCRIBE_SYMBOL]();

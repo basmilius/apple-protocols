@@ -2,6 +2,20 @@ import { type EncryptionState } from '@basmilius/apple-common';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { nonce } from './utils';
 
+/**
+ * Decrypts AirPlay ChaCha20-Poly1305 encrypted data.
+ *
+ * The wire format consists of consecutive frames:
+ * `[2-byte LE length] [ciphertext (length bytes)] [16-byte auth tag]`
+ *
+ * Each frame is decrypted with an incrementing nonce counter tracked in the
+ * encryption state. The 2-byte length prefix doubles as the AAD for Poly1305
+ * authentication.
+ *
+ * @param state - Shared encryption state containing keys and nonce counters.
+ * @param data - Raw encrypted data from the TCP socket.
+ * @returns Concatenated plaintext of all frames, or `false` if data is incomplete (partial frame delivery).
+ */
 export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | false {
     const result: Buffer[] = [];
     let offset = 0;
@@ -45,6 +59,20 @@ export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | 
     return Buffer.concat(result);
 }
 
+/**
+ * Encrypts data using AirPlay's ChaCha20-Poly1305 frame format.
+ *
+ * Splits the input into 1024-byte frames (last frame may be smaller).
+ * Each frame is encrypted and output as:
+ * `[2-byte LE length] [ciphertext] [16-byte auth tag]`
+ *
+ * The 2-byte length prefix is used as the AAD for Poly1305 authentication,
+ * matching the decrypt side.
+ *
+ * @param state - Shared encryption state containing keys and nonce counters.
+ * @param data - Plaintext data to encrypt.
+ * @returns Encrypted buffer with all frames concatenated, ready for transmission.
+ */
 export function chacha20Encrypt(state: EncryptionState, data: Buffer): Buffer {
     const FRAME_LENGTH = 1024;
     const result: Buffer[] = [];

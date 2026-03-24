@@ -1,11 +1,22 @@
+/** A packed (serialized) OPack value as raw bytes. */
 type Packed = Uint8Array;
+
+/** List of previously packed objects, used for back-reference deduplication. */
 type ObjectList = Packed[];
 
+/** Result of unpacking a single value: the decoded value and the new byte offset. */
 type UnpackResult = {
+    /** The decoded JavaScript value. */
     readonly value: any;
+    /** The byte offset immediately after this value in the source buffer. */
     readonly offset: number;
 };
 
+/**
+ * OPack wire-format tag bytes. Each tag identifies the type and sometimes
+ * the inline length of the value that follows. Apple uses OPack for
+ * Companion Link and other device-to-device communication.
+ */
 const TAG = {
     TRUE: 0x01,
     FALSE: 0x02,
@@ -49,35 +60,60 @@ const TAG = {
 const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
 
+/**
+ * Wrapper that forces a number to be encoded as an OPack float (FLOAT64).
+ * Without this wrapper, JavaScript numbers that happen to be integers
+ * would be encoded as OPack integers instead.
+ */
 class Float {
+    /** The wrapped floating-point value. */
     get value(): number {
         return this.#value;
     }
 
     readonly #value: number;
 
+    /**
+     * @param value - The floating-point number to wrap.
+     */
     constructor(value: number) {
         this.#value = value;
     }
 }
 
+/**
+ * Wrapper that forces a number to be encoded as an OPack integer.
+ * Useful when a value must be encoded as an integer even if it could
+ * be represented as an inline value.
+ */
 class Integer {
+    /** The wrapped integer value. */
     get value(): number {
         return this.#value;
     }
 
     readonly #value: number;
 
+    /**
+     * @param value - The integer number to wrap.
+     */
     constructor(value: number) {
         this.#value = value;
     }
 }
 
+/**
+ * An integer with an explicit byte size. Produced during OPack decoding when
+ * the wire format specifies the exact byte width (1, 2, 4, or 8). During
+ * encoding, the specified size is preserved to maintain wire compatibility.
+ */
 class SizedInteger {
+    /** The byte width of this integer on the wire (1, 2, 4, or 8). */
     get size(): number {
         return this.#size;
     }
 
+    /** The numeric value. */
     get value(): number {
         return this.#value;
     }
@@ -85,37 +121,93 @@ class SizedInteger {
     readonly #size: number;
     readonly #value: number;
 
+    /**
+     * @param value - The integer value.
+     * @param size - The byte width for wire encoding (1, 2, 4, or 8).
+     */
     constructor(value: number, size: number) {
         this.#size = size;
         this.#value = value;
     }
 
+    /**
+     * Returns the numeric value, enabling implicit numeric coercion.
+     *
+     * @returns The integer value.
+     */
     valueOf(): number {
         return this.#value;
     }
 }
 
+/**
+ * Creates an OPack float wrapper, ensuring the value is encoded as FLOAT64
+ * on the wire regardless of whether it is a whole number.
+ *
+ * @param value - The floating-point number.
+ * @returns A Float wrapper for OPack encoding.
+ */
 export function float(value: number): Float {
     return new Float(value);
 }
 
+/**
+ * Creates an OPack integer wrapper, ensuring the value is encoded as an
+ * explicit integer type on the wire.
+ *
+ * @param value - The integer number.
+ * @returns An Integer wrapper for OPack encoding.
+ */
 export function int(value: number): Integer {
     return new Integer(value);
 }
 
+/**
+ * Creates an OPack sized integer with an explicit byte width.
+ * Used during decoding to preserve the original wire size, and during
+ * encoding to force a specific byte width.
+ *
+ * @param value - The integer value.
+ * @param size - The byte width (1, 2, 4, or 8).
+ * @returns A SizedInteger wrapper for OPack encoding.
+ */
 export function sizedInteger(value: number, size: number): SizedInteger {
     return new SizedInteger(value, size);
 }
 
+/**
+ * Decodes an OPack-encoded byte array into a JavaScript value.
+ * OPack is Apple's compact binary serialization format used in
+ * Companion Link and other protocols.
+ *
+ * @param data - The raw OPack-encoded bytes.
+ * @returns The decoded JavaScript value (object, array, string, number, boolean, null, or Uint8Array).
+ */
 export function decode(data: Uint8Array): any {
     const result = _unpackAt(data, 0, []);
     return result.value;
 }
 
+/**
+ * Encodes a JavaScript value into OPack binary format.
+ * Supports null, booleans, numbers, strings, Uint8Array/Buffer, arrays,
+ * plain objects, and the explicit type wrappers ({@link float}, {@link int}, {@link sizedInteger}).
+ * Automatically deduplicates repeated values using back-references.
+ *
+ * @param data - The value to encode.
+ * @returns The OPack-encoded bytes.
+ * @throws TypeError if the value type is unsupported.
+ */
 export function encode(data: any): Uint8Array {
     return _pack(data, []);
 }
 
+/**
+ * Concatenates multiple Uint8Arrays into a single contiguous array.
+ *
+ * @param arrays - The arrays to concatenate.
+ * @returns A new Uint8Array containing all input bytes in order.
+ */
 function concat(arrays: Uint8Array[]): Uint8Array {
     const total = arrays.reduce((sum, a) => sum + a.length, 0);
     const out = new Uint8Array(total);
@@ -129,10 +221,23 @@ function concat(arrays: Uint8Array[]): Uint8Array {
     return out;
 }
 
+/**
+ * Creates a single-byte Uint8Array.
+ *
+ * @param b - The byte value (0-255).
+ * @returns A Uint8Array containing the single byte.
+ */
 function u8(b: number) {
     return Uint8Array.of(b);
 }
 
+/**
+ * Converts an unsigned integer to a little-endian byte array.
+ *
+ * @param value - The integer value to convert.
+ * @param byteLen - The number of bytes to produce.
+ * @returns A Uint8Array of length `byteLen` in little-endian order.
+ */
 function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
     const out = new Uint8Array(byteLen);
     let v = BigInt(value);
@@ -145,6 +250,15 @@ function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
     return out;
 }
 
+/**
+ * Reads a little-endian unsigned integer of arbitrary byte length from a buffer.
+ * Returns 0 if the read would exceed the buffer bounds.
+ *
+ * @param buf - The source buffer.
+ * @param offset - The byte offset to start reading from.
+ * @param len - The number of bytes to read (1, 2, 4, or any).
+ * @returns The decoded unsigned integer value.
+ */
 function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
     if (offset + len > buf.length) {
         return 0;
@@ -165,6 +279,16 @@ function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
     }
 }
 
+/**
+ * Recursively packs a JavaScript value into OPack binary format.
+ * Maintains an object list for back-reference deduplication: if a packed
+ * value already exists in the list, a compact reference tag is emitted instead.
+ *
+ * @param data - The value to pack.
+ * @param objectList - Accumulator of previously packed objects for deduplication.
+ * @returns The OPack-encoded bytes for this value.
+ * @throws TypeError if the value type is unsupported.
+ */
 function _pack(data: any, objectList: ObjectList): Uint8Array {
     let packed: Uint8Array | null = null;
 
@@ -407,6 +531,18 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
     return packed!;
 }
 
+/**
+ * Unpacks a single OPack value starting at the given offset.
+ * Handles all OPack types: booleans, null, UUID, timestamp, integers, floats,
+ * strings, byte arrays, arrays, dictionaries, and back-references.
+ * Decoded non-reference values are added to the object list for future reference resolution.
+ *
+ * @param data - The full OPack-encoded buffer.
+ * @param offset - The byte offset to start unpacking from.
+ * @param objectList - Accumulator of previously unpacked objects for reference resolution.
+ * @returns The unpacked value and the new byte offset.
+ * @throws TypeError if the buffer is exhausted or an unknown tag is encountered.
+ */
 function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackResult {
     if (offset >= data.length) throw new TypeError('No data to unpack');
 

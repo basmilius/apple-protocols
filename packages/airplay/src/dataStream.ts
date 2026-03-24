@@ -6,11 +6,17 @@ import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages 
 import * as Proto from './proto';
 import BaseStream from './baseStream';
 
+/** Size of the DataStream frame header in bytes. */
 const DATA_HEADER_LENGTH = 32;
 
 /**
  * Decodes a NSKeyedArchiver binary plist into a plain array of objects.
- * Resolves CF$UID references and strips NSObject class metadata.
+ *
+ * Resolves CF$UID references and strips NSObject class metadata, returning
+ * raw JavaScript values.
+ *
+ * @param data - NSKeyedArchiver-encoded binary plist bytes.
+ * @returns Array of decoded objects.
  */
 const decodeNSKeyedArchiverArray = (data: Uint8Array): unknown[] => {
     const buf = data;
@@ -18,6 +24,13 @@ const decodeNSKeyedArchiverArray = (data: Uint8Array): unknown[] => {
     return NSKeyedArchiver.decodeAsArray(archive);
 };
 
+/**
+ * Events emitted by the DataStream, one per MRP protobuf message type.
+ *
+ * Each event carries the decoded protobuf extension message. The `rawMessage`
+ * event fires for every message before type-specific dispatch, useful for
+ * debugging or catch-all handling.
+ */
 type EventMap = {
     readonly rawMessage: [Proto.ProtocolMessage];
     readonly configureConnection: [Proto.ConfigureConnectionMessage];
@@ -46,13 +59,36 @@ type EventMap = {
     readonly volumeMutedDidChange: [Proto.VolumeMutedDidChangeMessage];
 };
 
+/**
+ * Protobuf-based MRP (Media Remote Protocol) data stream for AirPlay.
+ *
+ * The DataStream carries bidirectional protobuf messages over an encrypted TCP
+ * connection. Messages are wrapped in a 32-byte header (sync/comm/rply tags)
+ * with plist-encoded payloads containing varint-length-prefixed ProtocolMessage
+ * protobuf bytes.
+ *
+ * Supports request/response exchanges via {@link exchange} (with timeout) and
+ * fire-and-forget via {@link send}. Incoming messages are dispatched to registered
+ * type handlers that emit typed events for now-playing updates, volume changes,
+ * keyboard input, device info, and more.
+ */
 export default class DataStream extends BaseStream<EventMap> {
+    /** Accumulated plaintext buffer for partial frame reassembly. */
     #buffer: Buffer = Buffer.alloc(0);
+    /** Accumulated encrypted data awaiting decryption (may be a partial ChaCha20 frame). */
     #encryptedBuffer: Buffer = Buffer.alloc(0);
+    /** Outgoing sequence number counter, initialized to a random value above 0x100000000. */
     #seqno: bigint;
+    /** Outstanding request/response exchanges awaiting a response, keyed by message identifier. */
     #outstanding: Map<string, { resolve: Function; reject: Function; timer: NodeJS.Timeout }> = new Map();
+    /** Registered message type handlers mapping ProtocolMessage_Type to [extension descriptor, handler function]. */
     #handlers: Record<number, [DescExtension, Function]> = {};
 
+    /**
+     * @param context - Shared context with logger and device identity.
+     * @param address - IP address of the AirPlay receiver.
+     * @param port - TCP port for the data stream (received from SETUP response).
+     */
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
@@ -92,11 +128,26 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE] = [Proto.configureConnectionMessage, this.#onConfigureConnectionMessage.bind(this)];
     }
 
+    /**
+     * Disconnects the data stream, rejecting all outstanding exchanges and clearing buffers.
+     */
     async disconnect(): Promise<void> {
         this.#cleanup();
         await super.disconnect();
     }
 
+    /**
+     * Sends a protobuf message and waits for a matching response.
+     *
+     * The response is matched by the message's `identifier` field, or by
+     * `type_{messageType}` if no identifier is set. Times out if no response
+     * arrives within the given duration.
+     *
+     * @param message - The ProtocolMessage to send, optionally with its extension descriptor.
+     * @param timeout - Maximum time to wait for a response in milliseconds.
+     * @returns The response ProtocolMessage.
+     * @throws TimeoutError if no response is received within the timeout.
+     */
     exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension], timeout: number = 5000): Promise<Proto.ProtocolMessage> {
         let msg = Array.isArray(message) ? message[0] : message;
         const identifier = msg.identifier || `type_${msg.type}`;
@@ -119,6 +170,11 @@ export default class DataStream extends BaseStream<EventMap> {
         });
     }
 
+    /**
+     * Sends an acknowledgement reply for a received 'sync' frame.
+     *
+     * @param seqno - Sequence number from the received frame header to acknowledge.
+     */
     reply(seqno: bigint): void {
         const rply = buildReply(seqno);
 
@@ -127,6 +183,15 @@ export default class DataStream extends BaseStream<EventMap> {
         this.write(this.encrypt(rply));
     }
 
+    /**
+     * Sends a protobuf message as a fire-and-forget (no response expected).
+     *
+     * The message is serialized to protobuf, wrapped in a varint-length prefix,
+     * embedded in a plist payload, and framed with a 32-byte DataStream header.
+     * The entire frame is encrypted before transmission.
+     *
+     * @param message - The ProtocolMessage to send, optionally with its extension descriptor for logging.
+     */
     send(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension]): void {
         let extension: DescExtension | undefined;
 
@@ -159,6 +224,16 @@ export default class DataStream extends BaseStream<EventMap> {
         this.write(frame);
     }
 
+    /**
+     * Derives encryption keys from the shared secret and enables encryption.
+     *
+     * Uses HKDF-SHA512 with a seed-specific salt (`DataStream-Salt{seed}`) and
+     * direction-specific info strings. The seed ensures each DataStream session
+     * gets unique keys even with the same shared secret.
+     *
+     * @param sharedSecret - Shared secret from pair-verify.
+     * @param seed - Random 64-bit seed sent in the SETUP request.
+     */
     setup(sharedSecret: Buffer, seed: bigint): void {
         const readKey = hkdf({
             hash: 'sha512',
@@ -179,6 +254,9 @@ export default class DataStream extends BaseStream<EventMap> {
         this.enableEncryption(readKey, writeKey);
     }
 
+    /**
+     * Clears internal buffers and rejects all outstanding exchanges.
+     */
     #cleanup(): void {
         this.#buffer = Buffer.alloc(0);
         this.#encryptedBuffer = Buffer.alloc(0);
@@ -191,10 +269,18 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#outstanding.clear();
     }
 
+    /**
+     * Handles stream close by cleaning up outstanding exchanges and buffers.
+     */
     onStreamClose(): void {
         this.#cleanup();
     }
 
+    /**
+     * Handles stream errors by rejecting all outstanding exchanges.
+     *
+     * @param err - The error that occurred on the stream.
+     */
     onStreamError(err: Error): void {
         this.context.logger.error('[data]', 'onStreamError()', err);
 
@@ -206,6 +292,20 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#outstanding.clear();
     }
 
+    /**
+     * Processes incoming TCP data from the data stream.
+     *
+     * Handles the two-buffer pattern for encrypted connections: encrypted data
+     * accumulates in `#encryptedBuffer` until a complete ChaCha20 frame can be
+     * decrypted, then plaintext is appended to `#buffer` for frame parsing.
+     *
+     * Each frame consists of a 32-byte header followed by a plist payload.
+     * The header's command tag determines handling:
+     * - 'sync': parse protobuf messages from payload, then send a reply
+     * - 'rply': resolve the first outstanding exchange
+     *
+     * @param data - Raw data from the TCP socket.
+     */
     async onStreamData(data: Buffer): Promise<void> {
         try {
             if (this.isEncrypted) {
@@ -274,6 +374,15 @@ export default class DataStream extends BaseStream<EventMap> {
         }
     }
 
+    /**
+     * Dispatches a decoded ProtocolMessage to the appropriate handler.
+     *
+     * First emits a `rawMessage` event, then checks if the message matches
+     * an outstanding exchange (resolving it if so), and finally dispatches
+     * to the registered type handler which emits a typed event.
+     *
+     * @param message - Decoded ProtocolMessage to handle.
+     */
     #handleMessage(message: Proto.ProtocolMessage): void {
         this.emit('rawMessage', message);
 
@@ -301,144 +410,264 @@ export default class DataStream extends BaseStream<EventMap> {
         }
     }
 
+    /**
+     * Handles an incoming keyboard message (text input session state).
+     *
+     * @param message - The decoded KeyboardMessage.
+     */
     #onKeyboardMessage(message: Proto.KeyboardMessage): void {
         this.context.logger.info('[data]', 'Keyboard message', message);
 
         this.emit('keyboard', message);
     }
 
+    /**
+     * Handles the initial device info message received after connection.
+     *
+     * @param message - The decoded DeviceInfoMessage with the device's name, model, etc.
+     */
     #onDeviceInfoMessage(message: Proto.DeviceInfoMessage): void {
         this.context.logger.info('[data]', 'Connected to device', message.name);
 
         this.emit('deviceInfo', message);
     }
 
+    /**
+     * Handles a device info update (e.g. name change, capability change).
+     *
+     * @param message - The decoded DeviceInfoMessage with updated information.
+     */
     #onDeviceInfoUpdateMessage(message: Proto.DeviceInfoMessage): void {
         this.context.logger.info('[data]', 'Device info update', message);
 
         this.emit('deviceInfoUpdate', message);
     }
 
+    /**
+     * Handles origin client properties (identifies the app providing content).
+     *
+     * @param message - The decoded OriginClientPropertiesMessage.
+     */
     #onOriginClientPropertiesMessage(message: Proto.OriginClientPropertiesMessage): void {
         this.context.logger.raw('[data]', 'Origin client properties', message);
 
         this.emit('originClientProperties', message);
     }
 
+    /**
+     * Handles player client properties (player-specific metadata).
+     *
+     * @param message - The decoded PlayerClientPropertiesMessage.
+     */
     #onPlayerClientPropertiesMessage(message: Proto.PlayerClientPropertiesMessage): void {
         this.context.logger.raw('[data]', 'Player client properties', message);
 
         this.emit('playerClientProperties', message);
     }
 
+    /**
+     * Handles a client removal notification.
+     *
+     * @param message - The decoded RemoveClientMessage.
+     */
     #onRemoveClientMessage(message: Proto.RemoveClientMessage): void {
         this.context.logger.info('[data]', 'Remove client', message);
 
         this.emit('removeClient', message);
     }
 
+    /**
+     * Handles a player removal notification.
+     *
+     * @param message - The decoded RemovePlayerMessage.
+     */
     #onRemovePlayerMessage(message: Proto.RemovePlayerMessage): void {
         this.context.logger.info('[data]', 'Remove player', message);
 
         this.emit('removePlayer', message);
     }
 
+    /**
+     * Handles the result of a previously sent command.
+     *
+     * @param message - The decoded SendCommandResultMessage.
+     */
     #onSendCommandResultMessage(message: Proto.SendCommandResultMessage): void {
         this.context.logger.info('[data]', 'Send command result', message);
 
         this.emit('sendCommandResult', message);
     }
 
+    /**
+     * Handles artwork data for the current now-playing item.
+     *
+     * @param message - The decoded SetArtworkMessage containing image data.
+     */
     #onSetArtworkMessage(message: Proto.SetArtworkMessage): void {
         this.context.logger.info('[data]', 'Set artwork', message);
 
         this.emit('setArtwork', message);
     }
 
+    /**
+     * Handles the list of commands supported by the current player.
+     *
+     * @param message - The decoded SetDefaultSupportedCommandsMessage.
+     */
     #onSetDefaultSupportedCommandsMessage(message: Proto.SetDefaultSupportedCommandsMessage): void {
         this.context.logger.info('[data]', 'Set default supported commands', message);
 
         this.emit('setDefaultSupportedCommands', message);
     }
 
+    /**
+     * Handles a change in the active now-playing client (app).
+     *
+     * @param message - The decoded SetNowPlayingClientMessage.
+     */
     #onSetNowPlayingClientMessage(message: Proto.SetNowPlayingClientMessage): void {
         this.context.logger.info('[data]', 'Set now playing client', message);
 
         this.emit('setNowPlayingClient', message);
     }
 
+    /**
+     * Handles a change in the active now-playing player within a client.
+     *
+     * @param message - The decoded SetNowPlayingPlayerMessage.
+     */
     #onSetNowPlayingPlayerMessage(message: Proto.SetNowPlayingPlayerMessage): void {
         this.context.logger.info('[data]', 'Set now playing player', message);
 
         this.emit('setNowPlayingPlayer', message);
     }
 
+    /**
+     * Handles a device state change (e.g. playback state transitions).
+     *
+     * @param message - The decoded SetStateMessage.
+     */
     #onSetStateMessage(message: Proto.SetStateMessage): void {
         this.context.logger.info('[data]', 'Set state', message);
 
         this.emit('setState', message);
     }
 
+    /**
+     * Handles a client update (e.g. bundle identifier, display name changes).
+     *
+     * @param message - The decoded UpdateClientMessage.
+     */
     #onUpdateClientMessage(message: Proto.UpdateClientMessage): void {
         this.context.logger.info('[data]', 'Update client', message);
 
         this.emit('updateClient', message);
     }
 
+    /**
+     * Handles a content item update (now-playing metadata: title, artist, album, etc.).
+     *
+     * @param message - The decoded UpdateContentItemMessage.
+     */
     #onUpdateContentItemMessage(message: Proto.UpdateContentItemMessage): void {
         this.context.logger.info('[data]', 'Update content item', message);
 
         this.emit('updateContentItem', message);
     }
 
+    /**
+     * Handles artwork updates for a content item.
+     *
+     * @param message - The decoded UpdateContentItemArtworkMessage.
+     */
     #onUpdateContentItemArtworkMessage(message: Proto.UpdateContentItemArtworkMessage): void {
         this.context.logger.info('[data]', 'Update content artwork', message);
 
         this.emit('updateContentItemArtwork', message);
     }
 
+    /**
+     * Handles a player update (playback rate, elapsed time, queue position, etc.).
+     *
+     * @param message - The decoded UpdatePlayerMessage.
+     */
     #onUpdatePlayerMessage(message: Proto.UpdatePlayerMessage): void {
         this.context.logger.info('[data]', 'Update player', message);
 
         this.emit('updatePlayer', message);
     }
 
+    /**
+     * Handles output device updates (speaker name, UID, grouping changes).
+     *
+     * @param message - The decoded UpdateOutputDeviceMessage.
+     */
     #onUpdateOutputDeviceMessage(message: Proto.UpdateOutputDeviceMessage): void {
         this.context.logger.info('[data]', 'Update output device', message);
 
         this.emit('updateOutputDevice', message);
     }
 
+    /**
+     * Handles volume control availability changes.
+     *
+     * @param message - The decoded VolumeControlAvailabilityMessage.
+     */
     #onVolumeControlAvailabilityMessage(message: Proto.VolumeControlAvailabilityMessage): void {
         this.context.logger.info('[data]', 'Volume control availability', message);
 
         this.emit('volumeControlAvailability', message);
     }
 
+    /**
+     * Handles volume control capability changes (e.g. absolute vs relative volume).
+     *
+     * @param message - The decoded VolumeControlCapabilitiesDidChangeMessage.
+     */
     #onVolumeControlCapabilitiesDidChangeMessage(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
         this.context.logger.info('[data]', 'Volume control capabilities did change', message);
 
         this.emit('volumeControlCapabilitiesDidChange', message);
     }
 
+    /**
+     * Handles a volume level change.
+     *
+     * @param message - The decoded VolumeDidChangeMessage with the new volume.
+     */
     #onVolumeDidChangeMessage(message: Proto.VolumeDidChangeMessage): void {
         this.context.logger.info('[data]', 'VolumeDidChange message', message);
 
         this.emit('volumeDidChange', message);
     }
 
+    /**
+     * Handles a mute state change.
+     *
+     * @param message - The decoded VolumeMutedDidChangeMessage.
+     */
     #onVolumeMutedDidChangeMessage(message: Proto.VolumeMutedDidChangeMessage): void {
         this.context.logger.info('[data]', 'VolumeMutedDidChange message', message);
 
         this.emit('volumeMutedDidChange', message);
     }
 
+    /**
+     * Handles a lyrics event (real-time lyrics synchronization data).
+     *
+     * @param message - The decoded SendLyricsEventMessage.
+     */
     #onSendLyricsEventMessage(message: Proto.SendLyricsEventMessage): void {
         this.context.logger.raw('[data]', 'SendLyricsEvent message', message);
 
         this.emit('sendLyricsEvent', message);
     }
 
+    /**
+     * Handles a connection configuration message (group ID assignment).
+     *
+     * @param message - The decoded ConfigureConnectionMessage.
+     */
     #onConfigureConnectionMessage(message: Proto.ConfigureConnectionMessage): void {
         this.context.logger.info('[data]', 'ConfigureConnection message', message);
 

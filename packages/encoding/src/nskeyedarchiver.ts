@@ -2,6 +2,9 @@
  * Decodes an NSKeyedArchiver binary plist into plain JavaScript objects.
  * Resolves CF$UID references, decodes NS.objects/NS.keys into arrays/dicts,
  * and strips $class metadata.
+ *
+ * @param archive - The parsed plist archive containing `$objects` and `$top` keys.
+ * @returns The resolved root object, or null if the archive is invalid.
  */
 export function decode(archive: any): unknown {
     const objects = archive?.['$objects'];
@@ -64,6 +67,9 @@ export function decode(archive: any): unknown {
 /**
  * Decodes an NSKeyedArchiver plist and returns the root as an array.
  * If the root is not an array, wraps it in one.
+ *
+ * @param archive - The parsed plist archive containing `$objects` and `$top` keys.
+ * @returns The resolved root as an array. Non-array roots are wrapped in a single-element array.
  */
 export function decodeAsArray(archive: any): unknown[] {
     const root = decode(archive);

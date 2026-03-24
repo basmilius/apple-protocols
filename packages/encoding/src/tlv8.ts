@@ -1,7 +1,15 @@
+/**
+ * TLV8 pairing flags used during HAP pair-setup and pair-verify.
+ * Sent as part of the TLV8 Flags (0x13) value.
+ */
 export const Flags = {
     TransientPairing: 0x10
 } as const;
 
+/**
+ * TLV8 error codes returned by the accessory during pairing.
+ * Included in the Error (0x07) TLV value.
+ */
 export const ErrorCode = {
     Unknown: 0x01,
     Authentication: 0x02,
@@ -12,6 +20,10 @@ export const ErrorCode = {
     Busy: 0x07
 } as const;
 
+/**
+ * HAP pairing method identifiers. Sent in the Method (0x00) TLV value
+ * to indicate which pairing operation is being performed.
+ */
 export const Method = {
     PairSetup: 0x00,
     PairSetupWithAuth: 0x01,
@@ -21,6 +33,10 @@ export const Method = {
     ListPairing: 0x05
 } as const;
 
+/**
+ * HAP pairing state machine steps (M1 through M6).
+ * Each state corresponds to a message in the SRP pair-setup or pair-verify flow.
+ */
 export const State = {
     M1: 0x01,
     M2: 0x02,
@@ -30,6 +46,10 @@ export const State = {
     M6: 0x06
 } as const;
 
+/**
+ * TLV8 type identifiers for the fields exchanged during HAP pairing.
+ * Each value is the type byte that precedes the length and data in a TLV8 entry.
+ */
 export const Value = {
     Method: 0x00,
     Identifier: 0x01,
@@ -50,9 +70,18 @@ export const Value = {
     Flags: 0x13
 } as const;
 
+/**
+ * Error thrown when a TLV8 pairing exchange fails.
+ * Carries the numeric error code from the accessory when available.
+ */
 export class TLV8PairingError extends Error {
+    /** The TLV8 error code from the accessory, if present. */
     readonly code: number | undefined;
 
+    /**
+     * @param message - Human-readable error description.
+     * @param code - The TLV8 error code from the accessory response.
+     */
     constructor(message: string, code?: number) {
         super(message);
         this.name = 'TLV8PairingError';
@@ -60,6 +89,14 @@ export class TLV8PairingError extends Error {
     }
 }
 
+/**
+ * Inspects a decoded TLV8 response for error or back-off conditions and throws
+ * an appropriate {@link TLV8PairingError}. Always throws; the return type `never`
+ * signals to the compiler that execution does not continue past this call.
+ *
+ * @param data - The decoded TLV8 map from a pairing response.
+ * @throws TLV8PairingError with the specific error code, back-off time, or a generic message.
+ */
 export function bail(data: Map<number, Buffer>): never {
     if (data.has(Value.BackOff)) {
         const buffer = data.get(Value.BackOff);
@@ -83,6 +120,15 @@ export function bail(data: Map<number, Buffer>): never {
     throw new TLV8PairingError('Invalid response');
 }
 
+/**
+ * Encodes an array of TLV8 entries into a single buffer.
+ * Values longer than 255 bytes are automatically split into multiple
+ * consecutive TLV fragments of the same type, as required by the TLV8 spec.
+ *
+ * @param entries - An array of [type, value] tuples. Values can be a single byte (number),
+ *                  a Buffer, or a Uint8Array.
+ * @returns A buffer containing all TLV8 entries concatenated.
+ */
 export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffer {
     let totalSize = 0;
     for (const [, valueRaw] of entries) {
@@ -130,6 +176,14 @@ export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffe
     return result;
 }
 
+/**
+ * Decodes a TLV8 buffer into a map of type to value.
+ * Consecutive entries with the same type are automatically concatenated,
+ * reassembling fragmented values as required by the TLV8 spec.
+ *
+ * @param buf - The raw TLV8-encoded buffer.
+ * @returns A map from TLV8 type byte to the reassembled value buffer.
+ */
 export function decode(buf: Buffer): Map<number, Buffer> {
     const map = new Map<number, Buffer>();
     let i = 0;

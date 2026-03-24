@@ -1,6 +1,16 @@
 import { fromBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 
+/**
+ * Builds a 12-byte ChaCha20 nonce for AirPlay stream encryption.
+ *
+ * The nonce format is: 4 zero bytes + 8-byte little-endian counter at offset 4.
+ * This matches the AirPlay DataStream/EventStream nonce format (distinct from
+ * the Companion Link format which uses 12-byte LE counter at offset 0).
+ *
+ * @param counter - Monotonically increasing counter value.
+ * @returns 12-byte nonce buffer.
+ */
 export function nonce(counter: number): Buffer {
     const nonceArray = new Uint8Array(12);
     const view = new DataView(nonceArray.buffer);
@@ -9,6 +19,21 @@ export function nonce(counter: number): Buffer {
     return Buffer.from(nonceArray);
 }
 
+/**
+ * Builds a 32-byte DataStream frame header with the 'sync'/'comm' command format.
+ *
+ * Layout (32 bytes):
+ * - [0..3] total frame size (header + payload) as uint32 BE
+ * - [4..7] 'sync' ASCII tag
+ * - [8..15] 8 zero bytes (reserved)
+ * - [16..19] 'comm' ASCII command tag
+ * - [20..27] sequence number as uint64 BE
+ * - [28..31] 4 zero bytes (reserved)
+ *
+ * @param totalSize - Total size of the frame including this header.
+ * @param seqno - Sequence number for this frame.
+ * @returns 32-byte header buffer.
+ */
 export function buildHeader(totalSize: number, seqno: bigint): Buffer {
     const buf = Buffer.allocUnsafe(32);
 
@@ -22,6 +47,15 @@ export function buildHeader(totalSize: number, seqno: bigint): Buffer {
     return buf;
 }
 
+/**
+ * Builds a 32-byte DataStream reply header acknowledging a received frame.
+ *
+ * Reply frames have no payload (size = 32), use the 'rply' tag, and echo
+ * back the sequence number of the frame being acknowledged.
+ *
+ * @param seqno - Sequence number of the frame being acknowledged.
+ * @returns 32-byte reply header buffer.
+ */
 export function buildReply(seqno: bigint): Buffer {
     const header = Buffer.allocUnsafe(32);
     header.writeUInt32BE(32, 0); // size = header only, no payload
@@ -34,6 +68,15 @@ export function buildReply(seqno: bigint): Buffer {
     return header;
 }
 
+/**
+ * Encodes a non-negative integer as a protobuf-style varint.
+ *
+ * Each byte uses 7 data bits with the MSB as a continuation flag.
+ *
+ * @param value - Non-negative integer to encode.
+ * @returns Varint-encoded byte array.
+ * @throws RangeError if the value is negative.
+ */
 export function encodeVarint(value: number): Uint8Array {
     if (value < 0) {
         throw new RangeError('Varint only supports non-negative integers');
@@ -50,6 +93,13 @@ export function encodeVarint(value: number): Uint8Array {
     return Uint8Array.from(bytes);
 }
 
+/**
+ * Extracts the sequence number from a 32-byte DataStream frame header.
+ *
+ * @param header - At least 28 bytes of the frame header.
+ * @returns The sequence number as a bigint.
+ * @throws Error if the header is too short.
+ */
 export function parseHeaderSeqno(header: Buffer): bigint {
     if (header.length < 28) {
         throw new Error('Header too short');
@@ -58,6 +108,17 @@ export function parseHeaderSeqno(header: Buffer): bigint {
     return header.readBigUInt64BE(20);
 }
 
+/**
+ * Parses a buffer containing one or more varint-length-prefixed ProtocolMessage
+ * protobuf payloads.
+ *
+ * Handles two wire formats:
+ * - Standard: `[varint length][protobuf bytes]` repeated
+ * - Legacy: a bare protobuf starting with field tag 0x08 (no length prefix)
+ *
+ * @param content - Buffer containing serialized protobuf messages.
+ * @returns Array of decoded ProtocolMessage instances.
+ */
 export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
     const messages: Proto.ProtocolMessage[] = [];
     let offset = 0;
@@ -89,6 +150,13 @@ export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
     return messages;
 }
 
+/**
+ * Reads a varint-encoded integer from a buffer at the given offset.
+ *
+ * @param buf - Buffer to read from.
+ * @param offset - Starting byte offset (defaults to 0).
+ * @returns Tuple of [decoded value, number of bytes consumed].
+ */
 export function readVariant(buf: Buffer, offset = 0): [number, number] {
     let result = 0;
     let shift = 0;

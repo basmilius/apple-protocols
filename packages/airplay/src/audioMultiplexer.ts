@@ -2,30 +2,49 @@ import type { AudioSource, Context } from '@basmilius/apple-common';
 import AudioStream, { FRAMES_PER_PACKET, SAMPLE_RATE } from './audioStream';
 import type Protocol from './protocol';
 
+/** Maximum number of extra packets to send when catching up from being behind schedule. */
 const MAX_PACKETS_COMPENSATE = 3;
+
+/** Number of consecutive slow packets before logging a warning. */
 const SLOW_WARNING_THRESHOLD = 5;
 
+/**
+ * A target device in the multiplexer, pairing a protocol instance with its audio stream.
+ */
 type Target = {
     protocol: Protocol;
     stream: AudioStream;
 };
 
 /**
- * Streams audio from a single source to multiple AirPlay devices
- * simultaneously. Each device gets its own AudioStream with independent
- * encryption and RTP state, but they all receive the same audio data
- * with shared timing.
+ * Streams audio from a single source to multiple AirPlay devices simultaneously.
+ *
+ * Each device gets its own {@link AudioStream} with independent encryption and
+ * RTP state, but they all receive the same audio data with shared timing. The
+ * multiplexer reads audio frames once from the source and fans them out to all
+ * targets in parallel.
+ *
+ * Timing is maintained by comparing wall-clock elapsed time against the expected
+ * time based on the number of frames sent. When falling behind, extra packets
+ * are sent to catch up (up to {@link MAX_PACKETS_COMPENSATE} per cycle).
  */
 export default class AudioMultiplexer {
     readonly #context: Context;
     readonly #targets: Target[] = [];
 
+    /**
+     * @param context - Shared context with logger and device identity.
+     */
     constructor(context: Context) {
         this.#context = context;
     }
 
     /**
-     * Add a target device to stream to.
+     * Adds a target device to stream to.
+     *
+     * Creates a new {@link AudioStream} for the device's protocol instance.
+     *
+     * @param protocol - The AirPlay protocol instance for the target device.
      */
     addTarget(protocol: Protocol): void {
         const stream = new AudioStream(protocol);
@@ -34,7 +53,7 @@ export default class AudioMultiplexer {
     }
 
     /**
-     * Remove all targets and close their streams.
+     * Removes all targets and closes their audio streams.
      */
     clear(): void {
         for (const target of this.#targets) {
@@ -45,8 +64,14 @@ export default class AudioMultiplexer {
     }
 
     /**
-     * Stream audio from a source to all targets simultaneously.
-     * Sets up, prepares, and streams to all devices, then tears down.
+     * Streams audio from a source to all targets simultaneously.
+     *
+     * Orchestrates the full lifecycle: setup all streams, prepare (connect UDP,
+     * FLUSH, start sync), stream audio packets with timing compensation, and
+     * finish (padding + TEARDOWN). On error, all streams are closed.
+     *
+     * @param source - Audio source to read PCM frames from.
+     * @throws Re-throws any error after cleaning up all streams.
      */
     async stream(source: AudioSource): Promise<void> {
         if (this.#targets.length === 0) {
@@ -167,6 +192,11 @@ export default class AudioMultiplexer {
         }
     }
 
+    /**
+     * Sleeps for the given number of milliseconds.
+     *
+     * @param ms - Duration to sleep in milliseconds.
+     */
     #sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }

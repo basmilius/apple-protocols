@@ -2,19 +2,31 @@ import { type Context, EncryptionState, generateActiveRemoteId, generateDacpId, 
 import { RtspClient } from '@basmilius/apple-rtsp';
 import { chacha20Decrypt, chacha20Encrypt } from './encryption';
 
+/**
+ * RTSP-based control stream for AirPlay protocol communication.
+ *
+ * Extends {@link RtspClient} with AirPlay-specific session headers (Active-Remote,
+ * DACP-ID, Session-ID) and optional ChaCha20-Poly1305 encryption that is enabled
+ * after pair-verify completes. All AirPlay RTSP methods (SETUP, RECORD, FLUSH,
+ * TEARDOWN, etc.) are exposed as convenience methods.
+ */
 export default class ControlStream extends RtspClient {
+    /** Unique identifier for DACP remote control, sent in every request. */
     get activeRemoteId(): string {
         return this.#activeRemoteId;
     }
 
+    /** Digital Audio Control Protocol identifier for this session. */
     get dacpId(): string {
         return this.#dacpId;
     }
 
+    /** AirPlay session identifier, used in RTSP URIs and headers. */
     get sessionId(): string {
         return this.#sessionId;
     }
 
+    /** Whether the control stream has encryption enabled. */
     get isEncrypted(): boolean {
         return !!this.#encryptionState;
     }
@@ -24,6 +36,11 @@ export default class ControlStream extends RtspClient {
     readonly #sessionId: string;
     #encryptionState?: EncryptionState;
 
+    /**
+     * @param context - Shared context with logger and device identity.
+     * @param address - IP address of the AirPlay receiver.
+     * @param port - TCP port of the AirPlay RTSP server.
+     */
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
@@ -32,10 +49,24 @@ export default class ControlStream extends RtspClient {
         this.#sessionId = generateSessionId();
     }
 
+    /**
+     * Enables ChaCha20-Poly1305 encryption on the control stream.
+     *
+     * Called after pair-verify completes, using the derived control stream keys.
+     * Once enabled, all subsequent RTSP requests and responses are encrypted.
+     *
+     * @param readKey - 32-byte key for decrypting incoming data (accessory-to-controller).
+     * @param writeKey - 32-byte key for encrypting outgoing data (controller-to-accessory).
+     */
     enableEncryption(readKey: Buffer, writeKey: Buffer): void {
         this.#encryptionState = new EncryptionState(readKey, writeKey);
     }
 
+    /**
+     * Returns AirPlay-specific default RTSP headers included in every request.
+     *
+     * @returns Header map with Active-Remote, DACP-ID, User-Agent, protocol version, and session ID.
+     */
     protected override getDefaultHeaders(): Record<string, string | number> {
         return {
             'Active-Remote': this.#activeRemoteId,
@@ -46,6 +77,12 @@ export default class ControlStream extends RtspClient {
         };
     }
 
+    /**
+     * Decrypts incoming RTSP data if encryption is enabled.
+     *
+     * @param data - Raw data from the TCP socket.
+     * @returns Decrypted data, passthrough if unencrypted, or `false` if incomplete.
+     */
     protected override transformIncoming(data: Buffer): Buffer | false {
         if (!this.#encryptionState) {
             return data;
@@ -54,6 +91,12 @@ export default class ControlStream extends RtspClient {
         return chacha20Decrypt(this.#encryptionState, data);
     }
 
+    /**
+     * Encrypts outgoing RTSP data if encryption is enabled.
+     *
+     * @param data - Plaintext data to send.
+     * @returns Encrypted data, or passthrough if unencrypted.
+     */
     protected override transformOutgoing(data: Buffer): Buffer {
         if (!this.#encryptionState) {
             return data;
@@ -62,30 +105,87 @@ export default class ControlStream extends RtspClient {
         return chacha20Encrypt(this.#encryptionState, data);
     }
 
+    /**
+     * Sends an RTSP FLUSH request to reset the playback buffer.
+     *
+     * @param uri - RTSP resource URI (typically `/{sessionId}`).
+     * @param headers - Additional headers, usually including Range and RTP-Info.
+     * @returns The RTSP response.
+     */
     async flush(uri: string, headers: Record<string, string>): Promise<Response> {
         return await this.exchange('FLUSH', uri, {headers, allowError: true});
     }
 
+    /**
+     * Sends an HTTP-style GET request over the RTSP connection.
+     *
+     * @param path - Request path (e.g. `/info`, `/playback-info`).
+     * @param headers - Additional request headers.
+     * @param timeout - Request timeout in milliseconds.
+     * @returns The response.
+     */
     async get(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('GET', path, {headers, timeout, allowError: true});
     }
 
+    /**
+     * Sends an HTTP-style POST request over the RTSP connection.
+     *
+     * @param path - Request path (e.g. `/play`, `/feedback`, `/pair-setup`).
+     * @param body - Optional request body (Buffer, string, or plist-serializable object).
+     * @param headers - Additional request headers.
+     * @param timeout - Request timeout in milliseconds.
+     * @returns The response.
+     */
     async post(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('POST', path, {headers, body, timeout, allowError: true});
     }
 
+    /**
+     * Sends an HTTP-style PUT request over the RTSP connection.
+     *
+     * @param path - Request path (e.g. `/setProperty?...`).
+     * @param body - Optional request body.
+     * @param headers - Additional request headers.
+     * @param timeout - Request timeout in milliseconds.
+     * @returns The response.
+     */
     async put(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('PUT', path, {headers, body, timeout, allowError: true});
     }
 
+    /**
+     * Sends an RTSP RECORD request to start media streaming.
+     *
+     * @param path - RTSP resource URI (typically `/{sessionId}`).
+     * @param headers - Additional request headers.
+     * @param timeout - Request timeout in milliseconds.
+     * @returns The response.
+     */
     async record(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('RECORD', path, {headers, timeout, allowError: true});
     }
 
+    /**
+     * Sends an RTSP SETUP request to configure a new stream.
+     *
+     * @param path - RTSP resource URI (typically `/{sessionId}`).
+     * @param body - Plist body with stream configuration.
+     * @param headers - Additional request headers.
+     * @param timeout - Request timeout in milliseconds.
+     * @returns The response containing port assignments and stream parameters.
+     */
     async setup(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('SETUP', path, {headers, body, timeout, allowError: true});
     }
 
+    /**
+     * Sends an RTSP SET_PARAMETER request.
+     *
+     * @param parameter - Parameter name (e.g. 'volume').
+     * @param value - Parameter value as a string.
+     * @returns The response.
+     */
     async setParameter(parameter: string, value: string): Promise<Response> {
         return await this.exchange('SET_PARAMETER', `/${this.sessionId}`, {
             contentType: 'text/parameters',
@@ -94,12 +194,26 @@ export default class ControlStream extends RtspClient {
         });
     }
 
+    /**
+     * Sets the playback volume via a POST request.
+     *
+     * @param volume - Volume level (typically -144 to 0 dB, or 0 to 1 normalized).
+     * @returns The response.
+     */
     async setVolume(volume: number): Promise<Response> {
         return await this.exchange('POST', `/volume?volume=${volume.toFixed(6)}`, {
             allowError: true
         });
     }
 
+    /**
+     * Sends an RTSP TEARDOWN request to end a stream session.
+     *
+     * @param path - RTSP resource URI (typically `/{sessionId}`).
+     * @param headers - Additional request headers.
+     * @param timeout - Request timeout in milliseconds.
+     * @returns The response.
+     */
     async teardown(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('TEARDOWN', path, {headers, timeout, allowError: true});
     }

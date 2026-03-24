@@ -1,5 +1,9 @@
 /**
- * AirPlay feature flags (64-bit bitmask).
+ * AirPlay feature flags as a 64-bit bitmask.
+ *
+ * Each flag represents a capability advertised by AirPlay senders or receivers
+ * in the `features`/`featuresEx` fields of SETUP and /info responses. The lower
+ * 32 bits map to `features`, the upper 32 bits to `featuresEx`.
  *
  * Sources: pyatv, Apple framework disassembly (AirPlayReceiver sysInfo_createFeaturesInternal),
  * https://emanuelecozzi.net/docs/airplay2/features/
@@ -48,7 +52,12 @@ export const AirPlayFeature: Record<string, bigint> = {
     SupportsRFC2198Redundancy: 1n << 61n
 };
 
-/** Features we advertise for remote control sessions. */
+/**
+ * Feature bitmask advertised when connecting for remote control sessions.
+ *
+ * Includes media control, system pairing, encryption, volume, and
+ * hangdog remote control capabilities.
+ */
 export const SENDER_FEATURES_REMOTE_CONTROL: bigint =
     AirPlayFeature.SupportsAirPlayAudio
     | AirPlayFeature.AudioRedundant
@@ -68,7 +77,13 @@ export const SENDER_FEATURES_REMOTE_CONTROL: bigint =
     | AirPlayFeature.SupportsSetPeersExtendedMessage
     | AirPlayFeature.SupportsVolume;
 
-/** Features we advertise for audio streaming sessions. */
+/**
+ * Feature bitmask advertised when connecting for audio streaming sessions.
+ *
+ * Extends the remote control features with buffered audio, audio stream
+ * connection setup, metadata control, format negotiation, and PTP
+ * synchronization support.
+ */
 export const SENDER_FEATURES_AUDIO: bigint =
     SENDER_FEATURES_REMOTE_CONTROL
     | AirPlayFeature.SupportsBufferedAudio
@@ -80,11 +95,22 @@ export const SENDER_FEATURES_AUDIO: bigint =
     | AirPlayFeature.AudioFormats3
     | AirPlayFeature.SupportsPTP;
 
-/** Helper to check if a feature set has a specific feature. */
+/**
+ * Checks whether a feature bitmask contains a specific feature flag.
+ *
+ * @param features - The combined feature bitmask to test.
+ * @param feature - The individual feature flag to check for.
+ * @returns `true` if the feature is present.
+ */
 export const hasFeature = (features: bigint, feature: bigint): boolean =>
     (features & feature) === feature;
 
-/** Decode a features bitmask into a list of human-readable flag names. */
+/**
+ * Decodes a feature bitmask into a list of human-readable flag names.
+ *
+ * @param features - The combined feature bitmask to decode.
+ * @returns Array of feature names that are set in the bitmask.
+ */
 export const decodeFeatures = (features: bigint): string[] => {
     const result: string[] = [];
 

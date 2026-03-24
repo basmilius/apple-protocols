@@ -4,6 +4,10 @@ import { NSKeyedArchiver, Plist } from '@basmilius/apple-encoding';
 import type { AttentionState, TextInputState } from '@basmilius/apple-companion-link';
 import { convertAttentionState } from '@basmilius/apple-companion-link';
 
+/**
+ * Events emitted by CompanionLinkState.
+ * Provides reactive state updates from the Companion Link protocol.
+ */
 type EventMap = {
     readonly attentionStateChanged: [AttentionState];
     readonly mediaControlFlagsChanged: [flags: number, capabilities: MediaCapabilities];
@@ -13,6 +17,10 @@ type EventMap = {
     readonly volumeAvailabilityChanged: [available: boolean];
 };
 
+/**
+ * Parsed media control capabilities, indicating which playback controls
+ * are currently available on the device.
+ */
 export type MediaCapabilities = {
     readonly play: boolean;
     readonly pause: boolean;
@@ -25,6 +33,7 @@ export type MediaCapabilities = {
     readonly skipBackward: boolean;
 };
 
+/** Default text input state when no text input session is active. */
 const DEFAULT_TEXT_INPUT: TextInputState = {
     isActive: false,
     documentText: '',
@@ -34,31 +43,43 @@ const DEFAULT_TEXT_INPUT: TextInputState = {
     autocapitalization: false
 };
 
+/**
+ * Tracks the state of a Companion Link device: attention state, media controls,
+ * now-playing info, supported actions, text input, and volume availability.
+ * Subscribes to protocol stream events and emits typed state change events.
+ */
 export default class CompanionLinkState extends EventEmitter<EventMap> {
+    /** Current attention state of the device (active, idle, screensaver, etc.). */
     get attentionState(): AttentionState {
         return this.#attentionState;
     }
 
+    /** Parsed media capabilities indicating which controls are available. */
     get mediaCapabilities(): MediaCapabilities {
         return this.#mediaCapabilities;
     }
 
+    /** Raw media control flags bitmask from the device. */
     get mediaControlFlags(): number {
         return this.#mediaControlFlags;
     }
 
+    /** Current now-playing info as a key-value dictionary, or null. */
     get nowPlayingInfo(): Record<string, unknown> | null {
         return this.#nowPlayingInfo;
     }
 
+    /** Currently supported actions dictionary, or null. */
     get supportedActions(): Record<string, unknown> | null {
         return this.#supportedActions;
     }
 
+    /** Current text input session state. */
     get textInputState(): TextInputState {
         return this.#textInputState;
     }
 
+    /** Whether volume control is currently available via the Companion Link protocol. */
     get volumeAvailable(): boolean {
         return this.#volumeAvailable;
     }
@@ -72,6 +93,11 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
     #textInputState: TextInputState = { ...DEFAULT_TEXT_INPUT };
     #volumeAvailable: boolean = false;
 
+    /**
+     * Creates a new CompanionLinkState tracker.
+     *
+     * @param protocol - The Companion Link protocol instance to observe.
+     */
     constructor(protocol: Protocol) {
         super();
         this.#protocol = protocol;
@@ -85,6 +111,7 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         this.onTextInputStopped = this.onTextInputStopped.bind(this);
     }
 
+    /** Subscribes to protocol stream events and registers interests for push notifications. */
     subscribe(): void {
         const stream = this.#protocol.stream;
 
@@ -103,6 +130,7 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         this.#protocol.registerInterests(['SupportedActions']);
     }
 
+    /** Unsubscribes from protocol stream events and deregisters interests. */
     unsubscribe(): void {
         const stream = this.#protocol.stream;
 
@@ -126,6 +154,7 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         } catch {}
     }
 
+    /** Fetches the initial attention state and media control status from the device. */
     async fetchInitialState(): Promise<void> {
         try {
             const state = await this.#protocol.getAttentionState();
@@ -142,6 +171,7 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /** Resets all state to initial/default values. */
     clear(): void {
         this.#attentionState = 'unknown';
         this.#mediaCapabilities = parseMediaControlFlags(0);
@@ -154,6 +184,12 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
 
     // --- Event handlers ---
 
+    /**
+     * Handles media control flag updates (_iMC). Parses the flags bitmask and
+     * emits events if capabilities or volume availability changed.
+     *
+     * @param data - The raw media control payload.
+     */
     onMediaControl(data: unknown): void {
         try {
             const payload = data as Record<string, unknown>;
@@ -177,6 +213,11 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles SystemStatus events (attention state changes from non-TV devices).
+     *
+     * @param data - The raw system status payload containing a state code.
+     */
     onSystemStatus(data: unknown): void {
         const payload = data as { state: number };
         const state = convertAttentionState(payload.state);
@@ -187,6 +228,11 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles TVSystemStatus events (attention state changes from Apple TV).
+     *
+     * @param data - The raw TV system status payload containing a state code.
+     */
     onTVSystemStatus(data: unknown): void {
         const payload = data as { state: number };
         const state = convertAttentionState(payload.state);
@@ -197,6 +243,12 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles NowPlayingInfo updates. Decodes the NSKeyedArchiver plist payload
+     * when present, otherwise uses the raw dictionary.
+     *
+     * @param data - The raw now-playing info payload.
+     */
     onNowPlayingInfo(data: unknown): void {
         try {
             const payload = data as Record<string, unknown>;
@@ -217,6 +269,11 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles SupportedActions updates from the device.
+     *
+     * @param data - The raw supported actions payload.
+     */
     onSupportedActions(data: unknown): void {
         try {
             const payload = data as Record<string, unknown>;
@@ -227,6 +284,12 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles the start of a text input session. Parses the plist payload to extract
+     * document text, security mode, keyboard type, and autocorrection settings.
+     *
+     * @param data - The raw text input started payload.
+     */
     onTextInputStarted(data: unknown): void {
         try {
             const payload = data as { readonly _tiV?: number; readonly _tiD?: Uint8Array };
@@ -252,12 +315,23 @@ export default class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
+    /**
+     * Handles the end of a text input session. Resets the text input state to defaults.
+     *
+     * @param _data - The raw text input stopped payload (unused).
+     */
     onTextInputStopped(_data: unknown): void {
         this.#textInputState = { ...DEFAULT_TEXT_INPUT };
         this.emit('textInputChanged', this.#textInputState);
     }
 }
 
+/**
+ * Parses a media control flags bitmask into a structured MediaCapabilities object.
+ *
+ * @param flags - The raw bitmask from the _iMC event.
+ * @returns An object indicating which media controls are available.
+ */
 function parseMediaControlFlags(flags: number): MediaCapabilities {
     return {
         play: (flags & MediaControlFlag.Play) !== 0,

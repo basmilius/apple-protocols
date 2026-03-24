@@ -1,3 +1,8 @@
+/**
+ * Frame type identifiers for the Companion Link wire protocol.
+ * The first byte of every frame header indicates the frame type,
+ * which determines how the payload should be parsed and routed.
+ */
 export const FrameType = {
     Unknown: 0,
     NoOp: 1,
@@ -24,12 +29,21 @@ export const FrameType = {
     FamilyIdentityUpdate: 34
 } as const;
 
+/**
+ * Message type identifiers within OPack frames.
+ * Stored in the `_t` field of each OPack message to distinguish
+ * events, requests and responses.
+ */
 export const MessageType = {
     Event: 1,
     Request: 2,
     Response: 3
 } as const;
 
+/**
+ * Frame types whose payloads are OPack-encoded.
+ * Used to determine whether a received frame should be decoded with OPack.
+ */
 export const OPackFrameTypes: number[] = [
     FrameType.PairSetupStart,
     FrameType.PairSetupNext,
@@ -41,6 +55,11 @@ export const OPackFrameTypes: number[] = [
     FrameType.OPackPacked
 ];
 
+/**
+ * Frame types that belong to the pairing flow (pair-setup and pair-verify).
+ * Pairing frames use a special queue identifier since they lack the `_x`
+ * exchange correlation field.
+ */
 export const PairingFrameTypes: number[] = [
     FrameType.PairSetupStart,
     FrameType.PairSetupNext,

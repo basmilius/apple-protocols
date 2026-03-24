@@ -1,5 +1,15 @@
 import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from '../const';
 
+/**
+ * Converts PCM audio data from one format to signed 16-bit big-endian
+ * stereo at the default sample rate (44100 Hz). Uses linear interpolation
+ * for sample rate conversion and channel mapping (mono to stereo or
+ * channel clamping).
+ *
+ * @param input - Source PCM audio data.
+ * @param options - Description of the input PCM format.
+ * @returns A buffer containing the converted signed 16-bit big-endian stereo PCM.
+ */
 export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
     const {inputChannels, inputSampleRate, inputBitsPerSample, inputEndian} = options;
     const bytesPerSample = inputBitsPerSample / 8;
@@ -32,6 +42,20 @@ export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
     return output;
 }
 
+/**
+ * Reads a single PCM sample from the buffer and returns it as a
+ * signed 16-bit integer value. Supports 8, 16, 24, and 32-bit
+ * sample depths in both little-endian and big-endian byte order.
+ *
+ * @param buffer - Source PCM data buffer.
+ * @param frame - Frame index (sample index across all channels).
+ * @param channel - Channel index within the frame.
+ * @param frameSize - Size of a single frame in bytes (all channels).
+ * @param bytesPerSample - Number of bytes per individual sample.
+ * @param bitsPerSample - Bit depth of the samples (8, 16, 24, or 32).
+ * @param endian - Byte order of the samples.
+ * @returns The sample value scaled to signed 16-bit range, or 0 for unsupported bit depths.
+ */
 function readSample(buffer: Buffer, frame: number, channel: number, frameSize: number, bytesPerSample: number, bitsPerSample: number, endian: 'little' | 'big'): number {
     const offset = frame * frameSize + channel * bytesPerSample;
 
@@ -73,9 +97,16 @@ function readSample(buffer: Buffer, frame: number, channel: number, frameSize: n
     return 0;
 }
 
+/**
+ * Options describing the format of input PCM data for conversion.
+ */
 type ConvertPcmOptions = {
+    /** Number of audio channels in the input data. */
     readonly inputChannels: number;
+    /** Sample rate of the input data in Hz. */
     readonly inputSampleRate: number;
+    /** Bit depth of the input samples (8, 16, 24, or 32). */
     readonly inputBitsPerSample: number;
+    /** Byte order of the input samples. */
     readonly inputEndian: 'little' | 'big';
 };

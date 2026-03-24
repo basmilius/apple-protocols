@@ -61,14 +61,9 @@ export default class Player {
     }
 
     /**
-     * Effective playback state. Corrects for the edge case where the Apple TV
-     * reports Playing but the playback rate is 0 (effectively paused).
+     * Effective playback state.
      */
     get playbackState(): Proto.PlaybackState_Enum {
-        if (this.#playbackState === Proto.PlaybackState_Enum.Playing && this.playbackRate === 0) {
-            return Proto.PlaybackState_Enum.Paused;
-        }
-
         return this.#playbackState;
     }
 

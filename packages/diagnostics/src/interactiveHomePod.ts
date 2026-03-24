@@ -4,7 +4,7 @@ import { Proto } from '@basmilius/apple-airplay';
 import { HomePod } from '@basmilius/apple-devices';
 import { prompt } from 'enquirer';
 import ora from 'ora';
-import { createInteractiveLogger, formatTime, PlaybackStateLabel } from './shared';
+import { createInteractiveLogger, formatTime, PlaybackStateLabel, printAirPlayState } from './shared';
 
 const log = createInteractiveLogger();
 
@@ -17,6 +17,7 @@ Available commands:
   stream <url>                     Stream audio from URL
   playurl <url>                    Play URL on device
   info                             Show now playing info
+  state                            Show all clients and players
   help                             Show this help
   quit                             Disconnect and exit
 `.trim();
@@ -155,6 +156,9 @@ export default async function (storage: Storage): Promise<void> {
                         log('info', `Repeat: ${npc?.repeatMode != null ? Proto.RepeatMode_Enum[npc.repeatMode] : 'Unknown'}`);
                         log('info', `Volume: ${Math.round(device.volume * 100)}%`);
                         log('info', `App: ${device.displayName ?? '(none)'} (${device.bundleIdentifier ?? ''})`);
+                        break;
+                    case 'state':
+                        printAirPlayState(device.state, log);
                         break;
                     case 'help': console.log(HELP); break;
                     case 'quit':

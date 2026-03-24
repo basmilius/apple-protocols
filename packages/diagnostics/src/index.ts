@@ -13,7 +13,6 @@ import companionLinkPair from './companionLinkPair';
 import companionLinkRemote from './companionLinkRemote';
 import appleTvAirPlayVerify from './appleTvAirPlayVerify';
 import appleTvCompanionLinkVerify from './appleTvCompanionLinkVerify';
-import appleTvLaunchApp from './appleTvLaunchApp';
 import homePodPlayAudio from './homePodPlayAudio';
 import mdnsScan from './mdnsScan';
 import interactiveAppleTv from './interactiveAppleTv';
@@ -53,7 +52,6 @@ while (true) {
             {message: 'AirPlay Multi-Room', name: 'airplay-multi-room'},
             {message: 'AirPlay Play URL', name: 'airplay-play-url'},
             {message: 'AirPlay Stream Audio', name: 'airplay-stream-audio'},
-            {message: 'Apple TV Launch App', name: 'appletv-launch-app'},
             {message: 'Companion Link Remote', name: 'companion-link-remote'},
             {message: 'HomePod Play Audio (RAOP)', name: 'homepod-play-audio'},
             {message: 'mDNS Scan', name: 'mdns-scan'},
@@ -115,11 +113,6 @@ while (true) {
             case 'appletv-companion-link-verify':
                 reporter.all();
                 await appleTvCompanionLinkVerify(storage);
-                break;
-
-            case 'appletv-launch-app':
-                reporter.all();
-                await appleTvLaunchApp(storage);
                 break;
 
             case 'airplay-monitor':

@@ -5,7 +5,7 @@ import { AppleTV, COMPANION_LINK } from '@basmilius/apple-devices';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
-import { createInteractiveLogger, formatTime, PlaybackStateLabel } from './shared';
+import { createInteractiveLogger, formatTime, PlaybackStateLabel, printAirPlayState } from './shared';
 
 const log = createInteractiveLogger();
 
@@ -33,6 +33,7 @@ Available commands:
   stream <url>                     Stream audio from URL
   playurl <url>                    Play URL on device
   info                             Show now playing info
+  state                            Show all clients and players
   fetch                            Request playback queue from device
   dump                             Dump raw metadata fields
   clnpi                            Fetch now playing via Companion Link
@@ -371,6 +372,9 @@ export default async function (storage: Storage): Promise<void> {
                         log('info', `Repeat: ${npc?.repeatMode != null ? Proto.RepeatMode_Enum[npc.repeatMode] : 'Unknown'}`);
                         log('info', `Volume: ${Math.round(device.volume * 100)}%`);
                         log('info', `App: ${device.displayName ?? '(none)'} (${device.bundleIdentifier ?? ''})`);
+                        break;
+                    case 'state':
+                        printAirPlayState(device.state, log);
                         break;
                     case 'fetch':
                         log('info', 'Requesting playback queue...');

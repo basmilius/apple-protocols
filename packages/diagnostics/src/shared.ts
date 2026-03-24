@@ -45,10 +45,12 @@ export const discoverAndSelectDevice = async (service: ServiceType, promptMessag
         name: 'device',
         type: 'select',
         message: promptMessage,
-        choices: devices.map(d => ({
-            message: d.fqdn,
-            name: d.id
-        }))
+        choices: devices
+            .sort((a, b) => a.fqdn.localeCompare(b.fqdn))
+            .map(d => ({
+                message: d.fqdn,
+                name: d.id
+            }))
     });
 
     return devices.find(d => d.id === response.device)!;

@@ -36,5 +36,17 @@ export const MediaControlCommand = {
     SetCaptionSettings: 13
 } as const;
 
+export const MediaControlFlag = {
+    Play: 0x0001,
+    Pause: 0x0002,
+    PreviousTrack: 0x0004,
+    NextTrack: 0x0008,
+    FastForward: 0x0010,
+    Rewind: 0x0020,
+    Volume: 0x0100,
+    SkipForward: 0x0200,
+    SkipBackward: 0x0400
+} as const;
+
 export type HidCommandKey = keyof typeof HidCommand;
 export type MediaControlCommandKey = keyof typeof MediaControlCommand;

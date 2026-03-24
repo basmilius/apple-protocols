@@ -1,50 +1,13 @@
 import { randomInt } from 'node:crypto';
 import { Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
-import { OPack, Plist } from '@basmilius/apple-encoding';
+import { Plist } from '@basmilius/apple-encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
-import { FrameType, MessageType } from './frame';
+import { FrameType } from './frame';
+import * as Message from './messages';
 import { Pairing, Verify } from './pairing';
 import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';
 import { convertAttentionState } from './utils';
 import Stream from './stream';
-
-const UID = (n: number) => ({'CF$UID': n});
-
-function buildRtiClearPayload(sessionUUID: Buffer): ArrayBuffer {
-    return Plist.serialize({
-        '$version': 100000,
-        '$archiver': 'RTIKeyedArchiver',
-        '$top': {textOperations: UID(1)},
-        '$objects': [
-            '$null',
-            {'$class': UID(7), targetSessionUUID: UID(5), keyboardOutput: UID(2), textToAssert: UID(4)},
-            {'$class': UID(3)},
-            {'$classname': 'TIKeyboardOutput', '$classes': ['TIKeyboardOutput', 'NSObject']},
-            '',
-            {'NS.uuidbytes': sessionUUID.buffer.slice(sessionUUID.byteOffset, sessionUUID.byteOffset + sessionUUID.byteLength) as ArrayBuffer, '$class': UID(6)},
-            {'$classname': 'NSUUID', '$classes': ['NSUUID', 'NSObject']},
-            {'$classname': 'RTITextOperations', '$classes': ['RTITextOperations', 'NSObject']}
-        ]
-    } as any) as ArrayBuffer;
-}
-
-function buildRtiInputPayload(sessionUUID: Buffer, text: string): ArrayBuffer {
-    return Plist.serialize({
-        '$version': 100000,
-        '$archiver': 'RTIKeyedArchiver',
-        '$top': {textOperations: UID(1)},
-        '$objects': [
-            '$null',
-            {keyboardOutput: UID(2), '$class': UID(7), targetSessionUUID: UID(5)},
-            {insertionText: UID(3), '$class': UID(4)},
-            text,
-            {'$classname': 'TIKeyboardOutput', '$classes': ['TIKeyboardOutput', 'NSObject']},
-            {'NS.uuidbytes': sessionUUID.buffer.slice(sessionUUID.byteOffset, sessionUUID.byteOffset + sessionUUID.byteLength) as ArrayBuffer, '$class': UID(6)},
-            {'$classname': 'NSUUID', '$classes': ['NSUUID', 'NSObject']},
-            {'$classname': 'RTITextOperations', '$classes': ['RTITextOperations', 'NSObject']}
-        ]
-    } as any) as ArrayBuffer;
-}
 
 export default class Protocol {
     get context(): Context {
@@ -74,6 +37,7 @@ export default class Protocol {
     readonly #verify: Verify;
     #sessionId: bigint = 0n;
     #sessionIdLocal: number = 0;
+    #sourceVersion: number = 0;
 
     constructor(discoveryResult: DiscoveryResult) {
         this.#context = new Context(discoveryResult.id);
@@ -82,6 +46,8 @@ export default class Protocol {
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
     }
+
+    // --- Lifecycle ---
 
     async connect(): Promise<void> {
         await this.#stream.connect();
@@ -119,126 +85,73 @@ export default class Protocol {
         }
     }
 
-    async fetchMediaControlStatus(): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchMediaControlStatus',
-            _t: MessageType.Request,
-            _c: {}
-        });
+    noOp(): void {
+        this.#context.logger.debug('Sending no-op operation.');
+        this.#stream.send(FrameType.NoOp, Buffer.allocUnsafe(0));
     }
 
-    async fetchNowPlayingInfo(): Promise<any> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchCurrentNowPlayingInfoEvent',
-            _t: MessageType.Request,
-            _c: {}
-        });
+    // --- System & Session ---
 
-        return payload;
+    get sourceVersion(): number {
+        return this.#sourceVersion;
     }
 
-    async fetchSupportedActions(): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchSupportedActionsEvent',
-            _t: MessageType.Request,
-            _c: {}
-        });
+    get supportsMediaControl(): boolean {
+        return this.#sourceVersion >= 250.3;
     }
 
-    async getAttentionState(): Promise<AttentionState> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchAttentionState',
-            _t: MessageType.Request,
-            _c: {}
-        });
-
-        const {_c} = objectOrFail<AttentionStateResponse>(payload);
-
-        return convertAttentionState(_c.state);
+    get supportsTextInput(): boolean {
+        return this.#sourceVersion >= 340.15;
     }
 
-    async getLaunchableApps(): Promise<LaunchableApp[]> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchLaunchableApplicationsEvent',
-            _t: MessageType.Request,
-            _c: {}
-        });
-
-        const {_c} = objectOrFail<LaunchableAppsResponse>(payload);
-
-        return Object.entries(_c).map(([bundleId, name]) => ({
-            bundleId,
-            name
-        }));
+    get supportsSiriPTT(): boolean {
+        return this.#sourceVersion >= 600.20;
     }
 
-    async getSiriRemoteInfo(): Promise<any> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchSiriRemoteInfo',
-            _t: MessageType.Request,
-            _c: {}
-        });
+    async systemInfo(pairingId: Buffer): Promise<object> {
+        const [, payload] = await this.#exchange(Message.systemInfo(pairingId));
+        const result = objectOrFail<any>(payload);
 
-        return Plist.parse(Buffer.from(payload['_c']['SiriRemoteInfoKey']).buffer);
+        const sv = result?._c?._sv;
+        if (sv) {
+            this.#sourceVersion = parseFloat(String(sv));
+            this.#context.logger.info('[companion-link]', `Receiver sourceVersion: ${sv} (mediaControl=${this.supportsMediaControl}, textInput=${this.supportsTextInput}, siriPTT=${this.supportsSiriPTT})`);
+        }
+
+        return result;
     }
 
-    async getUserAccounts(): Promise<UserAccount[]> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'FetchUserAccountsEvent',
-            _t: MessageType.Request,
-            _c: {}
-        });
+    async sessionStart(): Promise<object> {
+        const localSid = randomInt(0, 2 ** 32 - 1);
+        const [, payload] = await this.#exchange(Message.sessionStart(localSid));
 
-        const {_c} = objectOrFail<UserAccountsResponse>(payload);
+        const result = objectOrFail<any>(payload);
+        const remoteSid = Number(result?._c?._sid ?? 0);
+        this.#sessionIdLocal = localSid;
+        this.#sessionId = (BigInt(remoteSid) << 32n) | BigInt(localSid);
 
-        return Object.entries(_c).map(([accountId, name]) => ({
-            accountId,
-            name
-        }));
+        return result;
     }
+
+    async sessionStop(): Promise<void> {
+        if (this.#sessionId === 0n) {
+            return;
+        }
+
+        await this.#exchange(Message.sessionStop(this.#sessionIdLocal));
+        this.#sessionId = 0n;
+        this.#sessionIdLocal = 0;
+    }
+
+    async tvrcSessionStart(): Promise<object> {
+        const [, payload] = await this.#exchange(Message.tvrcSessionStart());
+        return objectOrFail(payload);
+    }
+
+    // --- HID ---
 
     async hidCommand(command: HidCommandKey, down = false): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_hidC',
-            _t: MessageType.Request,
-            _c: {
-                _hBtS: down ? 1 : 2,
-                _hidC: HidCommand[command]
-            }
-        });
-    }
-
-    async launchApp(bundleId: string): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_launchApp',
-            _t: MessageType.Request,
-            _c: {
-                _bundleID: bundleId
-            }
-        });
-    }
-
-    async launchUrl(url: string): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_launchApp',
-            _t: MessageType.Request,
-            _c: {
-                _urlS: url
-            }
-        });
-    }
-
-    async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_mcc',
-            _t: MessageType.Request,
-            _c: {
-                _mcc: MediaControlCommand[command],
-                ...(content || {})
-            }
-        });
-
-        return objectOrFail(payload);
+        await this.#exchange(Message.hidCommand(HidCommand[command], down));
     }
 
     async pressButton(command: HidCommandKey, type: ButtonPressType = 'SingleTap', holdDelayMs = 500): Promise<void> {
@@ -246,7 +159,6 @@ export default class Protocol {
             case 'DoubleTap':
                 await this.hidCommand(command, true);
                 await this.hidCommand(command, false);
-
                 await this.hidCommand(command, true);
                 await this.hidCommand(command, false);
                 break;
@@ -264,175 +176,33 @@ export default class Protocol {
         }
     }
 
-    async switchUserAccount(accountId: string): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'SwitchUserAccountEvent',
-            _t: MessageType.Request,
-            _c: {
-                SwitchAccountID: accountId
-            }
-        });
-    }
+    // --- Touch ---
 
-    async subscribe(event: string, fn: (data: unknown) => void): Promise<void> {
-        this.#stream.on(event, fn);
-
-        this.#stream.sendOPack(FrameType.OPackEncrypted, {
-            _i: '_interest',
-            _t: MessageType.Event,
-            _c: {
-                _regEvents: [event]
-            }
-        });
-    }
-
-    async unsubscribe(event: string, fn?: (data: unknown) => void): Promise<void> {
-        if (!this.#stream.isConnected) {
-            return;
-        }
-
-        if (fn) {
-            this.#stream.off(event, fn);
-        }
-
-        this.#stream.sendOPack(FrameType.OPackEncrypted, {
-            _i: '_interest',
-            _t: MessageType.Event,
-            _c: {
-                _deregEvents: [event]
-            }
-        });
-    }
-
-    registerInterests(events: string[]): void {
-        this.#stream.sendOPack(FrameType.OPackEncrypted, {
-            _i: '_interest',
-            _t: MessageType.Event,
-            _c: {
-                _regEvents: events
-            }
-        });
-    }
-
-    deregisterInterests(events: string[]): void {
-        if (!this.#stream.isConnected) {
-            return;
-        }
-
-        this.#stream.sendOPack(FrameType.OPackEncrypted, {
-            _i: '_interest',
-            _t: MessageType.Event,
-            _c: {
-                _deregEvents: events
-            }
-        });
-    }
-
-    async sessionStart(): Promise<object> {
-        const localSid = randomInt(0, 2 ** 32 - 1);
-
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_sessionStart',
-            _t: MessageType.Request,
-            _btHP: false,
-            _c: {
-                _srvT: 'com.apple.tvremoteservices',
-                _sid: localSid,
-                _btHP: false
-            }
-        });
-
-        const result = objectOrFail<any>(payload);
-        const remoteSid = Number(result?._c?._sid ?? 0);
-        this.#sessionIdLocal = localSid;
-        this.#sessionId = (BigInt(remoteSid) << 32n) | BigInt(localSid);
-
-        return result;
-    }
-
-    async sessionStop(): Promise<void> {
-        if (this.#sessionId === 0n) {
-            return;
-        }
-
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_sessionStop',
-            _t: MessageType.Request,
-            _c: {
-                _srvT: 'com.apple.tvremoteservices',
-                _sid: this.#sessionIdLocal
-            }
-        });
-
-        this.#sessionId = 0n;
-        this.#sessionIdLocal = 0;
-    }
-
-    async systemInfo(pairingId: Buffer): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_systemInfo',
-            _t: MessageType.Request,
-            _btHP: false,
-            _c: {
-                _bf: 0,
-                _cf: 512,
-                _clFl: 128,
-                _i: 'b561af32aea6',
-                _idsID: pairingId.toString(),
-                _pubID: 'DA:6D:1E:D8:A0:4F',
-                _sf: 1099511628032,
-                _sv: '715.2',
-                model: 'iPhone16,2',
-                name: 'AP Companion Link',
-                _lP: 50402,
-                _dC: '1',
-                _stA: [
-                    'com.apple.sharingd.AirDrop',
-                    'SymptomNetworkDiagnostics',
-                    'com.apple.photosface.network-service',
-                    'com.apple.ApplicationService.chrono',
-                    'com.apple.DDUI-Picker',
-                    'com.apple.biomesyncd.cascade.rapport',
-                    'com.apple.SeymourSession',
-                    'com.apple.workflow.remotewidgets',
-                    'com.apple.ApplicationService.chrono',
-                    'SCD.MessageCenter.remoteIntelligence',
-                    'DeviceSharingDaemonApplicationService',
-                    'com.apple.biomesyncd.rapport',
-                    'com.apple.devicediscoveryui.rapportwake',
-                    'com.apple.healthd.rapport',
-                    'com.apple.dropin.setup',
-                    'com.apple.coreduet.sync',
-                    'com.apple.siri.wakeup',
-                    'com.apple.wifivelocityd.rapportWake',
-                    'com.apple.Seymour',
-                    'CPSRemoteLLM',
-                    'com.apple.networkrelay.on-demand-setup',
-                    'com.apple.home.messaging',
-                    'com.apple.accessibility.axremoted.rapportWake',
-                    'com.apple.continuitycapture.sideband',
-                    'com.apple.announce',
-                    'com.apple.coreidv.coreidvd.handoff'
-                ]
-            }
-        });
-
+    async touchStart(): Promise<object> {
+        const [, payload] = await this.#exchange(Message.touchStart());
         return objectOrFail(payload);
     }
+
+    async touchStop(): Promise<void> {
+        await this.#exchange(Message.touchStop());
+    }
+
+    async sendTouchEvent(finger: number, phase: number, x: number, y: number): Promise<void> {
+        await this.#exchange(Message.touchEvent(finger, phase, x, y));
+    }
+
+    // --- Text Input ---
 
     async tiStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_tiStart',
-            _t: MessageType.Request,
-            _btHP: false,
-            _c: {}
-        });
-
+        const [, payload] = await this.#exchange(Message.tiStart());
         return objectOrFail(payload);
+    }
+
+    async tiStop(): Promise<void> {
+        await this.#exchange(Message.tiStop());
     }
 
     async textInputCommand(text: string, clearPreviousInput: boolean): Promise<string | null> {
-        // Restart the text input session to get fresh sessionUUID (like pyatv).
         await this.tiStop();
         const response = await this.tiStart();
 
@@ -441,7 +211,6 @@ export default class Protocol {
             return null;
         }
 
-        // Parse sessionUUID from NSKeyedArchiver binary plist.
         const archive = Plist.parse(Buffer.from(tiD).buffer as ArrayBuffer) as any;
         const objects = archive?.['$objects'];
         const top = archive?.['$top'];
@@ -449,7 +218,6 @@ export default class Protocol {
             return null;
         }
 
-        // The $top contains sessionUUID as a UID reference into $objects.
         const ref = top.sessionUUID;
         const refIndex = typeof ref === 'object' && ref !== null ? ref['CF$UID'] : ref;
         const sessionUUID = objects[refIndex];
@@ -461,81 +229,171 @@ export default class Protocol {
         const sessionBytes = Buffer.from(
             sessionUUID instanceof ArrayBuffer ? sessionUUID
                 : sessionUUID instanceof Uint8Array ? sessionUUID
-                : sessionUUID.buffer ?? sessionUUID
+                    : sessionUUID.buffer ?? sessionUUID
         );
 
         if (clearPreviousInput) {
-            this.#sendTextEvent(buildRtiClearPayload(sessionBytes));
+            this.#sendEvent(Message.tiChange(Buffer.from(Message.buildRtiClearPayload(sessionBytes))));
         }
 
         if (text) {
-            this.#sendTextEvent(buildRtiInputPayload(sessionBytes, text));
+            this.#sendEvent(Message.tiChange(Buffer.from(Message.buildRtiInputPayload(sessionBytes, text))));
         }
 
         return text;
     }
 
-    async tiStop(): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_tiStop',
-            _t: MessageType.Request,
-            _btHP: false,
-            _c: {}
-        });
-    }
+    // --- Media Control ---
 
-    #sendTextEvent(tiD: ArrayBuffer): void {
-        this.#stream.sendOPack(FrameType.OPackEncrypted, {
-            _i: '_tiC',
-            _t: MessageType.Event,
-            _c: {
-                _tiV: 1,
-                _tiD: Buffer.from(tiD)
-            }
-        });
-    }
-
-    async touchStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_touchStart',
-            _t: MessageType.Request,
-            _btHP: false,
-            _c: {
-                _height: OPack.float(1000.0),
-                _tFl: 0,
-                _width: OPack.float(1000.0)
-            }
-        });
-
+    async mediaControlCommand(command: MediaControlCommandKey, content?: Record<string, unknown>): Promise<object> {
+        const [, payload] = await this.#exchange(Message.mediaControlCommand(MediaControlCommand[command], content));
         return objectOrFail(payload);
     }
 
-    async touchStop(): Promise<void> {
-        await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: '_touchStop',
-            _t: MessageType.Request,
-            _c: {
-                _i: 1
-            }
-        });
+    // --- App Launch ---
+
+    async launchApp(bundleId: string): Promise<void> {
+        await this.#exchange(Message.launchApp(bundleId));
     }
 
-    async tvrcSessionStart(): Promise<object> {
-        const [, payload] = await this.#stream.exchange(FrameType.OPackEncrypted, {
-            _i: 'TVRCSessionStart',
-            _t: MessageType.Request,
-            _btHP: false,
-            _inUseProc: 'tvremoted',
-            _c: {}
-        });
-
-        return objectOrFail(payload);
+    async launchUrl(url: string): Promise<void> {
+        await this.#exchange(Message.launchUrl(url));
     }
 
-    noOp(): void {
-        this.#context.logger.debug('Sending no-op operation.');
+    // --- Fetchers ---
 
-        this.#stream.send(FrameType.NoOp, Buffer.allocUnsafe(0));
+    async fetchMediaControlStatus(): Promise<void> {
+        await this.#exchange(Message.fetchMediaControlStatus());
+    }
+
+    async fetchNowPlayingInfo(): Promise<any> {
+        const [, payload] = await this.#exchange(Message.fetchNowPlayingInfo());
+        return payload;
+    }
+
+    async fetchSupportedActions(): Promise<void> {
+        await this.#exchange(Message.fetchSupportedActions());
+    }
+
+    async getAttentionState(): Promise<AttentionState> {
+        const [, payload] = await this.#exchange(Message.fetchAttentionState());
+        const { _c } = objectOrFail<{ _c: { state: number } }>(payload);
+        return convertAttentionState(_c.state);
+    }
+
+    async getLaunchableApps(): Promise<LaunchableApp[]> {
+        const [, payload] = await this.#exchange(Message.fetchLaunchableApps());
+        const { _c } = objectOrFail<{ _c: Record<string, string> }>(payload);
+        return Object.entries(_c).map(([bundleId, name]) => ({ bundleId, name }));
+    }
+
+    async getSiriRemoteInfo(): Promise<any> {
+        const [, payload] = await this.#exchange(Message.fetchSiriRemoteInfo());
+        return Plist.parse(Buffer.from((payload as any)['_c']['SiriRemoteInfoKey']).buffer);
+    }
+
+    async getUserAccounts(): Promise<UserAccount[]> {
+        const [, payload] = await this.#exchange(Message.fetchUserAccounts());
+        const { _c } = objectOrFail<{ _c: Record<string, string> }>(payload);
+        return Object.entries(_c).map(([accountId, name]) => ({ accountId, name }));
+    }
+
+    // --- Account ---
+
+    async switchUserAccount(accountId: string): Promise<void> {
+        await this.#exchange(Message.switchUserAccount(accountId));
+    }
+
+    // --- Interests ---
+
+    subscribe(event: string, fn: (data: unknown) => void): void {
+        this.#stream.on(event, fn);
+        this.#sendEvent(Message.registerInterests([event]));
+    }
+
+    unsubscribe(event: string, fn?: (data: unknown) => void): void {
+        if (!this.#stream.isConnected) {
+            return;
+        }
+
+        if (fn) {
+            this.#stream.off(event, fn);
+        }
+
+        this.#sendEvent(Message.deregisterInterests([event]));
+    }
+
+    registerInterests(events: string[]): void {
+        this.#sendEvent(Message.registerInterests(events));
+    }
+
+    deregisterInterests(events: string[]): void {
+        if (!this.#stream.isConnected) {
+            return;
+        }
+
+        this.#sendEvent(Message.deregisterInterests(events));
+    }
+
+    // --- System Controls (nieuw) ---
+
+    async toggleCaptions(): Promise<void> {
+        await this.#exchange(Message.toggleCaptions());
+    }
+
+    async toggleSystemAppearance(light: boolean): Promise<void> {
+        await this.#exchange(Message.toggleSystemAppearance(light));
+    }
+
+    async toggleReduceLoudSounds(enabled: boolean): Promise<void> {
+        await this.#exchange(Message.toggleReduceLoudSounds(enabled));
+    }
+
+    async toggleFindingMode(enabled: boolean): Promise<void> {
+        await this.#exchange(Message.toggleFindingMode(enabled));
+    }
+
+    // --- Up Next (nieuw) ---
+
+    async fetchUpNext(paginationToken?: string): Promise<any> {
+        const [, payload] = await this.#exchange(Message.fetchUpNext(paginationToken));
+        return payload;
+    }
+
+    async addToUpNext(identifier: string, kind: string): Promise<void> {
+        await this.#exchange(Message.addToUpNext(identifier, kind));
+    }
+
+    async removeFromUpNext(identifier: string, kind: string): Promise<void> {
+        await this.#exchange(Message.removeFromUpNext(identifier, kind));
+    }
+
+    async markAsWatched(identifier: string, kind: string): Promise<void> {
+        await this.#exchange(Message.markAsWatched(identifier, kind));
+    }
+
+    async playMedia(item: Record<string, unknown>): Promise<void> {
+        await this.#exchange(Message.playMedia(item));
+    }
+
+    // --- Siri (nieuw) ---
+
+    async siriStart(): Promise<void> {
+        await this.#exchange(Message.siriStart());
+    }
+
+    async siriStop(): Promise<void> {
+        await this.#exchange(Message.siriStop());
+    }
+
+    // --- Internals ---
+
+    #exchange(message: Record<string, unknown>): Promise<[number, unknown]> {
+        return this.#stream.exchange(FrameType.OPackEncrypted, message);
+    }
+
+    #sendEvent(message: Record<string, unknown>): void {
+        this.#stream.sendOPack(FrameType.OPackEncrypted, message);
     }
 }
 
@@ -546,17 +404,3 @@ function objectOrFail<T = object>(obj: unknown): T {
 
     throw new TypeError('Expected an object.');
 }
-
-type AttentionStateResponse = {
-    readonly _c: {
-        readonly state: number;
-    };
-};
-
-type LaunchableAppsResponse = {
-    readonly _c: Record<string, string>;
-};
-
-type UserAccountsResponse = {
-    readonly _c: Record<string, string>;
-};

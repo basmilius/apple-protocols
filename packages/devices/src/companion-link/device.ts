@@ -1,14 +1,18 @@
 import { EventEmitter } from 'node:events';
-import { CredentialsError, type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult } from '@basmilius/apple-common';
-import { type AttentionState, type ButtonPressType, convertAttentionState, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
-import { Plist } from '@basmilius/apple-encoding';
+import { CredentialsError, type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
+import { type AttentionState, type ButtonPressType, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
 import { PROTOCOL } from './const';
+import CompanionLinkState, { type MediaCapabilities } from './state';
 
 type EventMap = {
     connected: [];
     disconnected: [unexpected: boolean];
-    power: [AttentionState];
-    textInput: [TextInputState];
+    attentionStateChanged: [AttentionState];
+    mediaControlFlagsChanged: [flags: number, capabilities: MediaCapabilities];
+    nowPlayingInfoChanged: [info: Record<string, unknown> | null];
+    supportedActionsChanged: [actions: Record<string, unknown>];
+    textInputChanged: [TextInputState];
+    volumeAvailabilityChanged: [available: boolean];
 };
 
 export default class extends EventEmitter<EventMap> {
@@ -28,58 +32,54 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol?.stream?.isConnected ?? false;
     }
 
+    get state(): CompanionLinkState {
+        return this.#state;
+    }
+
+    get textInputState(): TextInputState {
+        return this.#state.textInputState;
+    }
+
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
     #heartbeatInterval: NodeJS.Timeout | undefined;
     #keys: AccessoryKeys;
     #protocol!: Protocol;
-
-    get textInputState(): TextInputState {
-        return this.#textInputState;
-    }
-
-    #boundOnClose = async () => this.#onClose();
-    #boundOnError = async (err: Error) => this.#onError(err);
-    #boundOnTimeout = async () => this.#onTimeout();
-    #onMediaControl = (data: unknown): void => {
-        this.emit('mediaControl' as any, data);
-    };
-    #textInputState: TextInputState = {isActive: false, documentText: '', isSecure: false, keyboardType: 0, autocorrection: false, autocapitalization: false};
+    #state!: CompanionLinkState;
 
     constructor(discoveryResult: DiscoveryResult) {
         super();
-
         this.#discoveryResult = discoveryResult;
 
-        this.onSystemStatus = this.onSystemStatus.bind(this);
-        this.onTVSystemStatus = this.onTVSystemStatus.bind(this);
+        this.onClose = this.onClose.bind(this);
+        this.onError = this.onError.bind(this);
+        this.onTimeout = this.onTimeout.bind(this);
     }
+
+    // --- Lifecycle ---
 
     async connect(): Promise<void> {
         if (!this.#credentials) {
             throw new CredentialsError('Credentials are required to connect to a Companion Link device.');
         }
 
-        // Remove listeners from old protocol before creating a new one.
-        // Prevents stale close events from being treated as unexpected disconnects.
         if (this.#protocol) {
-            this.#protocol.stream.off('close', this.#boundOnClose);
-            this.#protocol.stream.off('error', this.#boundOnError);
-            this.#protocol.stream.off('timeout', this.#boundOnTimeout);
+            this.#protocol.stream.off('close', this.onClose);
+            this.#protocol.stream.off('error', this.onError);
+            this.#protocol.stream.off('timeout', this.onTimeout);
         }
 
         this.#disconnect = false;
         this.#protocol = new Protocol(this.#discoveryResult);
-        this.#protocol.stream.on('close', this.#boundOnClose);
-        this.#protocol.stream.on('error', this.#boundOnError);
-        this.#protocol.stream.on('timeout', this.#boundOnTimeout);
+        this.#protocol.stream.on('close', this.onClose);
+        this.#protocol.stream.on('error', this.onError);
+        this.#protocol.stream.on('timeout', this.onTimeout);
 
         await this.#protocol.connect();
         this.#keys = await this.#protocol.verify.start(this.#credentials);
 
         await this.#setup();
-
         this.emit('connected');
     }
 
@@ -91,20 +91,21 @@ export default class extends EventEmitter<EventMap> {
             this.#heartbeatInterval = undefined;
         }
 
-        await this.#unsubscribe();
+        this.#state?.unsubscribe();
         await this.#protocol.disconnect();
     }
 
     async disconnectSafely(): Promise<void> {
         try {
             await this.disconnect();
-        } catch (_) {
-        }
+        } catch {}
     }
 
     async setCredentials(credentials: AccessoryCredentials): Promise<void> {
         this.#credentials = credentials;
     }
+
+    // --- Fetchers ---
 
     async getAttentionState(): Promise<AttentionState> {
         return await this.#protocol.getAttentionState();
@@ -118,6 +119,20 @@ export default class extends EventEmitter<EventMap> {
         return await this.#protocol.getUserAccounts();
     }
 
+    async fetchNowPlayingInfo(): Promise<any> {
+        return await this.#protocol.fetchNowPlayingInfo();
+    }
+
+    async fetchSupportedActions(): Promise<any> {
+        return await this.#protocol.fetchSupportedActions();
+    }
+
+    async fetchMediaControlStatus(): Promise<any> {
+        return await this.#protocol.fetchMediaControlStatus();
+    }
+
+    // --- Commands ---
+
     async launchApp(bundleId: string): Promise<void> {
         await this.#protocol.launchApp(bundleId);
     }
@@ -126,7 +141,7 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.launchUrl(url);
     }
 
-    async mediaControlCommand(command: MediaControlCommandKey, content?: object): Promise<void> {
+    async mediaControlCommand(command: MediaControlCommandKey, content?: Record<string, unknown>): Promise<void> {
         await this.#protocol.mediaControlCommand(command, content);
     }
 
@@ -137,6 +152,8 @@ export default class extends EventEmitter<EventMap> {
     async switchUserAccount(accountId: string): Promise<void> {
         await this.#protocol.switchUserAccount(accountId);
     }
+
+    // --- Text Input ---
 
     async textSet(text: string): Promise<void> {
         await this.#protocol.textInputCommand(text, true);
@@ -150,34 +167,90 @@ export default class extends EventEmitter<EventMap> {
         await this.#protocol.textInputCommand('', true);
     }
 
-    async #heartbeat(): Promise<void> {
-        try {
-            this.#protocol.noOp();
-        } catch (err) {
-            this.#protocol.context.logger.error('Heartbeat error', err);
+    // --- Touch ---
+
+    async sendTouchEvent(finger: number, phase: number, x: number, y: number): Promise<void> {
+        await this.#protocol.sendTouchEvent(finger, phase, x, y);
+    }
+
+    async tap(x: number = 500, y: number = 500): Promise<void> {
+        await this.sendTouchEvent(0, 0, x, y);
+        await waitFor(50);
+        await this.sendTouchEvent(0, 2, x, y);
+    }
+
+    async swipe(direction: 'up' | 'down' | 'left' | 'right', duration: number = 200): Promise<void> {
+        const coords: Record<string, [number, number, number, number]> = {
+            up: [500, 700, 500, 300],
+            down: [500, 300, 500, 700],
+            left: [700, 500, 300, 500],
+            right: [300, 500, 700, 500]
+        };
+
+        const [startX, startY, endX, endY] = coords[direction];
+        const steps = Math.max(4, Math.floor(duration / 50));
+        const deltaX = (endX - startX) / steps;
+        const deltaY = (endY - startY) / steps;
+        const stepDuration = duration / steps;
+
+        await this.sendTouchEvent(0, 0, startX, startY);
+
+        for (let i = 1; i < steps; i++) {
+            await waitFor(stepDuration);
+            await this.sendTouchEvent(0, 1, Math.round(startX + deltaX * i), Math.round(startY + deltaY * i));
         }
+
+        await waitFor(stepDuration);
+        await this.sendTouchEvent(0, 2, endX, endY);
     }
 
-    async #onClose(): Promise<void> {
-        this.#protocol.context.logger.net('#onClose() called on companion link device.');
+    // --- System Controls ---
 
-        if (!this.#disconnect) {
-            await this.disconnectSafely();
-            this.emit('disconnected', true);
-        } else {
-            this.emit('disconnected', false);
-        }
+    async toggleCaptions(): Promise<void> {
+        await this.#protocol.toggleCaptions();
     }
 
-    async #onError(err: Error): Promise<void> {
-        this.#protocol.context.logger.error('Companion Link error', err);
+    async toggleSystemAppearance(light: boolean): Promise<void> {
+        await this.#protocol.toggleSystemAppearance(light);
     }
 
-    async #onTimeout(): Promise<void> {
-        this.#protocol.context.logger.error('Companion Link timeout');
-
-        await this.#protocol.stream.destroy();
+    async toggleReduceLoudSounds(enabled: boolean): Promise<void> {
+        await this.#protocol.toggleReduceLoudSounds(enabled);
     }
+
+    async toggleFindingMode(enabled: boolean): Promise<void> {
+        await this.#protocol.toggleFindingMode(enabled);
+    }
+
+    // --- Up Next ---
+
+    async fetchUpNext(paginationToken?: string): Promise<any> {
+        return await this.#protocol.fetchUpNext(paginationToken);
+    }
+
+    async addToUpNext(identifier: string, kind: string): Promise<void> {
+        await this.#protocol.addToUpNext(identifier, kind);
+    }
+
+    async removeFromUpNext(identifier: string, kind: string): Promise<void> {
+        await this.#protocol.removeFromUpNext(identifier, kind);
+    }
+
+    async markAsWatched(identifier: string, kind: string): Promise<void> {
+        await this.#protocol.markAsWatched(identifier, kind);
+    }
+
+    // --- Siri ---
+
+    async siriStart(): Promise<void> {
+        await this.#protocol.siriStart();
+    }
+
+    async siriStop(): Promise<void> {
+        await this.#protocol.siriStop();
+    }
+
+    // --- Internals ---
 
     async #setup(): Promise<void> {
         const keys = this.#keys;
@@ -188,92 +261,54 @@ export default class extends EventEmitter<EventMap> {
         );
 
         try {
-            await this.#protocol.systemInfo(this.#credentials.pairingId);
+            await this.#protocol.systemInfo(this.#credentials!.pairingId);
             await this.#protocol.sessionStart();
             await this.#protocol.tvrcSessionStart();
             await this.#protocol.touchStart();
             await this.#protocol.tiStart();
 
             this.#heartbeatInterval = setInterval(() => {
-                this.#heartbeat().catch(err => {
+                try {
+                    this.#protocol.noOp();
+                } catch (err) {
                     this.#protocol.context.logger.error('Heartbeat failed', err);
-                });
+                }
             }, 15000);
 
-            await this.#subscribe();
+            // Create state and wire up event forwarding.
+            this.#state = new CompanionLinkState(this.#protocol);
+            this.#state.on('attentionStateChanged', (s) => this.emit('attentionStateChanged', s));
+            this.#state.on('mediaControlFlagsChanged', (f, c) => this.emit('mediaControlFlagsChanged', f, c));
+            this.#state.on('nowPlayingInfoChanged', (i) => this.emit('nowPlayingInfoChanged', i));
+            this.#state.on('supportedActionsChanged', (a) => this.emit('supportedActionsChanged', a));
+            this.#state.on('textInputChanged', (s) => this.emit('textInputChanged', s));
+            this.#state.on('volumeAvailabilityChanged', (a) => this.emit('volumeAvailabilityChanged', a));
+            this.#state.subscribe();
+            await this.#state.fetchInitialState();
         } catch (err) {
             clearInterval(this.#heartbeatInterval);
             this.#heartbeatInterval = undefined;
-
             throw err;
         }
     }
 
-    async #subscribe(): Promise<void> {
-        // Register listeners on the stream directly.
-        this.#protocol.stream.on('_iMC', this.#onMediaControl);
-        this.#protocol.stream.on('SystemStatus', this.onSystemStatus);
-        this.#protocol.stream.on('TVSystemStatus', this.onTVSystemStatus);
-        this.#protocol.stream.on('_tiStarted', this.#onTextInputStarted);
-        this.#protocol.stream.on('_tiStopped', this.#onTextInputStopped);
+    onClose(): void {
+        this.#protocol.context.logger.net('onClose() called on companion link device.');
 
-        // Send all interests in a single message (like bunatv).
-        this.#protocol.registerInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
-
-        const state = await this.getAttentionState();
-        this.emit('power', state);
-    }
-
-    async #unsubscribe(): Promise<void> {
-        this.#protocol.stream.off('_iMC', this.#onMediaControl);
-        this.#protocol.stream.off('SystemStatus', this.onSystemStatus);
-        this.#protocol.stream.off('TVSystemStatus', this.onTVSystemStatus);
-        this.#protocol.stream.off('_tiStarted', this.#onTextInputStarted);
-        this.#protocol.stream.off('_tiStopped', this.#onTextInputStopped);
-
-        try {
-            this.#protocol.deregisterInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
-        } catch (_) {
+        if (!this.#disconnect) {
+            this.disconnectSafely();
+            this.emit('disconnected', true);
+        } else {
+            this.emit('disconnected', false);
         }
     }
 
-    #onTextInputStarted = async (data: unknown): Promise<void> => {
-        try {
-            const payload = data as { readonly _tiV?: number; readonly _tiD?: Uint8Array };
-            let documentText = '';
-            let isSecure = false;
-            let keyboardType = 0;
-            let autocorrection = false;
-            let autocapitalization = false;
-
-            if (payload?._tiD) {
-                const plistData = Plist.parse(Buffer.from(payload._tiD).buffer as ArrayBuffer) as Record<string, unknown>;
-                documentText = (plistData._tiDT as string) ?? '';
-                isSecure = (plistData._tiSR as boolean) ?? false;
-                keyboardType = (plistData._tiKT as number) ?? 0;
-                autocorrection = (plistData._tiAC as boolean) ?? false;
-                autocapitalization = (plistData._tiAP as boolean) ?? false;
-            }
-
-            this.#textInputState = {isActive: true, documentText, isSecure, keyboardType, autocorrection, autocapitalization};
-            this.emit('textInput', this.#textInputState);
-        } catch (err) {
-            this.#protocol.context.logger.error('Text input started parse error', err);
-        }
+    onError(err: Error): void {
+        this.#protocol.context.logger.error('Companion Link error', err);
     }
 
-    #onTextInputStopped = async (_data: unknown): Promise<void> => {
-        this.#textInputState = {isActive: false, documentText: '', isSecure: false, keyboardType: 0, autocorrection: false, autocapitalization: false};
-        this.emit('textInput', this.#textInputState);
-    };
-
-    async onSystemStatus(data: { readonly state: number; }): Promise<void> {
-        this.#protocol.context.logger.info('System Status', data);
-        this.emit('power', convertAttentionState(data.state));
-    }
-
-    async onTVSystemStatus(data: { readonly state: number; }): Promise<void> {
-        this.#protocol.context.logger.info('TV System Status', data);
-        this.emit('power', convertAttentionState(data.state));
+    onTimeout(): void {
+        this.#protocol.context.logger.error('Companion Link timeout');
+        this.#protocol.stream.destroy();
     }
 }

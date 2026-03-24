@@ -38,7 +38,7 @@ export default async function (storage: Storage): Promise<void> {
         name: 'device',
         type: 'select',
         message: 'Which HomePod?',
-        choices: homepods.map(d => ({ message: d.fqdn, name: d.id }))
+        choices: homepods.sort((a, b) => a.fqdn.localeCompare(b.fqdn)).map(d => ({ message: d.fqdn, name: d.id }))
     });
 
     const discoveryResult = homepods.find(d => d.id === response.device)!;

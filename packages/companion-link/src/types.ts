@@ -28,3 +28,15 @@ export type UserAccount = {
     readonly accountId: string;
     readonly name: string;
 };
+
+export const TouchPhase = {
+    Began: 0,
+    Moved: 1,
+    Ended: 2,
+    Cancelled: 3,
+    Stationary: 4
+} as const;
+
+export type TouchPhaseValue = typeof TouchPhase[keyof typeof TouchPhase];
+
+export type SwipeDirection = 'up' | 'down' | 'left' | 'right';

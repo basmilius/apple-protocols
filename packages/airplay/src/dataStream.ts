@@ -1,5 +1,5 @@
 import { ConnectionClosedError, type Context, randomInt32, TimeoutError } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
+import { NSKeyedArchiver, Plist } from '@basmilius/apple-encoding';
 import { hkdf } from '@basmilius/apple-encryption';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
@@ -15,61 +15,7 @@ const DATA_HEADER_LENGTH = 32;
 const decodeNSKeyedArchiverArray = (data: Uint8Array): unknown[] => {
     const buf = data;
     const archive = Plist.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer) as any;
-    const objects = archive?.['$objects'];
-
-    if (!objects) {
-        return [];
-    }
-
-    const resolve = (ref: unknown): unknown => {
-        if (ref && typeof ref === 'object' && 'CF$UID' in (ref as any)) {
-            return resolve(objects[(ref as any)['CF$UID']]);
-        }
-
-        if (ref === '$null') {
-            return null;
-        }
-
-        if (ref && typeof ref === 'object') {
-            const obj = ref as Record<string, unknown>;
-
-            // NSArray
-            if (obj['NS.objects'] && Array.isArray(obj['NS.objects'])) {
-                return (obj['NS.objects'] as unknown[]).map(resolve);
-            }
-
-            // NSDictionary
-            if (obj['NS.keys'] && Array.isArray(obj['NS.keys'])) {
-                const keys = (obj['NS.keys'] as unknown[]).map(resolve) as string[];
-                const values = (obj['NS.objects'] as unknown[]).map(resolve);
-                const result: Record<string, unknown> = {};
-
-                for (let i = 0; i < keys.length; i++) {
-                    result[keys[i]] = values[i];
-                }
-
-                return result;
-            }
-
-            // Plain object — resolve all values, skip $class
-            const result: Record<string, unknown> = {};
-
-            for (const [key, value] of Object.entries(obj)) {
-                if (key === '$class' || key === '$classname' || key === '$classes') {
-                    continue;
-                }
-
-                result[key] = resolve(value);
-            }
-
-            return result;
-        }
-
-        return ref;
-    };
-
-    const root = resolve(archive['$top']?.root ?? archive['$top']);
-    return Array.isArray(root) ? root : [root];
+    return NSKeyedArchiver.decodeAsArray(archive);
 };
 
 type EventMap = {
@@ -292,10 +238,6 @@ export default class DataStream extends BaseStream<EventMap> {
                     if (command === 'rply') {
                         this.context.logger.raw('[data]', 'Received reply packet.');
 
-                        // Resolve the oldest outstanding exchange — rply is the
-                        // DataStream-level acknowledgment for our sent message.
-                        // FIFO order is guaranteed because we use TCP (ordered delivery)
-                        // and the Apple TV processes requests sequentially.
                         const first = this.#outstanding.entries().next();
 
                         if (!first.done) {

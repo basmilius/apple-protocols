@@ -10,6 +10,7 @@ import airplayPlayUrl from './airplayPlayUrl';
 import airplayStreamAudio from './airplayStreamAudio';
 import airplayPair from './airplayPair';
 import companionLinkPair from './companionLinkPair';
+import companionLinkRemote from './companionLinkRemote';
 import appleTvAirPlayVerify from './appleTvAirPlayVerify';
 import appleTvCompanionLinkVerify from './appleTvCompanionLinkVerify';
 import appleTvLaunchApp from './appleTvLaunchApp';
@@ -45,19 +46,23 @@ while (true) {
         choices: [
             {message: 'Interactive Apple TV', name: 'interactive-appletv'},
             {message: 'Interactive HomePod', name: 'interactive-homepod'},
-            {message: 'Pair (AirPlay)', name: 'airplay-pair'},
-            {message: 'Pair (Companion Link)', name: 'companion-link-pair'},
-            {message: 'Apple TV Verify (AirPlay)', name: 'appletv-airplay-verify'},
-            {message: 'Apple TV Verify (Companion Link)', name: 'appletv-companion-link-verify'},
-            {message: 'Apple TV Launch App', name: 'appletv-launch-app'},
+            {message: '─────────────────────', name: '_sep', role: 'separator'},
+            {message: 'AirPlay Listen', name: 'airplay-listen'},
+            {message: 'AirPlay Live Stream (sine wave)', name: 'airplay-live-stream'},
             {message: 'AirPlay Monitor', name: 'airplay-monitor'},
+            {message: 'AirPlay Multi-Room', name: 'airplay-multi-room'},
             {message: 'AirPlay Play URL', name: 'airplay-play-url'},
             {message: 'AirPlay Stream Audio', name: 'airplay-stream-audio'},
-            {message: 'AirPlay Live Stream (sine wave)', name: 'airplay-live-stream'},
-            {message: 'AirPlay Multi-Room', name: 'airplay-multi-room'},
-            {message: 'AirPlay Listen', name: 'airplay-listen'},
+            {message: 'Apple TV Launch App', name: 'appletv-launch-app'},
+            {message: 'Companion Link Remote', name: 'companion-link-remote'},
             {message: 'HomePod Play Audio (RAOP)', name: 'homepod-play-audio'},
             {message: 'mDNS Scan', name: 'mdns-scan'},
+            {message: '─────────────────────', name: '_sep2', role: 'separator'},
+            {message: 'Pair (AirPlay)', name: 'airplay-pair'},
+            {message: 'Pair (Companion Link)', name: 'companion-link-pair'},
+            {message: 'Verify (AirPlay)', name: 'appletv-airplay-verify'},
+            {message: 'Verify (Companion Link)', name: 'appletv-companion-link-verify'},
+            {message: '─────────────────────', name: '_sep3', role: 'separator'},
             {message: 'Quit', name: 'quit'}
         ]
     });
@@ -70,6 +75,7 @@ while (true) {
     const skipReturnPrompt = [
         'interactive-appletv',
         'interactive-homepod',
+        'companion-link-remote',
         'airplay-monitor',
         'airplay-listen'
     ].includes(response.feature);
@@ -90,6 +96,10 @@ while (true) {
             case 'airplay-pair':
                 reporter.all();
                 await airplayPair(storage);
+                break;
+
+            case 'companion-link-remote':
+                await companionLinkRemote(storage);
                 break;
 
             case 'companion-link-pair':

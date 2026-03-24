@@ -107,8 +107,8 @@ export default class extends EventEmitter<EventMap> {
         this.#airplay.on('disconnected', unexpected => this.#onDisconnected(unexpected));
         this.#companionLink.on('connected', () => this.#onConnected());
         this.#companionLink.on('disconnected', unexpected => this.#onDisconnected(unexpected));
-        this.#companionLink.on('power', state => this.emit('power', state));
-        this.#companionLink.on('textInput', state => this.emit('textInput', state));
+        this.#companionLink.on('attentionStateChanged', state => this.emit('power', state));
+        this.#companionLink.on('textInputChanged', state => this.emit('textInput', state));
     }
 
     async connect(airplayCredentials: AccessoryCredentials, companionLinkCredentials?: AccessoryCredentials): Promise<void> {

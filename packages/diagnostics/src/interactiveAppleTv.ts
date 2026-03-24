@@ -22,8 +22,10 @@ Available commands:
   apps                             List launchable apps
   launch <bundleId>                Launch app
   users                            List user accounts
-  swipe <up|down|left|right>       Swipe gesture
-  tap                              Tap gesture
+  swipe <up|down|left|right>       Swipe gesture (AirPlay)
+  tap                              Tap gesture (AirPlay)
+  clswipe <up|down|left|right>     Swipe gesture (Companion Link)
+  cltap                            Tap gesture (Companion Link)
   type <text>                      Type text (set)
   append <text>                    Append text
   clear                            Clear text input
@@ -34,6 +36,17 @@ Available commands:
   fetch                            Request playback queue from device
   dump                             Dump raw metadata fields
   clnpi                            Fetch now playing via Companion Link
+  captions                         Toggle captions
+  darkmode                         Toggle dark mode on
+  lightmode                        Toggle light mode on
+  upnext                           Fetch Up Next list
+  siri                             Start Siri (press enter to stop)
+  findremote                       Toggle Find My Remote
+  power                            Power toggle (HID 20)
+  back                             Back (HID 21)
+  skip+ <sec>                      Skip forward via media control
+  skip- <sec>                      Skip backward via media control
+  hidtest <id>                     Test raw HID command by ID
   help                             Show this help
   quit                             Disconnect and exit
 `.trim();
@@ -57,6 +70,7 @@ export default async function (storage: Storage): Promise<void> {
         message: 'Which Apple TV?',
         choices: airplayDevices
             .filter(d => d.txt.model?.startsWith('AppleTV'))
+            .sort((a, b) => a.fqdn.localeCompare(b.fqdn))
             .map(d => ({ message: d.fqdn, name: d.id }))
     });
 
@@ -110,8 +124,21 @@ export default async function (storage: Storage): Promise<void> {
         });
     });
 
-    (device.companionLink as any).on('mediaControl', (data: any) => {
-        log('event', `_iMC: ${JSON.stringify(data)}`);
+    device.companionLink.on('mediaControlFlagsChanged', (flags, capabilities) => {
+        const active = Object.entries(capabilities).filter(([, v]) => v).map(([k]) => k);
+        log('event', `Media control: 0x${flags.toString(16)} [${active.join(', ')}]`);
+    });
+
+    device.companionLink.on('nowPlayingInfoChanged', (info) => {
+        log('event', `CL NowPlaying: ${JSON.stringify(info)}`);
+    });
+
+    device.companionLink.on('supportedActionsChanged', (actions) => {
+        log('event', `CL SupportedActions: ${JSON.stringify(actions)}`);
+    });
+
+    device.companionLink.on('volumeAvailabilityChanged', (available) => {
+        log('event', `CL Volume available: ${available}`);
     });
 
     let lastTitle = '';
@@ -246,7 +273,20 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'tap':
                         await device.remote.tap(200, 200);
-                        log('command', 'Tap');
+                        log('command', 'Tap (AirPlay)');
+                        break;
+                    case 'clswipe':
+                        const clDir = args[0];
+                        if (clDir === 'up' || clDir === 'down' || clDir === 'left' || clDir === 'right') {
+                            await device.companionLink.swipe(clDir);
+                            log('command', `CL Swipe ${clDir}`);
+                        } else {
+                            log('error', 'Usage: clswipe <up|down|left|right>');
+                        }
+                        break;
+                    case 'cltap':
+                        await device.companionLink.tap();
+                        log('command', 'CL Tap');
                         break;
                     case 'type':
                         if (args.length > 0) {
@@ -349,7 +389,7 @@ export default async function (storage: Storage): Promise<void> {
                                 if (val === '' || val === 0 || val === false) { continue; }
                                 if (val instanceof Uint8Array && val.byteLength === 0) { continue; }
                                 if (val == null) { continue; }
-                                const display = val instanceof Uint8Array ? `<${val.byteLength} bytes>` : typeof val === 'bigint' ? val.toString() : JSON.stringify(val);
+                                const display = val instanceof Uint8Array ? `<${val.byteLength} bytes>` : typeof val === 'bigint' ? val.toString() : JSON.stringify(val, (_, v) => typeof v === 'bigint' ? v.toString() : v);
                                 console.log(`  ${key}: ${display}`);
                             }
                         };
@@ -375,11 +415,92 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'clnpi':
                         try {
-                            const npiResult = await (device.companionLink as any)[COMPANION_LINK].fetchNowPlayingInfo();
+                            const npiResult = await device.companionLink.fetchNowPlayingInfo();
                             log('info', 'Companion Link NowPlayingInfo:');
                             console.log(JSON.stringify(npiResult, null, 2));
                         } catch (err) {
                             log('error', `Failed: ${err}`);
+                        }
+                        break;
+                    case 'captions':
+                        await device.companionLink.toggleCaptions();
+                        log('command', 'Captions toggled');
+                        break;
+                    case 'darkmode':
+                        await device.companionLink.toggleSystemAppearance(false);
+                        log('command', 'Dark mode enabled');
+                        break;
+                    case 'lightmode':
+                        await device.companionLink.toggleSystemAppearance(true);
+                        log('command', 'Light mode enabled');
+                        break;
+                    case 'upnext':
+                        try {
+                            const upNext = await device.companionLink.fetchUpNext();
+                            log('info', 'Up Next:');
+                            console.log(JSON.stringify(upNext, null, 2));
+                        } catch (err) {
+                            log('error', `Failed: ${err}`);
+                        }
+                        break;
+                    case 'siri':
+                        try {
+                            await device.companionLink.siriStart();
+                            log('command', 'Siri started (press enter to stop)');
+                            await new Promise<void>(r => readline.question('', () => r()));
+                            await device.companionLink.siriStop();
+                            log('command', 'Siri stopped');
+                        } catch (err) {
+                            log('error', `Siri failed: ${err}`);
+                        }
+                        break;
+                    case 'findremote':
+                        await device.companionLink.toggleFindingMode(true);
+                        log('command', 'Find My Remote toggled');
+                        break;
+                    case 'power':
+                        {
+                            const clProto = (device.companionLink as any)[COMPANION_LINK];
+                            await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: 20 } });
+                            await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: 20 } });
+                        }
+                        log('command', 'Power (HID 20, experimental)');
+                        break;
+                    case 'back':
+                        {
+                            const clProto = (device.companionLink as any)[COMPANION_LINK];
+                            await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: 21 } });
+                            await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: 21 } });
+                        }
+                        log('command', 'Back (HID 21, experimental)');
+                        break;
+                    case 'skip+':
+                        const skipFwd = parseInt(args[0] || '15');
+                        await device.companionLink.mediaControlCommand('SkipBy', { _skpS: skipFwd });
+                        log('command', `Skip forward ${skipFwd}s`);
+                        break;
+                    case 'skip-':
+                        const skipBwd = parseInt(args[0] || '15');
+                        await device.companionLink.mediaControlCommand('SkipBy', { _skpS: -skipBwd });
+                        log('command', `Skip backward ${skipBwd}s`);
+                        break;
+                    case 'hidtest':
+                        if (args[0]) {
+                            const hidId = parseInt(args[0]);
+                            const clProto = (device.companionLink as any)[COMPANION_LINK];
+                            await clProto.stream.exchange(8, {
+                                _i: '_hidC',
+                                _t: 2,
+                                _c: { _hBtS: 1, _hidC: hidId }
+                            });
+                            await clProto.stream.exchange(8, {
+                                _i: '_hidC',
+                                _t: 2,
+                                _c: { _hBtS: 2, _hidC: hidId }
+                            });
+                            log('command', `HID test: ID ${hidId} (press+release)`);
+                        } else {
+                            log('error', 'Usage: hidtest <id>');
                         }
                         break;
                     case 'help': console.log(HELP); break;

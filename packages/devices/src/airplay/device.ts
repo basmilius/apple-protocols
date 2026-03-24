@@ -79,9 +79,6 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
-    readonly #boundOnClose = () => this.#onClose();
-    readonly #boundOnError = (err: Error) => this.#onError(err);
-    readonly #boundOnTimeout = () => this.#onTimeout();
     readonly #remote: Remote;
     readonly #state: State;
     readonly #volume: Volume;
@@ -104,6 +101,10 @@ export default class extends EventEmitter<EventMap> {
         this.#identity = identity;
         this.#remote = new Remote(this);
         this.#state = new State(this);
+
+        this.onClose = this.onClose.bind(this);
+        this.onError = this.onError.bind(this);
+        this.onTimeout = this.onTimeout.bind(this);
         this.#volume = new Volume(this);
     }
 
@@ -111,9 +112,9 @@ export default class extends EventEmitter<EventMap> {
         // Clean up old protocol before creating a new one.
         // Prevents stale close events and resource leaks (open sockets, timers).
         if (this.#protocol) {
-            this.#protocol.controlStream.off('close', this.#boundOnClose);
-            this.#protocol.controlStream.off('error', this.#boundOnError);
-            this.#protocol.controlStream.off('timeout', this.#boundOnTimeout);
+            this.#protocol.controlStream.off('close', this.onClose);
+            this.#protocol.controlStream.off('error', this.onError);
+            this.#protocol.controlStream.off('timeout', this.onTimeout);
 
             try {
                 this.#protocol.disconnect();
@@ -126,9 +127,9 @@ export default class extends EventEmitter<EventMap> {
         this.#state.clear();
 
         this.#protocol = new Protocol(this.#discoveryResult, this.#identity);
-        this.#protocol.controlStream.on('close', this.#boundOnClose);
-        this.#protocol.controlStream.on('error', this.#boundOnError);
-        this.#protocol.controlStream.on('timeout', this.#boundOnTimeout);
+        this.#protocol.controlStream.on('close', this.onClose);
+        this.#protocol.controlStream.on('error', this.onError);
+        this.#protocol.controlStream.on('timeout', this.onTimeout);
 
         await this.#protocol.connect();
         await this.#protocol.fetchInfo();
@@ -274,8 +275,8 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
-    #onClose(): void {
-        this.#protocol.context.logger.net('#onClose() called on airplay device.');
+    onClose(): void {
+        this.#protocol.context.logger.net('onClose() called on airplay device.');
 
         if (!this.#disconnect) {
             this.disconnectSafely();
@@ -285,11 +286,11 @@ export default class extends EventEmitter<EventMap> {
         }
     }
 
-    #onError(err: Error): void {
+    onError(err: Error): void {
         this.#protocol.context.logger.error('AirPlay error', err);
     }
 
-    #onTimeout(): void {
+    onTimeout(): void {
         this.#protocol.context.logger.error('AirPlay timeout');
         this.#protocol.controlStream.destroy();
     }
@@ -310,18 +311,18 @@ export default class extends EventEmitter<EventMap> {
 
         try {
             // Remove listeners from previous streams (prevents accumulation on reconnect).
-            this.#prevDataStream?.off('error', this.#boundOnError);
-            this.#prevDataStream?.off('timeout', this.#boundOnTimeout);
-            this.#prevEventStream?.off('error', this.#boundOnError);
-            this.#prevEventStream?.off('timeout', this.#boundOnTimeout);
+            this.#prevDataStream?.off('error', this.onError);
+            this.#prevDataStream?.off('timeout', this.onTimeout);
+            this.#prevEventStream?.off('error', this.onError);
+            this.#prevEventStream?.off('timeout', this.onTimeout);
 
             await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
             await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
-            this.#protocol.dataStream.on('error', this.#boundOnError);
-            this.#protocol.dataStream.on('timeout', this.#boundOnTimeout);
-            this.#protocol.eventStream.on('error', this.#boundOnError);
-            this.#protocol.eventStream.on('timeout', this.#boundOnTimeout);
+            this.#protocol.dataStream.on('error', this.onError);
+            this.#protocol.dataStream.on('timeout', this.onTimeout);
+            this.#protocol.eventStream.on('error', this.onError);
+            this.#protocol.eventStream.on('timeout', this.onTimeout);
 
             this.#prevDataStream = this.#protocol.dataStream;
             this.#prevEventStream = this.#protocol.eventStream;

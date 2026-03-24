@@ -191,8 +191,10 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
 
         this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
 
-        // Match responses to pending exchanges by _x (like bunatv).
-        if ('_x' in payload) {
+        // Match responses to pending exchanges by _x.
+        // Only match if this is actually a Response (_t: 3), not a server Event (_t: 1)
+        // that happens to share the same _x value.
+        if ('_x' in payload && payload['_t'] === MessageType.Response) {
             const _x = Number(payload['_x']);
 
             if (this.#queue.has(_x)) {

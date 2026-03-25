@@ -31,7 +31,9 @@
         "provenance": false
     },
     "scripts": {
-        "build": "tsgo && bun -b build.ts"
+        "build": "tsgo && bun -b build.ts",
+        "web": "bun run src/webEntry.ts",
+        "web:build": "cd web && bun install && bun run build"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

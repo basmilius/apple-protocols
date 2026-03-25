@@ -4,21 +4,8 @@ import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 
-export const PlaybackStateLabel: Record<number, string> = {
-    [Proto.PlaybackState_Enum.Unknown]: 'Unknown',
-    [Proto.PlaybackState_Enum.Playing]: 'Playing',
-    [Proto.PlaybackState_Enum.Paused]: 'Paused',
-    [Proto.PlaybackState_Enum.Stopped]: 'Stopped',
-    [Proto.PlaybackState_Enum.Interrupted]: 'Interrupted',
-    [Proto.PlaybackState_Enum.Seeking]: 'Seeking'
-};
-
-export const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
+import { PlaybackStateLabel, formatTime } from './util';
+export { PlaybackStateLabel, formatTime };
 
 type ServiceType = 'airplay' | 'companionLink';
 

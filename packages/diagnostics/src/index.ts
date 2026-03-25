@@ -17,6 +17,7 @@ import homePodPlayAudio from './homePodPlayAudio';
 import mdnsScan from './mdnsScan';
 import interactiveAppleTv from './interactiveAppleTv';
 import interactiveHomePod from './interactiveHomePod';
+import { startWebServer } from './web/server';
 
 process.on('SIGINT', () => {
     stopSavingLogs();
@@ -43,6 +44,7 @@ while (true) {
         type: 'select',
         message: 'What would you like to test?',
         choices: [
+            {message: 'Web Diagnostics', name: 'web-diagnostics'},
             {message: 'Interactive Apple TV', name: 'interactive-appletv'},
             {message: 'Interactive HomePod', name: 'interactive-homepod'},
             {message: '─────────────────────', name: '_sep', role: 'separator'},
@@ -71,6 +73,7 @@ while (true) {
     }
 
     const skipReturnPrompt = [
+        'web-diagnostics',
         'interactive-appletv',
         'interactive-homepod',
         'companion-link-remote',
@@ -83,6 +86,21 @@ while (true) {
 
     try {
         switch (response.feature) {
+            case 'web-diagnostics': {
+                reporter.all();
+                const webServer = await startWebServer(storage);
+                const rl = await import('node:readline');
+                const readline = rl.createInterface({input: process.stdin, output: process.stdout});
+                await new Promise<void>(resolve => {
+                    readline.question('Press Enter to stop the web server...\n', async () => {
+                        await webServer.stop();
+                        readline.close();
+                        resolve();
+                    });
+                });
+                break;
+            }
+
             case 'interactive-appletv':
                 await interactiveAppleTv(storage);
                 break;

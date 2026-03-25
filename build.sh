@@ -13,4 +13,5 @@ bun --cwd packages/raop build
 
 bun --cwd packages/devices build
 
+bun --cwd packages/diagnostics web:build
 bun --cwd packages/diagnostics build

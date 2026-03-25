@@ -8,8 +8,17 @@
         "isolatedModules": true,
         "skipLibCheck": true,
         "paths": {
-            "@/*": ["./src/*"]
+            "@/*": [
+                "./src/*"
+            ],
+            "$flux/*": [
+                "../../../node_modules/@flux-ui/components/src/*"
+            ]
         }
     },
-    "include": ["src/**/*.ts", "src/**/*.vue"]
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.vue",
+        "env.d.ts"
+    ]
 }

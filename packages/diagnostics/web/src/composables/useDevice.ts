@@ -1,24 +1,19 @@
 import { ref } from 'vue';
+import { showSnackbar } from '@flux-ui/components';
 import type { DeviceInfo } from './useWebSocket';
 
 export function useDevice() {
     const devices = ref<DeviceInfo[]>([]);
     const discovering = ref(false);
     const connecting = ref(false);
-    const error = ref<string | null>(null);
 
-    let errorTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const setError = (message: string) => {
-        error.value = message;
-
-        if (errorTimer) {
-            clearTimeout(errorTimer);
-        }
-
-        errorTimer = setTimeout(() => {
-            error.value = null;
-        }, 8000);
+    const showError = (message: string) => {
+        showSnackbar({
+            color: 'danger',
+            icon: 'circle-exclamation',
+            message,
+            duration: 5000
+        });
     };
 
     const apiCall = async (url: string, method = 'GET', body?: object): Promise<any> => {
@@ -33,7 +28,7 @@ export function useDevice() {
         const data = await res.json();
 
         if (data.error) {
-            setError(data.error);
+            showError(data.error);
             return null;
         }
 
@@ -47,10 +42,10 @@ export function useDevice() {
             const data = await apiCall('/api/devices');
 
             if (data) {
-                devices.value = data.devices ?? [];
+                devices.value = (data.devices ?? []).sort((a: DeviceInfo, b: DeviceInfo) => a.name.localeCompare(b.name));
             }
-        } catch (err) {
-            setError('Discovery failed: network error');
+        } catch {
+            showError('Discovery failed: network error');
         } finally {
             discovering.value = false;
         }
@@ -61,8 +56,8 @@ export function useDevice() {
 
         try {
             await apiCall(`/api/devices/${encodeURIComponent(deviceId)}/connect`, 'POST');
-        } catch (err) {
-            setError('Connect failed: network error');
+        } catch {
+            showError('Connect failed: network error');
         } finally {
             connecting.value = false;
         }
@@ -71,42 +66,43 @@ export function useDevice() {
     const disconnectDevice = async () => {
         try {
             await apiCall('/api/devices/disconnect', 'POST');
-        } catch (err) {
-            setError('Disconnect failed: network error');
+        } catch {
+            showError('Disconnect failed: network error');
         }
     };
 
-    const sendCommand = async (cmd: string, arg?: string) => {
+    const sendCommand = async (cmd: string, arg?: string): Promise<any> => {
         const path = arg ? `/api/command/${cmd}/${arg}` : `/api/command/${cmd}`;
 
         try {
-            await apiCall(path, 'POST');
-        } catch (err) {
-            setError(`Command failed: ${cmd}`);
+            return await apiCall(path, 'POST');
+        } catch {
+            showError(`Command failed: ${cmd}`);
+            return null;
         }
     };
 
     const startPairing = async (deviceId: string, protocol: 'airplay' | 'companionLink') => {
         try {
             await apiCall(`/api/pair/${encodeURIComponent(deviceId)}/${protocol}`, 'POST');
-        } catch (err) {
-            setError('Pairing failed: network error');
+        } catch {
+            showError('Pairing failed: network error');
         }
     };
 
     const submitPin = async (pin: string) => {
         try {
             await apiCall('/api/pair/pin', 'POST', {pin});
-        } catch (err) {
-            setError('PIN submission failed: network error');
+        } catch {
+            showError('PIN submission failed: network error');
         }
     };
 
     const cancelPairing = async () => {
         try {
             await apiCall('/api/pair/cancel', 'POST');
-        } catch (err) {
-            setError('Cancel pairing failed: network error');
+        } catch {
+            showError('Cancel pairing failed: network error');
         }
     };
 
@@ -115,16 +111,12 @@ export function useDevice() {
 
         try {
             await apiCall('/api/devices/connect-ip', 'POST', {address});
-        } catch (err) {
-            setError('Connect by IP failed: network error');
+        } catch {
+            showError('Connect by IP failed: network error');
         } finally {
             connecting.value = false;
         }
     };
 
-    const dismissError = () => {
-        error.value = null;
-    };
-
-    return {devices, discovering, connecting, error, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing, dismissError};
+    return {devices, discovering, connecting, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing};
 }

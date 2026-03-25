@@ -1,7 +1,43 @@
+<template>
+    <div class="console-container">
+        <div class="console-header">
+            <h3>Console</h3>
+
+            <FluxSecondaryButton
+                icon-leading="trash"
+                label="Clear"
+                size="small"
+                @click="emit('clear')"/>
+        </div>
+
+        <div
+            ref="logContainer"
+            class="console-log"
+            @scroll="onScroll">
+            <div
+                v-for="(entry, index) in logs"
+                :key="index"
+                class="log-entry"
+                :class="categoryClass(entry.category)">
+                <span class="log-time">{{ entry.time }}</span>
+                <span class="log-category">[{{ entry.category }}]</span>
+                <span class="log-message">{{ entry.message }}</span>
+            </div>
+
+            <div
+                v-if="logs.length === 0"
+                class="empty-state">
+                No log entries
+            </div>
+        </div>
+    </div>
+</template>
+
 <script
     setup
     lang="ts">
     import { nextTick, ref, watch } from 'vue';
+    import { FluxSecondaryButton } from '@flux-ui/components';
     import type { LogEntry } from '../composables/useWebSocket';
 
     const props = defineProps<{
@@ -45,37 +81,3 @@
         return `cat-${normalized}`;
     };
 </script>
-
-<template>
-    <div class="console-container">
-        <div class="console-header">
-            <h3>Console</h3>
-            <button
-                class="btn btn-sm"
-                @click="emit('clear')">
-                Clear
-            </button>
-        </div>
-
-        <div
-            ref="logContainer"
-            class="console-log"
-            @scroll="onScroll">
-            <div
-                v-for="(entry, index) in logs"
-                :key="index"
-                class="log-entry"
-                :class="categoryClass(entry.category)">
-                <span class="log-time">{{ entry.time }}</span>
-                <span class="log-category">[{{ entry.category }}]</span>
-                <span class="log-message">{{ entry.message }}</span>
-            </div>
-
-            <div
-                v-if="logs.length === 0"
-                class="empty-state">
-                No log entries
-            </div>
-        </div>
-    </div>
-</template>

@@ -33,6 +33,7 @@
     "scripts": {
         "build": "tsgo && bun -b build.ts",
         "web": "bun run src/webEntry.ts",
+        "web:dev": "bun run src/webEntry.ts & WEB_PID=$! && cd web && bun run dev; kill $WEB_PID 2>/dev/null",
         "web:build": "cd web && bun install && bun run build"
     },
     "main": "./dist/index.js",

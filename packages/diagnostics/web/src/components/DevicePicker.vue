@@ -1,11 +1,99 @@
+<template>
+    <div class="sidebar-section">
+        <div class="section-header">
+            <span
+                class="status-dot"
+                :class="wsConnected ? 'connected' : 'disconnected'"/>
+
+            <h3>Devices</h3>
+
+            <FluxButtonGroup v-if="!connectedDevice">
+                <FluxSecondaryButton
+                    icon-leading="arrows-rotate"
+                    :is-loading="discovering"
+                    @click="emit('discover')"/>
+
+                <FluxSecondaryButton
+                    icon-leading="key"
+                    @click="emit('pair')"/>
+            </FluxButtonGroup>
+        </div>
+
+        <div
+            v-if="connectedDevice"
+            class="section-body"
+            style="display: flex; align-items: center; gap: 12px;">
+            <DeviceIcon :type="connectedDevice.type"/>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 13px; font-weight: 600;">
+                    {{ connectedDevice.name }}
+                </div>
+                <div style="font-size: 11px; color: var(--foreground-secondary);">
+                    {{ connectedDevice.model }} &middot; {{ connectedDevice.address }}
+                </div>
+            </div>
+            <FluxDestructiveButton
+                icon-leading="link-broken"
+                size="small"
+                @click="emit('disconnect')"/>
+        </div>
+
+        <template v-else>
+            <div class="device-list">
+                <button
+                    v-for="device in devices"
+                    :key="device.id"
+                    class="device-item"
+                    :disabled="connecting"
+                    @click="emit('connect', device.id)">
+                    <DeviceIcon :type="device.type"/>
+                    <span class="device-name">{{ device.name }}</span>
+
+                    <span class="device-protocols">
+                        <FluxTag
+                            v-for="proto in device.protocols"
+                            :key="proto"
+                            :label="proto === 'airplay' ? 'AP' : 'CL'"
+                            :color="device.paired.includes(proto) ? 'success' : 'gray'"/>
+                    </span>
+                </button>
+
+                <div
+                    v-if="devices.length === 0 && !discovering"
+                    class="empty-state">
+                    No devices found
+                </div>
+            </div>
+
+            <div class="section-body">
+                <div class="input-group">
+                    <FluxFormInput
+                        v-model="ipInput"
+                        type="text"
+                        placeholder="IP address..."
+                        :disabled="connecting"
+                        is-condensed
+                        @keydown.enter="handleConnectIp"/>
+
+                    <FluxSecondaryButton
+                        label="Connect"
+                        :disabled="!ipInput || connecting"
+                        @click="handleConnectIp"/>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>
+
 <script
     setup
     lang="ts">
     import { onMounted, ref } from 'vue';
+    import { FluxButtonGroup, FluxDestructiveButton, FluxFormInput, FluxSecondaryButton, FluxTag } from '@flux-ui/components';
     import type { DeviceInfo } from '../composables/useWebSocket';
     import DeviceIcon from './DeviceIcon.vue';
 
-    const props = defineProps<{
+    defineProps<{
         devices: DeviceInfo[];
         discovering: boolean;
         connecting: boolean;
@@ -34,96 +122,3 @@
         emit('discover');
     });
 </script>
-
-<template>
-    <div
-        class="sidebar-section"
-        :class="{'has-scroll': !connectedDevice}">
-        <h3>
-            <span
-                class="status-dot"
-                :class="wsConnected ? 'connected' : 'disconnected'"></span>
-            Devices
-        </h3>
-
-        <div
-            v-if="connectedDevice"
-            style="padding: 0 16px 16px;">
-            <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
-                {{ connectedDevice.name }}
-            </div>
-            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
-                {{ connectedDevice.model }} &middot; {{ connectedDevice.address }}
-            </div>
-            <button
-                class="btn btn-danger btn-sm"
-                @click="emit('disconnect')">
-                Disconnect
-            </button>
-        </div>
-
-        <template v-else>
-            <div class="device-list">
-                <button
-                    v-for="device in devices"
-                    :key="device.id"
-                    class="device-item"
-                    :disabled="connecting"
-                    @click="emit('connect', device.id)">
-                    <DeviceIcon :type="device.type"/>
-                    <span class="device-name">{{ device.name }}</span>
-                    <span class="device-protocols">
-                        <span
-                            v-for="proto in device.protocols"
-                            :key="proto"
-                            class="protocol-badge"
-                            :class="{paired: device.paired.includes(proto)}">
-                            {{ proto === 'airplay' ? 'AP' : 'CL' }}
-                        </span>
-                    </span>
-                </button>
-
-                <div
-                    v-if="devices.length === 0 && !discovering"
-                    class="empty-state">
-                    No devices found
-                </div>
-            </div>
-
-            <div class="sidebar-section-footer">
-                <div class="input-group"
-                     style="margin-bottom: 4px;">
-                    <input
-                        v-model="ipInput"
-                        class="text-input"
-                        type="text"
-                        placeholder="IP address..."
-                        :disabled="connecting"
-                        @keydown.enter="handleConnectIp">
-                    <button
-                        class="btn btn-sm"
-                        :disabled="!ipInput || connecting"
-                        @click="handleConnectIp">
-                        Connect
-                    </button>
-                </div>
-
-                <div style="display: flex; gap: 4px;">
-                    <button
-                        class="btn btn-sm"
-                        style="flex: 1;"
-                        :disabled="discovering"
-                        @click="emit('discover')">
-                        {{ discovering ? 'Scanning...' : 'Scan' }}
-                    </button>
-                    <button
-                        class="btn btn-sm"
-                        style="flex: 1;"
-                        @click="emit('pair')">
-                        Pair
-                    </button>
-                </div>
-            </div>
-        </template>
-    </div>
-</template>

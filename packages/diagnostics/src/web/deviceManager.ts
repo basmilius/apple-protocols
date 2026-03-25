@@ -97,6 +97,7 @@ export default class DeviceManager {
 
     #device: AppleTV | HomePod | null = null;
     #deviceInfo: DeviceInfo | null = null;
+    #companionLinkReady = false;
     #airplayDevices: DiscoveryResult[] = [];
     #companionDevices: DiscoveryResult[] = [];
     #pairingResolve: ((pin: string) => void) | null = null;
@@ -110,6 +111,18 @@ export default class DeviceManager {
         return this.#device !== null;
     }
 
+    #detectDeviceType(model: string): DeviceInfo['type'] {
+        if (model.startsWith('AppleTV')) {
+            return 'appletv';
+        } else if (/^AudioAccessory5,/.test(model)) {
+            return 'homepod-mini';
+        } else if (/^AudioAccessory[16],/.test(model)) {
+            return 'homepod';
+        }
+
+        return 'other';
+    }
+
     async discover(): Promise<DeviceInfo[]> {
         const [airplayDevices, companionDevices] = await Promise.all([
             Discovery.airplay().find(false),
@@ -119,21 +132,12 @@ export default class DeviceManager {
         this.#airplayDevices = airplayDevices;
         this.#companionDevices = companionDevices;
 
-        const devices: DeviceInfo[] = [];
+        const devicesMap = new Map<string, DeviceInfo>();
 
         for (const device of airplayDevices) {
             const model = device.txt.model ?? '';
 
-            let type: DeviceInfo['type'];
-            if (model.startsWith('AppleTV')) {
-                type = 'appletv';
-            } else if (/^AudioAccessory5,/.test(model)) {
-                type = 'homepod-mini';
-            } else if (/^AudioAccessory[16],/.test(model)) {
-                type = 'homepod';
-            } else {
-                type = 'other';
-            }
+            const type = this.#detectDeviceType(model);
 
             const hasCompanionLink = companionDevices.some(d =>
                 d.id === device.id ||
@@ -161,18 +165,24 @@ export default class DeviceManager {
                 }
             }
 
-            devices.push({
-                id: device.id,
-                name: device.fqdn,
-                model: model || 'Unknown',
-                address: device.address,
-                type,
-                protocols,
-                paired
-            });
+            const key = device.address;
+            const existing = devicesMap.get(key);
+
+            // Keep the entry with the most info (known model wins over Unknown).
+            if (!existing || (existing.model === 'Unknown' && model)) {
+                devicesMap.set(key, {
+                    id: device.id,
+                    name: device.fqdn,
+                    model: model || 'Unknown',
+                    address: device.address,
+                    type,
+                    protocols,
+                    paired
+                });
+            }
         }
 
-        return devices;
+        return Array.from(devicesMap.values());
     }
 
     async connect(deviceId: string): Promise<void> {
@@ -231,6 +241,7 @@ export default class DeviceManager {
 
         this.#device = null;
         this.#deviceInfo = null;
+        this.#companionLinkReady = false;
         this.#emit('disconnected', null);
     }
 
@@ -385,6 +396,11 @@ export default class DeviceManager {
                 const users = await this.#requireAppleTV().getUserAccounts();
                 return users;
             }
+            case 'switchuser':
+                if (arg) {
+                    await this.#requireAppleTV().switchUserAccount(arg);
+                }
+                break;
             case 'clnpi': {
                 const npi = await this.#requireAppleTV().companionLink.fetchNowPlayingInfo();
                 return npi;
@@ -451,7 +467,7 @@ export default class DeviceManager {
                 connected: isAppleTV ? device.airplay.isConnected : true
             },
             companionLink: isAppleTV ? {
-                connected: (device as AppleTV).companionLink.isConnected
+                connected: this.#companionLinkReady
             } : null,
             nowPlaying: {
                 title: device.title || '',
@@ -580,8 +596,23 @@ export default class DeviceManager {
         this.#device = device;
         this.#setupAppleTVEvents(device);
 
-        await device.connect(airplayCredentials, companionLinkCredentials);
+        // Connect AirPlay first, then Companion Link in the background
+        // so the UI responds immediately after AirPlay is ready.
+        device.airplay.setCredentials(airplayCredentials);
+        await device.airplay.connect();
         this.#emit('connected', this.#deviceInfo);
+
+        // Connect Companion Link in the background.
+        await device.companionLink.setCredentials(companionLinkCredentials);
+        device.companionLink.connect()
+            .then(() => {
+                this.#companionLinkReady = true;
+                this.#emitState();
+            })
+            .catch((err) => {
+                console.error('Companion Link connection failed:', err);
+                this.#emitState();
+            });
     }
 
     async #connectHomePod(airplayResult: DiscoveryResult): Promise<void> {
@@ -592,7 +623,7 @@ export default class DeviceManager {
             name: airplayResult.fqdn,
             model: airplayResult.txt.model ?? 'Unknown',
             address: airplayResult.address,
-            type: 'homepod',
+            type: this.#detectDeviceType(airplayResult.txt.model ?? ''),
             protocols: ['airplay'],
             paired: []
         };

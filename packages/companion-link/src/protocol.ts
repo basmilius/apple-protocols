@@ -119,18 +119,16 @@ export default class Protocol {
 
         this.deregisterInterests(['_iMC', 'SystemStatus', 'TVSystemStatus']);
 
-        try { await this.tiStop(); } catch (err) {
-            this.#context.logger.warn('[companion-link]', 'tiStop failed', err);
-        }
-        try { await this.touchStop(); } catch (err) {
-            this.#context.logger.warn('[companion-link]', 'touchStop failed', err);
-        }
-        try { await this.tvrcSessionStop(); } catch (err) {
-            this.#context.logger.warn('[companion-link]', 'tvrcSessionStop failed', err);
-        }
-        try { await this.sessionStop(); } catch (err) {
-            this.#context.logger.warn('[companion-link]', 'sessionStop failed', err);
-        }
+        try { await this.tiStop(); } catch {}
+        if (!this.#stream.isConnected) return;
+
+        try { await this.touchStop(); } catch {}
+        if (!this.#stream.isConnected) return;
+
+        try { await this.tvrcSessionStop(); } catch {}
+        if (!this.#stream.isConnected) return;
+
+        try { await this.sessionStop(); } catch {}
     }
 
     /**

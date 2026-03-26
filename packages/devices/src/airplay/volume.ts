@@ -1,11 +1,14 @@
 import { DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
-import { CommandError } from '@basmilius/apple-common';
+import { CommandError, waitFor } from '@basmilius/apple-common';
 import { PROTOCOL } from './const';
 import type Device from './device';
 import type State from './state';
 
 /** Volume adjustment step size as a fraction (0.05 = 5%). */
 const VOLUME_STEP = 0.05; // 5%
+
+/** Minimum interval between volume fade steps in milliseconds. */
+const FADE_STEP_INTERVAL = 50;
 
 /**
  * Smart volume controller for an AirPlay device.
@@ -122,5 +125,81 @@ export default class {
         this.#protocol.context.logger.info(`Setting volume to ${volume} for device ${this.#state.outputDeviceUID}`);
 
         await this.#protocol.dataStream.exchange(DataStreamMessage.setVolume(this.#state.outputDeviceUID, volume));
+    }
+
+    /**
+     * Mutes the output device.
+     *
+     * @throws CommandError when no output device is active.
+     */
+    async mute(): Promise<void> {
+        if (!this.#state.outputDeviceUID) {
+            throw new CommandError('No output device active.');
+        }
+
+        await this.#protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(this.#state.outputDeviceUID, true));
+    }
+
+    /**
+     * Unmutes the output device.
+     *
+     * @throws CommandError when no output device is active.
+     */
+    async unmute(): Promise<void> {
+        if (!this.#state.outputDeviceUID) {
+            throw new CommandError('No output device active.');
+        }
+
+        await this.#protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(this.#state.outputDeviceUID, false));
+    }
+
+    /**
+     * Toggles the mute state of the output device.
+     *
+     * @throws CommandError when no output device is active.
+     */
+    async toggleMute(): Promise<void> {
+        if (this.#state.volumeMuted) {
+            await this.unmute();
+        } else {
+            await this.mute();
+        }
+    }
+
+    /**
+     * Smoothly fades the volume to a target level over a given duration.
+     * Uses linear interpolation with absolute volume set calls.
+     *
+     * @param targetVolume - The target volume level (0.0 - 1.0).
+     * @param durationMs - The fade duration in milliseconds.
+     * @throws CommandError when absolute volume control is not available.
+     */
+    async fade(targetVolume: number, durationMs: number): Promise<void> {
+        if (!this.#state.outputDeviceUID) {
+            throw new CommandError('No output device active.');
+        }
+
+        if (![Proto.VolumeCapabilities_Enum.Absolute, Proto.VolumeCapabilities_Enum.Both].includes(this.#state.volumeCapabilities)) {
+            throw new CommandError('Absolute volume control is not available.');
+        }
+
+        targetVolume = Math.min(1, Math.max(0, targetVolume));
+
+        const startVolume = this.#state.volume;
+        const steps = Math.max(1, Math.floor(durationMs / FADE_STEP_INTERVAL));
+        const stepDuration = durationMs / steps;
+        const volumeDelta = (targetVolume - startVolume) / steps;
+
+        for (let i = 1; i <= steps; i++) {
+            const volume = i === steps
+                ? targetVolume
+                : Math.min(1, Math.max(0, startVolume + volumeDelta * i));
+
+            await this.set(volume);
+
+            if (i < steps) {
+                await waitFor(stepDuration);
+            }
+        }
     }
 }

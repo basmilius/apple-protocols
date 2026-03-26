@@ -587,6 +587,53 @@ export function setConversationDetectionEnabled(enabled: boolean, outputDeviceUI
 }
 
 /**
+ * Builds an ADJUST_VOLUME message for relative volume changes.
+ *
+ * Uses the dedicated AdjustVolumeMessage (extension field 97) for incremental
+ * volume adjustments without needing to know the current volume level.
+ *
+ * @param adjustment - The volume adjustment type (e.g. IncrementSmall, DecrementSmall).
+ * @param outputDeviceUID - UID of the target output device.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function adjustVolume(adjustment: Proto.AdjustVolumeMessage_Adjustment, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_COMMAND_MESSAGE);
+    const message = create(Proto.AdjustVolumeMessageSchema, {
+        adjustment,
+        outputDeviceUID
+    });
+
+    setExtension(protocolMessage, Proto.adjustVolumeMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.adjustVolumeMessage
+    ];
+}
+
+/**
+ * Builds an AUDIO_FADE message to trigger a cross-fade between audio sources.
+ *
+ * @param fadeType - The type of audio fade to perform.
+ * @param playerPath - Optional player path to target a specific player.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function audioFade(fadeType: number, playerPath?: Proto.PlayerPath): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.AUDIO_FADE_MESSAGE);
+    const message = create(Proto.AudioFadeMessageSchema, {
+        fadeType,
+        playerPath
+    });
+
+    setExtension(protocolMessage, Proto.audioFadeMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.audioFadeMessage
+    ];
+}
+
+/**
  * Builds a WAKE_DEVICE message to wake a sleeping Apple TV or HomePod.
  *
  * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.

@@ -21,11 +21,11 @@ Onze apple-protocols library is **verrassend compleet** in vergelijking met wat 
 
 Onze implementatie gebruikt exact dezelfde HKDF info strings als Apple:
 
-| Stream | Salt | Read Key Info | Write Key Info | Status |
-|--------|------|---------------|----------------|--------|
-| Control | `Control-Salt` | `Control-Read-Encryption-Key` | `Control-Write-Encryption-Key` | ✅ Match |
-| DataStream | `DataStream-Salt{seed}` | `DataStream-Input-Encryption-Key` | `DataStream-Output-Encryption-Key` | ✅ Match |
-| EventStream | `Events-Salt` | `Events-Read-Encryption-Key` | `Events-Write-Encryption-Key` | ✅ Match (swap bevestigd) |
+| Stream      | Salt                    | Read Key Info                     | Write Key Info                     | Status                   |
+|-------------|-------------------------|-----------------------------------|------------------------------------|--------------------------|
+| Control     | `Control-Salt`          | `Control-Read-Encryption-Key`     | `Control-Write-Encryption-Key`     | ✅ Match                  |
+| DataStream  | `DataStream-Salt{seed}` | `DataStream-Input-Encryption-Key` | `DataStream-Output-Encryption-Key` | ✅ Match                  |
+| EventStream | `Events-Salt`           | `Events-Read-Encryption-Key`      | `Events-Write-Encryption-Key`      | ✅ Match (swap bevestigd) |
 
 Extra HKDF strings gevonden in AirPlaySupport:
 - `Pair-Setup-AES-IV` / `Pair-Setup-AES-Key` — voor M5/M6 exchange
@@ -69,12 +69,12 @@ We ondersteunen momenteel alleen ALAC 44.1/48kHz stereo en AAC-LC stereo. Surrou
 
 Nieuwe transport concepten gevonden:
 
-| Acroniem | Naam | Beschrijving |
-|----------|------|-------------|
-| **APAP** | AirPlay Audio Protocol | Basis audio protocol |
-| **APAT** | AirPlay Audio Transport | Nieuwer transport layer |
-| **APAT_Buffered** | APAT Buffered | Voor media playback (buffered audio) |
-| **APAT_HLA** | APAT High Latency Audio | Voor high-latency scenarios |
+| Acroniem          | Naam                    | Beschrijving                         |
+|-------------------|-------------------------|--------------------------------------|
+| **APAP**          | AirPlay Audio Protocol  | Basis audio protocol                 |
+| **APAT**          | AirPlay Audio Transport | Nieuwer transport layer              |
+| **APAT_Buffered** | APAT Buffered           | Voor media playback (buffered audio) |
+| **APAT_HLA**      | APAT High Latency Audio | Voor high-latency scenarios          |
 
 Gerelateerde engine types:
 - `APAudioEngineBuffered` — Media playback audio engine
@@ -173,11 +173,11 @@ Authenticatie types:
 
 Apple heeft meerdere keep-alive modes:
 
-| Mode | Beschrijving |
-|------|-------------|
-| Normal | Standaard keep-alive op control stream |
-| Low Power | `keepAliveLowPower` — Aparte transport stream |
-| Stats | `keepAliveSendStatsAsBody` — Stats in keep-alive body |
+| Mode      | Beschrijving                                          |
+|-----------|-------------------------------------------------------|
+| Normal    | Standaard keep-alive op control stream                |
+| Low Power | `keepAliveLowPower` — Aparte transport stream         |
+| Stats     | `keepAliveSendStatsAsBody` — Stats in keep-alive body |
 
 Gerelateerde functies:
 - `apsession_ensureKeepAliveStarted`
@@ -277,6 +277,132 @@ Rapport is Apple's device-to-device communicatie framework:
 - Pairing identity sharing
 - Used alongside Companion Link: `RPCompanionLinkClient` referenced in AirPlaySender
 
+## 15. Music.app Analyse
+
+> Bron: `/System/Applications/Music.app/Contents/MacOS/Music` (Mach-O universal binary, arm64e + x86_64)
+> Analyse: `strings`, `nm` — datum: 2026-03-26
+
+Music.app is Apple's eigen AirPlay client (sender). Het gebruikt **geen Companion Link** — puur AirPlay + het MediaRemote framework (`MRMediaRemote*` functies).
+
+### DelegationService Protocol
+
+Een volledig protobuf-gebaseerd protocol voor **Apple Account delegatie** naar AirPlay receivers. Hiermee kan een device (Apple TV/HomePod) direct Apple Music content fetchen via het gedelegeerde account.
+
+**HKDF encryption keys:**
+- Salt: `DelegationService-Salt`
+- Read key: `DelegationService-Read-Encryption-Key`
+- Write key: `DelegationService-Write-Encryption-Key`
+
+**Protobuf types** (uit `Protocols/WHA/DelegationService.pb.cc`):
+- `DelegationService.Message` (wrapper met `Request` / `Response`)
+- `DelegationService.StartDelegationRequest` / `StartDelegationResponse`
+- `DelegationService.FinishDelegationRequest` / `FinishDelegationResponse`
+- `DelegationService.PlayerInfoContextToken`
+- `DelegationService.PlayerDelegateInfoToken`
+- `DelegationService.PlayerInfoContextRequestToken`
+
+**Lifecycle:**
+- `AccountDelegationHandler` — beheert delegation discovery en sessies
+- `AccountDelegationConversation` — individuele delegation sessie met een device
+- Gebruikt FairPlay SAP (`/fp-setup`) voor DRM content autorisatie
+- PIN-everytime security mode niet ondersteund voor AccountDelegation
+
+**Impact:** DelegationService zou het mogelijk maken om Apple Music direct op devices af te spelen via account delegatie. Vereist echter Apple Music account tokens + FairPlay certificaten.
+
+### Lyrics Systeem (TSL = Time-Synced Lyrics)
+
+Music.app heeft een uitgebreid lyrics systeem gebaseerd op **TTML** (Timed Text Markup Language) XML.
+
+**Data hierarchie:**
+```
+TSLLyricsSongInfo
+├── TSLLyricsSongWriter[]          — songwriter metadata
+├── TSLLyricsSection[]             — secties (verse, chorus, etc.)
+│   └── TSLLyricsLine[]            — regels met mStartTime, mEndTime
+│       └── TSLLyricsWord[]        — woorden met individuele timing
+├── TSLLyricsTranslation[]         — vertalingen per taal
+│   └── TSLLyricsTranslationText[] — vertaalde tekst per regel
+└── mTranslationsMap[language]     — taal → vertaling mapping
+```
+
+**Features:**
+- **Word-level timing** — `mStartTime`, `mEndTime` per woord voor karaoke-achtige weergave
+- **Syllable-level animatie** — `SyllableContainer`, `SyllableLayer` voor sub-woord highlighting
+- **Background vocals** — apart concept (`primaryVocalText`, `backgroundVocalText`, `BackgroundVocalsPosition`)
+- **Vertalingen** — per taal met `mTranslationMap[language]`
+- **Vocal attenuation** — `kStoreDAAPSupportsVocalAttenuationCode` (Apple Music Sing)
+- **TTML parsing** — `TSLLyricsSongInfo::CreateFromTTML()`, `TSLLyricsXMLParser.cpp`
+
+**MRP protocol integratie:**
+- `SendLyricsEventMessage` stuurt real-time timing events naar de receiver
+- TTML data wordt aangeleverd via `PlaybackQueueRequestMessage` met lyrics flag
+- `MPModelPropertyLyricsTTML` — MediaPlayer model property
+- Opslag: `/var/mobile/Media/ttml/` (iOS)
+
+**UI klassen:**
+- `LyricsViewController` / `ImmersiveLyricsViewController` — weergave
+- `SyncedLyricsManager` / `SyncedLyricsTimingProvider` — timing synchronisatie
+- `SyncedLyricsLineContentLayer` — per-regel rendering
+- `LyricsPlayActivityEvent` — lyrics activiteit tracking
+
+### BufferedAirPlay
+
+Music.app maakt breed gebruik van `BufferedAirPlay`:
+
+- `BufferedAirPlayOutputDevice` — per-speaker output device wrapper
+- `BufferedAirPlayAddOutputDeviceToContext()` — voegt devices toe aan playback context
+- `BufferedAirPlaySetVolumeAction` — per-device volume instellen in groepen
+- Aparte dispatch queue: `com.apple.iTunes.SpeakerGroupManager.SharedQ`
+
+Dit bevestigt dat **APAT_Buffered** (zie sectie 3) het primaire transport is voor media playback in Music.app.
+
+### Speaker Group Management
+
+Complexe speaker group hiërarchie:
+
+```
+SpeakerGroupManager
+├── ComputerSpeakerGroup    — lokale speakers (kComputerSpeakerGroupID)
+├── RemoteSpeakerGroup      — AirPlay speakers
+│   └── RemoteSpeakerGroupAudioDevice
+└── SpeakerGroupList        — alle groepen
+    └── SpeakerGroupDisplayData
+```
+
+**Belangrijke patronen:**
+- Group leader bescherming: *"Deselection of the group leader device when it is the only device selected is not allowed!"*
+- `ClusterDeviceType` conversie naar preference values
+- `RegisterDeviceIDForClusterID()` — registratie van device-cluster mapping
+- `SpeakerGroupMessageType` — communicatie binnen groepen
+- `SpeakerGroupAudioDeviceConfigInfo` — per-device audio configuratie
+
+### Volume Systeem
+
+Bevestigt de geavanceerde volume features uit sectie 9:
+
+- **Endpoint-level volume:** `MRAVEndpointGetVolume()`, `MRAVEndpointSetVolume()`
+- **Per-output-device volume:** `MRAVEndpointGetOutputDeviceVolume()`, `SetOutputDeviceVolumeLevel()`
+- **Volume capabilities check:** `MRAVEndpointGetVolumeControlCapabilities()`
+- **Volume scrubbing:** `EndScrubbingVolume()` patroon voor geanimeerde volume transities (`VolumeSliderScrubbingInfo`)
+- **Group volume:** `SetDeviceGroupVolumes()`, `FinalizeVolumes()` — coördineert volume over meerdere devices
+
+### Audio
+
+Music.app sender-side beperkingen:
+- Kanalen: `(channelsPerFrame == 1) || (channelsPerFrame == 2)` — alleen mono of stereo
+- Sample rates: 48000, 44100, 22050, 11025, 8000
+- Bit depths: 16, 20, 24, 32
+- Codecs: ALAC (`$alac`), AAC, PCM (`kAudioFormatLinearPCM`)
+- Audio engines: `AudioDeviceAudioEngine` (AirPlay), `BluetoothAudioDeviceAudioEngine` (Bluetooth)
+
+### Overige bevindingen
+
+- **RTSPTimeSyncServer** — eigen NTP-achtige time sync server (vergelijkbaar met onze TimingServer)
+- **PlaybackQueue.pb.cc** — ook in `Protocols/WHA/` directory, bevestigt protobuf voor playback queue
+- **MediaRemote framework** — `MRAVEndpoint*` voor output device management, `MRDelegationUUID` voor account delegation
+- **FairPlay** — `/fp-setup` endpoint voor DRM content autorisatie, niet voor pairing
+- **Digest authentication** — `RTSPClient::VerifyAppleResponseHeader`, `RTSPProtocol::CalculateDigestHashA1` (RFC2617)
+
 ---
 
 ## Aanbevelingen voor apple-protocols
@@ -286,15 +412,15 @@ Rapport is Apple's device-to-device communicatie framework:
 1. **AdjustVolume protobuf** — Relatieve volume wijziging toevoegen
 2. **Low-power keep-alive** — Belangrijk voor Homey (altijd verbonden)
 3. **AAC-ELD support** — Nuttig voor low-latency audio scenarios
-4. **SetListeningMode** / **SetConversationDetection** — HomePod control
-5. **AudioFade messages** — Soepele audio transities
+4. **AudioFade messages** — Soepele audio transities
 
 ### Medium Prioriteit (feature uitbreiding):
 
-6. **Surround sound audio formaten** — 5.1 en 7.1 support
-7. **Dynamic latency management** — Adaptieve latency op basis van netwerk
-8. **AnimatedArtwork** protobuf — Geanimeerde album art
-9. **VideoThumbnail** protobuf — Video thumbnails
+5. **Surround sound audio formaten** — 5.1 en 7.1 support
+6. **Dynamic latency management** — Adaptieve latency op basis van netwerk
+7. **Lyrics verrijking** — requestLyrics(), TTML parsing, word-level timing
+8. **DelegationService proto's** — Voorbereiding voor account delegatie
+9. **AnimatedArtwork** protobuf — Geanimeerde album art
 10. **Keyboard attributen** — Rijkere text input (secure, keyboard type, etc.)
 
 ### Lage Prioriteit (nice-to-have):
@@ -304,3 +430,8 @@ Rapport is Apple's device-to-device communicatie framework:
 13. **ApplicationConnection** protobufs — Apple-intern
 14. **Screen mirroring** — Complex, apart project
 15. **MusicHandoff** — Apple ecosystem specifiek
+
+### Niet van toepassing:
+
+- **SetListeningMode** / **SetConversationDetection** — AirPods-specifiek, niet relevant voor dit project
+- **FairPlay DRM implementatie** — Vereist Apple licentie/certificaten

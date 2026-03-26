@@ -104,6 +104,31 @@ export default abstract class extends EventEmitter<EventMap> {
         return this.#airplay.state.volume ?? 0;
     }
 
+    /** Whether the device is currently muted. */
+    get isMuted(): boolean {
+        return this.#airplay.state.volumeMuted;
+    }
+
+    /** Cluster ID when part of a speaker group, or null. */
+    get clusterID(): string | null {
+        return this.#airplay.state.clusterID;
+    }
+
+    /** Cluster type identifier (0 = none). */
+    get clusterType(): number {
+        return this.#airplay.state.clusterType;
+    }
+
+    /** Whether this device supports cluster-aware multi-room. */
+    get isClusterAware(): boolean {
+        return this.#airplay.state.isClusterAware;
+    }
+
+    /** Whether this device is the leader in a speaker cluster. */
+    get isClusterLeader(): boolean {
+        return this.#airplay.state.isClusterLeader;
+    }
+
     /** @returns The currently active now-playing client, or null. */
     get #nowPlayingClient(): AirPlayClient | null {
         return this.#airplay.state.nowPlayingClient;

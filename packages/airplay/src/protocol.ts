@@ -118,6 +118,15 @@ export default class Protocol {
         return this.#discoveryResult;
     }
 
+    /**
+     * The receiver's dedicated keep-alive port, or undefined if not provided.
+     * Returned by the receiver in the SETUP response. Can be used for a
+     * separate low-power keep-alive TCP connection.
+     */
+    get keepAlivePort(): number | undefined {
+        return this.#keepAlivePort;
+    }
+
     /** The active audio stream, or undefined if not streaming audio. */
     get audioStream(): AudioStream | undefined {
         return this.#audioStream;
@@ -153,6 +162,7 @@ export default class Protocol {
     #dataStream?: DataStream;
     #effectiveSourceVersion?: string;
     #eventStream?: EventStream;
+    #keepAlivePort?: number;
     #playUrlFeedbackInterval?: NodeJS.Timeout;
     #receiverFeatures: bigint = 0n;
     #receiverInfo?: Record<string, any>;
@@ -387,6 +397,7 @@ export default class Protocol {
         }
 
         if (plist.keepAlivePort != null) {
+            this.#keepAlivePort = plist.keepAlivePort;
             this.context.logger.info('[protocol]', `Receiver keep-alive port: ${plist.keepAlivePort}`);
         }
 

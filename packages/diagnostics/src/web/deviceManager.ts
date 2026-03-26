@@ -319,12 +319,7 @@ export default class DeviceManager {
             case 'topmenu': await this.#requireAppleTV().remote.topMenu(); break;
             case 'chup': await this.#requireAppleTV().remote.channelUp(); break;
             case 'chdown': await this.#requireAppleTV().remote.channelDown(); break;
-            case 'back': {
-                const clProto = (this.#requireAppleTV().companionLink as any)[COMPANION_LINK];
-                await clProto.stream.exchange(8, {_i: '_hidC', _t: 2, _c: {_hBtS: 1, _hidC: 21}});
-                await clProto.stream.exchange(8, {_i: '_hidC', _t: 2, _c: {_hBtS: 2, _hidC: 21}});
-                break;
-            }
+            case 'back': await this.#requireAppleTV().remote.menu(); break;
             case 'power': {
                 const atv = this.#requireAppleTV();
                 if (atv.isPlaying) {

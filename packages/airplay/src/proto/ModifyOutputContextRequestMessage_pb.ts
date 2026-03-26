@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ModifyOutputContextRequestMessage.proto.
  */
 export const file_ModifyOutputContextRequestMessage: GenFile = /*@__PURE__*/
-  fileDesc("CidNb2RpZnlPdXRwdXRDb250ZXh0UmVxdWVzdE1lc3NhZ2UucHJvdG8iRQoeTW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RUeXBlIiMKBEVudW0SGwoXU2hhcmVkQXVkaW9QcmVzZW50YXRpb24QASKLAgohTW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RNZXNzYWdlEjIKBHR5cGUYASABKA4yJC5Nb2RpZnlPdXRwdXRDb250ZXh0UmVxdWVzdFR5cGUuRW51bRIVCg1hZGRpbmdEZXZpY2VzGAIgAygJEhcKD3JlbW92aW5nRGV2aWNlcxgDIAMoCRIWCg5zZXR0aW5nRGV2aWNlcxgEIAMoCRIhChljbHVzdGVyQXdhcmVBZGRpbmdEZXZpY2VzGAUgAygJEiMKG2NsdXN0ZXJBd2FyZVJlbW92aW5nRGV2aWNlcxgGIAMoCRIiChpjbHVzdGVyQXdhcmVTZXR0aW5nRGV2aWNlcxgHIAMoCTqCAQohbW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RNZXNzYWdlEhAuUHJvdG9jb2xNZXNzYWdlGDQgASgLMiIuTW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RNZXNzYWdlUiFtb2RpZnlPdXRwdXRDb250ZXh0UmVxdWVzdE1lc3NhZ2U", [file_ProtocolMessage]);
+  fileDesc("CidNb2RpZnlPdXRwdXRDb250ZXh0UmVxdWVzdE1lc3NhZ2UucHJvdG8iRQoeTW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RUeXBlIiMKBEVudW0SGwoXU2hhcmVkQXVkaW9QcmVzZW50YXRpb24QASLOAgohTW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RNZXNzYWdlEj8KEW91dHB1dENvbnRleHRUeXBlGAEgASgOMiQuTW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RUeXBlLkVudW0SHgoWYWRkaW5nT3V0cHV0RGV2aWNlVUlEcxgCIAMoCRIgChhyZW1vdmluZ091dHB1dERldmljZVVJRHMYAyADKAkSHwoXc2V0dGluZ091dHB1dERldmljZVVJRHMYBCADKAkSKgoiY2x1c3RlckF3YXJlQWRkaW5nT3V0cHV0RGV2aWNlVUlEcxgFIAMoCRIsCiRjbHVzdGVyQXdhcmVSZW1vdmluZ091dHB1dERldmljZVVJRHMYBiADKAkSKwojY2x1c3RlckF3YXJlU2V0dGluZ091dHB1dERldmljZVVJRHMYByADKAk6ggEKIW1vZGlmeU91dHB1dENvbnRleHRSZXF1ZXN0TWVzc2FnZRIQLlByb3RvY29sTWVzc2FnZRg0IAEoCzIiLk1vZGlmeU91dHB1dENvbnRleHRSZXF1ZXN0TWVzc2FnZVIhbW9kaWZ5T3V0cHV0Q29udGV4dFJlcXVlc3RNZXNzYWdl", [file_ProtocolMessage]);
 
 /**
  * @generated from message ModifyOutputContextRequestType
@@ -48,39 +48,39 @@ export const ModifyOutputContextRequestType_EnumSchema: GenEnum<ModifyOutputCont
  */
 export type ModifyOutputContextRequestMessage = Message<"ModifyOutputContextRequestMessage"> & {
   /**
-   * @generated from field: optional ModifyOutputContextRequestType.Enum type = 1;
+   * @generated from field: optional ModifyOutputContextRequestType.Enum outputContextType = 1;
    */
-  type: ModifyOutputContextRequestType_Enum;
+  outputContextType: ModifyOutputContextRequestType_Enum;
 
   /**
-   * @generated from field: repeated string addingDevices = 2;
+   * @generated from field: repeated string addingOutputDeviceUIDs = 2;
    */
-  addingDevices: string[];
+  addingOutputDeviceUIDs: string[];
 
   /**
-   * @generated from field: repeated string removingDevices = 3;
+   * @generated from field: repeated string removingOutputDeviceUIDs = 3;
    */
-  removingDevices: string[];
+  removingOutputDeviceUIDs: string[];
 
   /**
-   * @generated from field: repeated string settingDevices = 4;
+   * @generated from field: repeated string settingOutputDeviceUIDs = 4;
    */
-  settingDevices: string[];
+  settingOutputDeviceUIDs: string[];
 
   /**
-   * @generated from field: repeated string clusterAwareAddingDevices = 5;
+   * @generated from field: repeated string clusterAwareAddingOutputDeviceUIDs = 5;
    */
-  clusterAwareAddingDevices: string[];
+  clusterAwareAddingOutputDeviceUIDs: string[];
 
   /**
-   * @generated from field: repeated string clusterAwareRemovingDevices = 6;
+   * @generated from field: repeated string clusterAwareRemovingOutputDeviceUIDs = 6;
    */
-  clusterAwareRemovingDevices: string[];
+  clusterAwareRemovingOutputDeviceUIDs: string[];
 
   /**
-   * @generated from field: repeated string clusterAwareSettingDevices = 7;
+   * @generated from field: repeated string clusterAwareSettingOutputDeviceUIDs = 7;
    */
-  clusterAwareSettingDevices: string[];
+  clusterAwareSettingOutputDeviceUIDs: string[];
 };
 
 /**

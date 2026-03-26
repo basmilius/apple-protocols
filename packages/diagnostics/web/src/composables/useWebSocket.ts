@@ -1,11 +1,14 @@
 import { onUnmounted, ref } from 'vue';
 
 export type LogEntry = {
+    id: number;
     time: string;
     category: string;
     message: string;
     level: string;
 };
+
+let logIdCounter = 0;
 
 export type DeviceInfo = {
     id: string;
@@ -144,15 +147,17 @@ export function useWebSocket() {
 
             switch (data.type) {
                 case 'init':
-                    logs.value = data.logs ?? [];
+                    logs.value = (data.logs ?? []).map((e: Omit<LogEntry, 'id'>) => ({...e, id: ++logIdCounter}));
                     state.value = data.state ?? {...emptyState};
                     break;
 
                 case 'log':
-                    logs.value = [...logs.value, data.entry];
-                    if (logs.value.length > 500) {
-                        logs.value = logs.value.slice(-500);
+                    logs.value.push({...data.entry, id: ++logIdCounter});
+
+                    if (logs.value.length > 2000) {
+                        logs.value = logs.value.slice(-1500);
                     }
+
                     break;
 
                 case 'state':

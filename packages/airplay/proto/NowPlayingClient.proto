@@ -8,7 +8,7 @@ message NowPlayingClient {
     optional int32 nowPlayingVisibility = 5;
     optional bytes tintColor = 6;
     optional string displayName = 7;
-    repeated string bundleIdentifierHierarchys = 8;
+    repeated string extendedBundleIdentifierHierarchys = 8;
     optional string iconURL = 9;
     optional bool isEmptyDeprecated = 10;
 }

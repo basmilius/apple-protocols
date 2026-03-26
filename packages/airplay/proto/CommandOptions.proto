@@ -5,7 +5,7 @@ import "Dictionary.proto";
 import "SystemPlaybackQueue.proto";
 
 message CommandOptions {
-    optional string sourceId = 2;
+    optional string sourceID = 2;
     optional string mediaType = 3;
     optional bool externalPlayerCommand = 4;
     optional float skipInterval = 5;
@@ -91,4 +91,5 @@ message CommandOptions {
     optional bytes delegateAccountData = 90;
     optional string delegateAccountDataType = 91;
     optional bool enhanceDialogueActive = 92;
+    optional double userActionTimestamp = 95;
 }

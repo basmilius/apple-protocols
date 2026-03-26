@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file NowPlayingPlayer.proto.
  */
 export const file_NowPlayingPlayer: GenFile = /*@__PURE__*/
-  fileDesc("ChZOb3dQbGF5aW5nUGxheWVyLnByb3RvIq0BChBOb3dQbGF5aW5nUGxheWVyEhIKCmlkZW50aWZpZXIYASABKAkSEwoLZGlzcGxheU5hbWUYAiABKAkSFwoPaXNEZWZhdWx0UGxheWVyGAMgASgIEhgKEGF1ZGlvU2Vzc2lvblR5cGUYBCABKAUSFAoMbXhTZXNzaW9uSURzGAUgASgDEhYKDmF1ZGlvU2Vzc2lvbklEGAYgASgNEg8KB2ljb25VUkwYByABKAk");
+  fileDesc("ChZOb3dQbGF5aW5nUGxheWVyLnByb3RvIpQBChBOb3dQbGF5aW5nUGxheWVyEhIKCmlkZW50aWZpZXIYASABKAkSEwoLZGlzcGxheU5hbWUYAiABKAkSGAoQYXVkaW9TZXNzaW9uVHlwZRgEIAEoBRIUCgxteFNlc3Npb25JRHMYBSABKAMSFgoOYXVkaW9TZXNzaW9uSUQYBiABKA0SDwoHaWNvblVSTBgHIAEoCQ");
 
 /**
  * @generated from message NowPlayingPlayer
@@ -25,11 +25,6 @@ export type NowPlayingPlayer = Message<"NowPlayingPlayer"> & {
    * @generated from field: optional string displayName = 2;
    */
   displayName: string;
-
-  /**
-   * @generated from field: optional bool isDefaultPlayer = 3;
-   */
-  isDefaultPlayer: boolean;
 
   /**
    * @generated from field: optional int32 audioSessionType = 4;

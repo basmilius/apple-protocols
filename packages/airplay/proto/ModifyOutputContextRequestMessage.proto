@@ -13,11 +13,11 @@ message ModifyOutputContextRequestType {
 }
 
 message ModifyOutputContextRequestMessage {
-    optional ModifyOutputContextRequestType.Enum type = 1;
-    repeated string addingDevices = 2;
-    repeated string removingDevices = 3;
-    repeated string settingDevices = 4;
-    repeated string clusterAwareAddingDevices = 5;
-    repeated string clusterAwareRemovingDevices = 6;
-    repeated string clusterAwareSettingDevices = 7;
+    optional ModifyOutputContextRequestType.Enum outputContextType = 1;
+    repeated string addingOutputDeviceUIDs = 2;
+    repeated string removingOutputDeviceUIDs = 3;
+    repeated string settingOutputDeviceUIDs = 4;
+    repeated string clusterAwareAddingOutputDeviceUIDs = 5;
+    repeated string clusterAwareRemovingOutputDeviceUIDs = 6;
+    repeated string clusterAwareSettingOutputDeviceUIDs = 7;
 }

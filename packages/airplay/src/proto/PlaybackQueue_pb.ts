@@ -18,7 +18,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file PlaybackQueue.proto.
  */
 export const file_PlaybackQueue: GenFile = /*@__PURE__*/
-  fileDesc("ChNQbGF5YmFja1F1ZXVlLnByb3RvIvsCCg1QbGF5YmFja1F1ZXVlEhAKCGxvY2F0aW9uGAEgASgFEiIKDGNvbnRlbnRJdGVtcxgCIAMoCzIMLkNvbnRlbnRJdGVtEiYKB2NvbnRleHQYAyABKAsyFS5QbGF5YmFja1F1ZXVlQ29udGV4dBIRCglyZXF1ZXN0SWQYBCABKAkSJwoScmVzb2x2ZWRQbGF5ZXJQYXRoGAUgASgLMgsuUGxheWVyUGF0aBInCh9zZW5kaW5nUGxheWJhY2tRdWV1ZVRyYW5zYWN0aW9uGAYgASgIEhcKD3F1ZXVlSWRlbnRpZmllchgHIAEoCRIiCgxwYXJ0aWNpcGFudHMYCCADKAsyDC5Db250ZW50SXRlbRIbChNob21lVXNlcklkZW50aWZpZXJzGAkgAygJEh8KCnByb3BlcnRpZXMYCiABKAsyCy5EaWN0aW9uYXJ5EiwKF2F1eGlsaWFyeU5vd1BsYXlpbmdJbmZvGAsgASgLMgsuRGljdGlvbmFyeQ", [file_ContentItem, file_Dictionary, file_PlaybackQueueContext, file_PlayerPath]);
+  fileDesc("ChNQbGF5YmFja1F1ZXVlLnByb3RvIvsCCg1QbGF5YmFja1F1ZXVlEhAKCGxvY2F0aW9uGAEgASgFEiIKDGNvbnRlbnRJdGVtcxgCIAMoCzIMLkNvbnRlbnRJdGVtEiYKB2NvbnRleHQYAyABKAsyFS5QbGF5YmFja1F1ZXVlQ29udGV4dBIRCglyZXF1ZXN0SUQYBCABKAkSJwoScmVzb2x2ZWRQbGF5ZXJQYXRoGAUgASgLMgsuUGxheWVyUGF0aBInCh9zZW5kaW5nUGxheWJhY2tRdWV1ZVRyYW5zYWN0aW9uGAYgASgIEhcKD3F1ZXVlSWRlbnRpZmllchgHIAEoCRIiCgxwYXJ0aWNpcGFudHMYCCADKAsyDC5Db250ZW50SXRlbRIbChNob21lVXNlcklkZW50aWZpZXJzGAkgAygJEh8KCnByb3BlcnRpZXMYCiABKAsyCy5EaWN0aW9uYXJ5EiwKF2F1eGlsaWFyeU5vd1BsYXlpbmdJbmZvGAsgASgLMgsuRGljdGlvbmFyeQ", [file_ContentItem, file_Dictionary, file_PlaybackQueueContext, file_PlayerPath]);
 
 /**
  * @generated from message PlaybackQueue
@@ -40,9 +40,9 @@ export type PlaybackQueue = Message<"PlaybackQueue"> & {
   context?: PlaybackQueueContext;
 
   /**
-   * @generated from field: optional string requestId = 4;
+   * @generated from field: optional string requestID = 4;
    */
-  requestId: string;
+  requestID: string;
 
   /**
    * @generated from field: optional PlayerPath resolvedPlayerPath = 5;

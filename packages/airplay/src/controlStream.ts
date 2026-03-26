@@ -207,6 +207,90 @@ export default class ControlStream extends RtspClient {
     }
 
     /**
+     * Sends an RTSP FLUSHBUFFERED request to flush buffered audio.
+     *
+     * More targeted than FLUSH — specifically for buffered audio sessions.
+     * Supports range-based flushing via flushFromSeq/TS and flushUntilSeq/TS headers.
+     *
+     * @param uri - RTSP resource URI (typically `/{sessionId}`).
+     * @param headers - Additional headers (e.g. flush range parameters).
+     * @returns The RTSP response.
+     */
+    async flushBuffered(uri: string, headers: Record<string, string> = {}): Promise<Response> {
+        return await this.exchange('FLUSHBUFFERED', uri, {headers, allowError: true});
+    }
+
+    /**
+     * Gets a property from the AirPlay receiver.
+     *
+     * Known property keys (from AirPlayReceiver framework):
+     *
+     * **Volume:**
+     * - `Volume` — current volume
+     * - `VolumeDB` — volume in decibels
+     * - `VolumeLinear` — linear volume (0.0-1.0)
+     * - `SoftwareVolume` — software volume level
+     * - `VolumeControlType` / `VolumeControlTypeEx` — volume control capabilities
+     * - `IsMuted` / `MuteForStream` — mute state
+     *
+     * **Playback:**
+     * - `ReceiverDeviceIsPlaying` — whether the device is currently playing
+     * - `IsPlayingBufferedAudio` — whether buffered audio is active
+     * - `DenyInterruptions` — interruption prevention state
+     *
+     * **Audio:**
+     * - `AudioFormat` — current audio format
+     * - `AudioLatencyMs` / `AudioLatencyMax` / `AudioLatencyMin` — latency info
+     * - `RedundantAudio` — redundancy status
+     * - `SpatialAudio` / `SpatialAudioActive` / `SpatialAudioAllowed` — spatial audio state
+     *
+     * **Device:**
+     * - `DeviceID` / `DeviceName` — device identity
+     * - `IdleTimeout` — idle timeout value
+     * - `SecurityMode` — security mode
+     * - `ReceiverMode` — current receiver mode
+     *
+     * **Display:**
+     * - `DisplayHDRMode` — HDR mode
+     * - `DisplaySize` / `DisplaySizeMax` — display dimensions
+     * - `DisplayUUID` — display identifier
+     *
+     * **Cluster/Multi-room:**
+     * - `ClusterUUID` / `ClusterType` / `ClusterSize` — cluster info
+     * - `IsClusterLeader` / `ClusterLeaderUUID` — cluster leadership
+     * - `TightSyncUUID` / `IsTightSyncGroupLeader` — tight sync state
+     * - `GroupContainsDiscoverableLeader` / `GroupContextID` — group info
+     *
+     * **Network:**
+     * - `UsePTPClock` — PTP clock usage
+     * - `NetworkClock` — network clock type
+     *
+     * **DACP-style (via setproperty? URL):**
+     * - `dmcp.device-volume` — DACP device volume
+     * - `dmcp.device-prevent-playback` — DACP prevent playback
+     *
+     * @param property - The property key to query.
+     * @returns The response (body contains the property value, typically as plist).
+     */
+    async getProperty(property: string): Promise<Response> {
+        return await this.get(`/getProperty?${property}`);
+    }
+
+    /**
+     * Sets a property on the AirPlay receiver.
+     *
+     * See {@link getProperty} for the full list of known property keys.
+     * For set operations, the property string contains key=value pairs.
+     *
+     * @param property - The property key=value to set (e.g. `Volume=0.5`).
+     * @param body - Optional request body for complex property values (plist).
+     * @returns The response.
+     */
+    async setProperty(property: string, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
+        return await this.put(`/setProperty?${property}`, body);
+    }
+
+    /**
      * Sends an RTSP TEARDOWN request to end a stream session.
      *
      * @param path - RTSP resource URI (typically `/{sessionId}`).

@@ -133,13 +133,13 @@ export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.
 export function modifyOutputContext(addingDevices: string[] = [], removingDevices: string[] = [], settingDevices: string[] = []): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.MODIFY_OUTPUT_CONTEXT_REQUEST_MESSAGE);
     const message = create(Proto.ModifyOutputContextRequestMessageSchema, {
-        type: Proto.ModifyOutputContextRequestType_Enum.SharedAudioPresentation,
-        addingDevices,
-        removingDevices,
-        settingDevices,
-        clusterAwareAddingDevices: addingDevices,
-        clusterAwareRemovingDevices: removingDevices,
-        clusterAwareSettingDevices: settingDevices
+        outputContextType: Proto.ModifyOutputContextRequestType_Enum.SharedAudioPresentation,
+        addingOutputDeviceUIDs: addingDevices,
+        removingOutputDeviceUIDs: removingDevices,
+        settingOutputDeviceUIDs: settingDevices,
+        clusterAwareAddingOutputDeviceUIDs: addingDevices,
+        clusterAwareRemovingOutputDeviceUIDs: removingDevices,
+        clusterAwareSettingOutputDeviceUIDs: settingDevices
     });
 
     setExtension(protocolMessage, Proto.modifyOutputContextRequestMessage, message);

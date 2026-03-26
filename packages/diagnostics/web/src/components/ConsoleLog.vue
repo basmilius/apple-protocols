@@ -15,8 +15,8 @@
             class="console-log"
             @scroll="onScroll">
             <div
-                v-for="(entry, index) in logs"
-                :key="index"
+                v-for="entry in logs"
+                :key="entry.id"
                 class="log-entry"
                 :class="categoryClass(entry.category)">
                 <span class="log-time">{{ entry.time }}</span>

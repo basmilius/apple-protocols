@@ -4,6 +4,7 @@
 export type Method =
     | 'ANNOUNCE'
     | 'FLUSH'
+    | 'FLUSHBUFFERED'
     | 'GET'
     | 'GET_PARAMETER'
     | 'OPTIONS'

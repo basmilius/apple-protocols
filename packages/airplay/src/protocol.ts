@@ -316,10 +316,15 @@ export default class Protocol {
      *
      * The feedback loop keeps the AirPlay session alive. Uses a 1.9s timeout
      * (slightly less than the 2s interval) to avoid overlapping requests.
+     *
+     * Optionally includes session stats in the body (Apple's `keepAliveSendStatsAsBody`
+     * pattern), which gives the receiver better information about connection quality.
+     *
+     * @param stats - Optional stats to include in the feedback body (plist-serializable).
      */
-    async feedback(): Promise<void> {
+    async feedback(stats?: Record<string, unknown>): Promise<void> {
         // note: Default feedback interval is 2s, so a timeout of 1.9s should be fine.
-        await this.#controlStream.post('/feedback', undefined, undefined, 1900);
+        await this.#controlStream.post('/feedback', stats, undefined, 1900);
     }
 
     /**
@@ -329,6 +334,27 @@ export default class Protocol {
      */
     async setVolume(volume: number): Promise<void> {
         await this.#controlStream.setVolume(volume);
+    }
+
+    /**
+     * Gets a property value from the AirPlay receiver.
+     *
+     * @param property - The property key to query (e.g. 'dmcp.device-volume').
+     * @returns The RTSP response (body contains the value, typically plist-encoded).
+     */
+    async getProperty(property: string): Promise<Response> {
+        return await this.#controlStream.getProperty(property);
+    }
+
+    /**
+     * Sets a property value on the AirPlay receiver.
+     *
+     * @param property - The property key=value string (e.g. 'dmcp.device-volume=0.5').
+     * @param body - Optional body for complex property values.
+     * @returns The RTSP response.
+     */
+    async setProperty(property: string, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
+        return await this.#controlStream.setProperty(property, body);
     }
 
     /**

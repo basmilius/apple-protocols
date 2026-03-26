@@ -118,14 +118,13 @@ message CommandInfo {
     repeated int32 supportedPlaybackQueueTypes = 17;
     repeated string supportedCustomQueueIdentifiers = 18;
     repeated int32 supportedInsertionPositions = 19;
-    optional bool supportsSharedQueue = 20;
     optional int32 upNextItemCount = 21;
     optional float preferredPlaybackRate = 22;
     repeated string supportedPlaybackSessionTypes = 23;
     repeated string currentPlaybackSessionTypes = 24;
     optional string playbackSessionIdentifier = 25;
     optional QueueEndAction.Enum currentQueueEndAction = 26;
-    repeated QueueEndAction.Enum supportedEndQueueActions = 27;
+    repeated QueueEndAction.Enum supportedQueueEndActions = 27;
     optional DisableReason.Enum disableReason = 28;
     repeated PreloadedPlaybackSessionInfo supportedPlaybackSessionIdentifiers = 29;
     optional bytes proactiveCommandOptions = 30;
@@ -135,10 +134,8 @@ message CommandInfo {
     optional uint32 vocalsControlMinLevel = 34;
     optional bool vocalsControlContinuous = 35;
     optional fixed64 sleepTimerTime = 36;
-    optional uint32 sleepTimerStopMode = 37;
     optional double sleepTimerFireDate = 38;
     optional bytes dialogOptions = 39;
-    optional string lastSectionContentItemID = 40;
     optional bool supportsReferencePosition = 41;
     repeated string playbackSessionRequirements = 42;
     optional uint32 transitionStyle = 43;

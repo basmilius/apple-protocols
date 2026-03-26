@@ -189,8 +189,8 @@ message ContentItemMetadata {
     optional double elapsedTimeTimestamp = 74;
     optional double inferredTimestamp = 75;
     optional string serviceIdentifier = 76;
-    optional int32 artworkDataWidth = 77;
-    optional int32 artworkDataHeight = 78;
+    optional int32 artworkDataWidthDeprecated = 77;
+    optional int32 artworkDataHeightDeprecated = 78;
     optional bytes currentPlaybackDateData = 79;
     optional string artworkIdentifier = 80;
     optional bool isLoading = 81;
@@ -226,4 +226,5 @@ message ContentItemMetadata {
     optional bool transcriptAlignmentsAvailable = 111;
     optional string subtitleShort = 112;
     optional bytes transitionInfoData = 113;
+    repeated bytes entityPaths = 114;
 }

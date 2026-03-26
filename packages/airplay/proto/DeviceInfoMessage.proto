@@ -61,7 +61,7 @@ message DeviceInfoMessage {
     optional uint32 parentGroupContainsDiscoverableGroupLeader = 45;
     optional uint32 groupContainsDiscoverableGroupLeader = 46;
     optional uint32 lastKnownClusterType = 47;
-    // repeated ... allClusteredDevices = 48;
+    repeated DeviceInfoMessage allClusteredDevices = 48;
     optional bool supportsOutputContextSync = 49;
     optional string computerName = 50;
     optional uint32 configuredClusterSize = 51;

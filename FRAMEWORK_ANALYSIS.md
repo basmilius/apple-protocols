@@ -152,114 +152,114 @@ Geëxtraheerd uit `MediaRemote.framework` (macOS Sequoia) via disassembly van el
 
 **Belangrijk:** Eerdere bronnen (pyatv, bunatv) hadden **verkeerde nummers voor types boven 107**. De types hieronder zijn gevalideerd tegen Apple's daadwerkelijke implementatie.
 
-| Hex | Dec | Message Type | Categorie |
-|-----|-----|-------------|-----------|
-| 0x00 | 0 | UNKNOWN_MESSAGE | - |
-| 0x01 | 1 | SEND_COMMAND_MESSAGE | Playback |
-| 0x02 | 2 | SEND_COMMAND_RESULT_MESSAGE | Playback |
-| 0x03 | 3 | GET_STATE_MESSAGE | State |
-| 0x04 | 4 | SET_STATE_MESSAGE | State |
-| 0x05 | 5 | SET_ARTWORK_MESSAGE | Artwork |
-| 0x06 | 6 | REGISTER_HID_DEVICE_MESSAGE | HID |
-| 0x07 | 7 | REGISTER_HID_DEVICE_RESULT_MESSAGE | HID |
-| 0x08 | 8 | SEND_HID_EVENT_MESSAGE | HID |
-| 0x09 | 9 | SEND_HID_REPORT_MESSAGE | HID |
-| 0x0A | 10 | SEND_VIRTUAL_TOUCH_EVENT_MESSAGE | Touch |
-| 0x0B | 11 | NOTIFICATION_MESSAGE | System |
-| 0x0C | 12 | CONTENT_ITEMS_CHANGED_NOTIFICATION_MESSAGE | Content |
-| 0x0F | 15 | DEVICE_INFO_MESSAGE | System |
-| 0x10 | 16 | CLIENT_UPDATES_CONFIG_MESSAGE | System |
-| 0x11 | 17 | VOLUME_CONTROL_AVAILABILITY_MESSAGE | Volume (legacy) |
-| 0x12 | 18 | GAME_CONTROLLER_MESSAGE | Game |
-| 0x13 | 19 | REGISTER_GAME_CONTROLLER_MESSAGE | Game |
-| 0x14 | 20 | REGISTER_GAME_CONTROLLER_RESPONSE_MESSAGE | Game |
-| 0x15 | 21 | UNREGISTER_GAME_CONTROLLER_MESSAGE | Game |
-| 0x16 | 22 | REGISTER_FOR_GAME_CONTROLLER_EVENTS_MESSAGE | Game |
-| 0x17 | 23 | KEYBOARD_MESSAGE | Keyboard |
-| 0x18 | 24 | GET_KEYBOARD_SESSION_MESSAGE | Keyboard |
-| 0x19 | 25 | TEXT_INPUT_MESSAGE | Keyboard |
-| 0x1A | 26 | GET_VOICE_INPUT_DEVICES_MESSAGE | Voice |
-| 0x1B | 27 | GET_VOICE_INPUT_DEVICES_RESPONSE_MESSAGE | Voice |
-| 0x1C | 28 | REGISTER_VOICE_INPUT_DEVICE_MESSAGE | Voice |
-| 0x1D | 29 | REGISTER_VOICE_INPUT_DEVICE_RESPONSE_MESSAGE | Voice |
-| 0x1E | 30 | SET_RECORDING_STATE_MESSAGE | Voice |
-| 0x1F | 31 | SEND_VOICE_INPUT_MESSAGE | Voice |
-| 0x20 | 32 | PLAYBACK_QUEUE_REQUEST_MESSAGE | Queue |
-| 0x21 | 33 | TRANSACTION_MESSAGE | System |
-| 0x22 | 34 | CRYPTO_PAIRING_MESSAGE | Pairing |
-| 0x23 | 35 | GAME_CONTROLLER_PROPERTIES_MESSAGE | Game |
-| 0x24 | 36 | SET_READY_STATE_MESSAGE | System |
-| 0x25 | 37 | DEVICE_INFO_UPDATE_MESSAGE | System |
-| 0x26 | 38 | SET_CONNECTION_STATE_MESSAGE | System |
-| 0x27 | 39 | SEND_BUTTON_EVENT_MESSAGE | HID |
-| 0x28 | 40 | SET_HILITE_MODE_MESSAGE | System |
-| 0x29 | 41 | WAKE_DEVICE_MESSAGE | System |
-| 0x2A | 42 | GENERIC_MESSAGE | System |
-| 0x2B | 43 | SEND_PACKED_VIRTUAL_TOUCH_EVENT_MESSAGE | Touch |
-| 0x2C | 44 | SEND_LYRICS_EVENT | Lyrics |
-| 0x2E | 46 | SET_NOW_PLAYING_CLIENT_MESSAGE | NowPlaying |
-| 0x2F | 47 | SET_NOW_PLAYING_PLAYER_MESSAGE | NowPlaying |
-| 0x30 | 48 | MODIFY_OUTPUT_CONTEXT_REQUEST_MESSAGE | MultiRoom |
-| 0x31 | 49 | GET_VOLUME_MESSAGE | Volume |
-| 0x32 | 50 | GET_VOLUME_RESULT_MESSAGE | Volume |
-| 0x33 | 51 | SET_VOLUME_MESSAGE | Volume |
-| 0x34 | 52 | VOLUME_DID_CHANGE_MESSAGE | Volume |
-| 0x35 | 53 | REMOVE_CLIENT_MESSAGE | NowPlaying |
-| 0x36 | 54 | REMOVE_PLAYER_MESSAGE | NowPlaying |
-| 0x37 | 55 | UPDATE_CLIENT_MESSAGE | NowPlaying |
-| 0x38 | 56 | UPDATE_CONTENT_ITEM_MESSAGE | Content |
-| 0x39 | 57 | UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE | Artwork |
-| 0x3A | 58 | UPDATE_PLAYER_MESSAGE | NowPlaying |
-| 0x3B | 59 | PROMPT_FOR_ROUTE_AUTHORIZATION_MESSAGE | Routing |
-| 0x3C | 60 | PROMPT_FOR_ROUTE_AUTHORIZATION_RESPONSE_MESSAGE | Routing |
-| 0x3D | 61 | PRESENT_ROUTE_AUTHORIZATION_STATUS_MESSAGE | Routing |
-| 0x3E | 62 | GET_VOLUME_CONTROL_CAPABILITIES_MESSAGE | Volume |
-| 0x3F | 63 | GET_VOLUME_CONTROL_CAPABILITIES_RESULT_MESSAGE | Volume |
-| 0x40 | 64 | VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE | Volume |
-| 0x41 | 65 | SYNC_OUTPUT_DEVICES_MESSAGE | MultiRoom |
-| 0x42 | 66 | REMOVE_SYNCED_OUTPUT_DEVICES_MESSAGE | MultiRoom |
-| 0x43 | 67 | REMOTE_TEXT_INPUT_MESSAGE | Keyboard |
-| 0x44 | 68 | GET_REMOTE_TEXT_INPUT_SESSION_MESSAGE | Keyboard |
-| 0x45 | 69 | REMOVE_FROM_PARENT_GROUP_MESSAGE | MultiRoom |
-| 0x46 | 70 | PLAYBACK_SESSION_REQUEST_MESSAGE | Session |
-| 0x47 | 71 | PLAYBACK_SESSION_RESPONSE_MESSAGE | Session |
-| 0x48 | 72 | SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE | Playback |
-| 0x49 | 73 | PLAYBACK_SESSION_MIGRATE_REQUEST_MESSAGE | Session |
-| 0x4A | 74 | PLAYBACK_SESSION_MIGRATE_RESPONSE_MESSAGE | Session |
-| 0x4B | 75 | PLAYBACK_SESSION_MIGRATE_BEGIN_MESSAGE | Session |
-| 0x4C | 76 | PLAYBACK_SESSION_MIGRATE_END_MESSAGE | Session |
-| 0x4D | 77 | UPDATE_ACTIVE_SYSTEM_ENDPOINT_MESSAGE | System |
-| 0x4E | 78 | PLAYBACK_SESSION_MIGRATE_POST_MESSAGE | Session |
-| | | *Gap: 79-100 ongebruikt* | |
-| 0x65 | 101 | SET_DISCOVERY_MODE_MESSAGE | Discovery |
-| 0x66 | 102 | UPDATE_SYNCED_ENDPOINTS_MESSAGE | Discovery |
-| 0x67 | 103 | REMOVE_SYNCED_ENDPOINTS_MESSAGE | Discovery |
-| 0x68 | 104 | PLAYER_CLIENT_PROPERTIES_MESSAGE | NowPlaying |
-| 0x69 | 105 | ORIGIN_CLIENT_PROPERTIES_MESSAGE | NowPlaying |
-| 0x6A | 106 | AUDIO_FADE_MESSAGE | Audio |
-| 0x6B | 107 | AUDIO_FADE_RESPONSE_MESSAGE | Audio |
-| 0x6C | 108 | DISCOVERY_UPDATE_ENDPOINTS_MESSAGE | Discovery |
-| 0x6D | 109 | DISCOVERY_UPDATE_OUTPUT_DEVICES_MESSAGE | Discovery |
-| 0x6E | 110 | SET_LISTENING_MODE_MESSAGE | AirPods |
-| | | *Gap: 111-119 ongebruikt* | |
-| 0x78 | 120 | CONFIGURE_CONNECTION_MESSAGE | System |
-| 0x79 | 121 | CREATE_HOSTED_ENDPOINT_REQUEST_MESSAGE | Endpoint |
-| 0x7A | 122 | CREATE_HOSTED_ENDPOINT_RESPONSE_MESSAGE | Endpoint |
-| | | *Gap: 123-124 ongebruikt* | |
-| 0x7D | 125 | ADJUST_VOLUME_MESSAGE | Volume |
-| 0x7E | 126 | GET_VOLUME_MUTED_MESSAGE | Volume |
-| 0x7F | 127 | GET_VOLUME_MUTED_RESULT_MESSAGE | Volume |
-| 0x80 | 128 | SET_VOLUME_MUTED_MESSAGE | Volume |
-| 0x81 | 129 | VOLUME_MUTED_DID_CHANGE_MESSAGE | Volume |
-| 0x82 | 130 | SET_CONVERSATION_DETECTION_ENABLED_MESSAGE | AirPods |
-| 0x83 | 131 | PLAYER_CLIENT_PARTICIPANTS_UPDATE_MESSAGE | SharePlay |
-| 0x84 | 132 | REQUEST_GROUP_SESSION_MESSAGE | SharePlay |
-| 0x85 | 133 | CONFIGURE_CONNECTION_SERVICE_MESSAGE | MultiRoom |
-| 0x86 | 134 | CREATE_APPLICATION_CONNECTION_MESSAGE | AppConnection |
-| 0x87 | 135 | APPLICATION_CONNECTION_PROTOCOL_MESSAGE | AppConnection |
-| 0x88 | 136 | INVALIDATE_APPLICATION_CONNECTION_MESSAGE | AppConnection |
-| 0x89 | 137 | MICROPHONE_CONNECTION_REQUEST_MESSAGE | Microphone |
-| 0x8A | 138 | MICROPHONE_CONNECTION_RESPONSE_MESSAGE | Microphone |
+| Hex  | Dec | Message Type                                    | Categorie       |
+|------|-----|-------------------------------------------------|-----------------|
+| 0x00 | 0   | UNKNOWN_MESSAGE                                 | -               |
+| 0x01 | 1   | SEND_COMMAND_MESSAGE                            | Playback        |
+| 0x02 | 2   | SEND_COMMAND_RESULT_MESSAGE                     | Playback        |
+| 0x03 | 3   | GET_STATE_MESSAGE                               | State           |
+| 0x04 | 4   | SET_STATE_MESSAGE                               | State           |
+| 0x05 | 5   | SET_ARTWORK_MESSAGE                             | Artwork         |
+| 0x06 | 6   | REGISTER_HID_DEVICE_MESSAGE                     | HID             |
+| 0x07 | 7   | REGISTER_HID_DEVICE_RESULT_MESSAGE              | HID             |
+| 0x08 | 8   | SEND_HID_EVENT_MESSAGE                          | HID             |
+| 0x09 | 9   | SEND_HID_REPORT_MESSAGE                         | HID             |
+| 0x0A | 10  | SEND_VIRTUAL_TOUCH_EVENT_MESSAGE                | Touch           |
+| 0x0B | 11  | NOTIFICATION_MESSAGE                            | System          |
+| 0x0C | 12  | CONTENT_ITEMS_CHANGED_NOTIFICATION_MESSAGE      | Content         |
+| 0x0F | 15  | DEVICE_INFO_MESSAGE                             | System          |
+| 0x10 | 16  | CLIENT_UPDATES_CONFIG_MESSAGE                   | System          |
+| 0x11 | 17  | VOLUME_CONTROL_AVAILABILITY_MESSAGE             | Volume (legacy) |
+| 0x12 | 18  | GAME_CONTROLLER_MESSAGE                         | Game            |
+| 0x13 | 19  | REGISTER_GAME_CONTROLLER_MESSAGE                | Game            |
+| 0x14 | 20  | REGISTER_GAME_CONTROLLER_RESPONSE_MESSAGE       | Game            |
+| 0x15 | 21  | UNREGISTER_GAME_CONTROLLER_MESSAGE              | Game            |
+| 0x16 | 22  | REGISTER_FOR_GAME_CONTROLLER_EVENTS_MESSAGE     | Game            |
+| 0x17 | 23  | KEYBOARD_MESSAGE                                | Keyboard        |
+| 0x18 | 24  | GET_KEYBOARD_SESSION_MESSAGE                    | Keyboard        |
+| 0x19 | 25  | TEXT_INPUT_MESSAGE                              | Keyboard        |
+| 0x1A | 26  | GET_VOICE_INPUT_DEVICES_MESSAGE                 | Voice           |
+| 0x1B | 27  | GET_VOICE_INPUT_DEVICES_RESPONSE_MESSAGE        | Voice           |
+| 0x1C | 28  | REGISTER_VOICE_INPUT_DEVICE_MESSAGE             | Voice           |
+| 0x1D | 29  | REGISTER_VOICE_INPUT_DEVICE_RESPONSE_MESSAGE    | Voice           |
+| 0x1E | 30  | SET_RECORDING_STATE_MESSAGE                     | Voice           |
+| 0x1F | 31  | SEND_VOICE_INPUT_MESSAGE                        | Voice           |
+| 0x20 | 32  | PLAYBACK_QUEUE_REQUEST_MESSAGE                  | Queue           |
+| 0x21 | 33  | TRANSACTION_MESSAGE                             | System          |
+| 0x22 | 34  | CRYPTO_PAIRING_MESSAGE                          | Pairing         |
+| 0x23 | 35  | GAME_CONTROLLER_PROPERTIES_MESSAGE              | Game            |
+| 0x24 | 36  | SET_READY_STATE_MESSAGE                         | System          |
+| 0x25 | 37  | DEVICE_INFO_UPDATE_MESSAGE                      | System          |
+| 0x26 | 38  | SET_CONNECTION_STATE_MESSAGE                    | System          |
+| 0x27 | 39  | SEND_BUTTON_EVENT_MESSAGE                       | HID             |
+| 0x28 | 40  | SET_HILITE_MODE_MESSAGE                         | System          |
+| 0x29 | 41  | WAKE_DEVICE_MESSAGE                             | System          |
+| 0x2A | 42  | GENERIC_MESSAGE                                 | System          |
+| 0x2B | 43  | SEND_PACKED_VIRTUAL_TOUCH_EVENT_MESSAGE         | Touch           |
+| 0x2C | 44  | SEND_LYRICS_EVENT                               | Lyrics          |
+| 0x2E | 46  | SET_NOW_PLAYING_CLIENT_MESSAGE                  | NowPlaying      |
+| 0x2F | 47  | SET_NOW_PLAYING_PLAYER_MESSAGE                  | NowPlaying      |
+| 0x30 | 48  | MODIFY_OUTPUT_CONTEXT_REQUEST_MESSAGE           | MultiRoom       |
+| 0x31 | 49  | GET_VOLUME_MESSAGE                              | Volume          |
+| 0x32 | 50  | GET_VOLUME_RESULT_MESSAGE                       | Volume          |
+| 0x33 | 51  | SET_VOLUME_MESSAGE                              | Volume          |
+| 0x34 | 52  | VOLUME_DID_CHANGE_MESSAGE                       | Volume          |
+| 0x35 | 53  | REMOVE_CLIENT_MESSAGE                           | NowPlaying      |
+| 0x36 | 54  | REMOVE_PLAYER_MESSAGE                           | NowPlaying      |
+| 0x37 | 55  | UPDATE_CLIENT_MESSAGE                           | NowPlaying      |
+| 0x38 | 56  | UPDATE_CONTENT_ITEM_MESSAGE                     | Content         |
+| 0x39 | 57  | UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE             | Artwork         |
+| 0x3A | 58  | UPDATE_PLAYER_MESSAGE                           | NowPlaying      |
+| 0x3B | 59  | PROMPT_FOR_ROUTE_AUTHORIZATION_MESSAGE          | Routing         |
+| 0x3C | 60  | PROMPT_FOR_ROUTE_AUTHORIZATION_RESPONSE_MESSAGE | Routing         |
+| 0x3D | 61  | PRESENT_ROUTE_AUTHORIZATION_STATUS_MESSAGE      | Routing         |
+| 0x3E | 62  | GET_VOLUME_CONTROL_CAPABILITIES_MESSAGE         | Volume          |
+| 0x3F | 63  | GET_VOLUME_CONTROL_CAPABILITIES_RESULT_MESSAGE  | Volume          |
+| 0x40 | 64  | VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE  | Volume          |
+| 0x41 | 65  | SYNC_OUTPUT_DEVICES_MESSAGE                     | MultiRoom       |
+| 0x42 | 66  | REMOVE_SYNCED_OUTPUT_DEVICES_MESSAGE            | MultiRoom       |
+| 0x43 | 67  | REMOTE_TEXT_INPUT_MESSAGE                       | Keyboard        |
+| 0x44 | 68  | GET_REMOTE_TEXT_INPUT_SESSION_MESSAGE           | Keyboard        |
+| 0x45 | 69  | REMOVE_FROM_PARENT_GROUP_MESSAGE                | MultiRoom       |
+| 0x46 | 70  | PLAYBACK_SESSION_REQUEST_MESSAGE                | Session         |
+| 0x47 | 71  | PLAYBACK_SESSION_RESPONSE_MESSAGE               | Session         |
+| 0x48 | 72  | SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE          | Playback        |
+| 0x49 | 73  | PLAYBACK_SESSION_MIGRATE_REQUEST_MESSAGE        | Session         |
+| 0x4A | 74  | PLAYBACK_SESSION_MIGRATE_RESPONSE_MESSAGE       | Session         |
+| 0x4B | 75  | PLAYBACK_SESSION_MIGRATE_BEGIN_MESSAGE          | Session         |
+| 0x4C | 76  | PLAYBACK_SESSION_MIGRATE_END_MESSAGE            | Session         |
+| 0x4D | 77  | UPDATE_ACTIVE_SYSTEM_ENDPOINT_MESSAGE           | System          |
+| 0x4E | 78  | PLAYBACK_SESSION_MIGRATE_POST_MESSAGE           | Session         |
+|      |     | *Gap: 79-100 ongebruikt*                        |                 |
+| 0x65 | 101 | SET_DISCOVERY_MODE_MESSAGE                      | Discovery       |
+| 0x66 | 102 | UPDATE_SYNCED_ENDPOINTS_MESSAGE                 | Discovery       |
+| 0x67 | 103 | REMOVE_SYNCED_ENDPOINTS_MESSAGE                 | Discovery       |
+| 0x68 | 104 | PLAYER_CLIENT_PROPERTIES_MESSAGE                | NowPlaying      |
+| 0x69 | 105 | ORIGIN_CLIENT_PROPERTIES_MESSAGE                | NowPlaying      |
+| 0x6A | 106 | AUDIO_FADE_MESSAGE                              | Audio           |
+| 0x6B | 107 | AUDIO_FADE_RESPONSE_MESSAGE                     | Audio           |
+| 0x6C | 108 | DISCOVERY_UPDATE_ENDPOINTS_MESSAGE              | Discovery       |
+| 0x6D | 109 | DISCOVERY_UPDATE_OUTPUT_DEVICES_MESSAGE         | Discovery       |
+| 0x6E | 110 | SET_LISTENING_MODE_MESSAGE                      | AirPods         |
+|      |     | *Gap: 111-119 ongebruikt*                       |                 |
+| 0x78 | 120 | CONFIGURE_CONNECTION_MESSAGE                    | System          |
+| 0x79 | 121 | CREATE_HOSTED_ENDPOINT_REQUEST_MESSAGE          | Endpoint        |
+| 0x7A | 122 | CREATE_HOSTED_ENDPOINT_RESPONSE_MESSAGE         | Endpoint        |
+|      |     | *Gap: 123-124 ongebruikt*                       |                 |
+| 0x7D | 125 | ADJUST_VOLUME_MESSAGE                           | Volume          |
+| 0x7E | 126 | GET_VOLUME_MUTED_MESSAGE                        | Volume          |
+| 0x7F | 127 | GET_VOLUME_MUTED_RESULT_MESSAGE                 | Volume          |
+| 0x80 | 128 | SET_VOLUME_MUTED_MESSAGE                        | Volume          |
+| 0x81 | 129 | VOLUME_MUTED_DID_CHANGE_MESSAGE                 | Volume          |
+| 0x82 | 130 | SET_CONVERSATION_DETECTION_ENABLED_MESSAGE      | AirPods         |
+| 0x83 | 131 | PLAYER_CLIENT_PARTICIPANTS_UPDATE_MESSAGE       | SharePlay       |
+| 0x84 | 132 | REQUEST_GROUP_SESSION_MESSAGE                   | SharePlay       |
+| 0x85 | 133 | CONFIGURE_CONNECTION_SERVICE_MESSAGE            | MultiRoom       |
+| 0x86 | 134 | CREATE_APPLICATION_CONNECTION_MESSAGE           | AppConnection   |
+| 0x87 | 135 | APPLICATION_CONNECTION_PROTOCOL_MESSAGE         | AppConnection   |
+| 0x88 | 136 | INVALIDATE_APPLICATION_CONNECTION_MESSAGE       | AppConnection   |
+| 0x89 | 137 | MICROPHONE_CONNECTION_REQUEST_MESSAGE           | Microphone      |
+| 0x8A | 138 | MICROPHONE_CONNECTION_RESPONSE_MESSAGE          | Microphone      |
 
 **Verwijderd uit enum (geen eigen ProtocolMessage.Type in Apple's code):**
 - `NOW_PLAYING_AUDIO_FORMAT_CONTENT_INFO_MESSAGE` — embedded type, geen top-level message
@@ -556,6 +556,146 @@ Music.app sender-side beperkingen:
 - **MediaRemote framework** — `MRAVEndpoint*` voor output device management, `MRDelegationUUID` voor account delegation
 - **FairPlay** — `/fp-setup` endpoint voor DRM content autorisatie, niet voor pairing
 - **Digest authentication** — `RTSPClient::VerifyAppleResponseHeader`, `RTSPProtocol::CalculateDigestHashA1` (RFC2617)
+
+## 16. AirPlayReceiver Framework Analyse
+
+> Bron: `/tmp/libraries/System/Library/PrivateFrameworks/AirPlayReceiver.framework/Versions/A/AirPlayReceiver`
+> Dit is de receiver-kant (Apple TV / HomePod).
+
+### Nieuwe HTTP/RTSP Endpoints
+
+Endpoints die we niet kenden:
+
+| Endpoint              | Doel                                  |
+|-----------------------|---------------------------------------|
+| `/action`             | Onbekend                              |
+| `/audioMode`          | Audio modus instelling                |
+| `/authorize`          | Autorisatie                           |
+| `/configure`          | Video configuratie                    |
+| `/ensure-pair-pin`    | PIN pairing validatie                 |
+| `/getProperty`        | Property ophalen                      |
+| `/setProperty`        | Property instellen                    |
+| `/metrics`            | Performance metrics                   |
+| `/pair-add`           | Peer toevoegen aan pairing database   |
+| `/pair-list`          | Gepaarde peers opvragen               |
+| `/pair-remove`        | Peer verwijderen uit pairing database |
+| `/pair-pin-start`     | PIN-pairing starten                   |
+| `/photo`              | Foto weergave                         |
+| `/present`            | Screen mirroring starten              |
+| `/resources`          | Resource bestanden ophalen            |
+| `/slideshow-features` | Slideshow capabilities                |
+| `/test`               | Test endpoint                         |
+
+### Audio Transport Types
+
+Vijf stream connection types:
+
+| Type                                   | Protocol | Beschrijving                                          |
+|----------------------------------------|----------|-------------------------------------------------------|
+| `streamConnectionTypeRTP`              | UDP      | Traditioneel RTP (wat wij gebruiken)                  |
+| `streamConnectionTypeRTCP`             | UDP      | RTCP feedback                                         |
+| `streamConnectionTypeAPAP`             | ?        | Apple Proprietary Audio Protocol                      |
+| `streamConnectionTypeAPAT`             | TCP      | Apple Proprietary Audio Transport (alleen BufferedNW) |
+| `streamConnectionTypeMediaDataControl` | TCP      | Control channel voor media data                       |
+
+APAT is TCP-gebaseerd met congestion control:
+- `protocolDriverAPATTickIntervalMS` — tick interval
+- `protocolDriverAPAT_maxCCFBDelayMs` — max congestion control feedback delay
+- Buffer parameters: `audioBufferSize`, `decodeBufferSize`, `maxPacketSize`, `nodeCount`
+
+### APAC Codec (Volledige formaten)
+
+Apple Proprietary Audio Codec — exclusief op 48kHz, tot 9.1.6 surround:
+
+```
+APAC/48000/2        (stereo)
+APAC/48000/5.1      APAC/48000/5.1.2    APAC/48000/5.1.4
+APAC/48000/7.1      APAC/48000/7.1.2    APAC/48000/7.1.4
+APAC/48000/9.1.6    (Dolby Atmos-niveau)
+```
+
+MAT Atmos passthrough: `APSReceiverAudioSessionBufferedHoseEnableMATAtmosPlayback`
+
+### Ghost Audio Sessions
+
+`APReceiverAudioSessionGhost` — speciale session voor cluster members die geen audio ontvangen maar wel actief zijn in een multi-room groep. Heeft eigen `SetRateAndAnchorTime`, `StartPacketProcesser`, `StopPacketProcesser`.
+
+### SenderUIEventsChannel
+
+Twee aparte remote control kanalen op de receiver:
+
+1. **MediaRemote** (`APReceiverRemoteControlSessionMediaRemote`) — voor media commands (wat wij gebruiken via DataStream)
+2. **SenderUIEventsChannel** (`APReceiverRemoteControlSessionSenderUIEventsChannel`) — voor UI events
+   - `SupportsSenderUIEvents` capability flag
+   - `RCS-SenderUIEventsChannel` stream naam
+   - Touch setup: `com.apple.TouchRemote.deviceSetupActive`
+   - Eigen `APMediaDataControlServer` transport
+
+### Cluster/Multi-room Details
+
+**Cluster Types:**
+- `ClusterType_Generic` — multi-room
+- `ClusterType_HT` — Home Theater
+- `ClusterType_StereoPair` — stereo paar
+
+**TightSync (gesynchroniseerde audio):**
+- `TightSyncUUID`, `TightSyncGroupLeaderUUID`, `IsTightSyncGroupLeader`
+- `tightSyncGroupModel` — model van de tight sync groep
+- Buddy reachability tracking bij session start/end
+
+**Persistent Groups:**
+- `Persistent Group UUID/Leader UUID/MemberID/Name/Size/Type/Model`
+
+**Silent Primary:**
+- `IsSilentPrimary` — receiver is actief in cluster maar speelt niet
+- `SmartRouting` — intelligente audio routing
+
+### Pairing Varianten (Receiver-kant)
+
+| Variant                         | Type                       |
+|---------------------------------|----------------------------|
+| `pair-setup CU, type %u`        | CoreUtils pairing (modern) |
+| `pair-setup UA`                 | Unauthenticated            |
+| `pair-setup PIN` / `PIN Legacy` | PIN-based                  |
+| `pair-verify-HK`                | HomeKit verify             |
+| `pair-verify-AO`                | Apple Owner verify         |
+| `pair-verify-System`            | System pairing verify      |
+| `pair-verify-Other`             | Overig                     |
+
+Access control: `AccessControlType`, `AccessControlLevelHK`, `EnableHKAccessControl`
+
+### Keep-Alive (Receiver-kant)
+
+- Timer-based: `_mcProcessor_KeepAliveTimer`
+- Timeout detectie: `No activity from client in %llu seconds, stopping keep-alive timer`
+- `keepAliveSendStatsAsBody` — stats als body bij keep-alive
+- Screen keep-alive apart: `aprscreen_handleKeepAlive`
+- TCP keep-alive config: `remoteControlTCPKeepAliveIdleSecs`, `remoteControlTCPKeepAliveIntervalSecs`, `remoteControlTCPKeepAliveMaxUnansweredProbes`
+
+### PTP 1588 Clock
+
+- `1588Clock support changed` — PTP als alternatief voor NTP
+- `UsePTPClock` — configureerbare toggle
+- Grandmaster ID tracking
+- NTP als fallback: `<APNTPClientLegacy %p>`
+
+### Flush Operaties
+
+Twee typen:
+- `FLUSH` — standaard (alle audio)
+- `FLUSHBUFFERED` — specifiek voor buffered audio
+- `FlushWithinRange` — range-based met `flushFromSeq/TS` en `flushUntilSeq/TS`
+
+### Overige Features
+
+- **Valeria** — Apple Vision Pro integratie (`APValeriaHelper`, `IsValeria`)
+- **UGL** — Universal Game Link voor laag-latentie gaming (`<APUGLPort>`, `uglServerInfo`)
+- **MC2UC** — Multicast-naar-unicast detectie (`APMulticastProbeReceiver`)
+- **NearbyInteraction/UWB** — Device proximity via `NISpatialBrowsingConfiguration`
+- **Rapport** — BLE/P2P remote control transport (`rapport_remote_control_transport`)
+- **DACP commands** — Receiver stuurt volume/playback commands via `GET /ctrl-int/1/%s HTTP/1.1`
+- **HDR** — `DisplayHDRMode`, `receiverHDRCapability`
+- **Packet Loss Concealment** — `plcCodecIsUsed`, `plcMode`, `plcSamplesCorrected`
 
 ---
 

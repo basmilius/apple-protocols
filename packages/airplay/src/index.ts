@@ -1,5 +1,6 @@
 export { default as AudioMultiplexer } from './audioMultiplexer';
 export { default as AudioStream } from './audioStream';
+export { default as LatencyManager } from './latencyManager';
 export { default as ControlStream } from './controlStream';
 export { default as DataStream } from './dataStream';
 export { default as EventStream } from './eventStream';

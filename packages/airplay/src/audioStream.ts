@@ -3,6 +3,7 @@ import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { type AudioSource, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
 import { NTP, Plist } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
+import LatencyManager from './latencyManager';
 import type Protocol from './protocol';
 
 /** Default sample rate for audio streaming (CD quality). */
@@ -197,6 +198,8 @@ export default class AudioStream {
     #syncInterval?: NodeJS.Timeout;
     /** Mutable stream state (RTP counters, timing, etc.). */
     #streamContext?: AudioStreamContext;
+    /** Dynamic latency manager for adaptive latency control. */
+    #latencyManager?: LatencyManager;
 
     /**
      * @param protocol - The AirPlay protocol instance providing control stream and context.
@@ -343,7 +346,9 @@ export default class AudioStream {
 
         const frameSize = CHANNELS * this.#negotiatedBytesPerChannel;
         const packetSize = FRAMES_PER_PACKET * frameSize;
-        const latency = Math.round(this.#negotiatedSampleRate * 0.25);
+
+        this.#latencyManager = new LatencyManager(this.#negotiatedSampleRate);
+        const latency = this.#latencyManager.getLatency();
 
         const initialRtpTime = 0;
 
@@ -648,7 +653,10 @@ export default class AudioStream {
         ctx.headTs = (ctx.headTs + framesSent) >>> 0;
         ctx.totalFrames += framesSent;
 
-        return this.#send(packet).then(() => framesSent);
+        return this.#send(packet).then(() => {
+            this.#latencyManager?.reportSuccess();
+            return framesSent;
+        });
     }
 
     /**
@@ -826,6 +834,9 @@ export default class AudioStream {
     #retransmitPackets(data: Buffer, addr: { address: string; port: number }): void {
         const lostSeqno = data.readUInt16BE(4);
         const lostPackets = data.readUInt16BE(6);
+
+        // Each NACK indicates a glitch — report to latency manager.
+        this.#latencyManager?.reportGlitch();
 
         for (let i = 0; i < lostPackets; i++) {
             const seqno = (lostSeqno + i) & 0xFFFF;

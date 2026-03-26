@@ -1,0 +1,55 @@
+syntax = "proto2";
+
+import "ProtocolMessage.proto";
+
+/**
+ * DelegationService protocol messages.
+ *
+ * Used for Apple Account delegation to AirPlay receivers. Enables devices
+ * (Apple TV/HomePod) to fetch Apple Music content via a delegated account.
+ *
+ * Discovered in Music.app binary (Protocols/WHA/DelegationService.pb.cc).
+ * HKDF keys: DelegationService-Salt, DelegationService-Read-Encryption-Key,
+ * DelegationService-Write-Encryption-Key.
+ */
+
+message DelegationServiceMessage {
+    optional StartDelegationRequest startDelegationRequest = 1;
+    optional StartDelegationResponse startDelegationResponse = 2;
+    optional FinishDelegationRequest finishDelegationRequest = 3;
+    optional FinishDelegationResponse finishDelegationResponse = 4;
+}
+
+message StartDelegationRequest {
+    optional uint32 serviceID = 1;
+    optional string delegationUUID = 2;
+}
+
+message StartDelegationResponse {
+    optional uint32 serviceID = 1;
+    optional bytes responseData = 2;
+}
+
+message FinishDelegationRequest {
+    optional uint32 serviceID = 1;
+    optional bytes requestData = 2;
+}
+
+message FinishDelegationResponse {
+    optional uint32 serviceID = 1;
+    optional bool success = 2;
+}
+
+message PlayerInfoContextToken {
+    optional string tokenData = 1;
+}
+
+message PlayerDelegateInfoToken {
+    optional string tokenData = 1;
+    optional uint32 serviceID = 2;
+}
+
+message PlayerInfoContextRequestToken {
+    optional string tokenData = 1;
+    optional uint32 serviceID = 2;
+}

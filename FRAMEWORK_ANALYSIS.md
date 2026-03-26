@@ -135,6 +135,145 @@ Wij onderscheiden momenteel niet expliciet tussen deze transport types. Ons `Aud
 ### Impact:
 De meeste ontbrekende types zijn voor **SharePlay** (GroupSession) en **Apple-interne communicatie** (ApplicationConnection). Voor ons primaire gebruik (media playback, remote control, volume) zijn we compleet.
 
+### lastSupportedMessageType — KRITISCH
+
+De Apple TV filtert berichten op basis van `lastSupportedMessageType` in het `DeviceInfoMessage`. Berichten met een type hoger dan deze waarde worden **niet verstuurd** naar de client.
+
+- **Apple's eigen waarde (macOS Sequoia MediaRemote.framework):** `139` (0x8B)
+- **Default fallback (als veld ontbreekt):** `36` (0x24)
+- **pyatv / bunatv:** `108`
+- **Onze library:** `139` (gematcht met Apple)
+
+Het `MRSupportedProtocolMessages` object wordt geïnitialiseerd via `initWithLastSupportedMessageType:` en controleert via `canSendMessage:` of een bepaald type verstuurd mag worden.
+
+### Volledige ProtocolMessage.Type mapping — GEVALIDEERD
+
+Geëxtraheerd uit `MediaRemote.framework` (macOS Sequoia) via disassembly van elke `[MR*Message type]` getter.
+
+**Belangrijk:** Eerdere bronnen (pyatv, bunatv) hadden **verkeerde nummers voor types boven 107**. De types hieronder zijn gevalideerd tegen Apple's daadwerkelijke implementatie.
+
+| Hex | Dec | Message Type | Categorie |
+|-----|-----|-------------|-----------|
+| 0x00 | 0 | UNKNOWN_MESSAGE | - |
+| 0x01 | 1 | SEND_COMMAND_MESSAGE | Playback |
+| 0x02 | 2 | SEND_COMMAND_RESULT_MESSAGE | Playback |
+| 0x03 | 3 | GET_STATE_MESSAGE | State |
+| 0x04 | 4 | SET_STATE_MESSAGE | State |
+| 0x05 | 5 | SET_ARTWORK_MESSAGE | Artwork |
+| 0x06 | 6 | REGISTER_HID_DEVICE_MESSAGE | HID |
+| 0x07 | 7 | REGISTER_HID_DEVICE_RESULT_MESSAGE | HID |
+| 0x08 | 8 | SEND_HID_EVENT_MESSAGE | HID |
+| 0x09 | 9 | SEND_HID_REPORT_MESSAGE | HID |
+| 0x0A | 10 | SEND_VIRTUAL_TOUCH_EVENT_MESSAGE | Touch |
+| 0x0B | 11 | NOTIFICATION_MESSAGE | System |
+| 0x0C | 12 | CONTENT_ITEMS_CHANGED_NOTIFICATION_MESSAGE | Content |
+| 0x0F | 15 | DEVICE_INFO_MESSAGE | System |
+| 0x10 | 16 | CLIENT_UPDATES_CONFIG_MESSAGE | System |
+| 0x11 | 17 | VOLUME_CONTROL_AVAILABILITY_MESSAGE | Volume (legacy) |
+| 0x12 | 18 | GAME_CONTROLLER_MESSAGE | Game |
+| 0x13 | 19 | REGISTER_GAME_CONTROLLER_MESSAGE | Game |
+| 0x14 | 20 | REGISTER_GAME_CONTROLLER_RESPONSE_MESSAGE | Game |
+| 0x15 | 21 | UNREGISTER_GAME_CONTROLLER_MESSAGE | Game |
+| 0x16 | 22 | REGISTER_FOR_GAME_CONTROLLER_EVENTS_MESSAGE | Game |
+| 0x17 | 23 | KEYBOARD_MESSAGE | Keyboard |
+| 0x18 | 24 | GET_KEYBOARD_SESSION_MESSAGE | Keyboard |
+| 0x19 | 25 | TEXT_INPUT_MESSAGE | Keyboard |
+| 0x1A | 26 | GET_VOICE_INPUT_DEVICES_MESSAGE | Voice |
+| 0x1B | 27 | GET_VOICE_INPUT_DEVICES_RESPONSE_MESSAGE | Voice |
+| 0x1C | 28 | REGISTER_VOICE_INPUT_DEVICE_MESSAGE | Voice |
+| 0x1D | 29 | REGISTER_VOICE_INPUT_DEVICE_RESPONSE_MESSAGE | Voice |
+| 0x1E | 30 | SET_RECORDING_STATE_MESSAGE | Voice |
+| 0x1F | 31 | SEND_VOICE_INPUT_MESSAGE | Voice |
+| 0x20 | 32 | PLAYBACK_QUEUE_REQUEST_MESSAGE | Queue |
+| 0x21 | 33 | TRANSACTION_MESSAGE | System |
+| 0x22 | 34 | CRYPTO_PAIRING_MESSAGE | Pairing |
+| 0x23 | 35 | GAME_CONTROLLER_PROPERTIES_MESSAGE | Game |
+| 0x24 | 36 | SET_READY_STATE_MESSAGE | System |
+| 0x25 | 37 | DEVICE_INFO_UPDATE_MESSAGE | System |
+| 0x26 | 38 | SET_CONNECTION_STATE_MESSAGE | System |
+| 0x27 | 39 | SEND_BUTTON_EVENT_MESSAGE | HID |
+| 0x28 | 40 | SET_HILITE_MODE_MESSAGE | System |
+| 0x29 | 41 | WAKE_DEVICE_MESSAGE | System |
+| 0x2A | 42 | GENERIC_MESSAGE | System |
+| 0x2B | 43 | SEND_PACKED_VIRTUAL_TOUCH_EVENT_MESSAGE | Touch |
+| 0x2C | 44 | SEND_LYRICS_EVENT | Lyrics |
+| 0x2E | 46 | SET_NOW_PLAYING_CLIENT_MESSAGE | NowPlaying |
+| 0x2F | 47 | SET_NOW_PLAYING_PLAYER_MESSAGE | NowPlaying |
+| 0x30 | 48 | MODIFY_OUTPUT_CONTEXT_REQUEST_MESSAGE | MultiRoom |
+| 0x31 | 49 | GET_VOLUME_MESSAGE | Volume |
+| 0x32 | 50 | GET_VOLUME_RESULT_MESSAGE | Volume |
+| 0x33 | 51 | SET_VOLUME_MESSAGE | Volume |
+| 0x34 | 52 | VOLUME_DID_CHANGE_MESSAGE | Volume |
+| 0x35 | 53 | REMOVE_CLIENT_MESSAGE | NowPlaying |
+| 0x36 | 54 | REMOVE_PLAYER_MESSAGE | NowPlaying |
+| 0x37 | 55 | UPDATE_CLIENT_MESSAGE | NowPlaying |
+| 0x38 | 56 | UPDATE_CONTENT_ITEM_MESSAGE | Content |
+| 0x39 | 57 | UPDATE_CONTENT_ITEM_ARTWORK_MESSAGE | Artwork |
+| 0x3A | 58 | UPDATE_PLAYER_MESSAGE | NowPlaying |
+| 0x3B | 59 | PROMPT_FOR_ROUTE_AUTHORIZATION_MESSAGE | Routing |
+| 0x3C | 60 | PROMPT_FOR_ROUTE_AUTHORIZATION_RESPONSE_MESSAGE | Routing |
+| 0x3D | 61 | PRESENT_ROUTE_AUTHORIZATION_STATUS_MESSAGE | Routing |
+| 0x3E | 62 | GET_VOLUME_CONTROL_CAPABILITIES_MESSAGE | Volume |
+| 0x3F | 63 | GET_VOLUME_CONTROL_CAPABILITIES_RESULT_MESSAGE | Volume |
+| 0x40 | 64 | VOLUME_CONTROL_CAPABILITIES_DID_CHANGE_MESSAGE | Volume |
+| 0x41 | 65 | SYNC_OUTPUT_DEVICES_MESSAGE | MultiRoom |
+| 0x42 | 66 | REMOVE_SYNCED_OUTPUT_DEVICES_MESSAGE | MultiRoom |
+| 0x43 | 67 | REMOTE_TEXT_INPUT_MESSAGE | Keyboard |
+| 0x44 | 68 | GET_REMOTE_TEXT_INPUT_SESSION_MESSAGE | Keyboard |
+| 0x45 | 69 | REMOVE_FROM_PARENT_GROUP_MESSAGE | MultiRoom |
+| 0x46 | 70 | PLAYBACK_SESSION_REQUEST_MESSAGE | Session |
+| 0x47 | 71 | PLAYBACK_SESSION_RESPONSE_MESSAGE | Session |
+| 0x48 | 72 | SET_DEFAULT_SUPPORTED_COMMANDS_MESSAGE | Playback |
+| 0x49 | 73 | PLAYBACK_SESSION_MIGRATE_REQUEST_MESSAGE | Session |
+| 0x4A | 74 | PLAYBACK_SESSION_MIGRATE_RESPONSE_MESSAGE | Session |
+| 0x4B | 75 | PLAYBACK_SESSION_MIGRATE_BEGIN_MESSAGE | Session |
+| 0x4C | 76 | PLAYBACK_SESSION_MIGRATE_END_MESSAGE | Session |
+| 0x4D | 77 | UPDATE_ACTIVE_SYSTEM_ENDPOINT_MESSAGE | System |
+| 0x4E | 78 | PLAYBACK_SESSION_MIGRATE_POST_MESSAGE | Session |
+| | | *Gap: 79-100 ongebruikt* | |
+| 0x65 | 101 | SET_DISCOVERY_MODE_MESSAGE | Discovery |
+| 0x66 | 102 | UPDATE_SYNCED_ENDPOINTS_MESSAGE | Discovery |
+| 0x67 | 103 | REMOVE_SYNCED_ENDPOINTS_MESSAGE | Discovery |
+| 0x68 | 104 | PLAYER_CLIENT_PROPERTIES_MESSAGE | NowPlaying |
+| 0x69 | 105 | ORIGIN_CLIENT_PROPERTIES_MESSAGE | NowPlaying |
+| 0x6A | 106 | AUDIO_FADE_MESSAGE | Audio |
+| 0x6B | 107 | AUDIO_FADE_RESPONSE_MESSAGE | Audio |
+| 0x6C | 108 | DISCOVERY_UPDATE_ENDPOINTS_MESSAGE | Discovery |
+| 0x6D | 109 | DISCOVERY_UPDATE_OUTPUT_DEVICES_MESSAGE | Discovery |
+| 0x6E | 110 | SET_LISTENING_MODE_MESSAGE | AirPods |
+| | | *Gap: 111-119 ongebruikt* | |
+| 0x78 | 120 | CONFIGURE_CONNECTION_MESSAGE | System |
+| 0x79 | 121 | CREATE_HOSTED_ENDPOINT_REQUEST_MESSAGE | Endpoint |
+| 0x7A | 122 | CREATE_HOSTED_ENDPOINT_RESPONSE_MESSAGE | Endpoint |
+| | | *Gap: 123-124 ongebruikt* | |
+| 0x7D | 125 | ADJUST_VOLUME_MESSAGE | Volume |
+| 0x7E | 126 | GET_VOLUME_MUTED_MESSAGE | Volume |
+| 0x7F | 127 | GET_VOLUME_MUTED_RESULT_MESSAGE | Volume |
+| 0x80 | 128 | SET_VOLUME_MUTED_MESSAGE | Volume |
+| 0x81 | 129 | VOLUME_MUTED_DID_CHANGE_MESSAGE | Volume |
+| 0x82 | 130 | SET_CONVERSATION_DETECTION_ENABLED_MESSAGE | AirPods |
+| 0x83 | 131 | PLAYER_CLIENT_PARTICIPANTS_UPDATE_MESSAGE | SharePlay |
+| 0x84 | 132 | REQUEST_GROUP_SESSION_MESSAGE | SharePlay |
+| 0x85 | 133 | CONFIGURE_CONNECTION_SERVICE_MESSAGE | MultiRoom |
+| 0x86 | 134 | CREATE_APPLICATION_CONNECTION_MESSAGE | AppConnection |
+| 0x87 | 135 | APPLICATION_CONNECTION_PROTOCOL_MESSAGE | AppConnection |
+| 0x88 | 136 | INVALIDATE_APPLICATION_CONNECTION_MESSAGE | AppConnection |
+| 0x89 | 137 | MICROPHONE_CONNECTION_REQUEST_MESSAGE | Microphone |
+| 0x8A | 138 | MICROPHONE_CONNECTION_RESPONSE_MESSAGE | Microphone |
+
+**Verwijderd uit enum (geen eigen ProtocolMessage.Type in Apple's code):**
+- `NOW_PLAYING_AUDIO_FORMAT_CONTENT_INFO_MESSAGE` — embedded type, geen top-level message
+- `GROUP_SESSION_JOIN_RESPONSE_MESSAGE`, `GROUP_SESSION_FAST_SYNC_MESSAGE`, `GROUP_SESSION_IDENTITY_SHARE_MESSAGE`, `GROUP_SESSION_IDENTITY_SHARE_REPLY_MESSAGE`, `GROUP_SESSION_LEADER_DISCOVERY_MESSAGE`, `GROUP_SESSION_MEMBER_SYNC_MESSAGE`, `GROUP_SESSION_ERROR_REPLY_MESSAGE` — sub-types van GroupSession, geen eigen message types
+
+**Correcties ten opzichte van pyatv/bunatv:**
+- Types 1-107: ✅ Correct in alle projecten
+- Types 108+: ❌ Waren verkeerd genummerd in pyatv/bunatv (en door ons overgenomen)
+- `PLAYBACK_SESSION_MIGRATE_POST_MESSAGE`: was 108, moet 78
+- `SET_CONVERSATION_DETECTION_ENABLED_MESSAGE`: was 109, moet 130
+- `CREATE_APPLICATION_CONNECTION_MESSAGE`: was 113, moet 134
+- `CREATE_HOSTED_ENDPOINT_REQUEST/RESPONSE_MESSAGE`: waren 114/115, moeten 121/122
+- Meerdere types 108-110 zijn nieuw en bestonden niet in pyatv/bunatv
+
 ## 5. Features & Capabilities
 
 Uit de binary:
@@ -333,13 +472,28 @@ TSLLyricsSongInfo
 - **Vocal attenuation** — `kStoreDAAPSupportsVocalAttenuationCode` (Apple Music Sing)
 - **TTML parsing** — `TSLLyricsSongInfo::CreateFromTTML()`, `TSLLyricsXMLParser.cpp`
 
-**MRP protocol integratie:**
-- `SendLyricsEventMessage` stuurt real-time timing events naar de receiver
-- TTML data wordt aangeleverd via `PlaybackQueueRequestMessage` met lyrics flag
-- `MPModelPropertyLyricsTTML` — MediaPlayer model property
-- Opslag: `/var/mobile/Media/ttml/` (iOS)
+**MRP protocol — wat je WEL krijgt:**
+- `ContentItemMetadata.lyricsAdamID` (field 104) — Apple Music catalog ID (referentie, geen data)
+- `ContentItemMetadata.lyricsAvailable` (field 24) — boolean, of lyrics bestaan
+- `ContentItemMetadata.lyricsURL` (field 71) — URL (meestal leeg voor remote)
+- `ContentItem.lyrics.lyrics` (field 7) — soms plain text, vaak leeg
+- `SendLyricsEventMessage` (type 44) — real-time timing events, maar alleen als de Apple TV zelf lyrics geladen heeft (lokaal UI). Wordt **niet** gepusht naar remote controllers.
 
-**UI klassen:**
+**MRP protocol — wat je NIET krijgt:**
+- TTML data (word-level timing) komt **niet** via MRP
+- Plain text lyrics zijn niet gegarandeerd in de PlaybackQueue response
+
+**Hoe lyrics wél werken (Apple Music Store API):**
+- `LyricsHandler::StartGettingStoreLyrics()` → `StoreGetLyricsRequest` met `lyricsAdamID`
+- Bag URLs: `bag://musicSubscription/lyrics` (plain text), `bag://musicSubscription/ttmlLyrics` (TTML XML)
+- Authenticatie via `cloud-lyrics-token` (`kExtDAAPCloudLyricsTokenCode`)
+- Vereist actief Apple Music abonnement
+- Lyrics flags struct: `{initialized, hasLibraryLyrics, hasStoreLyrics, hasDownloadedCatalogLyrics, hasTimeSyncedLyrics, text, TTML}`
+- TTML opslag: `/var/mobile/Media/ttml/` (iOS)
+
+**Conclusie:** Lyrics zijn een Apple Music Store feature, geen MRP protocol feature. Zonder Apple ID token + Apple Music abonnement zijn lyrics niet op te halen. Het `DelegationService` protocol (zie hierboven) is Apple's mechanisme om een Apple ID te delegeren naar een AirPlay device, maar vereist FairPlay authenticatie.
+
+**UI klassen (ter referentie):**
 - `LyricsViewController` / `ImmersiveLyricsViewController` — weergave
 - `SyncedLyricsManager` / `SyncedLyricsTimingProvider` — timing synchronisatie
 - `SyncedLyricsLineContentLayer` — per-regel rendering

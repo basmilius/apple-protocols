@@ -95,7 +95,7 @@ export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.
         applicationBundleIdentifier: identity.applicationBundleIdentifier,
         applicationBundleVersion: identity.applicationBundleVersion,
         protocolVersion: 1,
-        lastSupportedMessageType: 129,
+        lastSupportedMessageType: 139,
         supportsSystemPairing: true,
         allowsPairing: true,
         systemMediaApplication: 'com.apple.TVMusic',
@@ -597,7 +597,7 @@ export function setConversationDetectionEnabled(enabled: boolean, outputDeviceUI
  * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function adjustVolume(adjustment: Proto.AdjustVolumeMessage_Adjustment, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
-    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_COMMAND_MESSAGE);
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.ADJUST_VOLUME_MESSAGE);
     const message = create(Proto.AdjustVolumeMessageSchema, {
         adjustment,
         outputDeviceUID

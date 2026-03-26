@@ -221,6 +221,17 @@ export default abstract class extends EventEmitter<EventMap> {
     }
 
     /**
+     * Requests the current playback queue with lyrics from the device.
+     * Lyrics are included by default in the playback queue request.
+     * Real-time lyrics timing events are emitted via the `lyricsEvent` event on state.
+     *
+     * @param length - Maximum number of queue items to retrieve (defaults to 1).
+     */
+    async requestLyrics(length: number = 1): Promise<void> {
+        await this.#airplay.requestPlaybackQueue(length);
+    }
+
+    /**
      * Gets the CommandInfo for a specific command from the active player.
      *
      * @param command - The command to look up.

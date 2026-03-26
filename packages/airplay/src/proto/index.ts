@@ -20,6 +20,7 @@ export * from './CreateApplicationConnectionMessage_pb';
 export * from './CreateHostedEndpointRequestMessage_pb';
 export * from './CreateHostedEndpointResponseMessage_pb';
 export * from './CryptoPairingMessage_pb';
+export * from './DelegationServiceMessage_pb';
 export * from './Destination_pb';
 export * from './DeviceInfoMessage_pb';
 export * from './Diagnostic_pb';

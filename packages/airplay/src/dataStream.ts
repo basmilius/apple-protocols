@@ -53,6 +53,7 @@ type EventMap = {
     readonly updateContentItemArtwork: [Proto.UpdateContentItemArtworkMessage];
     readonly updatePlayer: [Proto.UpdatePlayerMessage];
     readonly updateOutputDevice: [Proto.UpdateOutputDeviceMessage];
+    readonly playerClientParticipantsUpdate: [Proto.PlayerClientParticipantsUpdateMessage];
     readonly volumeControlAvailability: [Proto.VolumeControlAvailabilityMessage];
     readonly volumeControlCapabilitiesDidChange: [Proto.VolumeControlCapabilitiesDidChangeMessage];
     readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
@@ -126,6 +127,7 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.VOLUME_MUTED_DID_CHANGE_MESSAGE] = [Proto.volumeMutedDidChangeMessage, this.#onVolumeMutedDidChangeMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.SEND_LYRICS_EVENT] = [Proto.sendLyricsEventMessage, this.#onSendLyricsEventMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE] = [Proto.configureConnectionMessage, this.#onConfigureConnectionMessage.bind(this)];
+        this.#handlers[Proto.ProtocolMessage_Type.PLAYER_CLIENT_PARTICIPANTS_UPDATE_MESSAGE] = [Proto.playerClientParticipantsUpdateMessage, this.#onPlayerClientParticipantsUpdateMessage.bind(this)];
     }
 
     /**
@@ -606,6 +608,17 @@ export default class DataStream extends BaseStream<EventMap> {
         this.context.logger.info('[data]', 'Update output device', message);
 
         this.emit('updateOutputDevice', message);
+    }
+
+    /**
+     * Handles playback queue participant updates (e.g. SharePlay users).
+     *
+     * @param message - The decoded PlayerClientParticipantsUpdateMessage.
+     */
+    #onPlayerClientParticipantsUpdateMessage(message: Proto.PlayerClientParticipantsUpdateMessage): void {
+        this.context.logger.info('[data]', 'Player client participants update', message);
+
+        this.emit('playerClientParticipantsUpdate', message);
     }
 
     /**

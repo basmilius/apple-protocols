@@ -43,6 +43,20 @@
                 </div>
             </div>
 
+            <!-- Participants -->
+            <div
+                v-if="state.participants && state.participants.length > 0"
+                class="state-section">
+                <h4>Participants ({{ state.participants.length }})</h4>
+                <div
+                    v-for="participant in state.participants"
+                    :key="participant.identifier"
+                    class="state-row">
+                    <span class="state-label">{{ participant.displayName }}</span>
+                    <span class="state-value">{{ participant.type }}</span>
+                </div>
+            </div>
+
             <!-- Clients -->
             <div
                 v-if="state.clients.length > 0"

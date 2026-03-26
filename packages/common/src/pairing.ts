@@ -1,5 +1,5 @@
 import { OPack, TLV8 } from '@basmilius/apple-encoding';
-import { Chacha20, Curve25519, Ed25519, hkdf, type KeyPair } from '@basmilius/apple-encryption';
+import { Aes, Chacha20, Curve25519, Ed25519, hkdf, type KeyPair } from '@basmilius/apple-encryption';
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
@@ -64,6 +64,8 @@ export class AccessoryPair extends BasePairing {
     readonly #pairingId: Buffer;
     /** Protocol-specific callback for sending TLV8-encoded pair-setup requests. */
     readonly #requestHandler: RequestHandler;
+    /** Whether to use AES-128-CTR instead of ChaCha20-Poly1305 for M5/M6 encryption. */
+    readonly #useAes: boolean;
     /** Ed25519 public key for long-term identity. */
     #publicKey: Buffer;
     /** Ed25519 secret key for signing identity proofs. */
@@ -75,12 +77,18 @@ export class AccessoryPair extends BasePairing {
      * @param context - Shared context for logging and device identity.
      * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
      */
-    constructor(context: Context, requestHandler: RequestHandler) {
+    /**
+     * @param context - Shared context for logging and device identity.
+     * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
+     * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for M5/M6 encryption (legacy devices).
+     */
+    constructor(context: Context, requestHandler: RequestHandler, useAes: boolean = false) {
         super(context);
 
         this.#name = 'basmilius/apple-protocols';
         this.#pairingId = Buffer.from(uuid().toUpperCase());
         this.#requestHandler = requestHandler;
+        this.#useAes = useAes;
     }
 
     /** Generates a new Ed25519 key pair for long-term identity. Must be called before pin() or transient(). */
@@ -268,8 +276,16 @@ export class AccessoryPair extends BasePairing {
             })]
         ]);
 
-        const {authTag, ciphertext} = Chacha20.encrypt(sessionKey, Buffer.from('PS-Msg05'), null, innerTlv);
-        const encrypted = Buffer.concat([ciphertext, authTag]);
+        let encrypted: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: m4.sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: m4.sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-IV')});
+            encrypted = Aes.encrypt(aesKey, aesIv, innerTlv);
+        } else {
+            const {authTag, ciphertext} = Chacha20.encrypt(sessionKey, Buffer.from('PS-Msg05'), null, innerTlv);
+            encrypted = Buffer.concat([ciphertext, authTag]);
+        }
 
         const response = await this.#requestHandler('m5', TLV8.encode([
             [TLV8.Value.State, TLV8.State.M5],
@@ -278,6 +294,15 @@ export class AccessoryPair extends BasePairing {
 
         const data = this.tlv(response);
         const encryptedDataRaw = data.get(TLV8.Value.EncryptedData);
+
+        if (this.#useAes) {
+            return {
+                authTag: Buffer.alloc(0),
+                data: encryptedDataRaw,
+                sessionKey
+            };
+        }
+
         const encryptedData = encryptedDataRaw.subarray(0, -16);
         const encryptedTag = encryptedDataRaw.subarray(-16);
 
@@ -298,7 +323,15 @@ export class AccessoryPair extends BasePairing {
      * Returns the accessory's long-term public key and identifier for future Pair-Verify sessions.
      */
     async m6(m4: PairM4, m5: PairM5): Promise<AccessoryCredentials> {
-        const data = Chacha20.decrypt(m5.sessionKey, Buffer.from('PS-Msg06'), null, m5.data, m5.authTag);
+        let data: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: m4.sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: m4.sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-IV')});
+            data = Aes.decrypt(aesKey, aesIv, m5.data);
+        } else {
+            data = Chacha20.decrypt(m5.sessionKey, Buffer.from('PS-Msg06'), null, m5.data, m5.authTag);
+        }
         const tlv = TLV8.decode(data);
 
         const accessoryIdentifier = tlv.get(TLV8.Value.Identifier);
@@ -347,16 +380,20 @@ export class AccessoryVerify extends BasePairing {
     readonly #ephemeralKeyPair: KeyPair;
     /** Protocol-specific callback for sending TLV8-encoded pair-verify requests. */
     readonly #requestHandler: RequestHandler;
+    /** Whether to use AES-128-CTR instead of ChaCha20-Poly1305 for encryption. */
+    readonly #useAes: boolean;
 
     /**
      * @param context - Shared context for logging and device identity.
      * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
+     * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for encryption (legacy devices).
      */
-    constructor(context: Context, requestHandler: RequestHandler) {
+    constructor(context: Context, requestHandler: RequestHandler, useAes: boolean = false) {
         super(context);
 
         this.#ephemeralKeyPair = Curve25519.generateKeyPair();
         this.#requestHandler = requestHandler;
+        this.#useAes = useAes;
     }
 
     /**
@@ -423,10 +460,17 @@ export class AccessoryVerify extends BasePairing {
             info: Buffer.from('Pair-Verify-Encrypt-Info')
         });
 
-        const encryptedData = m1.encryptedData.subarray(0, -16);
-        const encryptedTag = m1.encryptedData.subarray(-16);
+        let data: Buffer;
 
-        const data = Chacha20.decrypt(sessionKey, Buffer.from('PV-Msg02'), null, encryptedData, encryptedTag);
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-IV')});
+            data = Aes.decrypt(aesKey, aesIv, m1.encryptedData);
+        } else {
+            const encryptedData = m1.encryptedData.subarray(0, -16);
+            const encryptedTag = m1.encryptedData.subarray(-16);
+            data = Chacha20.decrypt(sessionKey, Buffer.from('PV-Msg02'), null, encryptedData, encryptedTag);
+        }
         const tlv = TLV8.decode(data);
 
         const accessoryIdentifier = tlv.get(TLV8.Value.Identifier);
@@ -474,8 +518,16 @@ export class AccessoryVerify extends BasePairing {
             [TLV8.Value.Signature, iosDeviceSignature]
         ]);
 
-        const {authTag, ciphertext} = Chacha20.encrypt(m2.sessionKey, Buffer.from('PV-Msg03'), null, innerTlv);
-        const encrypted = Buffer.concat([ciphertext, authTag]);
+        let encrypted: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: m2.sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: m2.sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-IV')});
+            encrypted = Aes.encrypt(aesKey, aesIv, innerTlv);
+        } else {
+            const {authTag, ciphertext} = Chacha20.encrypt(m2.sessionKey, Buffer.from('PV-Msg03'), null, innerTlv);
+            encrypted = Buffer.concat([ciphertext, authTag]);
+        }
 
         await this.#requestHandler('m3', TLV8.encode([
             [TLV8.Value.State, TLV8.State.M3],

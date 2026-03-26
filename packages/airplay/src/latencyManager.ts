@@ -111,10 +111,43 @@ export default class LatencyManager {
         }
     }
 
+    /**
+     * Returns the recommended RFC 2198 redundancy level based on the current latency tier.
+     * Higher latency tiers (more glitches) recommend more redundancy.
+     */
+    get recommendedRedundancy(): number {
+        if (this.#tierIndex >= 2) {
+            return 3;
+        }
+        if (this.#tierIndex >= 1) {
+            return 2;
+        }
+
+        return 1;
+    }
+
     /** Resets the manager to the initial (lowest) latency tier. */
     reset(): void {
         this.#tierIndex = 0;
         this.#consecutiveSuccesses = 0;
         this.#glitchTimestamps = [];
     }
+}
+
+/**
+ * Returns the recommended cluster latency offset in milliseconds for a given device model.
+ * Based on Apple's `APSAudioLatencyForSystemAudioInClusterModelMs` function.
+ *
+ * @param model - The device model identifier (e.g. 'AudioAccessory5,1').
+ * @returns Cluster latency offset in milliseconds.
+ */
+export function getClusterLatencyMs(model: string): number {
+    if (model.startsWith('AudioAccessory5') || model.startsWith('AudioAccessory6')) {
+        return 0; // HomePod 2nd gen / HomePod mini 2nd gen
+    }
+    if (model.startsWith('AudioAccessory1')) {
+        return 110; // HomePod 1st gen
+    }
+
+    return 55; // Conservative default
 }

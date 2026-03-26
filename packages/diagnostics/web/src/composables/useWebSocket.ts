@@ -41,7 +41,14 @@ export type StateSnapshot = {
         available: boolean;
         muted: boolean;
     };
+    participants: ParticipantSnapshot[];
     clients: ClientSnapshot[];
+};
+
+export type ParticipantSnapshot = {
+    identifier: string;
+    displayName: string;
+    type: string;
 };
 
 export type ClientSnapshot = {
@@ -103,6 +110,7 @@ const emptyState: StateSnapshot = {
         bundleIdentifier: null
     },
     volume: {level: 0, available: false, muted: false},
+    participants: [],
     clients: []
 };
 

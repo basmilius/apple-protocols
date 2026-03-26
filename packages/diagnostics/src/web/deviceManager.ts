@@ -43,7 +43,14 @@ export type StateSnapshot = {
         available: boolean;
         muted: boolean;
     };
+    participants: ParticipantSnapshot[];
     clients: ClientSnapshot[];
+};
+
+type ParticipantSnapshot = {
+    identifier: string;
+    displayName: string;
+    type: string;
 };
 
 type ClientSnapshot = {
@@ -260,25 +267,13 @@ export default class DeviceManager {
             case 'next': await device.next(); break;
             case 'previous': await device.previous(); break;
             case 'volup':
-                if (device instanceof AppleTV) {
-                    await device.volumeUp();
-                } else {
-                    await device.remote.volumeUp();
-                }
+                await device.volumeControl.up();
                 break;
             case 'voldown':
-                if (device instanceof AppleTV) {
-                    await device.volumeDown();
-                } else {
-                    await device.remote.volumeDown();
-                }
+                await device.volumeControl.down();
                 break;
             case 'mute':
-                if (device instanceof AppleTV) {
-                    await device.volumeMute();
-                } else {
-                    await device.remote.mute();
-                }
+                await device.volumeControl.toggleMute();
                 break;
             case 'vol':
                 if (arg) {
@@ -446,6 +441,7 @@ export default class DeviceManager {
                     bundleIdentifier: null
                 },
                 volume: {level: 0, available: false, muted: false},
+                participants: [],
                 clients: []
             };
         }
@@ -480,6 +476,11 @@ export default class DeviceManager {
                 available: state.volumeAvailable,
                 muted: state.volumeMuted
             },
+            participants: state.participants.map(p => ({
+                identifier: p.identity?.identifier ?? p.identifier ?? '',
+                displayName: p.identity?.displayName ?? p.identifier ?? 'Unknown',
+                type: ['Unknown', 'AppleID', 'DeviceLocal'][p.identity?.type ?? 0] ?? 'Unknown'
+            })),
             clients: this.#buildClientSnapshots(state)
         };
     }
@@ -640,6 +641,7 @@ export default class DeviceManager {
         device.state.on('setState', () => this.#emitState());
         device.state.on('volumeDidChange', () => this.#emitState());
         device.state.on('clients', () => this.#emitState());
+        device.state.on('playerClientParticipantsUpdate', () => this.#emitState());
     }
 
     #setupHomePodEvents(device: HomePod): void {

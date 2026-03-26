@@ -5,6 +5,20 @@ import { buildResponse, type Method, parseRequest } from '@basmilius/apple-rtsp'
 import BaseStream from './baseStream';
 
 /**
+ * Event map for commands received from the Apple TV via the event stream.
+ */
+export type EventStreamEventMap = {
+    /** Generic command received via POST /command. */
+    command: [data: Record<string, unknown>];
+    /** Apple TV requests audio ducking (e.g. Siri activation). */
+    duckAudio: [data: Record<string, unknown>];
+    /** Apple TV requests audio unducking. */
+    unduckAudio: [data: Record<string, unknown>];
+    /** The Apple TV has ended the session. */
+    sessionDied: [];
+};
+
+/**
  * Reverse HTTP event stream from the Apple TV.
  *
  * Unlike the other streams where we send requests, the event stream is a TCP
@@ -17,7 +31,7 @@ import BaseStream from './baseStream';
  * derived from 'Events-Write-Encryption-Key' becomes our read key, because
  * these names are from the Apple TV's perspective (see CLAUDE.md for details).
  */
-export default class EventStream extends BaseStream {
+export default class EventStream extends BaseStream<EventStreamEventMap> {
     /** Accumulated plaintext buffer for partial RTSP request reassembly. */
     #buffer: Buffer = Buffer.alloc(0);
     /** Accumulated encrypted data awaiting decryption (may be a partial ChaCha20 frame). */
@@ -119,16 +133,28 @@ export default class EventStream extends BaseStream {
         const key = `${method} ${path}`;
 
         switch (key) {
-            case 'POST /command':
-                const data = Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as any;
+            case 'POST /command': {
+                const data = Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any) as Record<string, unknown>;
+                const commandType = data.type as string | undefined;
 
-                this.context.logger.info('[event]', 'Received event stream request.', data);
+                this.context.logger.info('[event]', 'Received command:', commandType ?? 'unknown', data);
+
+                this.emit('command', data);
+
+                if (commandType === 'cycleUsePickedRoute' || commandType === 'duckAudio') {
+                    this.emit('duckAudio', data);
+                } else if (commandType === 'unduckAudio') {
+                    this.emit('unduckAudio', data);
+                } else if (commandType === 'died') {
+                    this.emit('sessionDied');
+                }
 
                 this.respond(200, 'OK', {
                     'Audio-Latency': 0,
                     'CSeq': headers['CSeq'] ?? 0
                 });
                 break;
+            }
 
             default:
                 this.context.logger.warn('[event]', 'No handler for url', key);

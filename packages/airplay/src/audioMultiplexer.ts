@@ -1,5 +1,5 @@
 import type { AudioSource, Context } from '@basmilius/apple-common';
-import AudioStream, { FRAMES_PER_PACKET } from './audioStream';
+import AudioStream, { FRAMES_PER_PACKET, type AudioStreamOptions } from './audioStream';
 import type Protocol from './protocol';
 
 /** Maximum number of extra packets to send when catching up from being behind schedule. */
@@ -45,9 +45,10 @@ export default class AudioMultiplexer {
      * Creates a new {@link AudioStream} for the device's protocol instance.
      *
      * @param protocol - The AirPlay protocol instance for the target device.
+     * @param options - Optional audio stream configuration (e.g. redundancy count).
      */
-    addTarget(protocol: Protocol): void {
-        const stream = new AudioStream(protocol);
+    addTarget(protocol: Protocol, options?: AudioStreamOptions): void {
+        const stream = new AudioStream(protocol, options);
 
         this.#targets.push({protocol, stream});
     }

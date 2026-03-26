@@ -33,8 +33,28 @@ const MAX_PACKETS_COMPENSATE = 3;
 /** Number of consecutive slow packets before logging a warning. */
 const SLOW_WARNING_THRESHOLD = 5;
 
-/** Number of previous frames to include as RFC 2198 redundancy (0 = disabled). */
-const REDUNDANCY_COUNT = 0;
+/** Default number of previous frames to include as RFC 2198 redundancy (0 = disabled). */
+const DEFAULT_REDUNDANCY_COUNT = 0;
+
+/**
+ * Options for configuring an AudioStream instance.
+ */
+export type AudioStreamOptions = {
+    /** Number of previous frames to include as RFC 2198 redundancy (0 = disabled, default: 2). */
+    readonly redundancyCount?: number;
+};
+
+/**
+ * Statistics for an active audio stream, used for feedback and adaptive redundancy.
+ */
+export type AudioStreamStats = {
+    readonly packetsSent: number;
+    readonly retransmitRequests: number;
+    readonly retransmitsFulfilled: number;
+    readonly retransmitsFailed: number;
+    readonly packetLossRate: number;
+    readonly totalBytesSent: number;
+};
 
 /**
  * Audio compression type values for the `ct` field in the SETUP request body.
@@ -161,12 +181,14 @@ export { FRAMES_PER_PACKET, SAMPLE_RATE };
  * - ChaCha20-Poly1305 audio encryption with per-packet nonces
  * - RTCP sync packets for receiver clock synchronization
  * - Packet retransmission backlog for handling receiver NACK requests
- * - RFC 2198 audio redundancy support (configurable via REDUNDANCY_COUNT)
+ * - RFC 2198 audio redundancy support (configurable via AudioStreamOptions)
  * - Wall-clock-based timing to maintain real-time audio pace
  */
 export default class AudioStream {
     readonly #protocol: Protocol;
     readonly #context: Context;
+    /** Configurable RFC 2198 redundancy count (0 = disabled). */
+    #redundancyCount: number;
 
     /** Local RTCP control port. */
     #controlPort: number = 0;
@@ -200,13 +222,33 @@ export default class AudioStream {
     #streamContext?: AudioStreamContext;
     /** Dynamic latency manager for adaptive latency control. */
     #latencyManager?: LatencyManager;
+    /** Streaming statistics for feedback and adaptive redundancy. */
+    #packetsSent: number = 0;
+    #retransmitRequests: number = 0;
+    #retransmitsFulfilled: number = 0;
+    #retransmitsFailed: number = 0;
+    #totalBytesSent: number = 0;
+
+    /** Current streaming statistics for feedback and adaptive redundancy. */
+    get stats(): AudioStreamStats {
+        return {
+            packetsSent: this.#packetsSent,
+            retransmitRequests: this.#retransmitRequests,
+            retransmitsFulfilled: this.#retransmitsFulfilled,
+            retransmitsFailed: this.#retransmitsFailed,
+            packetLossRate: this.#packetsSent > 0 ? this.#retransmitRequests / this.#packetsSent : 0,
+            totalBytesSent: this.#totalBytesSent
+        };
+    }
 
     /**
      * @param protocol - The AirPlay protocol instance providing control stream and context.
+     * @param options - Optional configuration for redundancy and other settings.
      */
-    constructor(protocol: Protocol) {
+    constructor(protocol: Protocol, options?: AudioStreamOptions) {
         this.#protocol = protocol;
         this.#context = protocol.context;
+        this.#redundancyCount = options?.redundancyCount ?? DEFAULT_REDUNDANCY_COUNT;
     }
 
     /**
@@ -279,8 +321,8 @@ export default class AudioStream {
                 sr: sampleRate,
                 streamConnectionID,
                 supportsDynamicStreamID: false,
-                redundantAudio: REDUNDANCY_COUNT > 0,
-                supportsRTPPacketRedundancy: REDUNDANCY_COUNT > 0,
+                redundantAudio: this.#redundancyCount > 0,
+                supportsRTPPacketRedundancy: this.#redundancyCount > 0,
                 type: 0x60
             }]
         });
@@ -586,7 +628,7 @@ export default class AudioStream {
      */
     #sendFrameBuffer(frames: Buffer, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
         // Build RTP header (12 bytes)
-        const hasRedundancy = REDUNDANCY_COUNT > 0 && this.#previousFrames.length > 0;
+        const hasRedundancy = this.#redundancyCount > 0 && this.#previousFrames.length > 0;
         const pt = hasRedundancy ? 0x61 : 0x60; // PT 97 for RFC2198, PT 96 for normal
 
         const rtpHeader = Buffer.allocUnsafe(12);
@@ -601,7 +643,7 @@ export default class AudioStream {
         let audioPayload: Buffer;
 
         if (hasRedundancy) {
-            const redundantFrames = this.#previousFrames.slice(-REDUNDANCY_COUNT);
+            const redundantFrames = this.#previousFrames.slice(-this.#redundancyCount);
             const headers: Buffer[] = [];
 
             // Redundant block headers (F=1, 4 bytes each)
@@ -631,7 +673,7 @@ export default class AudioStream {
 
         // Store current frames for next packet's redundancy
         this.#previousFrames.push(Buffer.from(frames));
-        if (this.#previousFrames.length > REDUNDANCY_COUNT) {
+        if (this.#previousFrames.length > this.#redundancyCount) {
             this.#previousFrames.shift();
         }
 
@@ -654,7 +696,20 @@ export default class AudioStream {
         ctx.totalFrames += framesSent;
 
         return this.#send(packet).then(() => {
+            this.#packetsSent++;
+            this.#totalBytesSent += packet.length;
             this.#latencyManager?.reportSuccess();
+
+            // Periodically adapt redundancy based on latency tier (only when redundancy is enabled).
+            if (this.#redundancyCount > 0 && this.#latencyManager && this.#packetsSent % 50 === 0) {
+                const recommended = this.#latencyManager.recommendedRedundancy;
+
+                if (recommended !== this.#redundancyCount) {
+                    this.#context.logger.debug('[audio]', `Adjusting redundancy: ${this.#redundancyCount} → ${recommended}`);
+                    this.#redundancyCount = recommended;
+                }
+            }
+
             return framesSent;
         });
     }
@@ -838,6 +893,8 @@ export default class AudioStream {
         // Each NACK indicates a glitch — report to latency manager.
         this.#latencyManager?.reportGlitch();
 
+        this.#retransmitRequests += lostPackets;
+
         for (let i = 0; i < lostPackets; i++) {
             const seqno = (lostSeqno + i) & 0xFFFF;
             const packet = this.#packetBacklog.get(seqno);
@@ -847,6 +904,7 @@ export default class AudioStream {
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), originalSeqno, packet]);
 
                 this.#controlSocket?.send(resp, addr.port, addr.address);
+                this.#retransmitsFulfilled++;
             } else {
                 // Futile retransmit response — packet is no longer in our backlog.
                 // Tell the receiver so it can skip waiting for a timeout.
@@ -855,6 +913,7 @@ export default class AudioStream {
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), seqBuf, Buffer.alloc(4)]);
 
                 this.#controlSocket?.send(resp, addr.port, addr.address);
+                this.#retransmitsFailed++;
             }
         }
     }

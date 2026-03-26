@@ -218,7 +218,7 @@ export function touchEvent(finger: number, phase: number, x: number, y: number):
  * @returns The text input start request message.
  */
 export function tiStart(): OPackMessage {
-    return requestBtHP('_tiStart');
+    return requestBtHP('_tiStart', {_tiV: 1});
 }
 
 /**

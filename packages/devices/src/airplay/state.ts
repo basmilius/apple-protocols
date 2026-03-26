@@ -76,6 +76,8 @@ type EventMap = {
     readonly playbackQueueChanged: [client: Client, player: Player];
     readonly playbackStateChanged: [client: Client, player: Player, oldState: Proto.PlaybackState_Enum, newState: Proto.PlaybackState_Enum];
     readonly supportedCommandsChanged: [client: Client, player: Player, commands: Proto.CommandInfo[]];
+    readonly clusterChanged: [clusterID: string | null, isLeader: boolean];
+    readonly playerClientParticipantsUpdate: [Proto.PlayerClientParticipantsUpdateMessage];
 };
 
 /**
@@ -152,6 +154,11 @@ export default class extends EventEmitter<EventMap> {
         return this.#isClusterLeader;
     }
 
+    /** Current playback queue participants (e.g. SharePlay users). */
+    get participants(): Proto.PlaybackQueueParticipant[] {
+        return this.#participants;
+    }
+
     /** Current volume level (0.0 - 1.0). */
     get volume(): number {
         return this.#volume;
@@ -184,6 +191,7 @@ export default class extends EventEmitter<EventMap> {
     #clusterType: number;
     #isClusterAware: boolean;
     #isClusterLeader: boolean;
+    #participants: Proto.PlaybackQueueParticipant[];
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
@@ -219,6 +227,7 @@ export default class extends EventEmitter<EventMap> {
         this.onUpdateContentItem = this.onUpdateContentItem.bind(this);
         this.onUpdateContentItemArtwork = this.onUpdateContentItemArtwork.bind(this);
         this.onUpdatePlayer = this.onUpdatePlayer.bind(this);
+        this.onPlayerClientParticipantsUpdate = this.onPlayerClientParticipantsUpdate.bind(this);
         this.onUpdateOutputDevice = this.onUpdateOutputDevice.bind(this);
         this.onVolumeControlAvailability = this.onVolumeControlAvailability.bind(this);
         this.onVolumeControlCapabilitiesDidChange = this.onVolumeControlCapabilitiesDidChange.bind(this);
@@ -247,6 +256,7 @@ export default class extends EventEmitter<EventMap> {
         this.#dataStream.on('updateContentItem', this.onUpdateContentItem);
         this.#dataStream.on('updateContentItemArtwork', this.onUpdateContentItemArtwork);
         this.#dataStream.on('updatePlayer', this.onUpdatePlayer);
+        this.#dataStream.on('playerClientParticipantsUpdate', this.onPlayerClientParticipantsUpdate);
         this.#dataStream.on('updateOutputDevice', this.onUpdateOutputDevice);
         this.#dataStream.on('volumeControlAvailability', this.onVolumeControlAvailability);
         this.#dataStream.on('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
@@ -281,6 +291,7 @@ export default class extends EventEmitter<EventMap> {
         dataStream.off('updateContentItem', this.onUpdateContentItem);
         dataStream.off('updateContentItemArtwork', this.onUpdateContentItemArtwork);
         dataStream.off('updatePlayer', this.onUpdatePlayer);
+        dataStream.off('playerClientParticipantsUpdate', this.onPlayerClientParticipantsUpdate);
         dataStream.off('updateOutputDevice', this.onUpdateOutputDevice);
         dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
         dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
@@ -301,6 +312,7 @@ export default class extends EventEmitter<EventMap> {
         this.#clusterType = 0;
         this.#isClusterAware = false;
         this.#isClusterLeader = false;
+        this.#participants = [];
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
@@ -643,6 +655,16 @@ export default class extends EventEmitter<EventMap> {
      *
      * @param message - The update output device message.
      */
+    /**
+     * Handles playback queue participant updates (e.g. SharePlay users).
+     *
+     * @param message - The participants update message.
+     */
+    onPlayerClientParticipantsUpdate(message: Proto.PlayerClientParticipantsUpdateMessage): void {
+        this.#participants = message.participants ?? [];
+        this.emit('playerClientParticipantsUpdate', message);
+    }
+
     onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
         this.#outputDevices = message.clusterAwareOutputDevices?.length > 0
             ? message.clusterAwareOutputDevices
@@ -707,11 +729,18 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The device info message.
      */
     #updateDeviceInfo(message: Proto.DeviceInfoMessage): void {
+        const previousClusterID = this.#clusterID;
+        const previousIsLeader = this.#isClusterLeader;
+
         this.#outputDeviceUID = message.clusterID || message.deviceUID || message.uniqueIdentifier || null;
         this.#clusterID = message.clusterID || null;
         this.#clusterType = message.clusterType ?? 0;
         this.#isClusterAware = message.isClusterAware ?? false;
         this.#isClusterLeader = message.isClusterLeader ?? false;
+
+        if (this.#clusterID !== previousClusterID || this.#isClusterLeader !== previousIsLeader) {
+            this.emit('clusterChanged', this.#clusterID, this.#isClusterLeader);
+        }
     }
 
     /**

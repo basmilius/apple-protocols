@@ -2,6 +2,7 @@
 .audio/
 .claude/
 .log/
+.research/
 dist/
 dist-web/
 node_modules/

@@ -14,6 +14,14 @@ export class StateController extends EventEmitter<StateEventMap> {
     constructor(airplay: AirPlayManager) {
         super();
         this.#airplay = airplay;
+
+        this.onNowPlayingChanged = this.onNowPlayingChanged.bind(this);
+        this.onPlaybackStateChanged = this.onPlaybackStateChanged.bind(this);
+        this.onVolumeDidChange = this.onVolumeDidChange.bind(this);
+        this.onVolumeMutedDidChange = this.onVolumeMutedDidChange.bind(this);
+        this.onArtworkChanged = this.onArtworkChanged.bind(this);
+        this.onSupportedCommandsChanged = this.onSupportedCommandsChanged.bind(this);
+        this.onClusterChanged = this.onClusterChanged.bind(this);
     }
 
     get #state(): AirPlayState {
@@ -151,46 +159,70 @@ export class StateController extends EventEmitter<StateEventMap> {
     subscribe(): void {
         const state = this.#state;
 
-        state.on('nowPlayingChanged', (client, player) => {
-            this.emit('nowPlayingChanged', client, player);
-
-            const app = client
-                ? {bundleIdentifier: client.bundleIdentifier, displayName: client.displayName}
-                : null;
-
-            this.emit('activeAppChanged', app?.bundleIdentifier ?? null, app?.displayName ?? null);
-        });
-
-        state.on('playbackStateChanged', (client, player, oldState, newState) => {
-            this.emit('playbackStateChanged', client, player, oldState, newState);
-        });
-
-        state.on('volumeDidChange', (volume) => {
-            this.emit('volumeChanged', volume);
-        });
-
-        state.on('volumeMutedDidChange', (muted) => {
-            this.emit('volumeMutedChanged', muted);
-        });
-
-        state.on('artworkChanged', (client, player) => {
-            this.emit('artworkChanged', client, player);
-        });
-
-        state.on('supportedCommandsChanged', (client, player, commands) => {
-            this.emit('supportedCommandsChanged', client, player, commands);
-        });
-
-        state.on('clusterChanged', (clusterId, isLeader) => {
-            this.emit('clusterChanged', clusterId, isLeader);
-        });
+        state.on('nowPlayingChanged', this.onNowPlayingChanged);
+        state.on('playbackStateChanged', this.onPlaybackStateChanged);
+        state.on('volumeDidChange', this.onVolumeDidChange);
+        state.on('volumeMutedDidChange', this.onVolumeMutedDidChange);
+        state.on('artworkChanged', this.onArtworkChanged);
+        state.on('supportedCommandsChanged', this.onSupportedCommandsChanged);
+        state.on('clusterChanged', this.onClusterChanged);
     }
 
     /**
-     * Removes all event listeners from this controller.
+     * Removes forwarding listeners from the underlying AirPlayState.
+     * Does not remove external listeners registered on this controller.
      * @internal
      */
     unsubscribe(): void {
-        this.removeAllListeners();
+        const state = this.#state;
+
+        state.off('nowPlayingChanged', this.onNowPlayingChanged);
+        state.off('playbackStateChanged', this.onPlaybackStateChanged);
+        state.off('volumeDidChange', this.onVolumeDidChange);
+        state.off('volumeMutedDidChange', this.onVolumeMutedDidChange);
+        state.off('artworkChanged', this.onArtworkChanged);
+        state.off('supportedCommandsChanged', this.onSupportedCommandsChanged);
+        state.off('clusterChanged', this.onClusterChanged);
+    }
+
+    /** @internal */
+    onNowPlayingChanged(client: AirPlayClient | null, player: AirPlayPlayer | null): void {
+        this.emit('nowPlayingChanged', client, player);
+
+        const app = client
+            ? {bundleIdentifier: client.bundleIdentifier, displayName: client.displayName}
+            : null;
+
+        this.emit('activeAppChanged', app?.bundleIdentifier ?? null, app?.displayName ?? null);
+    }
+
+    /** @internal */
+    onPlaybackStateChanged(client: AirPlayClient, player: AirPlayPlayer, oldState: Proto.PlaybackState_Enum, newState: Proto.PlaybackState_Enum): void {
+        this.emit('playbackStateChanged', client, player, oldState, newState);
+    }
+
+    /** @internal */
+    onVolumeDidChange(volume: number): void {
+        this.emit('volumeChanged', volume);
+    }
+
+    /** @internal */
+    onVolumeMutedDidChange(muted: boolean): void {
+        this.emit('volumeMutedChanged', muted);
+    }
+
+    /** @internal */
+    onArtworkChanged(client: AirPlayClient, player: AirPlayPlayer): void {
+        this.emit('artworkChanged', client, player);
+    }
+
+    /** @internal */
+    onSupportedCommandsChanged(client: AirPlayClient, player: AirPlayPlayer, commands: Proto.CommandInfo[]): void {
+        this.emit('supportedCommandsChanged', client, player, commands);
+    }
+
+    /** @internal */
+    onClusterChanged(clusterId: string | null, isLeader: boolean): void {
+        this.emit('clusterChanged', clusterId, isLeader);
     }
 }

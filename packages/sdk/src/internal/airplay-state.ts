@@ -491,6 +491,13 @@ export class AirPlayState extends EventEmitter<EventMap> {
         }
 
         this.emit('setArtwork', message);
+
+        const client = this.nowPlayingClient;
+        const player = client?.activePlayer;
+
+        if (client && player) {
+            this.emit('artworkChanged', client, player);
+        }
     }
 
     /**

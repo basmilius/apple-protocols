@@ -257,13 +257,14 @@ export function playbackQueueRequest(location: number, length: number, artworkWi
         includeLyrics: true,
         includeSections: true,
         includeAlignments: true,
-        includeAvailableArtworkFormats: true,
         includeParticipants: true,
         isLegacyNowPlayingInfoRequest: false,
-        requestedArtworkFormats: ['MRContentItemArtworkFormatStandard'],
-        requestedRemoteArtworkFormats: ['MRContentItemArtworkFormatStandard'],
-        requestedAnimatedArtworkPreviewFrameFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall'],
-        requestedAnimatedArtworkAssetURLFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall']
+        // uncommenting this code will disable artworkData.
+        // includeAvailableArtworkFormats: true,
+        // requestedArtworkFormats: ['MRContentItemArtworkFormatStandard'],
+        // requestedRemoteArtworkFormats: ['MRContentItemArtworkFormatStandard'],
+        // requestedAnimatedArtworkPreviewFrameFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall'],
+        // requestedAnimatedArtworkAssetURLFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall']
     });
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);

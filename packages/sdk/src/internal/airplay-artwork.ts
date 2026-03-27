@@ -1,24 +1,41 @@
 import { DataStreamMessage, type Protocol } from '@basmilius/apple-airplay';
-import { PROTOCOL } from './const';
 import type { AirPlayManager } from './airplay-manager';
 import type { AirPlayState } from './airplay-state';
+import { PROTOCOL } from './const';
 
 /**
  * Artwork result from the unified artwork API.
  * Always contains at least one of `url` or `data`.
  */
 export type ArtworkResult = {
-    /** Direct URL to the artwork image (preferred for web/UI rendering). */
+    /**
+     * Direct URL to the artwork image (preferred for web/UI rendering).
+     */
     readonly url: string | null;
-    /** Raw image bytes (available when artwork is embedded or fetched from playback queue). */
+
+    /**
+     * Raw image bytes (available when artwork is embedded or fetched from playback queue).
+     */
     readonly data: Uint8Array | null;
-    /** MIME type of the artwork (e.g. 'image/jpeg', 'image/png'). */
+
+    /**
+     * MIME type of the artwork (e.g. 'image/jpeg', 'image/png').
+     */
     readonly mimeType: string;
-    /** The artwork identifier used for change detection. */
+
+    /**
+     * The artwork identifier used for change detection.
+     */
     readonly identifier: string | null;
-    /** Width of the artwork in pixels (0 if unknown). */
+
+    /**
+     * Width of the artwork in pixels (0 if unknown).
+     */
     readonly width: number;
-    /** Height of the artwork in pixels (0 if unknown). */
+
+    /**
+     * Height of the artwork in pixels (0 if unknown).
+     */
     readonly height: number;
 };
 
@@ -166,7 +183,9 @@ export class AirPlayArtwork {
         return null;
     }
 
-    /** Clears the cached artwork, forcing a fresh fetch on the next `get()` call. */
+    /**
+     * Clears the cached artwork, forcing a fresh fetch on the next `get()` call.
+     */
     clear(): void {
         this.#lastIdentifier = null;
         this.#cached = null;

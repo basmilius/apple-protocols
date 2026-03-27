@@ -1,7 +1,5 @@
 import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
-import { AppleTV } from './device/apple-tv';
-import { HomePod } from './device/homepod';
-import { HomePodMini } from './device/homepod-mini';
+import { AppleTV, HomePod, HomePodMini } from './device';
 import type { DeviceType } from './types';
 
 /**
@@ -38,7 +36,7 @@ export async function discover(): Promise<DiscoveredDevice[]> {
             address: result.address,
             modelName: result.modelName,
             deviceType: detectDeviceType(result.modelName),
-            services: { airplay: result }
+            services: {airplay: result}
         });
     }
 
@@ -48,7 +46,7 @@ export async function discover(): Promise<DiscoveredDevice[]> {
         if (existing) {
             byAddress.set(result.address, {
                 ...existing,
-                services: { ...existing.services, companionLink: result }
+                services: {...existing.services, companionLink: result}
             });
         } else {
             byAddress.set(result.address, {
@@ -57,7 +55,7 @@ export async function discover(): Promise<DiscoveredDevice[]> {
                 address: result.address,
                 modelName: result.modelName,
                 deviceType: detectDeviceType(result.modelName),
-                services: { companionLink: result }
+                services: {companionLink: result}
             });
         }
     }

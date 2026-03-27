@@ -1,5 +1,5 @@
 import type { LaunchableApp } from '@basmilius/apple-companion-link';
-import type { CompanionLinkManager } from '../internal/companion-link-manager';
+import type { CompanionLinkManager } from '../internal';
 
 /**
  * App management controller for Apple TV devices.
@@ -12,7 +12,9 @@ export class AppsController {
         this.#companionLink = companionLink;
     }
 
-    /** Returns the list of apps that can be launched on the device. */
+    /**
+     * Returns the list of apps that can be launched on the device.
+     */
     async list(): Promise<LaunchableApp[]> {
         return await this.#companionLink.getLaunchableApps();
     }

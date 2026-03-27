@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, Proto, type Protocol } from '@basmilius/apple-airplay';
-import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import { AirPlayClient } from './airplay-client';
 import type { AirPlayManager } from './airplay-manager';
 import { type AirPlayPlayer, DEFAULT_PLAYER_ID } from './airplay-player';
+import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 
 /**
  * Snapshot of the current now-playing state, used for change detection.
@@ -86,99 +86,137 @@ type EventMap = {
  * and high-level (deduplicated, resolved) events.
  */
 export class AirPlayState extends EventEmitter<EventMap> {
-    /** @returns The DataStream for event subscription. */
+    /**
+     * @returns The DataStream for event subscription.
+     */
     get #dataStream(): DataStream {
         return this.#protocol.dataStream;
     }
 
-    /** @returns The underlying AirPlay Protocol instance. */
+    /**
+     * @returns The underlying AirPlay Protocol instance.
+     */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
 
-    /** All known clients (apps) keyed by bundle identifier. */
+    /**
+     * All known clients (apps) keyed by bundle identifier.
+     */
     get clients(): Record<string, AirPlayClient> {
         return this.#clients;
     }
 
-    /** Whether a keyboard/text input session is currently active on the Apple TV. */
+    /**
+     * Whether a keyboard/text input session is currently active on the Apple TV.
+     */
     get isKeyboardActive(): boolean {
         return this.#keyboardState === Proto.KeyboardState_Enum.DidBeginEditing
             || this.#keyboardState === Proto.KeyboardState_Enum.Editing
             || this.#keyboardState === Proto.KeyboardState_Enum.TextDidChange;
     }
 
-    /** Text editing attributes for the active keyboard session, or null. */
+    /**
+     * Text editing attributes for the active keyboard session, or null.
+     */
     get keyboardAttributes(): Proto.TextEditingAttributes | null {
         return this.#keyboardAttributes;
     }
 
-    /** Current keyboard state enum value. */
+    /**
+     * Current keyboard state enum value.
+     */
     get keyboardState(): Proto.KeyboardState_Enum {
         return this.#keyboardState;
     }
 
-    /** The currently active now-playing client, or null if nothing is playing. */
+    /**
+     * The currently active now-playing client, or null if nothing is playing.
+     */
     get nowPlayingClient(): AirPlayClient | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
 
-    /** UID of the primary output device (used for volume control and multi-room). */
+    /**
+     * UID of the primary output device (used for volume control and multi-room).
+     */
     get outputDeviceUID(): string | null {
         return this.#outputDeviceUID;
     }
 
-    /** List of all output device descriptors in the current AirPlay group. */
+    /**
+     * List of all output device descriptors in the current AirPlay group.
+     */
     get outputDevices(): Proto.AVOutputDeviceDescriptor[] {
         return this.#outputDevices;
     }
 
-    /** Cluster identifier for multi-room groups, or null. */
+    /**
+     * Cluster identifier for multi-room groups, or null.
+     */
     get clusterID(): string | null {
         return this.#clusterID;
     }
 
-    /** Cluster type code (0 if not clustered). */
+    /**
+     * Cluster type code (0 if not clustered).
+     */
     get clusterType(): number {
         return this.#clusterType;
     }
 
-    /** Whether this device is aware of multi-room clusters. */
+    /**
+     * Whether this device is aware of multi-room clusters.
+     */
     get isClusterAware(): boolean {
         return this.#isClusterAware;
     }
 
-    /** Whether this device is the leader of its multi-room cluster. */
+    /**
+     * Whether this device is the leader of its multi-room cluster.
+     */
     get isClusterLeader(): boolean {
         return this.#isClusterLeader;
     }
 
-    /** Current playback queue participants (e.g. SharePlay users). */
+    /**
+     * Current playback queue participants (e.g. SharePlay users).
+     */
     get participants(): Proto.PlaybackQueueParticipant[] {
         return this.#participants;
     }
 
-    /** Raw JPEG artwork data from the last SET_ARTWORK_MESSAGE, or null. */
+    /**
+     * Raw JPEG artwork data from the last SET_ARTWORK_MESSAGE, or null.
+     */
     get artworkJpegData(): Uint8Array | null {
         return this.#artworkJpegData;
     }
 
-    /** Current volume level (0.0 - 1.0). */
+    /**
+     * Current volume level (0.0 - 1.0).
+     */
     get volume(): number {
         return this.#volume;
     }
 
-    /** Whether volume control is available on this device. */
+    /**
+     * Whether volume control is available on this device.
+     */
     get volumeAvailable(): boolean {
         return this.#volumeAvailable;
     }
 
-    /** Volume capabilities (absolute, relative, both, or none). */
+    /**
+     * Volume capabilities (absolute, relative, both, or none).
+     */
     get volumeCapabilities(): Proto.VolumeCapabilities_Enum {
         return this.#volumeCapabilities;
     }
 
-    /** Whether the device is currently muted. */
+    /**
+     * Whether the device is currently muted.
+     */
     get volumeMuted(): boolean {
         return this.#volumeMuted;
     }
@@ -240,7 +278,9 @@ export class AirPlayState extends EventEmitter<EventMap> {
         this.onVolumeMutedDidChange = this.onVolumeMutedDidChange.bind(this);
     }
 
-    /** Subscribes to all DataStream events to track device state. Called internally via symbol. */
+    /**
+     * Subscribes to all DataStream events to track device state. Called internally via symbol.
+     */
     [STATE_SUBSCRIBE_SYMBOL](): void {
         this.#dataStream.on('configureConnection', this.onConfigureConnection);
         this.#dataStream.on('keyboard', this.onKeyboard);
@@ -269,7 +309,9 @@ export class AirPlayState extends EventEmitter<EventMap> {
         this.#dataStream.on('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
-    /** Unsubscribes from all DataStream events. Called internally via symbol. */
+    /**
+     * Unsubscribes from all DataStream events. Called internally via symbol.
+     */
     [STATE_UNSUBSCRIBE_SYMBOL](): void {
         const dataStream = this.#dataStream;
 
@@ -304,7 +346,9 @@ export class AirPlayState extends EventEmitter<EventMap> {
         dataStream.off('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
-    /** Resets all state to initial/default values. Called on connect and reconnect. */
+    /**
+     * Resets all state to initial/default values. Called on connect and reconnect.
+     */
     clear(): void {
         this.#clients = {};
         this.#keyboardAttributes = null;
@@ -814,13 +858,17 @@ export class AirPlayState extends EventEmitter<EventMap> {
         };
     }
 
-    /** Emits the 'activePlayerChanged' event with the current client and player. */
+    /**
+     * Emits the 'activePlayerChanged' event with the current client and player.
+     */
     #emitActivePlayerChanged(): void {
         const client = this.nowPlayingClient;
         this.emit('activePlayerChanged', client, client?.activePlayer ?? null);
     }
 
-    /** Emits 'nowPlayingChanged' only if the now-playing snapshot has actually changed. */
+    /**
+     * Emits 'nowPlayingChanged' only if the now-playing snapshot has actually changed.
+     */
     #emitNowPlayingChangedIfNeeded(): void {
         const snapshot = this.#createNowPlayingSnapshot();
         const previous = this.#nowPlayingSnapshot;

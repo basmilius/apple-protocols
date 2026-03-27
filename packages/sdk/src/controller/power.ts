@@ -1,6 +1,5 @@
 import type { AttentionState } from '@basmilius/apple-companion-link';
-import type { AirPlayManager } from '../internal/airplay-manager';
-import type { CompanionLinkManager } from '../internal/companion-link-manager';
+import type { AirPlayManager, CompanionLinkManager } from '../internal';
 
 /**
  * Power management controller for Apple TV devices.
@@ -15,12 +14,16 @@ export class PowerController {
         this.#companionLink = companionLink;
     }
 
-    /** Turns on the device (sends wake HID key). */
+    /**
+     * Turns on the device (sends wake HID key).
+     */
     async on(): Promise<void> {
         await this.#airplay.remote.wake();
     }
 
-    /** Turns off the device (sends suspend HID key). */
+    /**
+     * Turns off the device (sends suspend HID key).
+     */
     async off(): Promise<void> {
         await this.#airplay.remote.suspend();
     }

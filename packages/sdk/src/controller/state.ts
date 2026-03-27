@@ -1,9 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { Proto } from '@basmilius/apple-airplay';
-import type { AirPlayClient } from '../internal/airplay-client';
-import type { AirPlayManager } from '../internal/airplay-manager';
-import type { AirPlayPlayer } from '../internal/airplay-player';
-import type { AirPlayState } from '../internal/airplay-state';
+import type { AirPlayClient, AirPlayManager, AirPlayPlayer, AirPlayState } from '../internal';
 import type { StateEventMap } from '../types';
 
 /**
@@ -158,7 +155,7 @@ export class StateController extends EventEmitter<StateEventMap> {
             this.emit('nowPlayingChanged', client, player);
 
             const app = client
-                ? { bundleIdentifier: client.bundleIdentifier, displayName: client.displayName }
+                ? {bundleIdentifier: client.bundleIdentifier, displayName: client.displayName}
                 : null;
 
             this.emit('activeAppChanged', app?.bundleIdentifier ?? null, app?.displayName ?? null);

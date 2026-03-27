@@ -1,5 +1,5 @@
 import type { UserAccount } from '@basmilius/apple-companion-link';
-import type { CompanionLinkManager } from '../internal/companion-link-manager';
+import type { CompanionLinkManager } from '../internal';
 
 /**
  * User account controller for Apple TV devices.
@@ -12,7 +12,9 @@ export class AccountsController {
         this.#companionLink = companionLink;
     }
 
-    /** Returns the list of user accounts configured on the device. */
+    /**
+     * Returns the list of user accounts configured on the device.
+     */
     async list(): Promise<UserAccount[]> {
         return await this.#companionLink.getUserAccounts();
     }

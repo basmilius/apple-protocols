@@ -1,13 +1,17 @@
 import { DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
 import { CommandError, waitFor } from '@basmilius/apple-common';
-import { PROTOCOL } from './const';
 import type { AirPlayManager } from './airplay-manager';
 import type { AirPlayState } from './airplay-state';
+import { PROTOCOL } from './const';
 
-/** Volume adjustment step size as a fraction (0.05 = 5%). */
+/**
+ * Volume adjustment step size as a fraction (0.05 = 5%).
+ */
 const VOLUME_STEP = 0.05; // 5%
 
-/** Minimum interval between volume fade steps in milliseconds. */
+/**
+ * Minimum interval between volume fade steps in milliseconds.
+ */
 const FADE_STEP_INTERVAL = 50;
 
 /**
@@ -16,12 +20,16 @@ const FADE_STEP_INTERVAL = 50;
  * relative volume (HID volume up/down keys) based on the device's reported capabilities.
  */
 export class AirPlayVolume {
-    /** @returns The underlying AirPlay Protocol instance. */
+    /**
+     * @returns The underlying AirPlay Protocol instance.
+     */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
 
-    /** @returns The AirPlay state for volume and capability information. */
+    /**
+     * @returns The AirPlay state for volume and capability information.
+     */
     get #state(): AirPlayState {
         return this.#device.state;
     }

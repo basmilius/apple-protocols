@@ -1,8 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { MediaControlFlag, type Protocol } from '@basmilius/apple-companion-link';
+import { type AttentionState, convertAttentionState, MediaControlFlag, type Protocol, type TextInputState } from '@basmilius/apple-companion-link';
 import { NSKeyedArchiver, Plist } from '@basmilius/apple-encoding';
-import type { AttentionState, TextInputState } from '@basmilius/apple-companion-link';
-import { convertAttentionState } from '@basmilius/apple-companion-link';
 
 /**
  * Events emitted by CompanionLinkState.
@@ -33,7 +31,9 @@ export type MediaCapabilities = {
     readonly skipBackward: boolean;
 };
 
-/** Default text input state when no text input session is active. */
+/**
+ * Default text input state when no text input session is active.
+ */
 const DEFAULT_TEXT_INPUT: TextInputState = {
     isActive: false,
     documentText: '',
@@ -49,37 +49,51 @@ const DEFAULT_TEXT_INPUT: TextInputState = {
  * Subscribes to protocol stream events and emits typed state change events.
  */
 export class CompanionLinkState extends EventEmitter<EventMap> {
-    /** Current attention state of the device (active, idle, screensaver, etc.). */
+    /**
+     * Current attention state of the device (active, idle, screensaver, etc.).
+     */
     get attentionState(): AttentionState {
         return this.#attentionState;
     }
 
-    /** Parsed media capabilities indicating which controls are available. */
+    /**
+     * Parsed media capabilities indicating which controls are available.
+     */
     get mediaCapabilities(): MediaCapabilities {
         return this.#mediaCapabilities;
     }
 
-    /** Raw media control flags bitmask from the device. */
+    /**
+     * Raw media control flags bitmask from the device.
+     */
     get mediaControlFlags(): number {
         return this.#mediaControlFlags;
     }
 
-    /** Current now-playing info as a key-value dictionary, or null. */
+    /**
+     * Current now-playing info as a key-value dictionary, or null.
+     */
     get nowPlayingInfo(): Record<string, unknown> | null {
         return this.#nowPlayingInfo;
     }
 
-    /** Currently supported actions dictionary, or null. */
+    /**
+     * Currently supported actions dictionary, or null.
+     */
     get supportedActions(): Record<string, unknown> | null {
         return this.#supportedActions;
     }
 
-    /** Current text input session state. */
+    /**
+     * Current text input session state.
+     */
     get textInputState(): TextInputState {
         return this.#textInputState;
     }
 
-    /** Whether volume control is currently available via the Companion Link protocol. */
+    /**
+     * Whether volume control is currently available via the Companion Link protocol.
+     */
     get volumeAvailable(): boolean {
         return this.#volumeAvailable;
     }
@@ -90,7 +104,7 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
     #mediaControlFlags: number = 0;
     #nowPlayingInfo: Record<string, unknown> | null = null;
     #supportedActions: Record<string, unknown> | null = null;
-    #textInputState: TextInputState = { ...DEFAULT_TEXT_INPUT };
+    #textInputState: TextInputState = {...DEFAULT_TEXT_INPUT};
     #volumeAvailable: boolean = false;
 
     /**
@@ -111,7 +125,9 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
         this.onTextInputStopped = this.onTextInputStopped.bind(this);
     }
 
-    /** Subscribes to protocol stream events and registers interests for push notifications. */
+    /**
+     * Subscribes to protocol stream events and registers interests for push notifications.
+     */
     subscribe(): void {
         const stream = this.#protocol.stream;
 
@@ -131,7 +147,9 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
         this.#protocol.registerInterests(['SupportedActions']);
     }
 
-    /** Unsubscribes from protocol stream events and deregisters interests. */
+    /**
+     * Unsubscribes from protocol stream events and deregisters interests.
+     */
     unsubscribe(): void {
         const stream = this.#protocol.stream;
 
@@ -153,10 +171,13 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
             this.#protocol.deregisterInterests(['TVSystemStatus']);
             this.#protocol.deregisterInterests(['NowPlayingInfo']);
             this.#protocol.deregisterInterests(['SupportedActions']);
-        } catch {}
+        } catch {
+        }
     }
 
-    /** Fetches the initial attention state and media control status from the device. */
+    /**
+     * Fetches the initial attention state and media control status from the device.
+     */
     async fetchInitialState(): Promise<void> {
         try {
             const state = await this.#protocol.getAttentionState();
@@ -173,14 +194,16 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
         }
     }
 
-    /** Resets all state to initial/default values. */
+    /**
+     * Resets all state to initial/default values.
+     */
     clear(): void {
         this.#attentionState = 'unknown';
         this.#mediaCapabilities = parseMediaControlFlags(0);
         this.#mediaControlFlags = 0;
         this.#nowPlayingInfo = null;
         this.#supportedActions = null;
-        this.#textInputState = { ...DEFAULT_TEXT_INPUT };
+        this.#textInputState = {...DEFAULT_TEXT_INPUT};
         this.#volumeAvailable = false;
     }
 
@@ -310,7 +333,7 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
                 autocapitalization = (plistData._tiAP as boolean) ?? false;
             }
 
-            this.#textInputState = { isActive: true, documentText, isSecure, keyboardType, autocorrection, autocapitalization };
+            this.#textInputState = {isActive: true, documentText, isSecure, keyboardType, autocorrection, autocapitalization};
             this.emit('textInputChanged', this.#textInputState);
         } catch (err) {
             this.#protocol.context.logger.error('[cl-state]', 'Text input started parse error', err);
@@ -323,7 +346,7 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
      * @param _data - The raw text input stopped payload (unused).
      */
     onTextInputStopped(_data: unknown): void {
-        this.#textInputState = { ...DEFAULT_TEXT_INPUT };
+        this.#textInputState = {...DEFAULT_TEXT_INPUT};
         this.emit('textInputChanged', this.#textInputState);
     }
 }

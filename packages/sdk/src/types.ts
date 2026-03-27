@@ -1,7 +1,6 @@
 import type { Proto } from '@basmilius/apple-airplay';
 import type { AttentionState, TextInputState } from '@basmilius/apple-companion-link';
-import type { AirPlayClient } from './internal/airplay-client';
-import type { AirPlayPlayer } from './internal/airplay-player';
+import type { AirPlayClient, AirPlayPlayer } from './internal';
 
 /**
  * Device type identifier used in discovery results.
@@ -44,11 +43,19 @@ export type StateEventMap = {
  * Connection recovery options.
  */
 export type RecoveryOptions = {
-    /** Maximum number of reconnection attempts. Default: 3. */
+    /**
+     * Maximum number of reconnection attempts. Default: 3.
+     */
     readonly maxAttempts?: number;
-    /** Base delay in milliseconds for exponential backoff. Default: 1000. */
+
+    /**
+     * Base delay in milliseconds for exponential backoff. Default: 1000.
+     */
     readonly baseDelay?: number;
-    /** Interval in milliseconds between periodic reconnection attempts. 0 = disabled. Default: 900000 (15 min). */
+
+    /**
+     * Interval in milliseconds between periodic reconnection attempts. 0 = disabled. Default: 900000 (15 min).
+     */
     readonly reconnectInterval?: number;
 };
 
@@ -56,7 +63,9 @@ export type RecoveryOptions = {
  * Options passed to device.connect().
  */
 export type ConnectOptions = {
-    /** Connection recovery configuration. Set to false to disable recovery. */
+    /**
+     * Connection recovery configuration. Set to false to disable recovery.
+     */
     readonly recovery?: RecoveryOptions | false;
 };
 
@@ -64,15 +73,29 @@ export type ConnectOptions = {
  * Device construction options.
  */
 export type DeviceOptions = {
-    /** IP address of the device. */
+    /**
+     * IP address of the device.
+     */
     readonly address?: string;
-    /** Pre-discovered AirPlay service result. */
+
+    /**
+     * Pre-discovered AirPlay service result.
+     */
     readonly airplay?: import('@basmilius/apple-common').DiscoveryResult;
-    /** Pre-discovered Companion Link service result (Apple TV only). */
+
+    /**
+     * Pre-discovered Companion Link service result (Apple TV only).
+     */
     readonly companionLink?: import('@basmilius/apple-common').DiscoveryResult;
-    /** Custom device identity to present during pairing. */
+
+    /**
+     * Custom device identity to present during pairing.
+     */
     readonly identity?: Partial<import('@basmilius/apple-common').DeviceIdentity>;
-    /** Timing server for multi-room / audio streaming. */
+
+    /**
+     * Timing server for multi-room / audio streaming.
+     */
     readonly timingServer?: import('@basmilius/apple-common').TimingServer;
 };
 
@@ -83,8 +106,7 @@ export type {
 
 export type {
     AccessoryCredentials,
-    DiscoveryResult,
-    TimingServer
+    DiscoveryResult
 } from '@basmilius/apple-common';
 
 export type {

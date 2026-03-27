@@ -1,12 +1,11 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
-import { AirPlayFeatureFlags } from '@basmilius/apple-common';
-import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
 import { AirPlayArtwork } from './airplay-artwork';
 import { AirPlayRemote } from './airplay-remote';
 import { AirPlayState } from './airplay-state';
 import { AirPlayVolume } from './airplay-volume';
+import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 
 /**
  * Events emitted by AirPlayDevice.
@@ -25,17 +24,23 @@ type EventMap = {
  * Supports both transient (PIN-less) and credential-based pairing.
  */
 export class AirPlayManager extends EventEmitter<EventMap> {
-    /** @returns The underlying AirPlay Protocol instance (accessed via symbol for internal use). */
+    /**
+     * @returns The underlying AirPlay Protocol instance (accessed via symbol for internal use).
+     */
     get [PROTOCOL](): Protocol {
         return this.#protocol;
     }
 
-    /** The mDNS discovery result used to connect to this device. */
+    /**
+     * The mDNS discovery result used to connect to this device.
+     */
     get discoveryResult(): DiscoveryResult {
         return this.#discoveryResult;
     }
 
-    /** Updates the discovery result, e.g. when the device's address changes. */
+    /**
+     * Updates the discovery result, e.g. when the device's address changes.
+     */
     set discoveryResult(discoveryResult: DiscoveryResult) {
         this.#discoveryResult = discoveryResult;
     }
@@ -70,42 +75,58 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         };
     }
 
-    /** Whether the control stream TCP connection is currently active. */
+    /**
+     * Whether the control stream TCP connection is currently active.
+     */
     get isConnected(): boolean {
         return this.#protocol?.controlStream?.isConnected ?? false;
     }
 
-    /** Raw receiver info dictionary from the /info endpoint, or undefined before connect. */
+    /**
+     * Raw receiver info dictionary from the /info endpoint, or undefined before connect.
+     */
     get receiverInfo(): Record<string, any> | undefined {
         return this.#protocol?.receiverInfo;
     }
 
-    /** The Artwork controller for fetching now-playing artwork from all sources. */
+    /**
+     * The Artwork controller for fetching now-playing artwork from all sources.
+     */
     get artwork(): AirPlayArtwork {
         return this.#artwork;
     }
 
-    /** The Remote controller for HID keys, SendCommand, text input, and touch. */
+    /**
+     * The Remote controller for HID keys, SendCommand, text input, and touch.
+     */
     get remote(): AirPlayRemote {
         return this.#remote;
     }
 
-    /** The State tracker for now-playing, volume, keyboard, and output device state. */
+    /**
+     * The State tracker for now-playing, volume, keyboard, and output device state.
+     */
     get state(): AirPlayState {
         return this.#state;
     }
 
-    /** The Volume controller for absolute and relative volume adjustments. */
+    /**
+     * The Volume controller for absolute and relative volume adjustments.
+     */
     get volume(): AirPlayVolume {
         return this.#volume;
     }
 
-    /** The shared PTP timing server, if one is assigned for multi-room sync. */
+    /**
+     * The shared PTP timing server, if one is assigned for multi-room sync.
+     */
     get timingServer(): TimingServer | undefined {
         return this.#timingServer;
     }
 
-    /** Assigns a PTP timing server for multi-room audio synchronization. */
+    /**
+     * Assigns a PTP timing server for multi-room audio synchronization.
+     */
     set timingServer(timingServer: TimingServer | undefined) {
         this.#timingServer = timingServer;
     }
@@ -194,7 +215,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.emit('connected');
     }
 
-    /** Gracefully disconnects from the device, clears intervals, and tears down all streams. */
+    /**
+     * Gracefully disconnects from the device, clears intervals, and tears down all streams.
+     */
     disconnect(): void {
         this.#disconnect = true;
 
@@ -210,7 +233,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.emit('disconnected', false);
     }
 
-    /** Disconnects gracefully, swallowing any errors during cleanup. */
+    /**
+     * Disconnects gracefully, swallowing any errors during cleanup.
+     */
     disconnectSafely(): void {
         try {
             this.disconnect();
@@ -317,7 +342,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Waits for the current URL playback to finish, then cleans up the play URL protocol. */
+    /**
+     * Waits for the current URL playback to finish, then cleans up the play URL protocol.
+     */
     async waitForPlaybackEnd(): Promise<void> {
         if (!this.#playUrlProtocol) {
             return;
@@ -330,12 +357,16 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Stops the current URL playback and cleans up the dedicated play URL protocol. */
+    /**
+     * Stops the current URL playback and cleans up the dedicated play URL protocol.
+     */
     stopPlayUrl(): void {
         this.#cleanupPlayUrl();
     }
 
-    /** Stops, disconnects, and discards the dedicated play URL protocol instance. */
+    /**
+     * Stops, disconnects, and discards the dedicated play URL protocol instance.
+     */
     #cleanupPlayUrl(): void {
         if (this.#playUrlProtocol) {
             this.#playUrlProtocol.stopPlayUrl();
@@ -406,12 +437,16 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Stops the current audio stream and cleans up the dedicated stream protocol. */
+    /**
+     * Stops the current audio stream and cleans up the dedicated stream protocol.
+     */
     stopStreamAudio(): void {
         this.#cleanupStream();
     }
 
-    /** Stops, disconnects, and discards the dedicated audio stream protocol instance. */
+    /**
+     * Stops, disconnects, and discards the dedicated audio stream protocol instance.
+     */
     #cleanupStream(): void {
         if (this.#streamFeedbackInterval) {
             clearInterval(this.#streamFeedbackInterval);
@@ -491,7 +526,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#credentials = credentials;
     }
 
-    /** Sends a periodic feedback request to keep the AirPlay session alive. */
+    /**
+     * Sends a periodic feedback request to keep the AirPlay session alive.
+     */
     async #feedback(): Promise<void> {
         try {
             await this.#protocol.feedback();
@@ -500,7 +537,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Handles the control stream close event. Emits 'disconnected' with unexpected=true if not intentional. */
+    /**
+     * Handles the control stream close event. Emits 'disconnected' with unexpected=true if not intentional.
+     */
     onClose(): void {
         this.#protocol.context.logger.net('onClose() called on airplay device.');
 
@@ -522,17 +561,22 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#protocol.context.logger.error('AirPlay error', err);
     }
 
-    /** Handles now-playing changes to auto-fetch artwork on track changes. */
+    /**
+     * Handles now-playing changes to auto-fetch artwork on track changes.
+     */
     onNowPlayingChanged(_client: any, player: any): void {
         const artworkId = player?.artworkId ?? null;
 
         if (artworkId !== this.#lastArtworkId) {
             this.#lastArtworkId = artworkId;
-            this.requestPlaybackQueue(1).catch(() => {});
+            this.requestPlaybackQueue(1).catch(() => {
+            });
         }
     }
 
-    /** Handles stream timeout events by destroying the control stream. */
+    /**
+     * Handles stream timeout events by destroying the control stream.
+     */
     onTimeout(): void {
         this.#protocol.context.logger.error('AirPlay timeout');
         this.#protocol.controlStream.destroy();
@@ -604,12 +648,16 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Subscribes the state tracker to DataStream events. */
+    /**
+     * Subscribes the state tracker to DataStream events.
+     */
     #subscribe(): void {
         this.#state[STATE_SUBSCRIBE_SYMBOL]();
     }
 
-    /** Unsubscribes the state tracker from DataStream events. */
+    /**
+     * Unsubscribes the state tracker from DataStream events.
+     */
     #unsubscribe(): void {
         try {
             this.#state.off('nowPlayingChanged', this.onNowPlayingChanged);

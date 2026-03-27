@@ -1,4 +1,4 @@
-import type { AirPlayManager } from '../internal/airplay-manager';
+import type { AirPlayManager } from '../internal';
 
 /**
  * Multi-room / cluster controller for Apple devices.
@@ -11,17 +11,23 @@ export class MultiroomController {
         this.#airplay = airplay;
     }
 
-    /** The cluster ID if the device is part of a multi-room group, or null. */
+    /**
+     * The cluster ID if the device is part of a multi-room group, or null.
+     */
     get clusterId(): string | null {
         return this.#airplay.state.clusterID;
     }
 
-    /** Whether this device is the leader of its multi-room cluster. */
+    /**
+     * Whether this device is the leader of its multi-room cluster.
+     */
     get isLeader(): boolean {
         return this.#airplay.state.isClusterLeader;
     }
 
-    /** Whether this device is aware of cluster functionality. */
+    /**
+     * Whether this device is aware of cluster functionality.
+     */
     get isClusterAware(): boolean {
         return this.#airplay.state.isClusterAware;
     }

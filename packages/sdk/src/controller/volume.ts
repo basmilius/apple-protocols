@@ -1,5 +1,5 @@
 import type { Proto } from '@basmilius/apple-airplay';
-import type { AirPlayManager } from '../internal/airplay-manager';
+import type { AirPlayManager } from '../internal';
 
 /**
  * Volume controller for Apple devices.

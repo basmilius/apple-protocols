@@ -1,15 +1,9 @@
 import { EventEmitter } from 'node:events';
 import type { AccessoryCredentials, DeviceIdentity, DiscoveryResult, TimingServer } from '@basmilius/apple-common';
-import { AirPlayManager } from '../internal/airplay-manager';
-import { ArtworkController } from '../controller/artwork';
-import { MediaController } from '../controller/media';
-import { MultiroomController } from '../controller/multiroom';
-import { PlaybackController } from '../controller/playback';
-import { RemoteController } from '../controller/remote';
-import { StateController } from '../controller/state';
-import { VolumeController } from '../controller/volume';
-import { PairingSession } from '../pairing/pairing-session';
-import type { PairingOptions } from '../pairing/types';
+import { getGlobalTimingServer } from '../configure';
+import { ArtworkController, MediaController, MultiroomController, PlaybackController, RemoteController, StateController, VolumeController } from '../controller';
+import { AirPlayManager } from '../internal';
+import { type PairingOptions, PairingSession } from '../pairing';
 import type { DeviceOptions } from '../types';
 
 /**
@@ -43,7 +37,7 @@ export abstract class AbstractDevice extends EventEmitter {
             address: options.address!,
             modelName: '',
             familyName: null,
-            service: { port: 7000, protocol: 'tcp' as const, type: '_airplay._tcp' },
+            service: {port: 7000, protocol: 'tcp' as const, type: '_airplay._tcp'},
             packet: null as any
         } as DiscoveryResult;
 
@@ -51,8 +45,10 @@ export abstract class AbstractDevice extends EventEmitter {
 
         this.#airplay = new AirPlayManager(this.#discoveryResult, this.#identity);
 
-        if (options.timingServer) {
-            this.#airplay.timingServer = options.timingServer;
+        const timingServer = options.timingServer ?? getGlobalTimingServer();
+
+        if (timingServer) {
+            this.#airplay.timingServer = timingServer;
         }
 
         // Create shared controllers.
@@ -69,32 +65,44 @@ export abstract class AbstractDevice extends EventEmitter {
         this.#airplay.on('disconnected', (unexpected) => this.onAirPlayDisconnected(unexpected));
     }
 
-    /** The unique identifier of the device (from mDNS discovery). */
+    /**
+     * The unique identifier of the device (from mDNS discovery).
+     */
     get id(): string {
         return this.#discoveryResult.id;
     }
 
-    /** The human-readable name of the device. */
+    /**
+     * The human-readable name of the device.
+     */
     get name(): string {
         return this.#discoveryResult.familyName ?? this.#discoveryResult.fqdn;
     }
 
-    /** The IP address of the device. */
+    /**
+     * The IP address of the device.
+     */
     get address(): string {
         return this.#discoveryResult.address;
     }
 
-    /** Whether the device is currently connected. */
+    /**
+     * Whether the device is currently connected.
+     */
     get isConnected(): boolean {
         return this.#airplay.isConnected;
     }
 
-    /** Raw receiver info from the AirPlay /info endpoint. */
+    /**
+     * Raw receiver info from the AirPlay /info endpoint.
+     */
     get receiverInfo(): Record<string, any> | undefined {
         return this.#airplay.receiverInfo;
     }
 
-    /** AirPlay device capabilities (features supported by the receiver). */
+    /**
+     * AirPlay device capabilities (features supported by the receiver).
+     */
     get capabilities() {
         return this.#airplay.capabilities;
     }
@@ -166,12 +174,16 @@ export abstract class AbstractDevice extends EventEmitter {
         this.#airplay.disconnectSafely();
     }
 
-    /** Called when AirPlay connects successfully. Override for additional setup. */
+    /**
+     * Called when AirPlay connects successfully. Override for additional setup.
+     */
     protected onAirPlayConnected(): void {
         this.state.subscribe();
     }
 
-    /** Called when AirPlay disconnects. Override for additional cleanup. */
+    /**
+     * Called when AirPlay disconnects. Override for additional cleanup.
+     */
     protected onAirPlayDisconnected(unexpected: boolean): void {
         this.state.unsubscribe();
     }

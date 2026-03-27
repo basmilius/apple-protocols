@@ -1,5 +1,5 @@
 import type { AudioSource } from '@basmilius/apple-common';
-import type { AirPlayManager } from '../internal/airplay-manager';
+import type { AirPlayManager } from '../internal';
 
 /**
  * Media source controller for Apple devices.
@@ -23,12 +23,16 @@ export class MediaController {
         await this.#airplay.playUrl(url, position);
     }
 
-    /** Stops the current URL playback. */
+    /**
+     * Stops the current URL playback.
+     */
     stopPlayUrl(): void {
         this.#airplay.stopPlayUrl();
     }
 
-    /** Waits for the current URL playback to end naturally. */
+    /**
+     * Waits for the current URL playback to end naturally.
+     */
     async waitForPlaybackEnd(): Promise<void> {
         await this.#airplay.waitForPlaybackEnd();
     }
@@ -43,7 +47,9 @@ export class MediaController {
         await this.#airplay.streamAudio(source);
     }
 
-    /** Stops the current audio stream. */
+    /**
+     * Stops the current audio stream.
+     */
     stopStreamAudio(): void {
         this.#airplay.stopStreamAudio();
     }

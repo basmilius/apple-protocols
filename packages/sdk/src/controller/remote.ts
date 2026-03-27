@@ -1,4 +1,4 @@
-import type { AirPlayManager } from '../internal/airplay-manager';
+import type { AirPlayManager } from '../internal';
 
 /**
  * Remote controller for Apple devices.

@@ -1,18 +1,16 @@
 import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
-import { CompanionLinkManager } from '../internal/companion-link-manager';
-import { AccountsController } from '../controller/accounts';
-import { AppsController } from '../controller/apps';
-import { KeyboardController } from '../controller/keyboard';
-import { PowerController } from '../controller/power';
-import { SystemController } from '../controller/system';
-import type { DeviceOptions } from '../types';
+import { AccountsController, AppsController, KeyboardController, PowerController, SystemController } from '../controller';
 import { AbstractDevice } from './device';
+import { CompanionLinkManager } from '../internal';
+import type { DeviceOptions } from '../types';
 
 /**
  * Options specific to Apple TV devices.
  */
 export type AppleTVOptions = DeviceOptions & {
-    /** Pre-discovered Companion Link service result. */
+    /**
+     * Pre-discovered Companion Link service result.
+     */
     readonly companionLink?: DiscoveryResult;
 };
 

@@ -1,5 +1,4 @@
-import type { AirPlayManager } from '../internal/airplay-manager';
-import type { ArtworkResult } from '../internal/airplay-artwork';
+import type { AirPlayManager, ArtworkResult } from '../internal';
 
 /**
  * Artwork controller for Apple devices.

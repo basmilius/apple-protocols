@@ -50,7 +50,6 @@ Als stap 3 faalt, is er een breaking change in de public API.
 | `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing                     |
 | `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                                 |
 | `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing             |
-| `@basmilius/apple-devices`        | `packages/devices`        | **Deprecated** — vervangen door `@basmilius/apple-sdk`                        |
 | `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Interactieve test/debug CLI (standalone binaries)                             |
 
 ## Dependency graph
@@ -65,7 +64,6 @@ airplay           → common, encoding, encryption, rtsp
 companion-link    → common, encoding, encryption
 raop              → common, encoding, encryption, rtsp
 sdk               → airplay, audio-source, common, companion-link, encoding, raop
-devices           → airplay, common, companion-link, encoding (deprecated)
 diagnostics       → sdk + alle protocol packages
 ```
 

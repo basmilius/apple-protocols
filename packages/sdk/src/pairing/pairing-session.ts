@@ -5,7 +5,7 @@ import type { AccessoryCredentials, DeviceIdentity, DiscoveryResult } from '@bas
  * Step-based pairing session for Apple TV devices.
  *
  * Provides a three-phase pairing flow suitable for external UI frameworks
- * (e.g. Homey's pairing wizard) where PIN entry happens asynchronously:
+ * (e.g., Homey's pairing wizard) where PIN entry happens asynchronously:
  *
  * ```ts
  * const session = tv.createPairingSession();

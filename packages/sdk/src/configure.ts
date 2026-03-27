@@ -1,17 +1,29 @@
-import type { Storage } from '@basmilius/apple-common';
-import { reporter } from '@basmilius/apple-common';
+import { reporter, type Storage, type TimingServer } from '@basmilius/apple-common';
 
 /**
  * Global SDK configuration options.
  */
 export type SdkConfig = {
-    /** Storage backend for credentials. Default: none (consumer manages storage). */
+    /**
+     * Storage backend for credentials. Default: none (consumer manages storage).
+     */
     readonly storage?: Storage;
-    /** Enable debug logging groups. Default: none. */
+
+    /**
+     * Enable debug logging groups. Default: none.
+     */
     readonly logging?: ('debug' | 'error' | 'info' | 'net' | 'raw' | 'warn')[];
+
+    /**
+     * Shared timing server for multi-room audio sync and RAOP streaming.
+     * When set, all devices automatically use this timing server unless
+     * overridden per device via DeviceOptions.timingServer.
+     */
+    readonly timingServer?: TimingServer;
 };
 
 let globalStorage: Storage | undefined;
+let globalTimingServer: TimingServer | undefined;
 
 /**
  * Configures global settings for the Apple SDK.
@@ -20,6 +32,10 @@ let globalStorage: Storage | undefined;
 export function configure(config: SdkConfig): void {
     if (config.storage) {
         globalStorage = config.storage;
+    }
+
+    if (config.timingServer) {
+        globalTimingServer = config.timingServer;
     }
 
     if (config.logging) {
@@ -31,7 +47,16 @@ export function configure(config: SdkConfig): void {
     }
 }
 
-/** @internal Returns the globally configured storage, if any. */
+/**
+ * @internal Returns the globally configured storage, if any.
+ */
 export function getGlobalStorage(): Storage | undefined {
     return globalStorage;
+}
+
+/**
+ * @internal Returns the globally configured timing server, if any.
+ */
+export function getGlobalTimingServer(): TimingServer | undefined {
+    return globalTimingServer;
 }

@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { CredentialsError, type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
 import { type AttentionState, type ButtonPressType, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
-import { COMPANION_LINK_PROTOCOL } from './const';
 import { CompanionLinkState, type MediaCapabilities } from './companion-link-state';
+import { COMPANION_LINK_PROTOCOL } from './const';
 
 /**
  * Events emitted by CompanionLinkDevice.
@@ -27,32 +27,44 @@ type EventMap = {
  * Requires credentials (obtained from pair-setup) to connect.
  */
 export class CompanionLinkManager extends EventEmitter<EventMap> {
-    /** @returns The underlying Companion Link Protocol instance (accessed via symbol for internal use). */
+    /**
+     * @returns The underlying Companion Link Protocol instance (accessed via symbol for internal use).
+     */
     get [COMPANION_LINK_PROTOCOL](): Protocol {
         return this.#protocol;
     }
 
-    /** The mDNS discovery result used to connect to this device. */
+    /**
+     * The mDNS discovery result used to connect to this device.
+     */
     get discoveryResult(): DiscoveryResult {
         return this.#discoveryResult;
     }
 
-    /** Updates the discovery result, e.g. when the device's address changes. */
+    /**
+     * Updates the discovery result, e.g. when the device's address changes.
+     */
     set discoveryResult(discoveryResult: DiscoveryResult) {
         this.#discoveryResult = discoveryResult;
     }
 
-    /** Whether the Companion Link stream is currently connected. */
+    /**
+     * Whether the Companion Link stream is currently connected.
+     */
     get isConnected(): boolean {
         return this.#protocol?.stream?.isConnected ?? false;
     }
 
-    /** The state tracker for attention, media controls, now-playing, and text input. */
+    /**
+     * The state tracker for attention, media controls, now-playing, and text input.
+     */
     get state(): CompanionLinkState {
         return this.#state;
     }
 
-    /** Current text input session state (convenience accessor). */
+    /**
+     * Current text input session state (convenience accessor).
+     */
     get textInputState(): TextInputState {
         return this.#state.textInputState;
     }
@@ -112,7 +124,9 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         this.emit('connected');
     }
 
-    /** Gracefully disconnects from the device, clears heartbeat interval, and unsubscribes from events. */
+    /**
+     * Gracefully disconnects from the device, clears heartbeat interval, and unsubscribes from events.
+     */
     async disconnect(): Promise<void> {
         this.#disconnect = true;
 
@@ -125,7 +139,9 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         await this.#protocol.disconnect();
     }
 
-    /** Disconnects gracefully, swallowing any errors during cleanup. */
+    /**
+     * Disconnects gracefully, swallowing any errors during cleanup.
+     */
     async disconnectSafely(): Promise<void> {
         try {
             await this.disconnect();
@@ -268,7 +284,9 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         await this.#protocol.textInputCommand(text, false);
     }
 
-    /** Clears the text input field. */
+    /**
+     * Clears the text input field.
+     */
     async textClear(): Promise<void> {
         await this.#protocol.textInputCommand('', true);
     }
@@ -332,7 +350,9 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
     // --- System Controls ---
 
-    /** Toggles closed captions on the device. */
+    /**
+     * Toggles closed captions on the device.
+     */
     async toggleCaptions(): Promise<void> {
         await this.#protocol.toggleCaptions();
     }
@@ -408,12 +428,16 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
     // --- Siri ---
 
-    /** Starts a Siri session on the device. */
+    /**
+     * Starts a Siri session on the device.
+     */
     async siriStart(): Promise<void> {
         await this.#protocol.siriStart();
     }
 
-    /** Stops the active Siri session on the device. */
+    /**
+     * Stops the active Siri session on the device.
+     */
     async siriStop(): Promise<void> {
         await this.#protocol.siriStop();
     }
@@ -469,7 +493,9 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Handles the stream close event. Emits 'disconnected' with unexpected=true if not intentional. */
+    /**
+     * Handles the stream close event. Emits 'disconnected' with unexpected=true if not intentional.
+     */
     onClose(): void {
         this.#protocol.context.logger.net('onClose() called on companion link device.');
 
@@ -490,7 +516,9 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         this.#protocol.context.logger.error('Companion Link error', err);
     }
 
-    /** Handles stream timeout events by destroying the stream. */
+    /**
+     * Handles stream timeout events by destroying the stream.
+     */
     onTimeout(): void {
         this.#protocol.context.logger.error('Companion Link timeout');
         this.#protocol.stream.destroy();

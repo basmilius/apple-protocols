@@ -1,16 +1,20 @@
 import { type DataStream, DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
 import { CommandError, waitFor } from '@basmilius/apple-common';
-import { PROTOCOL } from './const';
 import type { AirPlayManager } from './airplay-manager';
+import { PROTOCOL } from './const';
 
 /**
  * Error thrown when a SendCommand request fails on the Apple TV side.
  * Contains the specific send error and handler return status for diagnostics.
  */
 export class SendCommandError extends CommandError {
-    /** The send error reported by the Apple TV. */
+    /**
+     * The send error reported by the Apple TV.
+     */
     readonly sendError: Proto.SendError_Enum;
-    /** The handler return status reported by the Apple TV. */
+    /**
+     * The handler return status reported by the Apple TV.
+     */
     readonly handlerReturnStatus: Proto.HandlerReturnStatus_Enum;
 
     /**
@@ -34,12 +38,16 @@ export class SendCommandError extends CommandError {
  * and touch/gesture simulation.
  */
 export class AirPlayRemote {
-    /** @returns The DataStream for sending HID events and commands. */
+    /**
+     * @returns The DataStream for sending HID events and commands.
+     */
     get #dataStream(): DataStream {
         return this.#protocol.dataStream;
     }
 
-    /** @returns The underlying AirPlay Protocol instance. */
+    /**
+     * @returns The underlying AirPlay Protocol instance.
+     */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
@@ -57,64 +65,88 @@ export class AirPlayRemote {
 
     // HID navigation
 
-    /** Sends an Up navigation key press (Generic Desktop, usage 0x8C). */
+    /**
+     * Sends an Up navigation key press (Generic Desktop, usage 0x8C).
+     */
     async up(): Promise<void> {
         await this.pressAndRelease(1, 0x8C);
     }
 
-    /** Sends a Down navigation key press (Generic Desktop, usage 0x8D). */
+    /**
+     * Sends a Down navigation key press (Generic Desktop, usage 0x8D).
+     */
     async down(): Promise<void> {
         await this.pressAndRelease(1, 0x8D);
     }
 
-    /** Sends a Left navigation key press (Generic Desktop, usage 0x8B). */
+    /**
+     * Sends a Left navigation key press (Generic Desktop, usage 0x8B).
+     */
     async left(): Promise<void> {
         await this.pressAndRelease(1, 0x8B);
     }
 
-    /** Sends a Right navigation key press (Generic Desktop, usage 0x8A). */
+    /**
+     * Sends a Right navigation key press (Generic Desktop, usage 0x8A).
+     */
     async right(): Promise<void> {
         await this.pressAndRelease(1, 0x8A);
     }
 
-    /** Sends a Menu key press (Generic Desktop, usage 0x86). */
+    /**
+     * Sends a Menu key press (Generic Desktop, usage 0x86).
+     */
     async menu(): Promise<void> {
         await this.pressAndRelease(1, 0x86);
     }
 
-    /** Sends a Select/Enter key press (Generic Desktop, usage 0x89). */
+    /**
+     * Sends a Select/Enter key press (Generic Desktop, usage 0x89).
+     */
     async select(): Promise<void> {
         await this.pressAndRelease(1, 0x89);
     }
 
-    /** Sends a Home button press (Consumer, usage 0x40). */
+    /**
+     * Sends a Home button press (Consumer, usage 0x40).
+     */
     async home(): Promise<void> {
         await this.pressAndRelease(12, 0x40);
     }
 
-    /** Sends a Suspend/Sleep key press to put the device to sleep (Generic Desktop, usage 0x82). */
+    /**
+     * Sends a Suspend/Sleep key press to put the device to sleep (Generic Desktop, usage 0x82).
+     */
     async suspend(): Promise<void> {
         await this.pressAndRelease(1, 0x82);
     }
 
-    /** Sends a Wake key press to wake the device (Generic Desktop, usage 0x83). */
+    /**
+     * Sends a Wake key press to wake the device (Generic Desktop, usage 0x83).
+     */
     async wake(): Promise<void> {
         await this.pressAndRelease(1, 0x83);
     }
 
     // HID media
 
-    /** Sends a Play key press (Consumer, usage 0xB0). */
+    /**
+     * Sends a Play key press (Consumer, usage 0xB0).
+     */
     async play(): Promise<void> {
         await this.pressAndRelease(12, 0xB0);
     }
 
-    /** Sends a Pause key press (Consumer, usage 0xB1). */
+    /**
+     * Sends a Pause key press (Consumer, usage 0xB1).
+     */
     async pause(): Promise<void> {
         await this.pressAndRelease(12, 0xB1);
     }
 
-    /** Toggles play/pause based on the current playback state. */
+    /**
+     * Toggles play/pause based on the current playback state.
+     */
     async playPause(): Promise<void> {
         if (this.#device.state.nowPlayingClient?.isPlaying) {
             await this.pause();
@@ -123,79 +155,109 @@ export class AirPlayRemote {
         }
     }
 
-    /** Sends a Stop key press (Consumer, usage 0xB7). */
+    /**
+     * Sends a Stop key press (Consumer, usage 0xB7).
+     */
     async stop(): Promise<void> {
         await this.pressAndRelease(12, 0xB7);
     }
 
-    /** Sends a Next Track key press (Consumer, usage 0xB5). */
+    /**
+     * Sends a Next Track key press (Consumer, usage 0xB5).
+     */
     async next(): Promise<void> {
         await this.pressAndRelease(12, 0xB5);
     }
 
-    /** Sends a Previous Track key press (Consumer, usage 0xB6). */
+    /**
+     * Sends a Previous Track key press (Consumer, usage 0xB6).
+     */
     async previous(): Promise<void> {
         await this.pressAndRelease(12, 0xB6);
     }
 
-    /** Sends a Volume Up key press (Consumer, usage 0xE9). */
+    /**
+     * Sends a Volume Up key press (Consumer, usage 0xE9).
+     */
     async volumeUp(): Promise<void> {
         await this.pressAndRelease(12, 0xE9);
     }
 
-    /** Sends a Volume Down key press (Consumer, usage 0xEA). */
+    /**
+     * Sends a Volume Down key press (Consumer, usage 0xEA).
+     */
     async volumeDown(): Promise<void> {
         await this.pressAndRelease(12, 0xEA);
     }
 
-    /** Sends a Mute key press (Consumer, usage 0xE2). */
+    /**
+     * Sends a Mute key press (Consumer, usage 0xE2).
+     */
     async mute(): Promise<void> {
         await this.pressAndRelease(12, 0xE2);
     }
 
-    /** Sends a Top Menu key press (Consumer, usage 0x60). */
+    /**
+     * Sends a Top Menu key press (Consumer, usage 0x60).
+     */
     async topMenu(): Promise<void> {
         await this.pressAndRelease(12, 0x60);
     }
 
-    /** Sends a Channel Up key press (Consumer, usage 0x9C). */
+    /**
+     * Sends a Channel Up key press (Consumer, usage 0x9C).
+     */
     async channelUp(): Promise<void> {
         await this.pressAndRelease(12, 0x9C);
     }
 
-    /** Sends a Channel Down key press (Consumer, usage 0x9D). */
+    /**
+     * Sends a Channel Down key press (Consumer, usage 0x9D).
+     */
     async channelDown(): Promise<void> {
         await this.pressAndRelease(12, 0x9D);
     }
 
     // SendCommand-based controls
 
-    /** Sends a Play command via the MRP SendCommand protocol. */
+    /**
+     * Sends a Play command via the MRP SendCommand protocol.
+     */
     async commandPlay(): Promise<void> {
         await this.#sendCommand(Proto.Command.Play);
     }
 
-    /** Sends a Pause command via the MRP SendCommand protocol. */
+    /**
+     * Sends a Pause command via the MRP SendCommand protocol.
+     */
     async commandPause(): Promise<void> {
         await this.#sendCommand(Proto.Command.Pause);
     }
 
-    /** Sends a TogglePlayPause command via the MRP SendCommand protocol. */
+    /**
+     * Sends a TogglePlayPause command via the MRP SendCommand protocol.
+     */
     async commandTogglePlayPause(): Promise<void> {
         await this.#sendCommand(Proto.Command.TogglePlayPause);
     }
 
-    /** Sends a Stop command via the MRP SendCommand protocol. */
+    /**
+     * Sends a Stop command via the MRP SendCommand protocol.
+     */
     async commandStop(): Promise<void> {
         await this.#sendCommand(Proto.Command.Stop);
     }
 
-    /** Sends a NextTrack command via the MRP SendCommand protocol. */
+    /**
+     * Sends a NextTrack command via the MRP SendCommand protocol.
+     */
     async commandNextTrack(): Promise<void> {
         await this.#sendCommand(Proto.Command.NextTrack);
     }
 
-    /** Sends a PreviousTrack command via the MRP SendCommand protocol. */
+    /**
+     * Sends a PreviousTrack command via the MRP SendCommand protocol.
+     */
     async commandPreviousTrack(): Promise<void> {
         await this.#sendCommand(Proto.Command.PreviousTrack);
     }
@@ -254,62 +316,86 @@ export class AirPlayRemote {
         await this.#sendCommandRaw(DataStreamMessage.sendCommandWithPlaybackRate(Proto.Command.ChangePlaybackRate, rate));
     }
 
-    /** Cycles the shuffle mode to the next value. */
+    /**
+     * Cycles the shuffle mode to the next value.
+     */
     async commandAdvanceShuffleMode(): Promise<void> {
         await this.#sendCommand(Proto.Command.AdvanceShuffleMode);
     }
 
-    /** Cycles the repeat mode to the next value. */
+    /**
+     * Cycles the repeat mode to the next value.
+     */
     async commandAdvanceRepeatMode(): Promise<void> {
         await this.#sendCommand(Proto.Command.AdvanceRepeatMode);
     }
 
-    /** Begins fast-forwarding playback. */
+    /**
+     * Begins fast-forwarding playback.
+     */
     async commandBeginFastForward(): Promise<void> {
         await this.#sendCommand(Proto.Command.BeginFastForward);
     }
 
-    /** Ends fast-forwarding playback. */
+    /**
+     * Ends fast-forwarding playback.
+     */
     async commandEndFastForward(): Promise<void> {
         await this.#sendCommand(Proto.Command.EndFastForward);
     }
 
-    /** Begins rewinding playback. */
+    /**
+     * Begins rewinding playback.
+     */
     async commandBeginRewind(): Promise<void> {
         await this.#sendCommand(Proto.Command.BeginRewind);
     }
 
-    /** Ends rewinding playback. */
+    /**
+     * Ends rewinding playback.
+     */
     async commandEndRewind(): Promise<void> {
         await this.#sendCommand(Proto.Command.EndRewind);
     }
 
-    /** Skips to the next chapter. */
+    /**
+     * Skips to the next chapter.
+     */
     async commandNextChapter(): Promise<void> {
         await this.#sendCommand(Proto.Command.NextChapter);
     }
 
-    /** Skips to the previous chapter. */
+    /**
+     * Skips to the previous chapter.
+     */
     async commandPreviousChapter(): Promise<void> {
         await this.#sendCommand(Proto.Command.PreviousChapter);
     }
 
-    /** Marks the current track as liked. */
+    /**
+     * Marks the current track as liked.
+     */
     async commandLikeTrack(): Promise<void> {
         await this.#sendCommand(Proto.Command.LikeTrack);
     }
 
-    /** Marks the current track as disliked. */
+    /**
+     * Marks the current track as disliked.
+     */
     async commandDislikeTrack(): Promise<void> {
         await this.#sendCommand(Proto.Command.DislikeTrack);
     }
 
-    /** Bookmarks the current track. */
+    /**
+     * Bookmarks the current track.
+     */
     async commandBookmarkTrack(): Promise<void> {
         await this.#sendCommand(Proto.Command.BookmarkTrack);
     }
 
-    /** Adds the currently playing item to the user's library. */
+    /**
+     * Adds the currently playing item to the user's library.
+     */
     async commandAddNowPlayingItemToLibrary(): Promise<void> {
         await this.#sendCommand(Proto.Command.AddNowPlayingItemToLibrary);
     }
@@ -345,12 +431,16 @@ export class AirPlayRemote {
         await this.#dataStream.send(DataStreamMessage.textInput(text, Proto.ActionType_Enum.Insert));
     }
 
-    /** Clears the text input field. */
+    /**
+     * Clears the text input field.
+     */
     async textClear(): Promise<void> {
         await this.#dataStream.send(DataStreamMessage.textInput('', Proto.ActionType_Enum.ClearAction));
     }
 
-    /** Requests the current keyboard session state from the Apple TV. */
+    /**
+     * Requests the current keyboard session state from the Apple TV.
+     */
     async getKeyboardSession(): Promise<void> {
         await this.#dataStream.send(DataStreamMessage.getKeyboardSession());
     }

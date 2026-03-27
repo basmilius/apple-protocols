@@ -1,4 +1,4 @@
-import type { CompanionLinkManager } from '../internal/companion-link-manager';
+import type { CompanionLinkManager } from '../internal';
 
 /**
  * System controller for Apple TV devices.
@@ -11,7 +11,9 @@ export class SystemController {
         this.#companionLink = companionLink;
     }
 
-    /** Toggles closed captions on the device. */
+    /**
+     * Toggles closed captions on the device.
+     */
     async toggleCaptions(): Promise<void> {
         await this.#companionLink.toggleCaptions();
     }
@@ -39,12 +41,16 @@ export class SystemController {
         await this.#companionLink.toggleFindingMode(enabled);
     }
 
-    /** Starts a Siri session. */
+    /**
+     * Starts a Siri session.
+     */
     async siriStart(): Promise<void> {
         await this.#companionLink.siriStart();
     }
 
-    /** Stops the active Siri session. */
+    /**
+     * Stops the active Siri session.
+     */
     async siriStop(): Promise<void> {
         await this.#companionLink.siriStop();
     }

@@ -1,9 +1,13 @@
 import { Proto } from '@basmilius/apple-airplay';
 
-/** Offset in seconds between the Cocoa epoch (2001-01-01) and the Unix epoch (1970-01-01). */
+/**
+ * Offset in seconds between the Cocoa epoch (2001-01-01) and the Unix epoch (1970-01-01).
+ */
 const COCOA_EPOCH_OFFSET = 978307200;
 
-/** Default player identifier used by the Apple TV when no specific player is active. */
+/**
+ * Default player identifier used by the Apple TV when no specific player is active.
+ */
 const DEFAULT_PLAYER_ID = 'MediaRemote-DefaultPlayer';
 
 /**
@@ -44,27 +48,37 @@ export { DEFAULT_PLAYER_ID };
  * based on Cocoa timestamps and playback rate.
  */
 export class AirPlayPlayer {
-    /** Unique identifier for this player (e.g. a player path). */
+    /**
+     * Unique identifier for this player (e.g. a player path).
+     */
     get identifier(): string {
         return this.#identifier;
     }
 
-    /** Human-readable display name for this player. */
+    /**
+     * Human-readable display name for this player.
+     */
     get displayName(): string {
         return this.#displayName;
     }
 
-    /** Whether this is the default fallback player (MediaRemote-DefaultPlayer). */
+    /**
+     * Whether this is the default fallback player (MediaRemote-DefaultPlayer).
+     */
     get isDefaultPlayer(): boolean {
         return this.#identifier === DEFAULT_PLAYER_ID;
     }
 
-    /** Raw now-playing info from the Apple TV, or null if unavailable. */
+    /**
+     * Raw now-playing info from the Apple TV, or null if unavailable.
+     */
     get nowPlayingInfo(): Proto.NowPlayingInfo | null {
         return this.#nowPlayingInfo;
     }
 
-    /** Current playback queue, or null if unavailable. */
+    /**
+     * Current playback queue, or null if unavailable.
+     */
     get playbackQueue(): Proto.PlaybackQueue | null {
         return this.#playbackQueue;
     }
@@ -76,84 +90,116 @@ export class AirPlayPlayer {
         return this.#playbackState;
     }
 
-    /** Timestamp of the last playback state update, used to discard stale updates. */
+    /**
+     * Timestamp of the last playback state update, used to discard stale updates.
+     */
     get playbackStateTimestamp(): number {
         return this.#playbackStateTimestamp;
     }
 
-    /** List of commands supported by this player. */
+    /**
+     * List of commands supported by this player.
+     */
     get supportedCommands(): Proto.CommandInfo[] {
         return this.#supportedCommands;
     }
 
-    /** Current track title from NowPlayingInfo or content item metadata. */
+    /**
+     * Current track title from NowPlayingInfo or content item metadata.
+     */
     get title(): string {
         return this.#nowPlayingInfo?.title || this.currentItemMetadata?.title || '';
     }
 
-    /** Current track artist from NowPlayingInfo or content item metadata. */
+    /**
+     * Current track artist from NowPlayingInfo or content item metadata.
+     */
     get artist(): string {
         return this.#nowPlayingInfo?.artist || this.currentItemMetadata?.trackArtistName || '';
     }
 
-    /** Current track album from NowPlayingInfo or content item metadata. */
+    /**
+     * Current track album from NowPlayingInfo or content item metadata.
+     */
     get album(): string {
         return this.#nowPlayingInfo?.album || this.currentItemMetadata?.albumName || '';
     }
 
-    /** Genre of the current content item. */
+    /**
+     * Genre of the current content item.
+     */
     get genre(): string {
         return this.currentItemMetadata?.genre || '';
     }
 
-    /** Series name for TV show content. */
+    /**
+     * Series name for TV show content.
+     */
     get seriesName(): string {
         return this.currentItemMetadata?.seriesName || '';
     }
 
-    /** Season number for TV show content, or 0 if not applicable. */
+    /**
+     * Season number for TV show content, or 0 if not applicable.
+     */
     get seasonNumber(): number {
         return this.currentItemMetadata?.seasonNumber || 0;
     }
 
-    /** Episode number for TV show content, or 0 if not applicable. */
+    /**
+     * Episode number for TV show content, or 0 if not applicable.
+     */
     get episodeNumber(): number {
         return this.currentItemMetadata?.episodeNumber || 0;
     }
 
-    /** Media type of the current content item (music, video, etc.). */
+    /**
+     * Media type of the current content item (music, video, etc.).
+     */
     get mediaType(): Proto.ContentItemMetadata_MediaType {
         return this.currentItemMetadata?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType;
     }
 
-    /** Unique content identifier for the current item (e.g. iTunes store ID). */
+    /**
+     * Unique content identifier for the current item (e.g. iTunes store ID).
+     */
     get contentIdentifier(): string {
         return this.currentItemMetadata?.contentIdentifier || '';
     }
 
-    /** Duration of the current track in seconds, from NowPlayingInfo or metadata. */
+    /**
+     * Duration of the current track in seconds, from NowPlayingInfo or metadata.
+     */
     get duration(): number {
         return this.#nowPlayingInfo?.duration || this.currentItemMetadata?.duration || 0;
     }
 
-    /** Current playback rate (1.0 = normal, 0 = paused, 2.0 = double speed). */
+    /**
+     * Current playback rate (1.0 = normal, 0 = paused, 2.0 = double speed).
+     */
     get playbackRate(): number {
         return this.#nowPlayingInfo?.playbackRate ?? this.currentItemMetadata?.playbackRate ?? 0;
     }
 
-    /** Whether the player is currently playing (based on effective playback state). */
+    /**
+     * Whether the player is currently playing (based on effective playback state).
+     */
     get isPlaying(): boolean {
         return this.playbackState === Proto.PlaybackState_Enum.Playing;
     }
 
-    /** Current shuffle mode, derived from the ChangeShuffleMode command info. */
+    /**
+     * Current shuffle mode, derived from the ChangeShuffleMode command info.
+     */
     get shuffleMode(): Proto.ShuffleMode_Enum {
         const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeShuffleMode);
 
         return info?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown;
     }
 
-    /** Current repeat mode, derived from the ChangeRepeatMode command info. */
+    /**
+     * Current repeat mode, derived from the ChangeRepeatMode command info.
+     */
     get repeatMode(): Proto.RepeatMode_Enum {
         const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeRepeatMode);
 
@@ -193,7 +239,9 @@ export class AirPlayPlayer {
         return npi?.elapsedTime || meta?.elapsedTime || 0;
     }
 
-    /** The currently playing content item from the playback queue, or null. */
+    /**
+     * The currently playing content item from the playback queue, or null.
+     */
     get currentItem(): Proto.ContentItem | null {
         if (!this.#playbackQueue || this.#playbackQueue.contentItems.length === 0) {
             return null;
@@ -202,7 +250,9 @@ export class AirPlayPlayer {
         return this.#playbackQueue.contentItems[this.#playbackQueue.location] ?? this.#playbackQueue.contentItems[0] ?? null;
     }
 
-    /** Metadata of the current content item, or null if no item is playing. */
+    /**
+     * Metadata of the current content item, or null if no item is playing.
+     */
     get currentItemMetadata(): Proto.ContentItemMetadata | null {
         return this.currentItem?.metadata ?? null;
     }
@@ -277,7 +327,9 @@ export class AirPlayPlayer {
         return null;
     }
 
-    /** Raw artwork data (image bytes) for the current item, or null if not embedded. */
+    /**
+     * Raw artwork data (image bytes) for the current item, or null if not embedded.
+     */
     get currentItemArtwork(): Uint8Array | null {
         const item = this.currentItem;
 
@@ -296,12 +348,16 @@ export class AirPlayPlayer {
         return null;
     }
 
-    /** Convenience getter for the artwork URL at default dimensions (600px). */
+    /**
+     * Convenience getter for the artwork URL at default dimensions (600px).
+     */
     get currentItemArtworkUrl(): string | null {
         return this.artworkUrl();
     }
 
-    /** Lyrics for the current content item, or null if unavailable. */
+    /**
+     * Lyrics for the current content item, or null if unavailable.
+     */
     get currentItemLyrics(): Proto.LyricsItem | null {
         return this.currentItem?.lyrics ?? null;
     }

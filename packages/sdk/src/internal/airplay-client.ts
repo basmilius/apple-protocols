@@ -8,42 +8,58 @@ import { AirPlayPlayer, DEFAULT_PLAYER_ID } from './airplay-player';
  * default supported commands.
  */
 export class AirPlayClient {
-    /** Bundle identifier of the app (e.g. "com.apple.TVMusic"). */
+    /**
+     * Bundle identifier of the app (e.g. "com.apple.TVMusic").
+     */
     get bundleIdentifier(): string {
         return this.#bundleIdentifier;
     }
 
-    /** Human-readable display name of the app. */
+    /**
+     * Human-readable display name of the app.
+     */
     get displayName(): string {
         return this.#displayName;
     }
 
-    /** Map of all known players for this client, keyed by player identifier. */
+    /**
+     * Map of all known players for this client, keyed by player identifier.
+     */
     get players(): Map<string, AirPlayPlayer> {
         return this.#players;
     }
 
-    /** The currently active player, or null if none is active. Falls back to the default player. */
+    /**
+     * The currently active player, or null if none is active. Falls back to the default player.
+     */
     get activePlayer(): AirPlayPlayer | null {
         return this.#players.get(this.#activePlayerId ?? DEFAULT_PLAYER_ID) ?? null;
     }
 
-    /** Now-playing info from the active player, or null. */
+    /**
+     * Now-playing info from the active player, or null.
+     */
     get nowPlayingInfo(): Proto.NowPlayingInfo | null {
         return this.activePlayer?.nowPlayingInfo ?? null;
     }
 
-    /** Playback queue from the active player, or null. */
+    /**
+     * Playback queue from the active player, or null.
+     */
     get playbackQueue(): Proto.PlaybackQueue | null {
         return this.activePlayer?.playbackQueue ?? null;
     }
 
-    /** Playback state from the active player, or Unknown. */
+    /**
+     * Playback state from the active player, or Unknown.
+     */
     get playbackState(): Proto.PlaybackState_Enum {
         return this.activePlayer?.playbackState ?? Proto.PlaybackState_Enum.Unknown;
     }
 
-    /** Timestamp of the last playback state update from the active player. */
+    /**
+     * Timestamp of the last playback state update from the active player.
+     */
     get playbackStateTimestamp(): number {
         return this.activePlayer?.playbackStateTimestamp ?? -1;
     }
@@ -75,82 +91,114 @@ export class AirPlayClient {
         return merged;
     }
 
-    /** Current track title from the active player. */
+    /**
+     * Current track title from the active player.
+     */
     get title(): string {
         return this.activePlayer?.title ?? '';
     }
 
-    /** Current track artist from the active player. */
+    /**
+     * Current track artist from the active player.
+     */
     get artist(): string {
         return this.activePlayer?.artist ?? '';
     }
 
-    /** Current track album from the active player. */
+    /**
+     * Current track album from the active player.
+     */
     get album(): string {
         return this.activePlayer?.album ?? '';
     }
 
-    /** Genre of the current content from the active player. */
+    /**
+     * Genre of the current content from the active player.
+     */
     get genre(): string {
         return this.activePlayer?.genre ?? '';
     }
 
-    /** Series name for TV show content from the active player. */
+    /**
+     * Series name for TV show content from the active player.
+     */
     get seriesName(): string {
         return this.activePlayer?.seriesName ?? '';
     }
 
-    /** Season number for TV show content from the active player. */
+    /**
+     * Season number for TV show content from the active player.
+     */
     get seasonNumber(): number {
         return this.activePlayer?.seasonNumber ?? 0;
     }
 
-    /** Episode number for TV show content from the active player. */
+    /**
+     * Episode number for TV show content from the active player.
+     */
     get episodeNumber(): number {
         return this.activePlayer?.episodeNumber ?? 0;
     }
 
-    /** Media type of the current content from the active player. */
+    /**
+     * Media type of the current content from the active player.
+     */
     get mediaType(): Proto.ContentItemMetadata_MediaType {
         return this.activePlayer?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType;
     }
 
-    /** Content identifier of the current item from the active player. */
+    /**
+     * Content identifier of the current item from the active player.
+     */
     get contentIdentifier(): string {
         return this.activePlayer?.contentIdentifier ?? '';
     }
 
-    /** Duration of the current track in seconds from the active player. */
+    /**
+     * Duration of the current track in seconds from the active player.
+     */
     get duration(): number {
         return this.activePlayer?.duration ?? 0;
     }
 
-    /** Playback rate from the active player (1.0 = normal, 0 = paused). */
+    /**
+     * Playback rate from the active player (1.0 = normal, 0 = paused).
+     */
     get playbackRate(): number {
         return this.activePlayer?.playbackRate ?? 0;
     }
 
-    /** Whether the active player is currently playing. */
+    /**
+     * Whether the active player is currently playing.
+     */
     get isPlaying(): boolean {
         return this.activePlayer?.isPlaying ?? false;
     }
 
-    /** Current shuffle mode from the active player. */
+    /**
+     * Current shuffle mode from the active player.
+     */
     get shuffleMode(): Proto.ShuffleMode_Enum {
         return this.activePlayer?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown;
     }
 
-    /** Current repeat mode from the active player. */
+    /**
+     * Current repeat mode from the active player.
+     */
     get repeatMode(): Proto.RepeatMode_Enum {
         return this.activePlayer?.repeatMode ?? Proto.RepeatMode_Enum.Unknown;
     }
 
-    /** Extrapolated elapsed time in seconds from the active player. */
+    /**
+     * Extrapolated elapsed time in seconds from the active player.
+     */
     get elapsedTime(): number {
         return this.activePlayer?.elapsedTime ?? 0;
     }
 
-    /** Artwork identifier for change detection from the active player. */
+    /**
+     * Artwork identifier for change detection from the active player.
+     */
     get artworkId(): string | null {
         return this.activePlayer?.artworkId ?? null;
     }
@@ -166,27 +214,37 @@ export class AirPlayClient {
         return this.activePlayer?.artworkUrl(width, height) ?? null;
     }
 
-    /** Current content item from the active player's playback queue. */
+    /**
+     * Current content item from the active player's playback queue.
+     */
     get currentItem(): Proto.ContentItem | null {
         return this.activePlayer?.currentItem ?? null;
     }
 
-    /** Metadata of the current content item from the active player. */
+    /**
+     * Metadata of the current content item from the active player.
+     */
     get currentItemMetadata(): Proto.ContentItemMetadata | null {
         return this.activePlayer?.currentItemMetadata ?? null;
     }
 
-    /** Raw artwork data (image bytes) from the active player. */
+    /**
+     * Raw artwork data (image bytes) from the active player.
+     */
     get currentItemArtwork(): Uint8Array | null {
         return this.activePlayer?.currentItemArtwork ?? null;
     }
 
-    /** Artwork URL at default dimensions from the active player. */
+    /**
+     * Artwork URL at default dimensions from the active player.
+     */
     get currentItemArtworkUrl(): string | null {
         return this.activePlayer?.currentItemArtworkUrl ?? null;
     }
 
-    /** Lyrics for the current content item from the active player. */
+    /**
+     * Lyrics for the current content item from the active player.
+     */
     get currentItemLyrics(): Proto.LyricsItem | null {
         return this.activePlayer?.currentItemLyrics ?? null;
     }

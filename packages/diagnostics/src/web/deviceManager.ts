@@ -1,4 +1,4 @@
-import { Discovery, type AccessoryCredentials, type DiscoveryResult, type Storage } from '@basmilius/apple-common';
+import { Discovery, type AccessoryCredentials, type DiscoveryResult, type Storage, TimingServer } from '@basmilius/apple-common';
 import { Url } from '@basmilius/apple-audio-source';
 import * as AirPlay from '@basmilius/apple-airplay';
 import { Proto } from '@basmilius/apple-airplay';
@@ -105,6 +105,7 @@ export default class DeviceManager {
     #device: AppleTV | HomePod | null = null;
     #deviceInfo: DeviceInfo | null = null;
     #companionLinkReady = false;
+    #timingServer: TimingServer | null = null;
     #airplayDevices: DiscoveryResult[] = [];
     #companionDevices: DiscoveryResult[] = [];
     #pairingResolve: ((pin: string) => void) | null = null;
@@ -246,6 +247,11 @@ export default class DeviceManager {
             await this.#device.disconnect();
         } catch {}
 
+        if (this.#timingServer) {
+            this.#timingServer.close();
+            this.#timingServer = null;
+        }
+
         this.#device = null;
         this.#deviceInfo = null;
         this.#companionLinkReady = false;
@@ -285,21 +291,44 @@ export default class DeviceManager {
             // Streaming (both device types)
             case 'stream':
                 if (arg) {
+                    await this.#ensureTimingServer();
                     const audioSource = await Url.fromUrl(arg);
-                    if (device instanceof AppleTV) {
-                        await device.airplay.streamAudio(audioSource);
-                    } else {
-                        await device.streamAudio(audioSource);
-                    }
+
+                    // Fire-and-forget: streaming blocks until audio ends, so
+                    // we start it in the background and return immediately.
+                    const streamPromise = device instanceof AppleTV
+                        ? device.airplay.streamAudio(audioSource)
+                        : device.streamAudio(audioSource);
+
+                    streamPromise.catch((err) => {
+                        const message = err instanceof Error ? err.message : String(err);
+                        this.#emit('log', {level: 'error', message: `Stream error: ${message}`});
+                    });
+                }
+                break;
+            case 'stopstream':
+                if (device instanceof AppleTV) {
+                    device.airplay.stopStreamAudio();
+                } else {
+                    device.stopStreamAudio();
                 }
                 break;
             case 'playurl':
                 if (arg) {
+                    await this.#ensureTimingServer();
+
                     if (device instanceof AppleTV) {
                         await device.airplay.playUrl(arg);
                     } else {
                         await device.playUrl(arg);
                     }
+                }
+                break;
+            case 'stopplayurl':
+                if (device instanceof AppleTV) {
+                    device.airplay.stopPlayUrl();
+                } else {
+                    device.stopPlayUrl();
                 }
                 break;
 
@@ -499,6 +528,24 @@ export default class DeviceManager {
         }
     }
 
+    async #ensureTimingServer(): Promise<void> {
+        if (this.#timingServer) {
+            return;
+        }
+
+        const timingServer = new TimingServer();
+        await timingServer.listen();
+        this.#timingServer = timingServer;
+
+        if (this.#device) {
+            if (this.#device instanceof AppleTV) {
+                this.#device.airplay.timingServer = timingServer;
+            } else {
+                this.#device.airplay.timingServer = timingServer;
+            }
+        }
+    }
+
     #requireAppleTV(): AppleTV {
         if (!(this.#device instanceof AppleTV)) {
             throw new Error('This command requires an Apple TV');
@@ -654,6 +701,12 @@ export default class DeviceManager {
         device.on('disconnected', (unexpected) => {
             this.#device = null;
             this.#deviceInfo = null;
+
+            if (this.#timingServer) {
+                this.#timingServer.close();
+                this.#timingServer = null;
+            }
+
             this.#emit('disconnected', {unexpected});
         });
 
@@ -668,6 +721,12 @@ export default class DeviceManager {
         device.on('disconnected', (unexpected) => {
             this.#device = null;
             this.#deviceInfo = null;
+
+            if (this.#timingServer) {
+                this.#timingServer.close();
+                this.#timingServer = null;
+            }
+
             this.#emit('disconnected', {unexpected});
         });
 

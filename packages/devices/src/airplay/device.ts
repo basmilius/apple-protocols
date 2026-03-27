@@ -125,6 +125,8 @@ export default class extends EventEmitter<EventMap> {
     #prevDataStream?: DataStream;
     #prevEventStream?: EventStream;
     #protocol!: Protocol;
+    #streamProtocol?: Protocol;
+    #streamFeedbackInterval?: NodeJS.Timeout;
     #timingServer?: TimingServer;
 
     /**
@@ -202,6 +204,7 @@ export default class extends EventEmitter<EventMap> {
         }
 
         this.#cleanupPlayUrl();
+        this.#cleanupStream();
         this.#unsubscribe();
         this.#protocol.disconnect();
         this.emit('disconnected', false);
@@ -343,11 +346,82 @@ export default class extends EventEmitter<EventMap> {
 
     /**
      * Streams audio from a source to the device via RAOP/RTP.
+     * Creates a separate Protocol instance to avoid conflicting with the
+     * existing remote control session, following the same approach as playUrl.
      *
      * @param source - The audio source to stream (e.g. MP3, WAV, URL, live).
      */
     async streamAudio(source: AudioSource): Promise<void> {
-        await this.#protocol.setupAudioStream(source);
+        if (!this.#keys) {
+            throw new Error('Not connected. Call connect() first.');
+        }
+
+        this.#cleanupStream();
+
+        const streamProtocol = new Protocol(this.#discoveryResult, this.#identity);
+
+        if (this.#timingServer) {
+            streamProtocol.useTimingServer(this.#timingServer);
+        }
+
+        try {
+            await streamProtocol.connect();
+            await streamProtocol.fetchInfo();
+
+            let keys: AccessoryKeys;
+
+            if (this.#credentials) {
+                keys = await streamProtocol.verify.start(this.#credentials);
+            } else {
+                await streamProtocol.pairing.start();
+                keys = await streamProtocol.pairing.transient();
+            }
+
+            streamProtocol.controlStream.enableEncryption(
+                keys.accessoryToControllerKey,
+                keys.controllerToAccessoryKey
+            );
+
+            this.#streamProtocol = streamProtocol;
+
+            await streamProtocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
+
+            this.#streamFeedbackInterval = setInterval(async () => {
+                try {
+                    await streamProtocol.feedback();
+                } catch {
+                    // Best-effort keepalive; errors are non-fatal.
+                }
+            }, FEEDBACK_INTERVAL);
+
+            await streamProtocol.setupAudioStream(source);
+        } catch (err) {
+            if (this.#streamProtocol !== streamProtocol) {
+                streamProtocol.disconnect();
+            }
+
+            throw err;
+        } finally {
+            this.#cleanupStream();
+        }
+    }
+
+    /** Stops the current audio stream and cleans up the dedicated stream protocol. */
+    stopStreamAudio(): void {
+        this.#cleanupStream();
+    }
+
+    /** Stops, disconnects, and discards the dedicated audio stream protocol instance. */
+    #cleanupStream(): void {
+        if (this.#streamFeedbackInterval) {
+            clearInterval(this.#streamFeedbackInterval);
+            this.#streamFeedbackInterval = undefined;
+        }
+
+        if (this.#streamProtocol) {
+            this.#streamProtocol.disconnect();
+            this.#streamProtocol = undefined;
+        }
     }
 
     /**

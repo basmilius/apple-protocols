@@ -221,6 +221,11 @@ export default abstract class extends EventEmitter<EventMap> {
         await this.#airplay.streamAudio(source);
     }
 
+    /** Stops the current audio stream and cleans up. */
+    stopStreamAudio(): void {
+        this.#airplay.stopStreamAudio();
+    }
+
     /**
      * Requests the current playback queue with lyrics from the device.
      * Lyrics are included by default in the playback queue request.

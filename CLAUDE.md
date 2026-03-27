@@ -27,7 +27,7 @@ Na elke wijziging moet de Homey app (`~/Development/Projects/homey/com.basmilius
 bash build.sh
 
 # 2. Kopieer dist naar Homey node_modules
-for pkg in apple-airplay apple-audio-source apple-common apple-companion-link apple-devices apple-encoding apple-encryption apple-raop apple-rtsp; do
+for pkg in apple-airplay apple-audio-source apple-common apple-companion-link apple-encoding apple-encryption apple-raop apple-rtsp apple-sdk; do
   cp -r "packages/${pkg#apple-}/dist" ~/Development/Projects/homey/com.basmilius.apple/node_modules/@basmilius/${pkg}/dist
 done
 
@@ -49,7 +49,8 @@ Als stap 3 faalt, is er een breaking change in de public API.
 | `@basmilius/apple-airplay`        | `packages/airplay`        | AirPlay 2 protocol: control/data/audio/event streams, 117 protobuf definities |
 | `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing                     |
 | `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                                 |
-| `@basmilius/apple-devices`        | `packages/devices`        | Device abstracties: AppleTV, HomePod, HomePodMini                             |
+| `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing             |
+| `@basmilius/apple-devices`        | `packages/devices`        | **Deprecated** — vervangen door `@basmilius/apple-sdk`                        |
 | `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Interactieve test/debug CLI (standalone binaries)                             |
 
 ## Dependency graph
@@ -63,8 +64,9 @@ rtsp              → common, encoding
 airplay           → common, encoding, encryption, rtsp
 companion-link    → common, encoding, encryption
 raop              → common, encoding, encryption, rtsp
-devices           → airplay, common, companion-link, encoding
-diagnostics       → alle bovenstaande
+sdk               → airplay, audio-source, common, companion-link, encoding, raop
+devices           → airplay, common, companion-link, encoding (deprecated)
+diagnostics       → sdk + alle protocol packages
 ```
 
 Alle interne deps gebruiken `workspace:*`. Bij release vervangt CI dit met de release-versie via `sed`.

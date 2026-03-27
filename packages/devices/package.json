@@ -1,6 +1,7 @@
 {
     "name": "@basmilius/apple-devices",
-    "description": "Exposes various Apple devices to connect with either AirPlay or Companion Link.",
+    "description": "Deprecated: use @basmilius/apple-sdk instead.",
+    "deprecated": "Use @basmilius/apple-sdk instead.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",

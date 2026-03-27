@@ -51,7 +51,7 @@
         "@basmilius/apple-audio-source": "workspace:*",
         "@basmilius/apple-common": "workspace:*",
         "@basmilius/apple-companion-link": "workspace:*",
-        "@basmilius/apple-devices": "workspace:*",
+        "@basmilius/apple-sdk": "workspace:*",
         "@basmilius/apple-encoding": "workspace:*",
         "@basmilius/apple-encryption": "workspace:*",
         "@basmilius/apple-raop": "workspace:*",

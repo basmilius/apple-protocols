@@ -3,10 +3,13 @@ import { Url } from '@basmilius/apple-audio-source';
 import * as AirPlay from '@basmilius/apple-airplay';
 import { Proto } from '@basmilius/apple-airplay';
 import * as CompanionLink from '@basmilius/apple-companion-link';
-import { COMPANION_LINK, AppleTV, HomePod } from '@basmilius/apple-devices';
-import type { AirPlayPlayer, AirPlayState } from '@basmilius/apple-devices';
+import { COMPANION_LINK_PROTOCOL, AppleTV, HomePod } from '@basmilius/apple-sdk';
+import type { AirPlayPlayer, AirPlayState } from '@basmilius/apple-sdk';
 import getSavedCredentials from '../getSavedCredentials';
 import { PlaybackStateLabel } from '../util';
+
+/** Set to true to include non-Apple TV / HomePod devices in the scan results. */
+const SCAN_SHOW_UNSUPPORTED_DEVICES = false;
 
 export type DeviceInfo = {
     id: string;
@@ -190,7 +193,13 @@ export default class DeviceManager {
             }
         }
 
-        return Array.from(devicesMap.values());
+        const devices = Array.from(devicesMap.values());
+
+        if (!SCAN_SHOW_UNSUPPORTED_DEVICES) {
+            return devices.filter(d => d.type !== 'other');
+        }
+
+        return devices;
     }
 
     async connect(deviceId: string): Promise<void> {
@@ -266,27 +275,27 @@ export default class DeviceManager {
         }
 
         switch (cmd) {
-            case 'play': await device.remote.commandPlay(); break;
-            case 'pause': await device.remote.commandPause(); break;
-            case 'playpause': await device.remote.commandTogglePlayPause(); break;
-            case 'stop': await device.remote.commandStop(); break;
-            case 'next': await device.next(); break;
-            case 'previous': await device.previous(); break;
+            case 'play': await device.playback.play(); break;
+            case 'pause': await device.playback.pause(); break;
+            case 'playpause': await device.playback.playPause(); break;
+            case 'stop': await device.playback.stop(); break;
+            case 'next': await device.playback.next(); break;
+            case 'previous': await device.playback.previous(); break;
             case 'volup':
-                await device.volumeControl.up();
+                await device.volume.up();
                 break;
             case 'voldown':
-                await device.volumeControl.down();
+                await device.volume.down();
                 break;
             case 'mute':
-                await device.volumeControl.toggleMute();
+                await device.volume.mute();
                 break;
             case 'vol':
                 if (arg) {
                     const pct = parseInt(arg) / 100;
-                    await device.volumeControl.set(pct);
+                    await device.volume.set(pct);
                 }
-                return {volume: Math.round(device.volume * 100)};
+                return {volume: Math.round(device.state.volume * 100)};
 
             // Streaming (both device types)
             case 'stream':
@@ -296,9 +305,7 @@ export default class DeviceManager {
 
                     // Fire-and-forget: streaming blocks until audio ends, so
                     // we start it in the background and return immediately.
-                    const streamPromise = device instanceof AppleTV
-                        ? device.airplay.streamAudio(audioSource)
-                        : device.streamAudio(audioSource);
+                    const streamPromise = device.media.streamAudio(audioSource);
 
                     streamPromise.catch((err) => {
                         const message = err instanceof Error ? err.message : String(err);
@@ -307,29 +314,16 @@ export default class DeviceManager {
                 }
                 break;
             case 'stopstream':
-                if (device instanceof AppleTV) {
-                    device.airplay.stopStreamAudio();
-                } else {
-                    device.stopStreamAudio();
-                }
+                device.media.stopStreamAudio();
                 break;
             case 'playurl':
                 if (arg) {
                     await this.#ensureTimingServer();
-
-                    if (device instanceof AppleTV) {
-                        await device.airplay.playUrl(arg);
-                    } else {
-                        await device.playUrl(arg);
-                    }
+                    await device.media.playUrl(arg);
                 }
                 break;
             case 'stopplayurl':
-                if (device instanceof AppleTV) {
-                    device.airplay.stopPlayUrl();
-                } else {
-                    device.stopPlayUrl();
-                }
+                device.media.stopPlayUrl();
                 break;
 
             // Apple TV only commands
@@ -346,21 +340,21 @@ export default class DeviceManager {
             case 'back': await this.#requireAppleTV().remote.menu(); break;
             case 'power': {
                 const atv = this.#requireAppleTV();
-                if (atv.isPlaying) {
-                    await atv.turnOff();
+                if (atv.state.isPlaying) {
+                    await atv.power.off();
                 } else {
-                    await atv.turnOn();
+                    await atv.power.on();
                 }
                 break;
             }
-            case 'wake': await this.#requireAppleTV().turnOn(); break;
-            case 'suspend': await this.#requireAppleTV().turnOff(); break;
+            case 'wake': await this.#requireAppleTV().power.on(); break;
+            case 'suspend': await this.#requireAppleTV().power.off(); break;
 
             // Swipe & tap
-            case 'swipeup': await this.#requireAppleTV().remote.swipeUp(); break;
-            case 'swipedown': await this.#requireAppleTV().remote.swipeDown(); break;
-            case 'swipeleft': await this.#requireAppleTV().remote.swipeLeft(); break;
-            case 'swiperight': await this.#requireAppleTV().remote.swipeRight(); break;
+            case 'swipeup': await this.#requireAppleTV().remote.swipe('up'); break;
+            case 'swipedown': await this.#requireAppleTV().remote.swipe('down'); break;
+            case 'swipeleft': await this.#requireAppleTV().remote.swipe('left'); break;
+            case 'swiperight': await this.#requireAppleTV().remote.swipe('right'); break;
             case 'tap': await this.#requireAppleTV().remote.tap(200, 200); break;
             case 'clswipeup': await this.#requireAppleTV().companionLink.swipe('up'); break;
             case 'clswipedown': await this.#requireAppleTV().companionLink.swipe('down'); break;
@@ -371,53 +365,53 @@ export default class DeviceManager {
             // Text input
             case 'type':
                 if (arg) {
-                    await this.#requireAppleTV().textSet(arg);
+                    await this.#requireAppleTV().keyboard.type(arg);
                 }
                 break;
             case 'append':
                 if (arg) {
-                    await this.#requireAppleTV().textAppend(arg);
+                    await this.#requireAppleTV().keyboard.append(arg);
                 }
                 break;
-            case 'textclear': await this.#requireAppleTV().textClear(); break;
+            case 'textclear': await this.#requireAppleTV().keyboard.clear(); break;
 
             // Skip
             case 'skipforward': {
                 const seconds = parseInt(arg || '15');
-                await this.#requireAppleTV().companionLink.mediaControlCommand('SkipBy', {_skpS: seconds});
+                await this.#requireAppleTV().playback.skipForward(seconds);
                 break;
             }
             case 'skipbackward': {
                 const seconds = parseInt(arg || '15');
-                await this.#requireAppleTV().companionLink.mediaControlCommand('SkipBy', {_skpS: -seconds});
+                await this.#requireAppleTV().playback.skipBackward(seconds);
                 break;
             }
 
             // Companion Link features
-            case 'captions': await this.#requireAppleTV().companionLink.toggleCaptions(); break;
-            case 'darkmode': await this.#requireAppleTV().companionLink.toggleSystemAppearance(false); break;
-            case 'lightmode': await this.#requireAppleTV().companionLink.toggleSystemAppearance(true); break;
-            case 'siristart': await this.#requireAppleTV().companionLink.siriStart(); break;
-            case 'siristop': await this.#requireAppleTV().companionLink.siriStop(); break;
-            case 'findremote': await this.#requireAppleTV().companionLink.toggleFindingMode(true); break;
+            case 'captions': await this.#requireAppleTV().system.toggleCaptions(); break;
+            case 'darkmode': await this.#requireAppleTV().system.setAppearance('dark'); break;
+            case 'lightmode': await this.#requireAppleTV().system.setAppearance('light'); break;
+            case 'siristart': await this.#requireAppleTV().system.siriStart(); break;
+            case 'siristop': await this.#requireAppleTV().system.siriStop(); break;
+            case 'findremote': await this.#requireAppleTV().system.setFindingMode(true); break;
 
             // Info & debug
             case 'apps': {
-                const apps = await this.#requireAppleTV().getLaunchableApps();
+                const apps = await this.#requireAppleTV().apps.list();
                 return apps;
             }
             case 'launch':
                 if (arg) {
-                    await this.#requireAppleTV().launchApp(arg);
+                    await this.#requireAppleTV().apps.launch(arg);
                 }
                 break;
             case 'users': {
-                const users = await this.#requireAppleTV().getUserAccounts();
+                const users = await this.#requireAppleTV().accounts.list();
                 return users;
             }
             case 'switchuser':
                 if (arg) {
-                    await this.#requireAppleTV().switchUserAccount(arg);
+                    await this.#requireAppleTV().accounts.switch(arg);
                 }
                 break;
             case 'clnpi': {
@@ -425,18 +419,18 @@ export default class DeviceManager {
                 return npi;
             }
             case 'upnext': {
-                const upNext = await this.#requireAppleTV().companionLink.fetchUpNext();
+                const upNext = await this.#requireAppleTV().system.fetchUpNext();
                 return upNext;
             }
             case 'fetch':
                 if (device instanceof AppleTV) {
-                    await device.airplay.requestPlaybackQueue(1);
+                    await device.playback.requestPlaybackQueue(1);
                 }
                 break;
             case 'hidtest':
                 if (arg) {
                     const hidId = parseInt(arg);
-                    const clp = (this.#requireAppleTV().companionLink as any)[COMPANION_LINK];
+                    const clp = (this.#requireAppleTV().companionLink as any)[COMPANION_LINK_PROTOCOL];
                     await clp.stream.exchange(8, {_i: '_hidC', _t: 2, _c: {_hBtS: 1, _hidC: hidId}});
                     await clp.stream.exchange(8, {_i: '_hidC', _t: 2, _c: {_hBtS: 2, _hidC: hidId}});
                 }
@@ -475,8 +469,8 @@ export default class DeviceManager {
             };
         }
 
-        const state = device.state;
-        const npc = state.nowPlayingClient;
+        const airplayState = device.airplay.state;
+        const npc = airplayState.nowPlayingClient;
         const activePlayer = npc?.activePlayer;
         const isAppleTV = device instanceof AppleTV;
 
@@ -490,27 +484,27 @@ export default class DeviceManager {
                 connected: this.#companionLinkReady
             } : null,
             nowPlaying: {
-                title: device.title || '',
-                artist: device.artist || '',
-                album: device.album || '',
-                duration: device.duration,
-                elapsedTime: device.elapsedTime,
-                playbackState: PlaybackStateLabel[device.playbackState] ?? 'Unknown',
-                artworkUrl: activePlayer?.artworkUrl() ?? this.#artworkDataUrl(activePlayer, state) ?? null,
-                app: device.displayName ?? null,
-                bundleIdentifier: device.bundleIdentifier ?? null
+                title: device.state.title || '',
+                artist: device.state.artist || '',
+                album: device.state.album || '',
+                duration: device.state.duration,
+                elapsedTime: device.state.elapsedTime,
+                playbackState: PlaybackStateLabel[device.state.playbackState] ?? 'Unknown',
+                artworkUrl: activePlayer?.artworkUrl() ?? this.#artworkDataUrl(activePlayer, airplayState) ?? null,
+                app: device.state.activeApp?.displayName ?? null,
+                bundleIdentifier: device.state.activeApp?.bundleIdentifier ?? null
             },
             volume: {
-                level: Math.round(device.volume * 100),
-                available: state.volumeAvailable,
-                muted: state.volumeMuted
+                level: Math.round(device.state.volume * 100),
+                available: airplayState.volumeAvailable,
+                muted: airplayState.volumeMuted
             },
-            participants: state.participants.map(p => ({
+            participants: airplayState.participants.map(p => ({
                 identifier: p.identity?.identifier ?? p.identifier ?? '',
                 displayName: p.identity?.displayName ?? p.identifier ?? 'Unknown',
                 type: ['Unknown', 'AppleID', 'DeviceLocal'][p.identity?.type ?? 0] ?? 'Unknown'
             })),
-            clients: this.#buildClientSnapshots(state)
+            clients: this.#buildClientSnapshots(airplayState)
         };
     }
 
@@ -538,11 +532,7 @@ export default class DeviceManager {
         this.#timingServer = timingServer;
 
         if (this.#device) {
-            if (this.#device instanceof AppleTV) {
-                this.#device.airplay.timingServer = timingServer;
-            } else {
-                this.#device.airplay.timingServer = timingServer;
-            }
+            this.#device.timingServer = timingServer;
         }
     }
 
@@ -643,7 +633,7 @@ export default class DeviceManager {
             companionLinkCredentials = getSavedCredentials(this.#storage, airplayResult, 'companionLink');
         }
 
-        const device = new AppleTV(airplayResult, companionResult);
+        const device = new AppleTV({ airplay: airplayResult, companionLink: companionResult });
 
         this.#deviceInfo = {
             id: airplayResult.id,
@@ -678,7 +668,7 @@ export default class DeviceManager {
     }
 
     async #connectHomePod(airplayResult: DiscoveryResult): Promise<void> {
-        const device = new HomePod(airplayResult);
+        const device = new HomePod({ airplay: airplayResult });
 
         this.#deviceInfo = {
             id: airplayResult.id,
@@ -710,11 +700,11 @@ export default class DeviceManager {
             this.#emit('disconnected', {unexpected});
         });
 
-        device.state.on('setState', () => this.#emitState());
-        device.state.on('volumeDidChange', () => this.#emitState());
-        device.state.on('clients', () => this.#emitState());
-        device.state.on('playerClientParticipantsUpdate', () => this.#emitState());
-        device.state.on('setArtwork', () => this.#emitState());
+        device.airplay.state.on('setState', () => this.#emitState());
+        device.airplay.state.on('volumeDidChange', () => this.#emitState());
+        device.airplay.state.on('clients', () => this.#emitState());
+        device.airplay.state.on('playerClientParticipantsUpdate', () => this.#emitState());
+        device.airplay.state.on('setArtwork', () => this.#emitState());
     }
 
     #setupHomePodEvents(device: HomePod): void {
@@ -730,8 +720,8 @@ export default class DeviceManager {
             this.#emit('disconnected', {unexpected});
         });
 
-        device.state.on('setState', () => this.#emitState());
-        device.state.on('volumeDidChange', () => this.#emitState());
+        device.airplay.state.on('setState', () => this.#emitState());
+        device.airplay.state.on('volumeDidChange', () => this.#emitState());
     }
 
     #emitState(): void {

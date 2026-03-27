@@ -94,6 +94,8 @@ while (true) {
                 await new Promise<void>(resolve => {
                     readline.question('Press Enter to stop the web server...\n', async () => {
                         await webServer.stop();
+                        // Allow pending protocol close events to flush before returning to menu.
+                        await new Promise(r => setTimeout(r, 500));
                         readline.close();
                         resolve();
                     });

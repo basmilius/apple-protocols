@@ -1,6 +1,6 @@
 import { Proto } from '@basmilius/apple-airplay';
 import { TimingServer, type Storage } from '@basmilius/apple-common';
-import { AirPlayDevice } from '@basmilius/apple-devices';
+import { AirPlayManager } from '@basmilius/apple-sdk';
 import getSavedCredentials from './getSavedCredentials';
 import { createMonitorLogger, discoverAndSelectDevice, formatTime, isAppleTVDevice, PlaybackStateLabel } from './shared';
 
@@ -17,7 +17,7 @@ export default async function (storage: Storage): Promise<void> {
 
     const isAppleTV = isAppleTVDevice(discoveryResult);
 
-    const device = new AirPlayDevice(discoveryResult);
+    const device = new AirPlayManager(discoveryResult);
 
     const timingServer = new TimingServer();
     await timingServer.listen();

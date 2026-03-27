@@ -113,6 +113,15 @@ export class PlaybackController {
     }
 
     /**
+     * Requests the playback queue from the device (includes artwork and metadata).
+     *
+     * @param length - Maximum number of queue items to retrieve (default: 1).
+     */
+    async requestPlaybackQueue(length: number = 1): Promise<void> {
+        await this.#airplay.requestPlaybackQueue(length);
+    }
+
+    /**
      * Checks whether a playback command is currently supported by the active media app.
      */
     isCommandSupported(command: Proto.Command): boolean {

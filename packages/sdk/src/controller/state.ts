@@ -65,6 +65,14 @@ export class StateController extends EventEmitter<StateEventMap> {
         return this.#state.nowPlayingClient?.mediaType;
     }
 
+    get shuffleMode(): Proto.ShuffleMode_Enum | undefined {
+        return this.#state.nowPlayingClient?.shuffleMode;
+    }
+
+    get repeatMode(): Proto.RepeatMode_Enum | undefined {
+        return this.#state.nowPlayingClient?.repeatMode;
+    }
+
     // --- Active App ---
 
     get activeApp(): { bundleIdentifier: string; displayName: string } | null {

@@ -1,7 +1,7 @@
 import { Discovery, reporter, type Storage } from '@basmilius/apple-common';
 import { Url } from '@basmilius/apple-audio-source';
 import { Proto } from '@basmilius/apple-airplay';
-import { AppleTV, COMPANION_LINK } from '@basmilius/apple-devices';
+import { AppleTV, COMPANION_LINK_PROTOCOL } from '@basmilius/apple-sdk';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
@@ -103,7 +103,7 @@ export default async function (storage: Storage): Promise<void> {
         }
     }
 
-    const device = new AppleTV(airplayResult, companionResult);
+    const device = new AppleTV({ airplay: airplayResult, companionLink: companionResult });
 
     // Events
     device.on('connected', () => log('event', 'Connected to Apple TV.'));
@@ -116,7 +116,7 @@ export default async function (storage: Storage): Promise<void> {
     device.companionLink.on('disconnected', (u) => log('event', `Companion Link disconnected (unexpected=${u}).`));
 
     device.companionLink.on('connected', () => {
-        const clProtocol = (device.companionLink as any)[COMPANION_LINK];
+        const clProtocol = (device.companionLink as any)[COMPANION_LINK_PROTOCOL];
         clProtocol.stream.on('error', (err: Error) => {
             log('error', `CL stream error: ${err.message}`);
         });
@@ -144,7 +144,7 @@ export default async function (storage: Storage): Promise<void> {
 
     let lastTitle = '';
 
-    device.state.on('setState', (message) => {
+    device.airplay.state.on('setState', (message) => {
         const state = message.playbackState;
 
         if (state !== undefined) {
@@ -164,16 +164,16 @@ export default async function (storage: Storage): Promise<void> {
         }
     });
 
-    device.state.on('volumeDidChange', (volume) => {
+    device.airplay.state.on('volumeDidChange', (volume) => {
         log('event', `Volume: ${Math.round(volume * 100)}%`);
     });
 
-    device.state.on('clients', (clients) => {
+    device.airplay.state.on('clients', (clients) => {
         const names = Object.values(clients).map(c => `${c.displayName} (${c.bundleIdentifier})`);
         log('event', `Clients: ${names.join(', ') || 'none'}`);
     });
 
-    device.state.on('keyboard', (message) => {
+    device.airplay.state.on('keyboard', (message) => {
         const stateLabel = Proto.KeyboardState_Enum[message.state] ?? 'Unknown';
         const attrs = message.attributes;
         const details = attrs ? ` title="${attrs.title}" prompt="${attrs.prompt}"` : '';
@@ -192,7 +192,7 @@ export default async function (storage: Storage): Promise<void> {
     // Connect
     console.log();
     log('info', 'Connecting...');
-    await device.connect(airplayCredentials, companionLinkCredentials);
+    await device.connect(airplayCredentials);
 
     log('info', 'Connected! Type "help" for commands.');
     console.log();
@@ -210,12 +210,12 @@ export default async function (storage: Storage): Promise<void> {
 
                 try {
                     switch (cmd) {
-                    case 'play': await device.play(); log('command', 'Play'); break;
-                    case 'pause': await device.pause(); log('command', 'Pause'); break;
-                    case 'playpause': await device.playPause(); log('command', 'PlayPause'); break;
-                    case 'stop': await device.stop(); log('command', 'Stop'); break;
-                    case 'next': await device.next(); log('command', 'Next'); break;
-                    case 'prev': await device.previous(); log('command', 'Previous'); break;
+                    case 'play': await device.playback.play(); log('command', 'Play'); break;
+                    case 'pause': await device.playback.pause(); log('command', 'Pause'); break;
+                    case 'playpause': await device.playback.playPause(); log('command', 'PlayPause'); break;
+                    case 'stop': await device.playback.stop(); log('command', 'Stop'); break;
+                    case 'next': await device.playback.next(); log('command', 'Next'); break;
+                    case 'prev': await device.playback.previous(); log('command', 'Previous'); break;
                     case 'up': await device.remote.up(); log('command', 'Up'); break;
                     case 'down': await device.remote.down(); log('command', 'Down'); break;
                     case 'left': await device.remote.left(); log('command', 'Left'); break;
@@ -226,23 +226,23 @@ export default async function (storage: Storage): Promise<void> {
                     case 'topmenu': await device.remote.topMenu(); log('command', 'Top Menu'); break;
                     case 'chup': await device.remote.channelUp(); log('command', 'Channel Up'); break;
                     case 'chdown': await device.remote.channelDown(); log('command', 'Channel Down'); break;
-                    case 'volup': await device.volumeUp(); log('command', 'Volume Up'); break;
-                    case 'voldown': await device.volumeDown(); log('command', 'Volume Down'); break;
-                    case 'mute': await device.volumeMute(); log('command', 'Mute'); break;
+                    case 'volup': await device.volume.up(); log('command', 'Volume Up'); break;
+                    case 'voldown': await device.volume.down(); log('command', 'Volume Down'); break;
+                    case 'mute': await device.volume.mute(); log('command', 'Mute'); break;
                     case 'vol':
                         if (args[0]) {
                             const pct = parseInt(args[0]) / 100;
-                            await device.volumeControl.set(pct);
+                            await device.volume.set(pct);
                             log('command', `Volume set to ${args[0]}%`);
                         } else {
-                            const vol = await device.volumeControl.get();
+                            const vol = await device.volume.get();
                             log('info', `Volume: ${Math.round(vol * 100)}%`);
                         }
                         break;
-                    case 'wake': await device.turnOn(); log('command', 'Wake'); break;
-                    case 'suspend': await device.turnOff(); log('command', 'Suspend'); break;
+                    case 'wake': await device.power.on(); log('command', 'Wake'); break;
+                    case 'suspend': await device.power.off(); log('command', 'Suspend'); break;
                     case 'apps':
-                        const apps = await device.getLaunchableApps();
+                        const apps = await device.apps.list();
                         log('info', `Launchable apps (${apps.length}):`);
                         for (const app of apps) {
                             console.log(`  ${app.name} (${app.bundleId})`);
@@ -250,14 +250,14 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'launch':
                         if (args[0]) {
-                            await device.launchApp(args[0]);
+                            await device.apps.launch(args[0]);
                             log('command', `Launched ${args[0]}`);
                         } else {
                             log('error', 'Usage: launch <bundleId>');
                         }
                         break;
                     case 'users':
-                        const users = await device.getUserAccounts();
+                        const users = await device.accounts.list();
                         log('info', `User accounts (${users.length}):`);
                         for (const user of users) {
                             console.log(`  ${user.name} (${user.accountId})`);
@@ -265,11 +265,9 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'swipe':
                         const dir = args[0];
-                        if (dir === 'up') { await device.remote.swipeUp(); }
-                        else if (dir === 'down') { await device.remote.swipeDown(); }
-                        else if (dir === 'left') { await device.remote.swipeLeft(); }
-                        else if (dir === 'right') { await device.remote.swipeRight(); }
-                        else { log('error', 'Usage: swipe <up|down|left|right>'); break; }
+                        if (dir === 'up' || dir === 'down' || dir === 'left' || dir === 'right') {
+                            await device.remote.swipe(dir);
+                        } else { log('error', 'Usage: swipe <up|down|left|right>'); break; }
                         log('command', `Swipe ${dir}`);
                         break;
                     case 'tap':
@@ -292,7 +290,7 @@ export default async function (storage: Storage): Promise<void> {
                     case 'type':
                         if (args.length > 0) {
                             const text = args.join(' ');
-                            await device.textSet(text);
+                            await device.keyboard.type(text);
                             log('command', `Text set: "${text}"`);
                         } else {
                             log('error', 'Usage: type <text>');
@@ -301,14 +299,14 @@ export default async function (storage: Storage): Promise<void> {
                     case 'append':
                         if (args.length > 0) {
                             const appendText = args.join(' ');
-                            await device.textAppend(appendText);
+                            await device.keyboard.append(appendText);
                             log('command', `Text appended: "${appendText}"`);
                         } else {
                             log('error', 'Usage: append <text>');
                         }
                         break;
                     case 'clear':
-                        await device.textClear();
+                        await device.keyboard.clear();
                         log('command', 'Text cleared');
                         break;
                     case 'keyboard':
@@ -320,8 +318,8 @@ export default async function (storage: Storage): Promise<void> {
                             log('info', `Keyboard type: ${tiState.keyboardType}`);
                             log('info', `Autocorrect: ${tiState.autocorrection}`);
                         }
-                        const kbState = Proto.KeyboardState_Enum[device.state.keyboardState] ?? 'Unknown';
-                        const kbAttrs = device.state.keyboardAttributes;
+                        const kbState = Proto.KeyboardState_Enum[device.airplay.state.keyboardState] ?? 'Unknown';
+                        const kbAttrs = device.airplay.state.keyboardAttributes;
                         log('info', `MRP state: ${kbState}`);
                         if (kbAttrs) {
                             log('info', `MRP title: ${kbAttrs.title || '(none)'}`);
@@ -333,7 +331,7 @@ export default async function (storage: Storage): Promise<void> {
                             log('info', `Loading ${args[0]}...`);
                             const audioSource = await Url.fromUrl(args[0]);
                             log('info', `Streaming ${formatTime(audioSource.duration)}...`);
-                            await device.airplay.streamAudio(audioSource);
+                            await device.media.streamAudio(audioSource);
                             log('command', 'Stream complete');
                         } else {
                             log('error', 'Usage: stream <url>');
@@ -342,9 +340,9 @@ export default async function (storage: Storage): Promise<void> {
                     case 'playurl':
                         if (args[0]) {
                             log('info', `Playing URL ${args[0]}...`);
-                            await device.airplay.playUrl(args[0]);
+                            await device.media.playUrl(args[0]);
                             log('command', 'Playback started');
-                            device.airplay.waitForPlaybackEnd().then(() => {
+                            device.media.waitForPlaybackEnd().then(() => {
                                 log('event', 'URL playback ended');
                             }).catch((err) => {
                                 log('error', `URL playback error: ${err}`);
@@ -354,31 +352,25 @@ export default async function (storage: Storage): Promise<void> {
                         }
                         break;
                     case 'info':
-                        const npc = device.state.nowPlayingClient;
-                        log('info', `Title: ${device.title || '(none)'}`);
-                        log('info', `Artist: ${device.artist || '(none)'}`);
-                        log('info', `Album: ${device.album || '(none)'}`);
-                        if (npc?.seriesName) {
-                            log('info', `Series: ${npc.seriesName} S${npc.seasonNumber}E${npc.episodeNumber}`);
-                        }
-                        if (npc?.genre) {
-                            log('info', `Genre: ${npc.genre}`);
-                        }
-                        log('info', `Media: ${npc?.mediaType != null ? Proto.ContentItemMetadata_MediaType[npc.mediaType] ?? 'Unknown' : 'Unknown'}`);
-                        log('info', `Duration: ${formatTime(device.duration)}`);
-                        log('info', `Elapsed: ${formatTime(device.elapsedTime)}`);
-                        log('info', `State: ${PlaybackStateLabel[device.playbackState] ?? 'Unknown'}`);
-                        log('info', `Shuffle: ${npc?.shuffleMode != null ? Proto.ShuffleMode_Enum[npc.shuffleMode] : 'Unknown'}`);
-                        log('info', `Repeat: ${npc?.repeatMode != null ? Proto.RepeatMode_Enum[npc.repeatMode] : 'Unknown'}`);
-                        log('info', `Volume: ${Math.round(device.volume * 100)}%`);
-                        log('info', `App: ${device.displayName ?? '(none)'} (${device.bundleIdentifier ?? ''})`);
+                        log('info', `Title: ${device.state.title || '(none)'}`);
+                        log('info', `Artist: ${device.state.artist || '(none)'}`);
+                        log('info', `Album: ${device.state.album || '(none)'}`);
+                        log('info', `Genre: ${device.state.genre || '(none)'}`);
+                        log('info', `Media: ${device.state.mediaType != null ? Proto.ContentItemMetadata_MediaType[device.state.mediaType] ?? 'Unknown' : 'Unknown'}`);
+                        log('info', `Duration: ${formatTime(device.state.duration)}`);
+                        log('info', `Elapsed: ${formatTime(device.state.elapsedTime)}`);
+                        log('info', `State: ${PlaybackStateLabel[device.state.playbackState] ?? 'Unknown'}`);
+                        log('info', `Shuffle: ${device.state.shuffleMode != null ? Proto.ShuffleMode_Enum[device.state.shuffleMode] : 'Unknown'}`);
+                        log('info', `Repeat: ${device.state.repeatMode != null ? Proto.RepeatMode_Enum[device.state.repeatMode] : 'Unknown'}`);
+                        log('info', `Volume: ${Math.round(device.state.volume * 100)}%`);
+                        log('info', `App: ${device.state.activeApp?.displayName ?? '(none)'} (${device.state.activeApp?.bundleIdentifier ?? ''})`);
                         break;
                     case 'state':
-                        printAirPlayState(device.state, log);
+                        printAirPlayState(device.airplay.state, log);
                         break;
                     case 'fetch':
                         log('info', 'Requesting playback queue...');
-                        await device.airplay.requestPlaybackQueue(1);
+                        await device.playback.requestPlaybackQueue(1);
                         log('command', 'Playback queue requested. Use "dump" to see results.');
                         break;
                     case 'dump':
@@ -397,7 +389,7 @@ export default async function (storage: Storage): Promise<void> {
                                 console.log(`  ${key}: ${display}`);
                             }
                         };
-                        const dc = device.state.nowPlayingClient;
+                        const dc = device.airplay.state.nowPlayingClient;
                         log('info', `Client: ${dc?.bundleIdentifier ?? '(none)'} / ${dc?.displayName ?? ''}`);
                         log('info', `PlaybackState: ${dc ? PlaybackStateLabel[dc.playbackState] ?? dc.playbackState : '(none)'}`);
                         log('info', `Queue items: ${dc?.playbackQueue?.contentItems?.length ?? 0}, location: ${dc?.playbackQueue?.location ?? -1}`);
@@ -427,20 +419,20 @@ export default async function (storage: Storage): Promise<void> {
                         }
                         break;
                     case 'captions':
-                        await device.companionLink.toggleCaptions();
+                        await device.system.toggleCaptions();
                         log('command', 'Captions toggled');
                         break;
                     case 'darkmode':
-                        await device.companionLink.toggleSystemAppearance(false);
+                        await device.system.setAppearance('dark');
                         log('command', 'Dark mode enabled');
                         break;
                     case 'lightmode':
-                        await device.companionLink.toggleSystemAppearance(true);
+                        await device.system.setAppearance('light');
                         log('command', 'Light mode enabled');
                         break;
                     case 'upnext':
                         try {
-                            const upNext = await device.companionLink.fetchUpNext();
+                            const upNext = await device.system.fetchUpNext();
                             log('info', 'Up Next:');
                             console.log(JSON.stringify(upNext, null, 2));
                         } catch (err) {
@@ -449,22 +441,22 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'siri':
                         try {
-                            await device.companionLink.siriStart();
+                            await device.system.siriStart();
                             log('command', 'Siri started (press enter to stop)');
                             await new Promise<void>(r => readline.question('', () => r()));
-                            await device.companionLink.siriStop();
+                            await device.system.siriStop();
                             log('command', 'Siri stopped');
                         } catch (err) {
                             log('error', `Siri failed: ${err}`);
                         }
                         break;
                     case 'findremote':
-                        await device.companionLink.toggleFindingMode(true);
+                        await device.system.setFindingMode(true);
                         log('command', 'Find My Remote toggled');
                         break;
                     case 'power':
                         {
-                            const clProto = (device.companionLink as any)[COMPANION_LINK];
+                            const clProto = (device.companionLink as any)[COMPANION_LINK_PROTOCOL];
                             await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: 20 } });
                             await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: 20 } });
                         }
@@ -472,7 +464,7 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'back':
                         {
-                            const clProto = (device.companionLink as any)[COMPANION_LINK];
+                            const clProto = (device.companionLink as any)[COMPANION_LINK_PROTOCOL];
                             await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: 21 } });
                             await clProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: 21 } });
                         }
@@ -480,18 +472,18 @@ export default async function (storage: Storage): Promise<void> {
                         break;
                     case 'skip+':
                         const skipFwd = parseInt(args[0] || '15');
-                        await device.companionLink.mediaControlCommand('SkipBy', { _skpS: skipFwd });
+                        await device.playback.skipForward(skipFwd);
                         log('command', `Skip forward ${skipFwd}s`);
                         break;
                     case 'skip-':
                         const skipBwd = parseInt(args[0] || '15');
-                        await device.companionLink.mediaControlCommand('SkipBy', { _skpS: -skipBwd });
+                        await device.playback.skipBackward(skipBwd);
                         log('command', `Skip backward ${skipBwd}s`);
                         break;
                     case 'hidtest':
                         if (args[0]) {
                             const hidId = parseInt(args[0]);
-                            const clProto = (device.companionLink as any)[COMPANION_LINK];
+                            const clProto = (device.companionLink as any)[COMPANION_LINK_PROTOCOL];
                             await clProto.stream.exchange(8, {
                                 _i: '_hidC',
                                 _t: 2,

@@ -1,7 +1,7 @@
 import { Discovery, TimingServer, type Storage } from '@basmilius/apple-common';
 import { Url } from '@basmilius/apple-audio-source';
 import { Proto } from '@basmilius/apple-airplay';
-import { HomePod } from '@basmilius/apple-devices';
+import { HomePod } from '@basmilius/apple-sdk';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import { createInteractiveLogger, formatTime, PlaybackStateLabel, printAirPlayState } from './shared';
@@ -43,11 +43,11 @@ export default async function (storage: Storage): Promise<void> {
     });
 
     const discoveryResult = homepods.find(d => d.id === response.device)!;
-    const device = new HomePod(discoveryResult);
+    const device = new HomePod({ airplay: discoveryResult });
 
     const timingServer = new TimingServer();
     await timingServer.listen();
-    device.airplay.timingServer = timingServer;
+    device.timingServer = timingServer;
 
     // Events
     device.on('connected', () => log('event', 'Connected to HomePod.'));
@@ -55,7 +55,7 @@ export default async function (storage: Storage): Promise<void> {
 
     let lastTitle = '';
 
-    device.state.on('setState', (message) => {
+    device.airplay.state.on('setState', (message) => {
         const state = message.playbackState;
 
         if (state !== undefined) {
@@ -75,7 +75,7 @@ export default async function (storage: Storage): Promise<void> {
         }
     });
 
-    device.state.on('volumeDidChange', (volume) => {
+    device.airplay.state.on('volumeDidChange', (volume) => {
         log('event', `Volume: ${Math.round(volume * 100)}%`);
     });
 
@@ -97,22 +97,22 @@ export default async function (storage: Storage): Promise<void> {
 
                 try {
                     switch (cmd) {
-                    case 'play': await device.play(); log('command', 'Play'); break;
-                    case 'pause': await device.pause(); log('command', 'Pause'); break;
-                    case 'playpause': await device.playPause(); log('command', 'PlayPause'); break;
-                    case 'stop': await device.stop(); log('command', 'Stop'); break;
-                    case 'next': await device.next(); log('command', 'Next'); break;
-                    case 'prev': await device.previous(); log('command', 'Previous'); break;
-                    case 'volup': await device.remote.volumeUp(); log('command', 'Volume Up'); break;
-                    case 'voldown': await device.remote.volumeDown(); log('command', 'Volume Down'); break;
-                    case 'mute': await device.remote.mute(); log('command', 'Mute'); break;
+                    case 'play': await device.playback.play(); log('command', 'Play'); break;
+                    case 'pause': await device.playback.pause(); log('command', 'Pause'); break;
+                    case 'playpause': await device.playback.playPause(); log('command', 'PlayPause'); break;
+                    case 'stop': await device.playback.stop(); log('command', 'Stop'); break;
+                    case 'next': await device.playback.next(); log('command', 'Next'); break;
+                    case 'prev': await device.playback.previous(); log('command', 'Previous'); break;
+                    case 'volup': await device.volume.up(); log('command', 'Volume Up'); break;
+                    case 'voldown': await device.volume.down(); log('command', 'Volume Down'); break;
+                    case 'mute': await device.volume.mute(); log('command', 'Mute'); break;
                     case 'vol':
                         if (args[0]) {
                             const pct = parseInt(args[0]) / 100;
-                            await device.volumeControl.set(pct);
+                            await device.volume.set(pct);
                             log('command', `Volume set to ${args[0]}%`);
                         } else {
-                            const vol = await device.volumeControl.get();
+                            const vol = await device.volume.get();
                             log('info', `Volume: ${Math.round(vol * 100)}%`);
                         }
                         break;
@@ -121,7 +121,7 @@ export default async function (storage: Storage): Promise<void> {
                             log('info', `Loading ${args[0]}...`);
                             const source = await Url.fromUrl(args[0]);
                             log('info', `Streaming ${formatTime(source.duration)}...`);
-                            await device.streamAudio(source);
+                            await device.media.streamAudio(source);
                             log('command', 'Stream complete');
                         } else {
                             log('error', 'Usage: stream <url>');
@@ -130,9 +130,9 @@ export default async function (storage: Storage): Promise<void> {
                     case 'playurl':
                         if (args[0]) {
                             log('info', `Playing URL ${args[0]}...`);
-                            await device.playUrl(args[0]);
+                            await device.media.playUrl(args[0]);
                             log('command', 'Playback started');
-                            device.waitForPlaybackEnd().then(() => {
+                            device.media.waitForPlaybackEnd().then(() => {
                                 log('event', 'URL playback ended');
                             }).catch((err) => {
                                 log('error', `URL playback error: ${err}`);
@@ -142,23 +142,20 @@ export default async function (storage: Storage): Promise<void> {
                         }
                         break;
                     case 'info':
-                        const npc = device.state.nowPlayingClient;
-                        log('info', `Title: ${device.title || '(none)'}`);
-                        log('info', `Artist: ${device.artist || '(none)'}`);
-                        log('info', `Album: ${device.album || '(none)'}`);
-                        if (npc?.genre) {
-                            log('info', `Genre: ${npc.genre}`);
-                        }
-                        log('info', `Duration: ${formatTime(device.duration)}`);
-                        log('info', `Elapsed: ${formatTime(device.elapsedTime)}`);
-                        log('info', `State: ${PlaybackStateLabel[device.playbackState] ?? 'Unknown'}`);
-                        log('info', `Shuffle: ${npc?.shuffleMode != null ? Proto.ShuffleMode_Enum[npc.shuffleMode] : 'Unknown'}`);
-                        log('info', `Repeat: ${npc?.repeatMode != null ? Proto.RepeatMode_Enum[npc.repeatMode] : 'Unknown'}`);
-                        log('info', `Volume: ${Math.round(device.volume * 100)}%`);
-                        log('info', `App: ${device.displayName ?? '(none)'} (${device.bundleIdentifier ?? ''})`);
+                        log('info', `Title: ${device.state.title || '(none)'}`);
+                        log('info', `Artist: ${device.state.artist || '(none)'}`);
+                        log('info', `Album: ${device.state.album || '(none)'}`);
+                        log('info', `Genre: ${device.state.genre || '(none)'}`);
+                        log('info', `Duration: ${formatTime(device.state.duration)}`);
+                        log('info', `Elapsed: ${formatTime(device.state.elapsedTime)}`);
+                        log('info', `State: ${PlaybackStateLabel[device.state.playbackState] ?? 'Unknown'}`);
+                        log('info', `Shuffle: ${device.state.shuffleMode != null ? Proto.ShuffleMode_Enum[device.state.shuffleMode] : 'Unknown'}`);
+                        log('info', `Repeat: ${device.state.repeatMode != null ? Proto.RepeatMode_Enum[device.state.repeatMode] : 'Unknown'}`);
+                        log('info', `Volume: ${Math.round(device.state.volume * 100)}%`);
+                        log('info', `App: ${device.state.activeApp?.displayName ?? '(none)'} (${device.state.activeApp?.bundleIdentifier ?? ''})`);
                         break;
                     case 'state':
-                        printAirPlayState(device.state, log);
+                        printAirPlayState(device.airplay.state, log);
                         break;
                     case 'help': console.log(HELP); break;
                     case 'quit':

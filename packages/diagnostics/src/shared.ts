@@ -1,5 +1,5 @@
 import { Proto } from '@basmilius/apple-airplay';
-import { type AirPlayClient, type AirPlayPlayer, type AirPlayState } from '@basmilius/apple-devices';
+import { type AirPlayClient, type AirPlayPlayer, type AirPlayState } from '@basmilius/apple-sdk';
 import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
 import ora from 'ora';

@@ -1,9 +1,9 @@
 import type { AirPlayManager } from '../internal/airplay-manager';
 
 /**
- * Navigation controller for Apple devices.
- * Provides HID-based directional navigation, touch/swipe gestures,
- * and low-level HID primitives.
+ * Remote controller for Apple devices.
+ * Provides all HID-based keys (navigation, media, volume, power),
+ * touch/swipe gestures, and low-level HID primitives.
  */
 export class RemoteController {
     readonly #airplay: AirPlayManager;
@@ -12,7 +12,7 @@ export class RemoteController {
         this.#airplay = airplay;
     }
 
-    // --- Navigation ---
+    // --- Navigation (Generic Desktop page 0x01) ---
 
     async up(): Promise<void> {
         await this.#airplay.remote.up();
@@ -40,6 +40,68 @@ export class RemoteController {
 
     async home(): Promise<void> {
         await this.#airplay.remote.home();
+    }
+
+    async topMenu(): Promise<void> {
+        await this.#airplay.remote.topMenu();
+    }
+
+    // --- Media keys (Consumer page 0x0C) ---
+
+    async play(): Promise<void> {
+        await this.#airplay.remote.play();
+    }
+
+    async pause(): Promise<void> {
+        await this.#airplay.remote.pause();
+    }
+
+    async playPause(): Promise<void> {
+        await this.#airplay.remote.playPause();
+    }
+
+    async stop(): Promise<void> {
+        await this.#airplay.remote.stop();
+    }
+
+    async next(): Promise<void> {
+        await this.#airplay.remote.next();
+    }
+
+    async previous(): Promise<void> {
+        await this.#airplay.remote.previous();
+    }
+
+    async channelUp(): Promise<void> {
+        await this.#airplay.remote.channelUp();
+    }
+
+    async channelDown(): Promise<void> {
+        await this.#airplay.remote.channelDown();
+    }
+
+    // --- Volume keys (Consumer page 0x0C) ---
+
+    async volumeUp(): Promise<void> {
+        await this.#airplay.remote.volumeUp();
+    }
+
+    async volumeDown(): Promise<void> {
+        await this.#airplay.remote.volumeDown();
+    }
+
+    async mute(): Promise<void> {
+        await this.#airplay.remote.mute();
+    }
+
+    // --- Power keys (Generic Desktop page 0x01) ---
+
+    async wake(): Promise<void> {
+        await this.#airplay.remote.wake();
+    }
+
+    async suspend(): Promise<void> {
+        await this.#airplay.remote.suspend();
     }
 
     // --- Touch & Gestures ---

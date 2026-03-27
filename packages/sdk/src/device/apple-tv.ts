@@ -1,5 +1,6 @@
 import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
 import { CompanionLinkManager } from '../internal/companion-link-manager';
+import { AccountsController } from '../controller/accounts';
 import { AppsController } from '../controller/apps';
 import { KeyboardController } from '../controller/keyboard';
 import { PowerController } from '../controller/power';
@@ -37,6 +38,7 @@ export type AppleTVOptions = DeviceOptions & {
 export class AppleTV extends AbstractDevice {
     readonly #companionLink: CompanionLinkManager | undefined;
 
+    readonly accounts: AccountsController | undefined;
     readonly apps: AppsController | undefined;
     readonly keyboard: KeyboardController;
     readonly power: PowerController | undefined;
@@ -45,12 +47,13 @@ export class AppleTV extends AbstractDevice {
     constructor(options: AppleTVOptions) {
         super(options);
 
-        this.keyboard = new KeyboardController(this._airplay);
+        this.keyboard = new KeyboardController(this.airplay);
 
         if (options.companionLink) {
             this.#companionLink = new CompanionLinkManager(options.companionLink);
+            this.accounts = new AccountsController(this.#companionLink);
             this.apps = new AppsController(this.#companionLink);
-            this.power = new PowerController(this._airplay, this.#companionLink);
+            this.power = new PowerController(this.airplay, this.#companionLink);
             this.system = new SystemController(this.#companionLink);
 
             // Forward Companion Link events.
@@ -64,8 +67,17 @@ export class AppleTV extends AbstractDevice {
         }
     }
 
+    /**
+     * The underlying Companion Link protocol manager, or undefined if no
+     * Companion Link discovery result was provided.
+     * Use this for low-level protocol access or features not covered by controllers.
+     */
+    get companionLink(): CompanionLinkManager | undefined {
+        return this.#companionLink;
+    }
+
     get isConnected(): boolean {
-        const airplayConnected = this._airplay.isConnected;
+        const airplayConnected = this.airplay.isConnected;
         const companionLinkConnected = this.#companionLink?.isConnected ?? true;
         return airplayConnected && companionLinkConnected;
     }
@@ -76,8 +88,8 @@ export class AppleTV extends AbstractDevice {
      * @param credentials - Pairing credentials from pair-setup.
      */
     async connect(credentials: AccessoryCredentials): Promise<void> {
-        this._airplay.setCredentials(credentials);
-        await this._airplay.connect();
+        this.airplay.setCredentials(credentials);
+        await this.airplay.connect();
 
         if (this.#companionLink) {
             try {

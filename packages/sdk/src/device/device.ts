@@ -113,19 +113,13 @@ export abstract class AbstractDevice extends EventEmitter {
         this.#airplay.timingServer = server;
     }
 
-    /** @internal Access to the underlying AirPlay manager. */
-    get _airplay(): AirPlayManager {
+    /**
+     * The underlying AirPlay protocol manager.
+     * Use this for low-level protocol access, raw state events, or features
+     * not covered by the high-level controllers.
+     */
+    get airplay(): AirPlayManager {
         return this.#airplay;
-    }
-
-    /** @internal Access to the discovery result. */
-    get _discoveryResult(): DiscoveryResult {
-        return this.#discoveryResult;
-    }
-
-    /** @internal Access to the device identity. */
-    get _identity(): Partial<DeviceIdentity> | undefined {
-        return this.#identity;
     }
 
     /**

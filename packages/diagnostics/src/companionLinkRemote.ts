@@ -1,6 +1,6 @@
 import { Discovery, type Storage } from '@basmilius/apple-common';
 import { type Protocol } from '@basmilius/apple-companion-link';
-import { CompanionLinkDevice, COMPANION_LINK } from '@basmilius/apple-devices';
+import { CompanionLinkManager, COMPANION_LINK_PROTOCOL } from '@basmilius/apple-sdk';
 import { prompt } from 'enquirer';
 import ora from 'ora';
 import getSavedCredentials from './getSavedCredentials';
@@ -131,7 +131,7 @@ export default async function (storage: Storage): Promise<void> {
 
     startSavingLogs();
 
-    const device = new CompanionLinkDevice(discoveryResult);
+    const device = new CompanionLinkManager(discoveryResult);
     await device.setCredentials(credentials);
 
     let disconnected = false;
@@ -177,7 +177,7 @@ export default async function (storage: Storage): Promise<void> {
     log('info', 'Connecting...');
     await device.connect();
 
-    const protocol = (device as any)[COMPANION_LINK] as Protocol | undefined;
+    const protocol = (device as any)[COMPANION_LINK_PROTOCOL] as Protocol | undefined;
     if (protocol) {
         log('info', `Source version: ${protocol.sourceVersion} (media=${protocol.supportsMediaControl}, text=${protocol.supportsTextInput}, siri=${protocol.supportsSiriPTT})`);
     }
@@ -212,7 +212,7 @@ export default async function (storage: Storage): Promise<void> {
                         case 'home': await device.pressButton('Home'); log('command', 'Home'); break;
                         case 'topmenu': await device.pressButton('Menu', 'Hold'); log('command', 'Top Menu (hold)'); break;
                         case 'back':
-                            const backProto = (device as any)[COMPANION_LINK];
+                            const backProto = (device as any)[COMPANION_LINK_PROTOCOL];
                             if (backProto) {
                                 await backProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: 21 } });
                                 await backProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: 21 } });
@@ -229,7 +229,7 @@ export default async function (storage: Storage): Promise<void> {
                         case 'wake': await device.pressButton('Wake'); log('command', 'Wake'); break;
                         case 'sleep': await device.pressButton('Sleep'); log('command', 'Sleep'); break;
                         case 'power':
-                            const powerProto = (device as any)[COMPANION_LINK];
+                            const powerProto = (device as any)[COMPANION_LINK_PROTOCOL];
                             if (powerProto) {
                                 await powerProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: 20 } });
                                 await powerProto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: 20 } });
@@ -376,7 +376,7 @@ export default async function (storage: Storage): Promise<void> {
                         case 'hidtest':
                             if (args[0]) {
                                 const id = parseInt(args[0]);
-                                const proto = (device as any)[COMPANION_LINK];
+                                const proto = (device as any)[COMPANION_LINK_PROTOCOL];
                                 if (proto) {
                                     await proto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 1, _hidC: id } });
                                     await proto.stream.exchange(8, { _i: '_hidC', _t: 2, _c: { _hBtS: 2, _hidC: id } });

@@ -5,17 +5,18 @@ export { HomePodMini } from './device/homepod-mini';
 export { AbstractDevice } from './device/device';
 
 // --- Controllers ---
-export { RemoteController } from './controller/remote';
-export { PlaybackController } from './controller/playback';
-export { StateController } from './controller/state';
-export { VolumeController } from './controller/volume';
-export { ArtworkController } from './controller/artwork';
-export { MediaController } from './controller/media';
+export { AccountsController } from './controller/accounts';
 export { AppsController } from './controller/apps';
+export { ArtworkController } from './controller/artwork';
 export { KeyboardController } from './controller/keyboard';
-export { PowerController } from './controller/power';
+export { MediaController } from './controller/media';
 export { MultiroomController } from './controller/multiroom';
+export { PlaybackController } from './controller/playback';
+export { PowerController } from './controller/power';
+export { RemoteController } from './controller/remote';
+export { StateController } from './controller/state';
 export { SystemController } from './controller/system';
+export { VolumeController } from './controller/volume';
 
 // --- Pairing ---
 export { PairingSession } from './pairing/pairing-session';
@@ -48,6 +49,16 @@ export type {
 } from './types';
 
 export { SendCommandError } from './types';
+
+// --- Internals (for advanced/diagnostics use) ---
+export { AirPlayManager } from './internal/airplay-manager';
+export { AirPlayState } from './internal/airplay-state';
+export { AirPlayRemote } from './internal/airplay-remote';
+export { AirPlayVolume } from './internal/airplay-volume';
+export { AirPlayArtwork } from './internal/airplay-artwork';
+export { CompanionLinkManager } from './internal/companion-link-manager';
+export { CompanionLinkState } from './internal/companion-link-state';
+export { PROTOCOL as AIRPLAY_PROTOCOL, COMPANION_LINK_PROTOCOL } from './internal/const';
 
 // --- Re-export commonly needed protocol types ---
 export { Proto } from '@basmilius/apple-airplay';

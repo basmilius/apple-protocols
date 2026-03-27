@@ -21,7 +21,7 @@ export class HomePod extends AbstractDevice {
      * Connects to the HomePod using transient pairing (no credentials needed).
      */
     async connect(): Promise<void> {
-        await this._airplay.connect();
+        await this.airplay.connect();
     }
 
     protected onAirPlayConnected(): void {

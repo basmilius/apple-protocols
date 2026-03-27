@@ -631,6 +631,8 @@ export default class Protocol {
             await this.#putProperty('forwardEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
             await this.#putProperty('reverseEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
         } catch (err) {
+            this.#stopPlayUrlFeedback();
+
             try {
                 await this.#controlStream.teardown(`/${this.#controlStream.sessionId}`);
             } catch (teardownErr) {

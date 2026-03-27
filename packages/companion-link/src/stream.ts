@@ -254,6 +254,10 @@ export default class Stream extends EncryptionAwareConnection<Record<string, [un
         const header = data.subarray(0, 4);
         const payloadLength = header.readUintBE(1, 3);
 
+        if (payloadLength < 16) {
+            throw new Error(`Encrypted frame payload too short: ${payloadLength} bytes (minimum 16 for auth tag)`);
+        }
+
         const payload = data.subarray(4, 4 + payloadLength);
         const authTag = payload.subarray(payload.byteLength - 16);
         const ciphertext = payload.subarray(0, payload.byteLength - 16);

@@ -89,6 +89,12 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         this.onClose = this.onClose.bind(this);
         this.onError = this.onError.bind(this);
         this.onTimeout = this.onTimeout.bind(this);
+        this.onAttentionStateChanged = this.onAttentionStateChanged.bind(this);
+        this.onMediaControlFlagsChanged = this.onMediaControlFlagsChanged.bind(this);
+        this.onNowPlayingInfoChanged = this.onNowPlayingInfoChanged.bind(this);
+        this.onSupportedActionsChanged = this.onSupportedActionsChanged.bind(this);
+        this.onTextInputChanged = this.onTextInputChanged.bind(this);
+        this.onVolumeAvailabilityChanged = this.onVolumeAvailabilityChanged.bind(this);
     }
 
     // --- Lifecycle ---
@@ -473,17 +479,22 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
             // Remove old forwarding listeners to prevent leaks on reconnect.
             if (this.#state) {
-                this.#state.removeAllListeners();
+                this.#state.off('attentionStateChanged', this.onAttentionStateChanged);
+                this.#state.off('mediaControlFlagsChanged', this.onMediaControlFlagsChanged);
+                this.#state.off('nowPlayingInfoChanged', this.onNowPlayingInfoChanged);
+                this.#state.off('supportedActionsChanged', this.onSupportedActionsChanged);
+                this.#state.off('textInputChanged', this.onTextInputChanged);
+                this.#state.off('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
             }
 
             // Create state and wire up event forwarding.
             this.#state = new CompanionLinkState(this.#protocol);
-            this.#state.on('attentionStateChanged', (s) => this.emit('attentionStateChanged', s));
-            this.#state.on('mediaControlFlagsChanged', (f, c) => this.emit('mediaControlFlagsChanged', f, c));
-            this.#state.on('nowPlayingInfoChanged', (i) => this.emit('nowPlayingInfoChanged', i));
-            this.#state.on('supportedActionsChanged', (a) => this.emit('supportedActionsChanged', a));
-            this.#state.on('textInputChanged', (s) => this.emit('textInputChanged', s));
-            this.#state.on('volumeAvailabilityChanged', (a) => this.emit('volumeAvailabilityChanged', a));
+            this.#state.on('attentionStateChanged', this.onAttentionStateChanged);
+            this.#state.on('mediaControlFlagsChanged', this.onMediaControlFlagsChanged);
+            this.#state.on('nowPlayingInfoChanged', this.onNowPlayingInfoChanged);
+            this.#state.on('supportedActionsChanged', this.onSupportedActionsChanged);
+            this.#state.on('textInputChanged', this.onTextInputChanged);
+            this.#state.on('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
             this.#state.subscribe();
             await this.#state.fetchInitialState();
         } catch (err) {
@@ -491,6 +502,36 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
             this.#heartbeatInterval = undefined;
             throw err;
         }
+    }
+
+    /** @internal */
+    onAttentionStateChanged(state: AttentionState): void {
+        this.emit('attentionStateChanged', state);
+    }
+
+    /** @internal */
+    onMediaControlFlagsChanged(flags: number, capabilities: MediaCapabilities): void {
+        this.emit('mediaControlFlagsChanged', flags, capabilities);
+    }
+
+    /** @internal */
+    onNowPlayingInfoChanged(info: Record<string, unknown> | null): void {
+        this.emit('nowPlayingInfoChanged', info);
+    }
+
+    /** @internal */
+    onSupportedActionsChanged(actions: Record<string, unknown>): void {
+        this.emit('supportedActionsChanged', actions);
+    }
+
+    /** @internal */
+    onTextInputChanged(state: TextInputState): void {
+        this.emit('textInputChanged', state);
+    }
+
+    /** @internal */
+    onVolumeAvailabilityChanged(available: boolean): void {
+        this.emit('volumeAvailabilityChanged', available);
     }
 
     /**

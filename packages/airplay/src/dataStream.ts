@@ -443,6 +443,7 @@ export default class DataStream extends BaseStream<EventMap> {
                 }
             }
         } catch (err) {
+            this.#cleanup();
             this.context.logger.error('[data]', 'onStreamData()', err);
             this.emit('error', err);
         }

@@ -226,9 +226,17 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             this.#feedbackInterval = undefined;
         }
 
+        this.#prevDataStream?.off('error', this.onError);
+        this.#prevDataStream?.off('timeout', this.onTimeout);
+        this.#prevEventStream?.off('error', this.onError);
+        this.#prevEventStream?.off('timeout', this.onTimeout);
+        this.#prevDataStream = undefined;
+        this.#prevEventStream = undefined;
+
         this.#cleanupPlayUrl();
         this.#cleanupStream();
         this.#unsubscribe();
+        this.#artwork.clear();
         this.#protocol.disconnect();
         this.emit('disconnected', false);
     }

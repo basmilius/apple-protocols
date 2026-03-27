@@ -31,15 +31,16 @@ bash build.sh
 | `@basmilius/apple-airplay`        | `packages/airplay`        | AirPlay 2: control/data/audio/event streams, 117 protobuf definitions |
 | `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing             |
 | `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                         |
-| `@basmilius/apple-devices`        | `packages/devices`        | Device abstractions: AppleTV, HomePod, HomePodMini                    |
+| `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing     |
 | `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Interactive test/debug tools (standalone binaries)                    |
 
 ### Dependency graph
 
 ```
-@basmilius/apple-devices
+@basmilius/apple-sdk
   ├── @basmilius/apple-airplay
   │     ├── @basmilius/apple-rtsp
+  │     │     └── @basmilius/apple-common
   │     ├── @basmilius/apple-common
   │     │     ├── @basmilius/apple-encoding
   │     │     └── @basmilius/apple-encryption
@@ -49,13 +50,20 @@ bash build.sh
   │     ├── @basmilius/apple-common
   │     ├── @basmilius/apple-encoding
   │     └── @basmilius/apple-encryption
+  ├── @basmilius/apple-raop
+  │     ├── @basmilius/apple-rtsp
+  │     ├── @basmilius/apple-common
+  │     ├── @basmilius/apple-encoding
+  │     └── @basmilius/apple-encryption
+  ├── @basmilius/apple-audio-source
+  │     └── @basmilius/apple-common
   ├── @basmilius/apple-common
   └── @basmilius/apple-encoding
 ```
 
 ## Usage
 
-The `@basmilius/apple-devices` package provides the high-level API. The examples below assume all packages are built.
+The `@basmilius/apple-sdk` package provides the high-level API. The examples below assume all packages are built.
 
 ### Discovering devices
 
@@ -98,9 +106,9 @@ protocol.disconnect();
 HomePods use transient pairing — no stored credentials needed.
 
 ```ts
-import { HomePod } from '@basmilius/apple-devices';
+import { HomePod } from '@basmilius/apple-sdk';
 
-const device = new HomePod(discoveryResult);
+const device = new HomePod({ airplay: discoveryResult });
 await device.connect();
 ```
 
@@ -109,9 +117,9 @@ await device.connect();
 Apple TV requires credentials from a previous pairing.
 
 ```ts
-import { AppleTV } from '@basmilius/apple-devices';
+import { AppleTV } from '@basmilius/apple-sdk';
 
-const device = new AppleTV(airplayResult, companionLinkResult);
+const device = new AppleTV({ airplay: airplayResult, companionLink: companionLinkResult });
 await device.connect(credentials);
 ```
 
@@ -126,15 +134,15 @@ await device.remote.menu();
 await device.remote.home();
 
 // Playback commands
-await device.play();
-await device.pause();
-await device.next();
-await device.previous();
+await device.playback.play();
+await device.playback.pause();
+await device.playback.next();
+await device.playback.previous();
 
 // Volume
-await device.volumeControl.set(0.5);
-await device.volumeControl.up();
-await device.volumeControl.down();
+await device.volume.set(0.5);
+await device.volume.up();
+await device.volume.down();
 
 // Seek and shuffle
 await device.remote.commandSkipForward(15);
@@ -152,12 +160,12 @@ device.state.on('nowPlayingChanged', (client, player) => {
     console.log(client.isPlaying);
 });
 
-device.state.on('volumeDidChange', (volume) => {
+device.state.on('volumeChanged', (volume) => {
     console.log(volume); // 0.0 – 1.0
 });
 
 // Or read directly
-const {title, artist, album, duration, elapsedTime, isPlaying} = device;
+const {title, artist, album, duration, elapsedTime, isPlaying} = device.state;
 ```
 
 ### Streaming audio
@@ -177,14 +185,14 @@ await device.playUrl('https://example.com/stream.m3u8', 30); // start at 30s
 ### Apple TV specific (Companion Link)
 
 ```ts
-const apps = await device.getLaunchableApps();
-await device.launchApp('com.apple.TV');
+const apps = await device.apps.list();
+await device.apps.launch('com.apple.TV');
 
-const users = await device.getUserAccounts();
-await device.switchUserAccount(accountId);
+const users = await device.accounts.list();
+await device.accounts.switch(accountId);
 
-await device.turnOn();
-await device.turnOff();
+await device.power.on();
+await device.power.off();
 ```
 
 ## Development
@@ -229,19 +237,15 @@ The tool provides an interactive menu for pairing, remote control, audio streami
 
 ### Testing against devices
 
+Use the diagnostics tool for interactive testing:
+
 ```bash
-# Interactive Apple TV test
-bun --cwd packages/devices test:appletv
-
-# Interactive HomePod test
-bun --cwd packages/devices test:homepod
-
-# AirPlay audio streaming test
-bun --cwd packages/airplay test:audio
-
-# AirPlay remote control test
-bun --cwd packages/airplay test:remote
+# Build and run diagnostics
+bun --cwd packages/diagnostics build
+./packages/diagnostics/dist/ap-diagnostics-macos-arm64
 ```
+
+The diagnostics tool provides an interactive menu for pairing, remote control, audio streaming, URL playback, mDNS scanning, and more.
 
 ## License
 

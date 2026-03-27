@@ -29,8 +29,8 @@ export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | 
         const frameLength = data.readUInt16LE(offset);
         offset += 2;
 
-        if (frameLength === 0 || frameLength > 65535) {
-            return false;
+        if (frameLength === 0) {
+            throw new Error('Corrupt encrypted frame: zero-length frame');
         }
 
         const end = offset + frameLength + 16;

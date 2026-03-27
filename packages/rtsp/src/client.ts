@@ -205,7 +205,13 @@ export default class RtspClient extends Connection<{}> {
                 }
             });
 
-            this.write(data);
+            try {
+                this.write(data);
+            } catch (err) {
+                clearTimeout(timer);
+                this.#requests.delete(cseq);
+                reject(err);
+            }
         });
     }
 

@@ -1,4 +1,5 @@
 import { type Context, EncryptionState, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
 import { RtspClient } from '@basmilius/apple-rtsp';
 import { chacha20Decrypt, chacha20Encrypt } from './encryption';
 
@@ -204,6 +205,41 @@ export default class ControlStream extends RtspClient {
         return await this.exchange('POST', `/volume?volume=${volume.toFixed(6)}`, {
             allowError: true
         });
+    }
+
+    /**
+     * Sets the audio routing mode on the receiver.
+     *
+     * @param mode - The audio mode to set (e.g. 'default', 'moviePlayback', 'spoken').
+     * @returns The response.
+     */
+    async setAudioMode(mode: string): Promise<Response> {
+        const body = Plist.serialize({audioMode: mode});
+
+        return await this.exchange('POST', '/audioMode', {
+            body: Buffer.from(body),
+            headers: {'Content-Type': 'application/x-apple-binary-plist'},
+            allowError: true
+        });
+    }
+
+    /**
+     * Stops the current URL playback session.
+     *
+     * @returns The response.
+     */
+    async stop(): Promise<Response> {
+        return await this.exchange('POST', '/stop', {allowError: true});
+    }
+
+    /**
+     * Seeks to a specific position during URL playback.
+     *
+     * @param position - The position in seconds to seek to.
+     * @returns The response.
+     */
+    async scrub(position: number): Promise<Response> {
+        return await this.exchange('POST', `/scrub?position=${position.toFixed(6)}`, {allowError: true});
     }
 
     /**

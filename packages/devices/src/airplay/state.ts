@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, Proto, type Protocol } from '@basmilius/apple-airplay';
 import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { DEFAULT_PLAYER_ID } from './player';
 import Client from './client';
 import type Device from './device';
 import type Player from './player';
-import { DEFAULT_PLAYER_ID } from './player';
 
 /**
  * Snapshot of the current now-playing state, used for change detection.
@@ -159,6 +159,11 @@ export default class extends EventEmitter<EventMap> {
         return this.#participants;
     }
 
+    /** Raw JPEG artwork data from the last SET_ARTWORK_MESSAGE, or null. */
+    get artworkJpegData(): Uint8Array | null {
+        return this.#artworkJpegData;
+    }
+
     /** Current volume level (0.0 - 1.0). */
     get volume(): number {
         return this.#volume;
@@ -192,6 +197,7 @@ export default class extends EventEmitter<EventMap> {
     #isClusterAware: boolean;
     #isClusterLeader: boolean;
     #participants: Proto.PlaybackQueueParticipant[];
+    #artworkJpegData: Uint8Array | null;
     #volume: number;
     #volumeAvailable: boolean;
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
@@ -313,6 +319,7 @@ export default class extends EventEmitter<EventMap> {
         this.#isClusterAware = false;
         this.#isClusterLeader = false;
         this.#participants = [];
+        this.#artworkJpegData = null;
         this.#volume = 0;
         this.#volumeAvailable = false;
         this.#volumeCapabilities = Proto.VolumeCapabilities_Enum.None;
@@ -436,6 +443,10 @@ export default class extends EventEmitter<EventMap> {
      * @param message - The set artwork message.
      */
     onSetArtwork(message: Proto.SetArtworkMessage): void {
+        if (message.jpegData?.byteLength > 0) {
+            this.#artworkJpegData = message.jpegData;
+        }
+
         this.emit('setArtwork', message);
     }
 

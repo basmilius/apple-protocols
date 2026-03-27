@@ -1,4 +1,5 @@
 import { OPack, Plist } from '@basmilius/apple-encoding';
+import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 
 /** An OPack-encoded message to be sent over the Companion Link stream. */
@@ -302,7 +303,36 @@ export function buildRtiInputPayload(sessionUUID: Buffer, text: string): ArrayBu
  * @returns The media control request message.
  */
 export function mediaControlCommand(commandId: number, content?: Record<string, unknown>): OPackMessage {
-    return request('_mcc', { _mcc: commandId, ...(content ?? {}) });
+    return request('_mcc', {_mcc: commandId, ...(content ?? {})});
+}
+
+/**
+ * Builds a media control command to skip forward or backward by a given number of seconds.
+ *
+ * @param seconds - Number of seconds to skip (positive = forward, negative = backward).
+ * @returns The skip-by-seconds request message.
+ */
+export function mediaSkipBySeconds(seconds: number): OPackMessage {
+    return request('_mcc', {_mcc: MediaControlCommand.SkipBy, _ski: seconds});
+}
+
+/**
+ * Builds a message to get the current caption/subtitle settings.
+ *
+ * @returns The get caption settings request message.
+ */
+export function mediaCaptionSettingGet(): OPackMessage {
+    return request('_mcc', {_mcc: MediaControlCommand.GetCaptionSettings});
+}
+
+/**
+ * Builds a message to enable or disable captions/subtitles.
+ *
+ * @param enabled - Whether captions should be enabled.
+ * @returns The set caption settings request message.
+ */
+export function mediaCaptionSettingSet(enabled: boolean): OPackMessage {
+    return request('_mcc', {_mcc: MediaControlCommand.SetCaptionSettings, _cse: enabled});
 }
 
 // --- App Launch ---
@@ -564,4 +594,77 @@ export function siriStop(): OPackMessage {
  */
 export function publishPresence(): OPackMessage {
     return request('PublishPresenceEvent');
+}
+
+// --- Game Controller ---
+
+/**
+ * Builds a game controller event message with analog stick position.
+ * Sent as a fire-and-forget event (no response expected).
+ *
+ * @param x - X coordinate of the analog stick (-1.0 to 1.0).
+ * @param y - Y coordinate of the analog stick (-1.0 to 1.0).
+ * @param isDown - Whether the button is pressed.
+ * @returns The game controller event message.
+ */
+export function gameControllerEvent(x: number, y: number, isDown: boolean): OPackMessage {
+    return event('_gcC', {_gcX: x, _gcY: y, _gcBtS: isDown ? 1 : 0});
+}
+
+/**
+ * Builds a game controller session start message.
+ *
+ * @returns The game controller start request message.
+ */
+export function gameControllerStart(): OPackMessage {
+    return requestBtHP('_gcStart');
+}
+
+/**
+ * Builds a game controller session stop message.
+ *
+ * @returns The game controller stop request message.
+ */
+export function gameControllerStop(): OPackMessage {
+    return requestBtHP('_gcStop');
+}
+
+// --- App Sign-In ---
+
+/**
+ * Builds a request to proxy an app sign-in flow through the companion device.
+ * Used when an Apple TV app requests authentication via a paired iPhone/iPad.
+ *
+ * @param bundleId - The bundle identifier of the app requesting sign-in.
+ * @param requestType - The type of sign-in request ('appleID', 'password', or 'custom').
+ * @returns The app sign-in request message.
+ */
+export function appSignInRequest(bundleId: string, requestType: string = 'appleID'): OPackMessage {
+    return request('_cpsAISR', {_bundleID: bundleId, _reqType: requestType});
+}
+
+// --- TV Provider ---
+
+/**
+ * Builds a TV provider authentication request.
+ * Used for MVPD (Multichannel Video Programming Distributor) sign-in on Apple TV.
+ *
+ * @param providerUrl - The provider's authentication URL.
+ * @param providerName - The provider's display name.
+ * @returns The TV provider request message.
+ */
+export function tvProviderRequest(providerUrl: string, providerName: string): OPackMessage {
+    return request('_cpsTVPR', {_pvUrl: providerUrl, _pvName: providerName});
+}
+
+// --- Restricted Access ---
+
+/**
+ * Builds a restricted access (parental controls) approval request.
+ *
+ * @param restrictionType - The type of restriction being requested.
+ * @returns The restricted access request message.
+ */
+export function restrictedAccessRequest(restrictionType: string): OPackMessage {
+    return request('_cpsRAR', {_raType: restrictionType});
 }

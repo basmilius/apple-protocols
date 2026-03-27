@@ -36,7 +36,7 @@ export function protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.Erro
  * @param systemEndpointUpdates - Subscribe to system endpoint changes.
  * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
-export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = true, systemEndpointUpdates: boolean = true): [Proto.ProtocolMessage, DescExtension] {
+export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = false, systemEndpointUpdates: boolean = true, subscribedPlayerPaths: Proto.PlayerPath[] = []): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.CLIENT_UPDATES_CONFIG_MESSAGE);
     const message = create(Proto.ClientUpdatesConfigMessageSchema, {
         artworkUpdates,
@@ -44,7 +44,8 @@ export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUp
         volumeUpdates,
         keyboardUpdates,
         outputDeviceUpdates,
-        systemEndpointUpdates
+        systemEndpointUpdates,
+        subscribedPlayerPaths
     });
 
     setExtension(protocolMessage, Proto.clientUpdatesConfigMessage, message);
@@ -102,12 +103,15 @@ export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.
         supportsACL: true,
         supportsSharedQueue: true,
         supportsExtendedMotion: true,
-        sharedQueueVersion: 2,
+        sharedQueueVersion: 3,
         deviceClass: Proto.DeviceClass_Enum.iPhone,
         logicalDeviceCount: 1,
         modelID: identity.model,
         clusterType: 0,
         isClusterAware: true,
+        isGroupLeader: false,
+        isProxyGroupPlayer: false,
+        groupContainsDiscoverableGroupLeader: 0,
         supportsOutputContextSync: true,
         computerName: identity.name
     });
@@ -415,6 +419,20 @@ export function sendCommand(command: Proto.Command, options?: Proto.CommandOptio
 }
 
 /**
+ * Builds a SEND_COMMAND message with sleep timer options.
+ *
+ * @param seconds - Timer duration in seconds. Use 0 to cancel.
+ * @param stopMode - Stop mode: 0 = stop, 1 = pause, 2 = end of track, 3 = end of queue.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function sendCommandWithSleepTimer(seconds: number, stopMode: number = 0): [Proto.ProtocolMessage, DescExtension] {
+    return sendCommand(Proto.Command.Pause, create(Proto.CommandOptionsSchema, {
+        sleepTimerTime: BigInt(seconds),
+        sleepTimerStopMode: stopMode
+    }));
+}
+
+/**
  * Builds a SEND_VIRTUAL_TOUCH_EVENT message for touchpad simulation.
  *
  * Simulates touch input on a virtual trackpad, used for gesture-based
@@ -630,6 +648,105 @@ export function audioFade(fadeType: number, playerPath?: Proto.PlayerPath): [Pro
     return [
         protocolMessage,
         Proto.audioFadeMessage
+    ];
+}
+
+/**
+ * Builds a SET_LISTENING_MODE message to change the audio listening mode on a HomePod.
+ *
+ * @param listeningMode - The listening mode string (e.g. 'Default', 'Vivid', 'LateNight').
+ * @param outputDeviceUID - The output device UID to target.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function setListeningMode(listeningMode: string, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_LISTENING_MODE_MESSAGE);
+    const message = create(Proto.SetListeningModeMessageSchema, {
+        listeningMode,
+        outputDeviceUID
+    });
+
+    setExtension(protocolMessage, Proto.setListeningModeMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.setListeningModeMessage
+    ];
+}
+
+/**
+ * Builds a SET_DISCOVERY_MODE message to enable or disable device discovery.
+ *
+ * @param mode - The discovery mode to set.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function setDiscoveryMode(mode: number): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_DISCOVERY_MODE_MESSAGE);
+    const message = create(Proto.SetDiscoveryModeMessageSchema, {
+        mode
+    });
+
+    setExtension(protocolMessage, Proto.setDiscoveryModeMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.setDiscoveryModeMessage
+    ];
+}
+
+/**
+ * Builds a REQUEST_GROUP_SESSION message to initiate a SharePlay/group listening session.
+ *
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function requestGroupSession(): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.REQUEST_GROUP_SESSION_MESSAGE);
+    const message = create(Proto.RequestGroupSessionMessageSchema, {});
+
+    setExtension(protocolMessage, Proto.requestGroupSessionMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.requestGroupSessionMessage
+    ];
+}
+
+/**
+ * Builds a PLAYBACK_SESSION_MIGRATE_BEGIN message to start migrating playback to another device.
+ *
+ * @param playerPath - The player path of the session to migrate.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function playbackSessionMigrateBegin(playerPath?: Proto.PlayerPath): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_BEGIN_MESSAGE);
+    const message = create(Proto.PlaybackSessionMigrateBeginMessageSchema, {
+        playerPath
+    });
+
+    setExtension(protocolMessage, Proto.playbackSessionMigrateBeginMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.playbackSessionMigrateBeginMessage
+    ];
+}
+
+/**
+ * Builds a PLAYBACK_SESSION_MIGRATE_END message to complete a playback migration.
+ *
+ * @param playerPath - The player path of the migrated session.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function playbackSessionMigrateEnd(playerPath?: Proto.PlayerPath): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_END_MESSAGE);
+    const message = create(Proto.PlaybackSessionMigrateEndMessageSchema, {
+        playerPath
+    });
+
+    setExtension(protocolMessage, Proto.playbackSessionMigrateEndMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.playbackSessionMigrateEndMessage
     ];
 }
 

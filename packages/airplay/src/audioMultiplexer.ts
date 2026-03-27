@@ -1,5 +1,5 @@
-import type { AudioSource, Context } from '@basmilius/apple-common';
-import AudioStream, { FRAMES_PER_PACKET, type AudioStreamOptions } from './audioStream';
+import { type AudioSource, type Context, waitFor } from '@basmilius/apple-common';
+import AudioStream, { type AudioStreamOptions, FRAMES_PER_PACKET } from './audioStream';
 import type Protocol from './protocol';
 
 /** Maximum number of extra packets to send when catching up from being behind schedule. */
@@ -69,7 +69,7 @@ export default class AudioMultiplexer {
      *
      * Orchestrates the full lifecycle: setup all streams, prepare (connect UDP,
      * FLUSH, start sync), stream audio packets with timing compensation, and
-     * finish (padding + TEARDOWN). On error, all streams are closed.
+     * finish (padding and TEARDOWN). On error, all streams are closed.
      *
      * @param source - Audio source to read PCM frames from.
      * @throws Re-throws any error after cleaning up all streams.
@@ -137,7 +137,7 @@ export default class AudioMultiplexer {
 
                 if (sleepTime > 0) {
                     slowCount = 0;
-                    await this.#sleep(sleepTime);
+                    await waitFor(sleepTime);
                 } else {
                     const framesBehind = Math.floor((-sleepTime / 1000) * sampleRate);
 
@@ -193,14 +193,5 @@ export default class AudioMultiplexer {
 
             throw err;
         }
-    }
-
-    /**
-     * Sleeps for the given number of milliseconds.
-     *
-     * @param ms - Duration to sleep in milliseconds.
-     */
-    #sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }

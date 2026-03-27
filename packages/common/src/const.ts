@@ -4,8 +4,8 @@ export const AIRPLAY_TRANSIENT_PIN = '3939';
 /** Timeout in milliseconds for HTTP requests during setup and control. */
 export const HTTP_TIMEOUT = 6000;
 
-/** Timeout in milliseconds for TCP socket connections during initial connect. */
-export const SOCKET_TIMEOUT = 10000;
+/** Timeout in milliseconds for TCP socket connections during initial connect. Matches Apple's 30s default. */
+export const SOCKET_TIMEOUT = 30000;
 
 /** mDNS service type for AirPlay device discovery. */
 export const AIRPLAY_SERVICE = '_airplay._tcp.local';

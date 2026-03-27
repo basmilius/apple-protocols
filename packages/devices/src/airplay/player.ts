@@ -7,6 +7,15 @@ const COCOA_EPOCH_OFFSET = 978307200;
 const DEFAULT_PLAYER_ID = 'MediaRemote-DefaultPlayer';
 
 /**
+ * Converts an artwork URL to a browser-compatible format.
+ * Apple's CDN serves HEIC by default, which most browsers can't display.
+ * Replacing the extension with .jpg makes the CDN return JPEG instead.
+ */
+const convertArtworkUrl = (url: string): string => {
+    return url.replace(/\.heic(\b|$)/gi, '.jpg');
+};
+
+/**
  * Extrapolates the current elapsed time based on a snapshot timestamp and playback rate.
  * Compensates for the time passed since the timestamp was recorded, scaled by the playback rate.
  *
@@ -243,14 +252,14 @@ export default class Player {
 
         // Priority 1: artworkURL — direct URL from metadata (known-good).
         if (metadata?.artworkURL) {
-            return metadata.artworkURL;
+            return convertArtworkUrl(metadata.artworkURL);
         }
 
         // Priority 2: remoteArtworks — URL from remote artwork entries.
         const item = this.currentItem;
 
         if (item?.remoteArtworks.length > 0 && item.remoteArtworks[0].artworkURLString) {
-            return item.remoteArtworks[0].artworkURLString;
+            return convertArtworkUrl(item.remoteArtworks[0].artworkURLString);
         }
 
         // Priority 3: artworkIdentifier — iTunes template URL with {w}x{h} placeholders.
@@ -260,7 +269,7 @@ export default class Player {
                     .replace('{w}', String(width < 1 ? 999999 : width))
                     .replace('{h}', String(height < 1 ? 999999 : height))
                     .replace('{c}', 'bb')
-                    .replace('{f}', 'png');
+                    .replace('{f}', 'jpg');
 
                 if (url.startsWith('http://') || url.startsWith('https://')) {
                     return url;

@@ -167,6 +167,74 @@ export default class {
     }
 
     /**
+     * Sets the volume for a specific output device in a speaker group.
+     * Use this to control individual speakers when multiple devices are grouped.
+     *
+     * @param outputDeviceUID - The unique identifier of the target output device.
+     * @param volume - The desired volume level (clamped to 0.0 - 1.0).
+     */
+    async setForDevice(outputDeviceUID: string, volume: number): Promise<void> {
+        volume = Math.min(1, Math.max(0, volume));
+
+        this.#protocol.context.logger.info(`Setting volume to ${volume} for output device ${outputDeviceUID}`);
+
+        await this.#protocol.dataStream.exchange(DataStreamMessage.setVolume(outputDeviceUID, volume));
+    }
+
+    /**
+     * Fetches the volume for a specific output device in a speaker group.
+     *
+     * @param outputDeviceUID - The unique identifier of the target output device.
+     * @returns The volume level as a float between 0.0 and 1.0.
+     */
+    async getForDevice(outputDeviceUID: string): Promise<number> {
+        const response = await this.#protocol.dataStream.exchange(DataStreamMessage.getVolume(outputDeviceUID));
+
+        if (response.type === Proto.ProtocolMessage_Type.GET_VOLUME_RESULT_MESSAGE) {
+            const message = DataStreamMessage.getExtension(response, Proto.getVolumeResultMessage);
+
+            return message.volume;
+        }
+
+        throw new CommandError('Failed to get volume for output device.');
+    }
+
+    /**
+     * Mutes a specific output device in a speaker group.
+     *
+     * @param outputDeviceUID - The unique identifier of the target output device.
+     */
+    async muteDevice(outputDeviceUID: string): Promise<void> {
+        await this.#protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(outputDeviceUID, true));
+    }
+
+    /**
+     * Unmutes a specific output device in a speaker group.
+     *
+     * @param outputDeviceUID - The unique identifier of the target output device.
+     */
+    async unmuteDevice(outputDeviceUID: string): Promise<void> {
+        await this.#protocol.dataStream.exchange(DataStreamMessage.setVolumeMuted(outputDeviceUID, false));
+    }
+
+    /**
+     * Adjusts the volume by a relative increment/decrement on a specific output device.
+     * This is the method Apple uses internally in Music.app for volume changes.
+     *
+     * @param adjustment - The volume adjustment to apply (IncrementSmall/Medium/Large, DecrementSmall/Medium/Large).
+     * @param outputDeviceUID - Optional UID of the target output device. Defaults to the active device.
+     */
+    async adjust(adjustment: Proto.AdjustVolumeMessage_Adjustment, outputDeviceUID?: string): Promise<void> {
+        const uid = outputDeviceUID ?? this.#state.outputDeviceUID;
+
+        if (!uid) {
+            throw new CommandError('No output device active.');
+        }
+
+        await this.#protocol.dataStream.exchange(DataStreamMessage.adjustVolume(adjustment, uid));
+    }
+
+    /**
      * Smoothly fades the volume to a target level over a given duration.
      * Uses linear interpolation with absolute volume set calls.
      *

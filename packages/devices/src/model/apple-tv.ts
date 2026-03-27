@@ -1,13 +1,13 @@
 import { EventEmitter } from 'node:events';
-import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
 import * as AirPlay from '@basmilius/apple-airplay';
+import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
 import type { AttentionState, LaunchableApp, TextInputState, UserAccount } from '@basmilius/apple-companion-link';
-import type Client from '../airplay/client';
 import { AirPlayDevice } from '../airplay';
+import { CompanionLinkDevice } from '../companion-link';
+import type Client from '../airplay/client';
 import type Remote from '../airplay/remote';
 import type State from '../airplay/state';
 import type Volume from '../airplay/volume';
-import { CompanionLinkDevice } from '../companion-link';
 
 /**
  * Events emitted by AppleTV.

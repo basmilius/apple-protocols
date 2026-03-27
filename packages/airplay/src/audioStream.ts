@@ -18,7 +18,7 @@ const BYTES_PER_CHANNEL = 2;
 /** Number of audio frames per RTP packet. Matches Apple's ALAC/PCM packet size. */
 const FRAMES_PER_PACKET = 352;
 
-/** Latency in frames (0.25 seconds at 44100 Hz). Used for silence padding at end of stream. */
+/** Latency in frames (0.25 seconds at 44,100 Hz). Used for silence padding at end of stream. */
 const LATENCY_FRAMES = 11025;
 
 /** Maximum number of packets to keep in the retransmission backlog. */
@@ -145,7 +145,7 @@ const USE_ENCRYPTION = true;
  * Convert an RTP timestamp to a wall-clock NTP timestamp.
  *
  * Uses a fixed anchor point established when the stream starts: at that moment
- * we record both the RTP timestamp and the wall-clock NTP time. For subsequent
+ * we record both the RTP timestamp and the wall-clock NTP time. For further
  * packets we compute the elapsed time from the RTP delta and add it to the
  * anchor NTP time. This gives the receiver a real NTP timestamp it can use for
  * multi-room synchronization.
@@ -222,6 +222,8 @@ export default class AudioStream {
     #streamContext?: AudioStreamContext;
     /** Dynamic latency manager for adaptive latency control. */
     #latencyManager?: LatencyManager;
+    /** Monotonic encryption counter for ChaCha20 nonce (independent of RTP sequence). */
+    #encryptionCounter: number = 0;
     /** Streaming statistics for feedback and adaptive redundancy. */
     #packetsSent: number = 0;
     #retransmitRequests: number = 0;
@@ -681,7 +683,7 @@ export default class AudioStream {
         const aad = rtpHeader.subarray(4, 12);
 
         const payload = USE_ENCRYPTION
-            ? this.#encryptAudio(audioPayload, aad, ctx.rtpSeq)
+            ? this.#encryptAudio(audioPayload, aad, this.#encryptionCounter++)
             : audioPayload;
 
         const packet = Buffer.concat([rtpHeader, payload]);

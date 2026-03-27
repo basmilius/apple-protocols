@@ -175,7 +175,7 @@ export default class Protocol {
     constructor(discoveryResult: DiscoveryResult, identity?: Partial<DeviceIdentity>) {
         this.#context = new Context(discoveryResult.id, identity);
         this.#discoveryResult = discoveryResult;
-        this.#sessionUUID = uuid();
+        this.#sessionUUID = uuid().toUpperCase();
         this.#controlStream = new ControlStream(this.#context, discoveryResult.address, discoveryResult.service.port);
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
@@ -554,10 +554,13 @@ export default class Protocol {
     async playUrl(url: string, sharedSecret: Buffer, pairingId: Buffer, position: number = 0): Promise<void> {
         const setupBody: Record<string, any> = {
             ...this.#setupBody(pairingId, SENDER_FEATURES_AUDIO),
-            isMultiSelectAirPlay: true,
             groupContainsGroupLeader: false,
+            groupUUID: uuid(),
+            isMultiSelectAirPlay: true,
             senderSupportsRelay: false,
-            statsCollectionEnabled: false
+            statsCollectionEnabled: false,
+            supportsGroupCohesion: true,
+            updateSessionRequest: false
         };
 
         if (this.#timingServer) {

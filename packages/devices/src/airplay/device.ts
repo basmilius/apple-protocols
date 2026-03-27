@@ -3,6 +3,7 @@ import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol }
 import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
 import { AirPlayFeature } from '@basmilius/apple-airplay';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import Artwork from './artwork';
 import Remote from './remote';
 import State from './state';
 import Volume from './volume';
@@ -79,6 +80,11 @@ export default class extends EventEmitter<EventMap> {
         return this.#protocol?.receiverInfo;
     }
 
+    /** The Artwork controller for fetching now-playing artwork from all sources. */
+    get artwork(): Artwork {
+        return this.#artwork;
+    }
+
     /** The Remote controller for HID keys, SendCommand, text input, and touch. */
     get remote(): Remote {
         return this.#remote;
@@ -104,6 +110,7 @@ export default class extends EventEmitter<EventMap> {
         this.#timingServer = timingServer;
     }
 
+    readonly #artwork: Artwork;
     readonly #remote: Remote;
     readonly #state: State;
     readonly #volume: Volume;
@@ -130,6 +137,7 @@ export default class extends EventEmitter<EventMap> {
 
         this.#discoveryResult = discoveryResult;
         this.#identity = identity;
+        this.#artwork = new Artwork(this);
         this.#remote = new Remote(this);
         this.#state = new State(this);
 
@@ -341,6 +349,44 @@ export default class extends EventEmitter<EventMap> {
     }
 
     /**
+     * Sets the audio listening mode on the device (HomePod).
+     *
+     * @param mode - Listening mode string (e.g. 'Default', 'Vivid', 'LateNight').
+     */
+    async setListeningMode(mode: string): Promise<void> {
+        const uid = this.state.outputDeviceUID;
+
+        if (uid) {
+            await this.#protocol.dataStream.send(DataStreamMessage.setListeningMode(mode, uid));
+        }
+    }
+
+    /**
+     * Sets the audio routing mode on the receiver via the control stream.
+     *
+     * @param mode - Audio mode (e.g. 'default', 'moviePlayback', 'spoken').
+     */
+    async setAudioMode(mode: string): Promise<void> {
+        await this.#protocol.controlStream.setAudioMode(mode);
+    }
+
+    /**
+     * Triggers an audio fade on the device.
+     *
+     * @param fadeType - The fade type (0 = fade out, 1 = fade in).
+     */
+    async audioFade(fadeType: number): Promise<void> {
+        await this.#protocol.dataStream.send(DataStreamMessage.audioFade(fadeType));
+    }
+
+    /**
+     * Wakes the device from sleep via the DataStream.
+     */
+    async wake(): Promise<void> {
+        await this.#protocol.dataStream.send(DataStreamMessage.wakeDevice());
+    }
+
+    /**
      * Requests the playback queue from the device.
      *
      * @param length - Maximum number of queue items to retrieve.
@@ -449,9 +495,21 @@ export default class extends EventEmitter<EventMap> {
             this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
             await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId, this.#protocol.context.identity));
-            await this.#protocol.dataStream.exchange(DataStreamMessage.setConnectionState());
-            await this.#protocol.dataStream.exchange(DataStreamMessage.clientUpdatesConfig(true, true, true, true, true, true));
+            this.#protocol.dataStream.send(DataStreamMessage.setConnectionState());
+            this.#protocol.dataStream.send(DataStreamMessage.clientUpdatesConfig(true, true, true, true));
             await this.#protocol.dataStream.exchange(DataStreamMessage.getState());
+
+            // Auto-fetch playback queue (with artwork) on track changes.
+            // Only fetch when artwork might have changed (different artworkId or no artwork yet).
+            let lastArtworkId: string | null = null;
+            this.#state.on('nowPlayingChanged', (client, player) => {
+                const artworkId = player?.artworkId ?? null;
+
+                if (artworkId !== lastArtworkId) {
+                    lastArtworkId = artworkId;
+                    this.requestPlaybackQueue(1).catch(() => {});
+                }
+            });
 
             this.#protocol.context.logger.info('Protocol ready.');
         } catch (err) {

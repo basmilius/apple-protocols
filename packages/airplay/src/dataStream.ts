@@ -3,8 +3,8 @@ import { NSKeyedArchiver, Plist } from '@basmilius/apple-encoding';
 import { hkdf } from '@basmilius/apple-encryption';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
-import * as Proto from './proto';
 import BaseStream from './baseStream';
+import * as Proto from './proto';
 
 /** Size of the DataStream frame header in bytes. */
 const DATA_HEADER_LENGTH = 32;
@@ -33,6 +33,8 @@ const decodeNSKeyedArchiverArray = (data: Uint8Array): unknown[] => {
  */
 type EventMap = {
     readonly rawMessage: [Proto.ProtocolMessage];
+
+    // State tracking events (handled by devices/airplay/state.ts)
     readonly configureConnection: [Proto.ConfigureConnectionMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
@@ -58,6 +60,48 @@ type EventMap = {
     readonly volumeControlCapabilitiesDidChange: [Proto.VolumeControlCapabilitiesDidChangeMessage];
     readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
     readonly volumeMutedDidChange: [Proto.VolumeMutedDidChangeMessage];
+
+    // Additional protocol events (decoded but not tracked in state)
+    readonly audioFade: [Proto.AudioFadeMessage];
+    readonly audioFadeResponse: [Proto.AudioFadeResponseMessage];
+    readonly adjustVolume: [Proto.AdjustVolumeMessage];
+    readonly getVolumeResult: [Proto.GetVolumeResultMessage];
+    readonly getVolumeMutedResult: [Proto.GetVolumeMutedResultMessage];
+    readonly notification: [Proto.NotificationMessage];
+    readonly setConnectionState: [Proto.SetConnectionStateMessage];
+    readonly setDiscoveryMode: [Proto.SetDiscoveryModeMessage];
+    readonly setListeningMode: [Proto.SetListeningModeMessage];
+    readonly transaction: [Proto.TransactionMessage];
+    readonly updateActiveSystemEndpoint: [Proto.UpdateActiveSystemEndpointMessage];
+    readonly updateEndpoints: [Proto.UpdateEndPointsMessage];
+    readonly removeEndpoints: [Proto.RemoveEndpointsMessage];
+    readonly removeOutputDevices: [Proto.RemoveOutputDevicesMessage];
+    readonly wakeDevice: [Proto.WakeDeviceMessage];
+    readonly genericMessage: [Proto.GenericMessage];
+    readonly playbackSessionRequest: [Proto.PlaybackSessionRequestMessage];
+    readonly playbackSessionResponse: [Proto.PlaybackSessionResponseMessage];
+    readonly playbackSessionMigrateRequest: [Proto.PlaybackSessionMigrateRequestMessage];
+    readonly playbackSessionMigrateResponse: [Proto.PlaybackSessionMigrateResponseMessage];
+    readonly playbackSessionMigrateBegin: [Proto.PlaybackSessionMigrateBeginMessage];
+    readonly playbackSessionMigrateEnd: [Proto.PlaybackSessionMigrateEndMessage];
+    readonly playbackSessionMigratePost: [Proto.PlaybackSessionMigratePostMessage];
+    readonly createHostedEndpointRequest: [Proto.CreateHostedEndpointRequest];
+    readonly createHostedEndpointResponse: [Proto.CreateHostedEndpointResponse];
+    readonly promptForRouteAuthorization: [Proto.PromptForRouteAuthorizationMessage];
+    readonly promptForRouteAuthorizationResponse: [Proto.PromptForRouteAuthorizationResponseMessage];
+    readonly presentRouteAuthorizationStatus: [Proto.PresentRouteAuthorizationStatusMessage];
+    readonly requestGroupSession: [Proto.RequestGroupSessionMessage];
+    readonly microphoneConnectionRequest: [Proto.MicrophoneConnectionRequestMessage];
+    readonly microphoneConnectionResponse: [Proto.MicrophoneConnectionResponseMessage];
+    readonly createApplicationConnection: [Proto.CreateApplicationConnectionMessage];
+    readonly setHiliteMode: [Proto.SetHiliteModeMessage];
+    readonly textInput: [Proto.TextInputMessage];
+    readonly remoteTextInput: [Proto.RemoteTextInputMessage];
+    readonly cryptoPairing: [Proto.CryptoPairingMessage];
+    readonly gameController: [Proto.GameControllerMessage];
+    readonly gameControllerProperties: [Proto.GameControllerPropertiesMessage];
+    readonly registerGameController: [Proto.RegisterGameControllerMessage];
+    readonly registerGameControllerResponse: [Proto.RegisterGameControllerResponseMessage];
 };
 
 /**
@@ -128,6 +172,59 @@ export default class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.SEND_LYRICS_EVENT] = [Proto.sendLyricsEventMessage, this.#onSendLyricsEventMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE] = [Proto.configureConnectionMessage, this.#onConfigureConnectionMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.PLAYER_CLIENT_PARTICIPANTS_UPDATE_MESSAGE] = [Proto.playerClientParticipantsUpdateMessage, this.#onPlayerClientParticipantsUpdateMessage.bind(this)];
+
+        // Register all remaining known message types for automatic decode + emit.
+        const auto: [number, DescExtension, string][] = [
+            [Proto.ProtocolMessage_Type.AUDIO_FADE_MESSAGE, Proto.audioFadeMessage, 'audioFade'],
+            [Proto.ProtocolMessage_Type.AUDIO_FADE_RESPONSE_MESSAGE, Proto.audioFadeResponseMessage, 'audioFadeResponse'],
+            [Proto.ProtocolMessage_Type.ADJUST_VOLUME_MESSAGE, Proto.adjustVolumeMessage, 'adjustVolume'],
+            [Proto.ProtocolMessage_Type.GET_VOLUME_RESULT_MESSAGE, Proto.getVolumeResultMessage, 'getVolumeResult'],
+            [Proto.ProtocolMessage_Type.GET_VOLUME_MUTED_RESULT_MESSAGE, Proto.getVolumeMutedResultMessage, 'getVolumeMutedResult'],
+            [Proto.ProtocolMessage_Type.NOTIFICATION_MESSAGE, Proto.notificationMessage, 'notification'],
+            [Proto.ProtocolMessage_Type.SET_CONNECTION_STATE_MESSAGE, Proto.setConnectionStateMessage, 'setConnectionState'],
+            [Proto.ProtocolMessage_Type.SET_DISCOVERY_MODE_MESSAGE, Proto.setDiscoveryModeMessage, 'setDiscoveryMode'],
+            [Proto.ProtocolMessage_Type.SET_LISTENING_MODE_MESSAGE, Proto.setListeningModeMessage, 'setListeningMode'],
+            [Proto.ProtocolMessage_Type.TRANSACTION_MESSAGE, Proto.transactionMessage, 'transaction'],
+            [Proto.ProtocolMessage_Type.UPDATE_ACTIVE_SYSTEM_ENDPOINT_MESSAGE, Proto.updateActiveSystemEndpointMessage, 'updateActiveSystemEndpoint'],
+            [Proto.ProtocolMessage_Type.UPDATE_SYNCED_ENDPOINTS_MESSAGE, Proto.updateEndPointsMessage, 'updateEndpoints'],
+            [Proto.ProtocolMessage_Type.REMOVE_SYNCED_ENDPOINTS_MESSAGE, Proto.removeEndpointsMessage, 'removeEndpoints'],
+            [Proto.ProtocolMessage_Type.REMOVE_SYNCED_OUTPUT_DEVICES_MESSAGE, Proto.removeOutputDevicesMessage, 'removeOutputDevices'],
+            [Proto.ProtocolMessage_Type.WAKE_DEVICE_MESSAGE, Proto.wakeDeviceMessage, 'wakeDevice'],
+            [Proto.ProtocolMessage_Type.GENERIC_MESSAGE, Proto.genericMessage, 'genericMessage'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_REQUEST_MESSAGE, Proto.playbackSessionRequestMessage, 'playbackSessionRequest'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_RESPONSE_MESSAGE, Proto.playbackSessionResponseMessage, 'playbackSessionResponse'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_REQUEST_MESSAGE, Proto.playbackSessionMigrateRequestMessage, 'playbackSessionMigrateRequest'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_RESPONSE_MESSAGE, Proto.playbackSessionMigrateResponseMessage, 'playbackSessionMigrateResponse'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_BEGIN_MESSAGE, Proto.playbackSessionMigrateBeginMessage, 'playbackSessionMigrateBegin'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_END_MESSAGE, Proto.playbackSessionMigrateEndMessage, 'playbackSessionMigrateEnd'],
+            [Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_POST_MESSAGE, Proto.playbackSessionMigratePostMessage, 'playbackSessionMigratePost'],
+            [Proto.ProtocolMessage_Type.CREATE_HOSTED_ENDPOINT_REQUEST_MESSAGE, Proto.createHostedEndpointRequest, 'createHostedEndpointRequest'],
+            [Proto.ProtocolMessage_Type.CREATE_HOSTED_ENDPOINT_RESPONSE_MESSAGE, Proto.createHostedEndpointResponse, 'createHostedEndpointResponse'],
+            [Proto.ProtocolMessage_Type.PROMPT_FOR_ROUTE_AUTHORIZATION_MESSAGE, Proto.promptForRouteAuthorizationMessage, 'promptForRouteAuthorization'],
+            [Proto.ProtocolMessage_Type.PROMPT_FOR_ROUTE_AUTHORIZATION_RESPONSE_MESSAGE, Proto.promptForRouteAuthorizationResponseMessage, 'promptForRouteAuthorizationResponse'],
+            [Proto.ProtocolMessage_Type.PRESENT_ROUTE_AUTHORIZATION_STATUS_MESSAGE, Proto.presentRouteAuthorizationStatusMessage, 'presentRouteAuthorizationStatus'],
+            [Proto.ProtocolMessage_Type.REQUEST_GROUP_SESSION_MESSAGE, Proto.requestGroupSessionMessage, 'requestGroupSession'],
+            [Proto.ProtocolMessage_Type.MICROPHONE_CONNECTION_REQUEST_MESSAGE, Proto.microphoneConnectionRequestMessage, 'microphoneConnectionRequest'],
+            [Proto.ProtocolMessage_Type.MICROPHONE_CONNECTION_RESPONSE_MESSAGE, Proto.microphoneConnectionResponseMessage, 'microphoneConnectionResponse'],
+            [Proto.ProtocolMessage_Type.CREATE_APPLICATION_CONNECTION_MESSAGE, Proto.createApplicationConnectionMessage, 'createApplicationConnection'],
+            [Proto.ProtocolMessage_Type.SET_HILITE_MODE_MESSAGE, Proto.setHiliteModeMessage, 'setHiliteMode'],
+            [Proto.ProtocolMessage_Type.TEXT_INPUT_MESSAGE, Proto.textInputMessage, 'textInput'],
+            [Proto.ProtocolMessage_Type.REMOTE_TEXT_INPUT_MESSAGE, Proto.remoteTextInputMessage, 'remoteTextInput'],
+            [Proto.ProtocolMessage_Type.CRYPTO_PAIRING_MESSAGE, Proto.cryptoPairingMessage, 'cryptoPairing'],
+            [Proto.ProtocolMessage_Type.GAME_CONTROLLER_MESSAGE, Proto.gameControllerMessage, 'gameController'],
+            [Proto.ProtocolMessage_Type.GAME_CONTROLLER_PROPERTIES_MESSAGE, Proto.gameControllerPropertiesMessage, 'gameControllerProperties'],
+            [Proto.ProtocolMessage_Type.REGISTER_GAME_CONTROLLER_MESSAGE, Proto.registerGameControllerMessage, 'registerGameController'],
+            [Proto.ProtocolMessage_Type.REGISTER_GAME_CONTROLLER_RESPONSE_MESSAGE, Proto.registerGameControllerResponseMessage, 'registerGameControllerResponse']
+        ];
+
+        for (const [type, extension, eventName] of auto) {
+            if (!(type in this.#handlers)) {
+                this.#handlers[type] = [extension, (msg: unknown) => {
+                    this.context.logger.info('[data]', `${eventName}`, msg);
+                    (this as any).emit(eventName, msg);
+                }];
+            }
+        }
     }
 
     /**

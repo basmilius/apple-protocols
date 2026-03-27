@@ -314,6 +314,17 @@ export default class {
         await this.#sendCommand(Proto.Command.AddNowPlayingItemToLibrary);
     }
 
+    /**
+     * Sets a sleep timer that will stop playback after the specified duration.
+     * The timer works by attaching sleep timer options to a Pause command.
+     *
+     * @param seconds - Timer duration in seconds. Use 0 to cancel an active timer.
+     * @param stopMode - Stop mode: 0 = stop playback, 1 = pause, 2 = end of track, 3 = end of queue.
+     */
+    async commandSetSleepTimer(seconds: number, stopMode: number = 0): Promise<void> {
+        await this.#sendCommandRaw(DataStreamMessage.sendCommandWithSleepTimer(seconds, stopMode));
+    }
+
     // Keyboard/text input
 
     /**

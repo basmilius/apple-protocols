@@ -3,11 +3,11 @@ import { Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common'
 import { Plist } from '@basmilius/apple-encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType } from './frame';
-import * as Message from './messages';
 import { Pairing, Verify } from './pairing';
 import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';
 import { convertAttentionState } from './utils';
 import Stream from './stream';
+import * as Message from './messages';
 
 /**
  * High-level Companion Link protocol client for Apple TV.
@@ -400,6 +400,36 @@ export default class Protocol {
         return objectOrFail(payload);
     }
 
+    /**
+     * Skips forward or backward by a given number of seconds.
+     *
+     * @param seconds - Number of seconds to skip (positive = forward, negative = backward).
+     */
+    async skipBySeconds(seconds: number): Promise<object> {
+        const [, payload] = await this.#exchange(Message.mediaSkipBySeconds(seconds));
+        return objectOrFail(payload);
+    }
+
+    /**
+     * Gets the current caption/subtitle settings.
+     *
+     * @returns The caption settings response.
+     */
+    async getCaptionSetting(): Promise<object> {
+        const [, payload] = await this.#exchange(Message.mediaCaptionSettingGet());
+        return objectOrFail(payload);
+    }
+
+    /**
+     * Enables or disables captions/subtitles.
+     *
+     * @param enabled - Whether captions should be enabled.
+     */
+    async setCaptionSetting(enabled: boolean): Promise<object> {
+        const [, payload] = await this.#exchange(Message.mediaCaptionSettingSet(enabled));
+        return objectOrFail(payload);
+    }
+
     // --- App Launch ---
 
     /**
@@ -595,6 +625,31 @@ export default class Protocol {
         await this.#exchange(Message.toggleFindingMode(enabled));
     }
 
+    /**
+     * Wakes the Apple TV by sending a wake HID key.
+     * Checks the attention state first and only sends if the device is idle.
+     */
+    async wakeDevice(): Promise<void> {
+        await this.pressButton('Wake', 'SingleTap');
+    }
+
+    /**
+     * Puts the Apple TV to sleep.
+     */
+    async sleepDevice(): Promise<void> {
+        await this.pressButton('Sleep', 'SingleTap');
+    }
+
+    /**
+     * Checks whether the Apple TV is currently awake (actively in use).
+     *
+     * @returns `true` if the device is awake/active, `false` if idle or unknown.
+     */
+    async isAwake(): Promise<boolean> {
+        const state = await this.getAttentionState();
+        return state === 'awake';
+    }
+
     // --- Up Next ---
 
     /**
@@ -662,6 +717,71 @@ export default class Protocol {
      */
     async siriStop(): Promise<void> {
         await this.#exchange(Message.siriStop());
+    }
+
+    // --- Game Controller ---
+
+    /**
+     * Starts a game controller session on the Apple TV.
+     */
+    async gameControllerStart(): Promise<void> {
+        await this.#exchange(Message.gameControllerStart());
+    }
+
+    /**
+     * Stops the game controller session.
+     */
+    async gameControllerStop(): Promise<void> {
+        await this.#exchange(Message.gameControllerStop());
+    }
+
+    /**
+     * Sends a game controller event with analog stick position and button state.
+     *
+     * @param x - X coordinate (-1.0 to 1.0).
+     * @param y - Y coordinate (-1.0 to 1.0).
+     * @param isDown - Whether the button is pressed.
+     */
+    sendGameControllerEvent(x: number, y: number, isDown: boolean): void {
+        this.#stream.sendOPack(FrameType.OPackEncrypted, Message.gameControllerEvent(x, y, isDown));
+    }
+
+    // --- App Sign-In & TV Provider ---
+
+    /**
+     * Initiates an app sign-in proxy flow, allowing the Apple TV app
+     * to authenticate via the paired companion device.
+     *
+     * @param bundleId - The bundle identifier of the app requesting sign-in.
+     * @param requestType - The sign-in method ('appleID', 'password', or 'custom').
+     * @returns The sign-in response from the Apple TV.
+     */
+    async requestAppSignIn(bundleId: string, requestType: string = 'appleID'): Promise<object> {
+        const [, payload] = await this.#exchange(Message.appSignInRequest(bundleId, requestType));
+        return objectOrFail(payload);
+    }
+
+    /**
+     * Initiates a TV provider (MVPD) authentication flow on the Apple TV.
+     *
+     * @param providerUrl - The provider's authentication URL.
+     * @param providerName - The provider's display name.
+     * @returns The provider auth response.
+     */
+    async requestTVProvider(providerUrl: string, providerName: string): Promise<object> {
+        const [, payload] = await this.#exchange(Message.tvProviderRequest(providerUrl, providerName));
+        return objectOrFail(payload);
+    }
+
+    /**
+     * Sends a restricted access (parental controls) approval request.
+     *
+     * @param restrictionType - The type of restriction being requested.
+     * @returns The approval response.
+     */
+    async requestRestrictedAccess(restrictionType: string): Promise<object> {
+        const [, payload] = await this.#exchange(Message.restrictedAccessRequest(restrictionType));
+        return objectOrFail(payload);
     }
 
     // --- Internals ---

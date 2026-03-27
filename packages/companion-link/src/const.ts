@@ -22,7 +22,17 @@ export const HidCommand = {
     ChannelDecrement: 16,
     Guide: 17,
     PageUp: 18,
-    PageDown: 19
+    PageDown: 19,
+    SkipForward: 20,
+    SkipBackward: 21,
+    Back: 22,
+    Exit: 23,
+    Info: 24,
+    CaptionsToggle: 25,
+    Accessibility: 26,
+    InputSelect: 27,
+    Mute: 29,
+    Power: 30
 } as const;
 
 /**
@@ -66,3 +76,4 @@ export type HidCommandKey = keyof typeof HidCommand;
 
 /** Union of all valid media control command names. */
 export type MediaControlCommandKey = keyof typeof MediaControlCommand;
+

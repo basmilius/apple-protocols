@@ -4,7 +4,7 @@ import * as AirPlay from '@basmilius/apple-airplay';
 import { Proto } from '@basmilius/apple-airplay';
 import * as CompanionLink from '@basmilius/apple-companion-link';
 import { COMPANION_LINK, AppleTV, HomePod } from '@basmilius/apple-devices';
-import type { AirPlayState } from '@basmilius/apple-devices';
+import type { AirPlayPlayer, AirPlayState } from '@basmilius/apple-devices';
 import getSavedCredentials from '../getSavedCredentials';
 import { PlaybackStateLabel } from '../util';
 
@@ -467,7 +467,7 @@ export default class DeviceManager {
                 duration: device.duration,
                 elapsedTime: device.elapsedTime,
                 playbackState: PlaybackStateLabel[device.playbackState] ?? 'Unknown',
-                artworkUrl: activePlayer?.artworkUrl() ?? null,
+                artworkUrl: activePlayer?.artworkUrl() ?? this.#artworkDataUrl(activePlayer, state) ?? null,
                 app: device.displayName ?? null,
                 bundleIdentifier: device.bundleIdentifier ?? null
             },
@@ -505,6 +505,25 @@ export default class DeviceManager {
         }
 
         return this.#device;
+    }
+
+    #artworkDataUrl(player: AirPlayPlayer | undefined, state: AirPlayState): string | null {
+        // Priority 1: Inline artwork from playback queue content item.
+        const inlineData = player?.currentItemArtwork;
+
+        if (inlineData && inlineData.byteLength > 0) {
+            const mime = player?.currentItemMetadata?.artworkMIMEType || 'image/jpeg';
+            return `data:${mime};base64,${Buffer.from(inlineData).toString('base64')}`;
+        }
+
+        // Priority 2: JPEG data from SET_ARTWORK_MESSAGE.
+        const setArtworkData = state.artworkJpegData;
+
+        if (setArtworkData && setArtworkData.byteLength > 0) {
+            return `data:image/jpeg;base64,${Buffer.from(setArtworkData).toString('base64')}`;
+        }
+
+        return null;
     }
 
     #buildClientSnapshots(state: AirPlayState): ClientSnapshot[] {
@@ -642,6 +661,7 @@ export default class DeviceManager {
         device.state.on('volumeDidChange', () => this.#emitState());
         device.state.on('clients', () => this.#emitState());
         device.state.on('playerClientParticipantsUpdate', () => this.#emitState());
+        device.state.on('setArtwork', () => this.#emitState());
     }
 
     #setupHomePodEvents(device: HomePod): void {

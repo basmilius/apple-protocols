@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import type { AudioSource, DiscoveryResult } from '@basmilius/apple-common';
 import * as AirPlay from '@basmilius/apple-airplay';
+import type { AudioSource, DiscoveryResult } from '@basmilius/apple-common';
 import { type AirPlayClient, AirPlayDevice, type AirPlayRemote, type AirPlayState, type AirPlayVolume } from '../airplay';
 
 /**

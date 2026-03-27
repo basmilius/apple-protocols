@@ -118,8 +118,9 @@ export default class extends EventEmitter<EventMap> {
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
     #identity?: Partial<DeviceIdentity>;
-    #feedbackInterval: NodeJS.Timeout;
+    #feedbackInterval: NodeJS.Timeout | undefined;
     #keys: AccessoryKeys;
+    #lastArtworkId: string | null = null;
     #playUrlProtocol?: Protocol;
     #prevDataStream?: DataStream;
     #prevEventStream?: EventStream;
@@ -143,6 +144,7 @@ export default class extends EventEmitter<EventMap> {
 
         this.onClose = this.onClose.bind(this);
         this.onError = this.onError.bind(this);
+        this.onNowPlayingChanged = this.onNowPlayingChanged.bind(this);
         this.onTimeout = this.onTimeout.bind(this);
         this.#volume = new Volume(this);
     }
@@ -446,6 +448,16 @@ export default class extends EventEmitter<EventMap> {
         this.#protocol.context.logger.error('AirPlay error', err);
     }
 
+    /** Handles now-playing changes to auto-fetch artwork on track changes. */
+    onNowPlayingChanged(_client: any, player: any): void {
+        const artworkId = player?.artworkId ?? null;
+
+        if (artworkId !== this.#lastArtworkId) {
+            this.#lastArtworkId = artworkId;
+            this.requestPlaybackQueue(1).catch(() => {});
+        }
+    }
+
     /** Handles stream timeout events by destroying the control stream. */
     onTimeout(): void {
         this.#protocol.context.logger.error('AirPlay timeout');
@@ -501,15 +513,8 @@ export default class extends EventEmitter<EventMap> {
 
             // Auto-fetch playback queue (with artwork) on track changes.
             // Only fetch when artwork might have changed (different artworkId or no artwork yet).
-            let lastArtworkId: string | null = null;
-            this.#state.on('nowPlayingChanged', (client, player) => {
-                const artworkId = player?.artworkId ?? null;
-
-                if (artworkId !== lastArtworkId) {
-                    lastArtworkId = artworkId;
-                    this.requestPlaybackQueue(1).catch(() => {});
-                }
-            });
+            this.#lastArtworkId = null;
+            this.#state.on('nowPlayingChanged', this.onNowPlayingChanged);
 
             this.#protocol.context.logger.info('Protocol ready.');
         } catch (err) {
@@ -533,6 +538,7 @@ export default class extends EventEmitter<EventMap> {
     /** Unsubscribes the state tracker from DataStream events. */
     #unsubscribe(): void {
         try {
+            this.#state.off('nowPlayingChanged', this.onNowPlayingChanged);
             this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
         } catch (err) {
             this.#protocol.context.logger.error('State unsubscribe error', err);

@@ -19,12 +19,6 @@ export const PACKET_BACKLOG_SIZE = 1000;
 export const SLOW_WARNING_THRESHOLD = 5;
 
 /**
- * Number of PCM audio frames packed into a single RTP packet.
- * Standard value for RAOP (352 frames at 44100 Hz = ~8 ms per packet).
- */
-export const FRAMES_PER_PACKET = 352;
-
-/**
  * Fallback metadata used when the caller does not provide any
  * media metadata for the audio stream.
  */

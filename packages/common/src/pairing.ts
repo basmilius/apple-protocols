@@ -1,5 +1,6 @@
 import { OPack, TLV8 } from '@basmilius/apple-encoding';
 import { Aes, Chacha20, Curve25519, Ed25519, hkdf, type KeyPair } from '@basmilius/apple-encryption';
+import { deriveEncryptionKeys } from './hkdf';
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
@@ -137,21 +138,12 @@ export class AccessoryPair extends BasePairing {
         const m3 = await this.m3(m2);
         const m4 = await this.m4(m3);
 
-        const accessoryToControllerKey = hkdf({
-            hash: 'sha512',
-            key: m4.sharedSecret,
-            length: 32,
-            salt: Buffer.from('Control-Salt'),
-            info: Buffer.from('Control-Read-Encryption-Key')
-        });
-
-        const controllerToAccessoryKey = hkdf({
-            hash: 'sha512',
-            key: m4.sharedSecret,
-            length: 32,
-            salt: Buffer.from('Control-Salt'),
-            info: Buffer.from('Control-Write-Encryption-Key')
-        });
+        const {readKey: accessoryToControllerKey, writeKey: controllerToAccessoryKey} = deriveEncryptionKeys(
+            m4.sharedSecret,
+            'Control-Salt',
+            'Control-Read-Encryption-Key',
+            'Control-Write-Encryption-Key'
+        );
 
         return {
             pairingId: this.#pairingId,

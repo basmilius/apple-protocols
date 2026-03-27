@@ -1,24 +1,12 @@
-import type { AudioSource } from '@basmilius/apple-common';
-import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
+import BufferAudioSource from './bufferAudioSource';
 
 /**
  * Audio source that generates a pure sine wave tone. Useful for
  * testing and diagnostics. The generated signal includes a short
  * fade-in and fade-out envelope (50ms) to avoid click artifacts.
  */
-export default class SineWave implements AudioSource {
-    /** Total duration of the sine wave in seconds. */
-    readonly duration: number;
-
-    /** Pre-generated signed 16-bit big-endian PCM buffer. */
-    readonly #buffer: Buffer;
-
-    /** Size of a single audio frame in bytes. */
-    readonly #frameSize: number;
-
-    /** Current read position in the PCM buffer. */
-    #offset: number = 0;
-
+export default class SineWave extends BufferAudioSource {
     /**
      * Creates a sine wave audio source with the specified parameters.
      *
@@ -28,10 +16,10 @@ export default class SineWave implements AudioSource {
      * @param channels - Number of audio channels.
      * @param bytesPerChannel - Number of bytes per sample per channel.
      */
-    constructor(durationSeconds: number, frequency: number = 440, sampleRate: number = DEFAULT_SAMPLE_RATE, channels: number = DEFAULT_CHANNELS, bytesPerChannel: number = DEFAULT_BYTES_PER_CHANNEL) {
-        this.duration = durationSeconds;
-        this.#frameSize = channels * bytesPerChannel;
-        this.#buffer = this.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
+    constructor(durationSeconds: number, frequency: number = 440, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
+        const frameSize = channels * bytesPerChannel;
+        const buffer = SineWave.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
+        super(buffer, durationSeconds, frameSize);
     }
 
     /**
@@ -45,7 +33,7 @@ export default class SineWave implements AudioSource {
      * @param frequency - Frequency of the sine wave in Hz.
      * @returns A buffer containing the generated PCM data.
      */
-    #generateSineWave(sampleRate: number, channels: number, bytesPerChannel: number, durationSeconds: number, frequency: number): Buffer {
+    static #generateSineWave(sampleRate: number, channels: number, bytesPerChannel: number, durationSeconds: number, frequency: number): Buffer {
         const totalSamples = sampleRate * durationSeconds;
         const buffer = Buffer.alloc(totalSamples * channels * bytesPerChannel);
 
@@ -71,42 +59,5 @@ export default class SineWave implements AudioSource {
         }
 
         return buffer;
-    }
-
-    /**
-     * Reads the specified number of audio frames from the PCM buffer.
-     *
-     * @param count - Number of audio frames to read.
-     * @returns A buffer containing the requested PCM data, or null if the end has been reached.
-     */
-    async readFrames(count: number): Promise<Buffer | null> {
-        if (this.#offset >= this.#buffer.length) {
-            return null;
-        }
-
-        const bytesToRead = count * this.#frameSize;
-        const chunk = this.#buffer.subarray(this.#offset, this.#offset + bytesToRead);
-        this.#offset += bytesToRead;
-
-        return chunk.length > 0 ? chunk : null;
-    }
-
-    /**
-     * Resets the read position to the beginning of the buffer.
-     */
-    async reset(): Promise<void> {
-        this.#offset = 0;
-    }
-
-    /**
-     * Starts the audio source. No-op for buffer-based sources.
-     */
-    async start(): Promise<void> {
-    }
-
-    /**
-     * Stops the audio source. No-op for buffer-based sources.
-     */
-    async stop(): Promise<void> {
     }
 }

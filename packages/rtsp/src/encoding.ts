@@ -205,7 +205,7 @@ function parseHeaders(lines: string[]): Record<string, string> {
         // Normalize to capitalized form (e.g. 'content-length' → 'Content-Length')
         // so lookups like headers['CSeq'] work regardless of sender casing.
         const rawName = lines[i].substring(0, colon).trim();
-        const name = rawName.replace(/(^|-)(\w)/g, (_, prefix, char) => prefix + char.toUpperCase());
+        const name = rawName.toLowerCase().replace(/(^|-)(\w)/g, (_, prefix, char) => prefix + char.toUpperCase());
         headers[name] = lines[i].substring(colon + 1).trim();
     }
 

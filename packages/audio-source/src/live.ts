@@ -1,5 +1,4 @@
-import type { AudioSource } from '@basmilius/apple-common';
-import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioSource } from '@basmilius/apple-common';
 
 /** Default ring buffer duration in seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;
@@ -50,8 +49,8 @@ export default class Live implements AudioSource {
      * @param bufferDuration Buffer capacity in seconds of audio.
      */
     constructor(bufferDuration: number = DEFAULT_BUFFER_DURATION) {
-        this.#frameSize = DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL;
-        this.#capacity = Math.floor(bufferDuration * DEFAULT_SAMPLE_RATE) * this.#frameSize;
+        this.#frameSize = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
+        this.#capacity = Math.floor(bufferDuration * AUDIO_SAMPLE_RATE) * this.#frameSize;
         this.#buffer = Buffer.alloc(this.#capacity);
     }
 
@@ -165,7 +164,11 @@ export default class Live implements AudioSource {
             return null;
         }
 
-        // Wait for data from producer.
+        // Wait for data from producer. Only one consumer can wait at a time.
+        if (this.#pendingResolve) {
+            throw new Error('Only one concurrent readFrames() call is supported on Live sources.');
+        }
+
         return new Promise((resolve) => {
             this.#pendingResolve = resolve;
             this.#pendingBytes = bytesNeeded;

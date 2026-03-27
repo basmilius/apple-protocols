@@ -8,7 +8,7 @@ import { networkInterfaces } from 'node:os';
  * @returns A random 32-bit unsigned integer as a decimal string.
  */
 export function generateActiveRemoteId(): string {
-    return Math.floor(Math.random() * 2 ** 32).toString(10);
+    return randomBytes(4).readUInt32BE(0).toString(10);
 }
 
 /**
@@ -17,7 +17,7 @@ export function generateActiveRemoteId(): string {
  * @returns A random 64-bit integer as an uppercase hexadecimal string.
  */
 export function generateDacpId(): string {
-    return Math.floor(Math.random() * 2 ** 64).toString(16).toUpperCase();
+    return randomBytes(8).toString('hex').toUpperCase();
 }
 
 /**
@@ -26,7 +26,7 @@ export function generateDacpId(): string {
  * @returns A random 32-bit unsigned integer as a decimal string.
  */
 export function generateSessionId(): string {
-    return Math.floor(Math.random() * 2 ** 32).toString(10);
+    return randomBytes(4).readUInt32BE(0).toString(10);
 }
 
 /**

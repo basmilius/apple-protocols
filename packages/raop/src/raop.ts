@@ -1,21 +1,9 @@
 import { EventEmitter } from 'node:events';
 import type { Socket as UdpSocket } from 'node:dgram';
-import { type AudioSource, Context, Discovery, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, Context, Discovery, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
 import type { MediaMetadata, PlaybackInfo, Settings, StreamContext, StreamProtocol } from './types';
 import RtspClient from './rtspClient';
 import StreamClient from './streamClient';
-
-/** Default audio sample rate in Hz (CD quality). */
-const SAMPLE_RATE = 44100;
-
-/** Default number of audio channels (stereo). */
-const CHANNELS = 2;
-
-/** Default bytes per channel sample (16-bit). */
-const BYTES_PER_CHANNEL = 2;
-
-/** Number of audio frames per RTP packet. */
-const FRAMES_PER_PACKET = 352;
 
 /**
  * Event map for the RaopClient, emitted during the streaming lifecycle.
@@ -327,20 +315,20 @@ function createStreamContext(): StreamContext {
     const rtptime = Math.floor(Math.random() * 0xFFFFFFFF);
 
     return {
-        sampleRate: SAMPLE_RATE,
-        channels: CHANNELS,
-        bytesPerChannel: BYTES_PER_CHANNEL,
+        sampleRate: AUDIO_SAMPLE_RATE,
+        channels: AUDIO_CHANNELS,
+        bytesPerChannel: AUDIO_BYTES_PER_CHANNEL,
         rtpseq: Math.floor(Math.random() * 65536),
         rtptime,
         headTs: rtptime,
-        latency: Math.floor(SAMPLE_RATE * 2),
+        latency: Math.floor(AUDIO_SAMPLE_RATE * 2),
         serverPort: 0,
         controlPort: 0,
         rtspSession: '',
         volume: -20,
         position: 0,
-        packetSize: FRAMES_PER_PACKET * CHANNELS * BYTES_PER_CHANNEL,
-        frameSize: CHANNELS * BYTES_PER_CHANNEL,
+        packetSize: AUDIO_FRAMES_PER_PACKET * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL,
+        frameSize: AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL,
         paddingSent: 0,
 
         reset() {

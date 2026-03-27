@@ -98,8 +98,9 @@ const MODEL_TYPES: Record<DeviceModel, DeviceType> = {
  * @param identifier - Model identifier (e.g. "AppleTV6,2") or internal name (e.g. "J305AP").
  * @returns The matching device model, or {@link DeviceModel.Unknown} if unrecognized.
  */
-export const lookupDeviceModel = (identifier: string): DeviceModel =>
-    MODEL_IDENTIFIERS[identifier] ?? INTERNAL_NAMES[identifier] ?? DeviceModel.Unknown;
+export function lookupDeviceModel(identifier: string): DeviceModel {
+    return MODEL_IDENTIFIERS[identifier] ?? INTERNAL_NAMES[identifier] ?? DeviceModel.Unknown;
+}
 
 /**
  * Returns the human-readable display name for a device model.
@@ -107,8 +108,9 @@ export const lookupDeviceModel = (identifier: string): DeviceModel =>
  * @param model - The device model to look up.
  * @returns A display name like "Apple TV 4K (2nd generation)", or "Unknown".
  */
-export const getDeviceModelName = (model: DeviceModel): string =>
-    MODEL_NAMES[model] ?? 'Unknown';
+export function getDeviceModelName(model: DeviceModel): string {
+    return MODEL_NAMES[model] ?? 'Unknown';
+}
 
 /**
  * Returns the high-level device type category for a device model.
@@ -116,8 +118,9 @@ export const getDeviceModelName = (model: DeviceModel): string =>
  * @param model - The device model to categorize.
  * @returns The device type (AppleTV, HomePod, AirPort, or Unknown).
  */
-export const getDeviceType = (model: DeviceModel): DeviceType =>
-    MODEL_TYPES[model] ?? DeviceType.Unknown;
+export function getDeviceType(model: DeviceModel): DeviceType {
+    return MODEL_TYPES[model] ?? DeviceType.Unknown;
+}
 
 /**
  * Checks whether the given model is an Apple TV.
@@ -125,8 +128,9 @@ export const getDeviceType = (model: DeviceModel): DeviceType =>
  * @param model - The device model to check.
  * @returns True if the model is any Apple TV generation.
  */
-export const isAppleTV = (model: DeviceModel): boolean =>
-    getDeviceType(model) === DeviceType.AppleTV;
+export function isAppleTV(model: DeviceModel): boolean {
+    return getDeviceType(model) === DeviceType.AppleTV;
+}
 
 /**
  * Checks whether the given model is a HomePod.
@@ -134,8 +138,9 @@ export const isAppleTV = (model: DeviceModel): boolean =>
  * @param model - The device model to check.
  * @returns True if the model is any HomePod variant.
  */
-export const isHomePod = (model: DeviceModel): boolean =>
-    getDeviceType(model) === DeviceType.HomePod;
+export function isHomePod(model: DeviceModel): boolean {
+    return getDeviceType(model) === DeviceType.HomePod;
+}
 
 /**
  * Checks whether the given model is an AirPort Express.
@@ -143,5 +148,6 @@ export const isHomePod = (model: DeviceModel): boolean =>
  * @param model - The device model to check.
  * @returns True if the model is any AirPort Express generation.
  */
-export const isAirPort = (model: DeviceModel): boolean =>
-    getDeviceType(model) === DeviceType.AirPort;
+export function isAirPort(model: DeviceModel): boolean {
+    return getDeviceType(model) === DeviceType.AirPort;
+}

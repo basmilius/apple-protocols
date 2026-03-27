@@ -261,7 +261,7 @@ function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
  */
 function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
     if (offset + len > buf.length) {
-        return 0;
+        throw new Error('OPack: buffer overflow in readLittleEndian');
     }
 
     if (len === 1) {

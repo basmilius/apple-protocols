@@ -10,9 +10,6 @@ const MDNS_PORT = 5353;
 /** Query ID used in outgoing mDNS queries. */
 const QUERY_ID = 0x35FF;
 
-/** Query flags for standard queries. */
-const QUERY_FLAGS = 0x0120;
-
 /** Maximum number of service queries to pack into a single DNS message. */
 const SERVICES_PER_MSG = 3;
 
@@ -333,8 +330,13 @@ const decodeSrvRecord = (buf: Buffer, offset: number): SrvRecord => {
  * @param offset - The byte offset where the resource record starts.
  * @returns A tuple of [parsed resource record, next offset].
  */
-const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] => {
+const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | null => {
     const [qname, nameEnd] = decodeQName(buf, offset);
+
+    if (nameEnd + 10 > buf.byteLength) {
+        return null;
+    }
+
     const qtype = buf.readUInt16BE(nameEnd);
     const qclass = buf.readUInt16BE(nameEnd + 2);
     const ttl = buf.readUInt32BE(nameEnd + 4);
@@ -387,7 +389,7 @@ const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] => {
  * @param buf - The raw DNS response packet.
  * @returns The parsed header, answer records, and additional resource records.
  */
-export const decodeDnsResponse = (buf: Buffer): { header: DnsHeader; answers: DnsResource[]; resources: DnsResource[] } => {
+export function decodeDnsResponse(buf: Buffer): { header: DnsHeader; answers: DnsResource[]; resources: DnsResource[] } {
     const header = decodeDnsHeader(buf);
     let offset = 12;
 
@@ -401,28 +403,45 @@ export const decodeDnsResponse = (buf: Buffer): { header: DnsHeader; answers: Dn
     const answers: DnsResource[] = [];
 
     for (let i = 0; i < header.ancount; i++) {
-        const [record, newOffset] = decodeResource(buf, offset);
+        const result = decodeResource(buf, offset);
+
+        if (!result) {
+            break;
+        }
+
+        const [record, newOffset] = result;
         answers.push(record);
         offset = newOffset;
     }
 
     // Skip authorities
     for (let i = 0; i < header.nscount; i++) {
-        const [, newOffset] = decodeResource(buf, offset);
-        offset = newOffset;
+        const result = decodeResource(buf, offset);
+
+        if (!result) {
+            break;
+        }
+
+        offset = result[1];
     }
 
     // Parse additional resources
     const resources: DnsResource[] = [];
 
     for (let i = 0; i < header.arcount; i++) {
-        const [record, newOffset] = decodeResource(buf, offset);
+        const result = decodeResource(buf, offset);
+
+        if (!result) {
+            break;
+        }
+
+        const [record, newOffset] = result;
         resources.push(record);
         offset = newOffset;
     }
 
     return { header, answers, resources };
-};
+}
 
 // --- Service Collector (aggregates records across multiple responses) ---
 
@@ -516,7 +535,7 @@ class ServiceCollector {
 // --- Scanners ---
 
 /** Well-known ports used to wake sleeping Apple devices via TCP SYN. */
-const WAKE_PORTS = [7000, 3689, 49152, 32498];
+export const WAKE_PORTS: number[] = [7000, 3689, 49152, 32498];
 
 /**
  * Sends TCP connection attempts ("knocks") to well-known Apple service ports
@@ -525,7 +544,7 @@ const WAKE_PORTS = [7000, 3689, 49152, 32498];
  * @param address - The IP address of the device to wake.
  * @returns A promise that resolves when all knock attempts complete (success or failure).
  */
-const knock = (address: string): Promise<void> => {
+export function knock(address: string): Promise<void> {
     const promises = WAKE_PORTS.map(port => new Promise<void>((resolve) => {
         const socket = createConnection({ host: address, port, timeout: 500 });
         socket.on('connect', () => { socket.destroy(); resolve(); });
@@ -534,7 +553,7 @@ const knock = (address: string): Promise<void> => {
     }));
 
     return Promise.all(promises).then(() => {});
-};
+}
 
 /**
  * Performs unicast DNS-SD queries to specific hosts. First wakes the devices

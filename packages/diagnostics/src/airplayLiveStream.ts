@@ -1,22 +1,19 @@
 import * as AirPlay from '@basmilius/apple-airplay';
 import { Live } from '@basmilius/apple-audio-source';
-import { type AccessoryKeys, type Storage, TimingServer } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AccessoryKeys, type Storage, TimingServer } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
 import getSavedCredentials from './getSavedCredentials';
 import { startSavingLogs } from './logger';
 import { discoverAndSelectDevice, isAppleTVDevice } from './shared';
 
-const SAMPLE_RATE = 44100;
-const CHANNELS = 2;
-const BYTES_PER_CHANNEL = 2;
-const FRAME_SIZE = CHANNELS * BYTES_PER_CHANNEL;
+const FRAME_SIZE = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
 
 /**
  * Generates PCM sine wave data and writes it into a Live audio source.
  * Runs until the source is ended.
  */
 async function generateSineWave(source: Live, frequency: number, durationSeconds: number): Promise<void> {
-    const totalFrames = durationSeconds * SAMPLE_RATE;
+    const totalFrames = durationSeconds * AUDIO_SAMPLE_RATE;
     const chunkFrames = 1024;
     let phase = 0;
     let framesWritten = 0;
@@ -33,7 +30,7 @@ async function generateSineWave(source: Live, frequency: number, durationSeconds
             buffer.writeInt16BE(int16, i * FRAME_SIZE);
             buffer.writeInt16BE(int16, i * FRAME_SIZE + 2);
 
-            phase += (2 * Math.PI * frequency) / SAMPLE_RATE;
+            phase += (2 * Math.PI * frequency) / AUDIO_SAMPLE_RATE;
         }
 
         source.write(buffer);
@@ -118,7 +115,7 @@ export default async function (storage: Storage): Promise<void> {
     const source = new Live(2);
 
     console.log(`Streaming ${frequency}Hz sine wave for ${duration}s...`);
-    console.log(`  Ring buffer: ${source.capacity} bytes (${(source.capacity / FRAME_SIZE / SAMPLE_RATE).toFixed(1)}s)`);
+    console.log(`  Ring buffer: ${source.capacity} bytes (${(source.capacity / FRAME_SIZE / AUDIO_SAMPLE_RATE).toFixed(1)}s)`);
 
     // Start producer and consumer in parallel.
     const producerPromise = generateSineWave(source, frequency, duration);

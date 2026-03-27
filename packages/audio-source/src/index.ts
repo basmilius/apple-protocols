@@ -1,3 +1,4 @@
+export { default as BufferAudioSource } from './bufferAudioSource';
 export { default as Ffmpeg } from './ffmpeg';
 export { default as File } from './file';
 export { default as Live } from './live';

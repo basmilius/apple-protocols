@@ -1,4 +1,4 @@
-import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from '../const';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 
 /**
  * Converts PCM audio data from one format to signed 16-bit big-endian
@@ -16,15 +16,15 @@ export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
     const inputFrameSize = inputChannels * bytesPerSample;
     const inputFrames = Math.floor(input.length / inputFrameSize);
 
-    const outputFrames = Math.floor(inputFrames * DEFAULT_SAMPLE_RATE / inputSampleRate);
-    const output = Buffer.alloc(outputFrames * DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL);
+    const outputFrames = Math.floor(inputFrames * AUDIO_SAMPLE_RATE / inputSampleRate);
+    const output = Buffer.alloc(outputFrames * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL);
 
     for (let i = 0; i < outputFrames; i++) {
-        const srcPos = (i * inputSampleRate) / DEFAULT_SAMPLE_RATE;
+        const srcPos = (i * inputSampleRate) / AUDIO_SAMPLE_RATE;
         const srcIndex = Math.floor(srcPos);
         const srcFrac = srcPos - srcIndex;
 
-        for (let ch = 0; ch < DEFAULT_CHANNELS; ch++) {
+        for (let ch = 0; ch < AUDIO_CHANNELS; ch++) {
             const inputCh = Math.min(ch, inputChannels - 1);
 
             const sample1 = readSample(input, srcIndex, inputCh, inputFrameSize, bytesPerSample, inputBitsPerSample, inputEndian);
@@ -34,7 +34,7 @@ export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
 
             const sample = sample1 + (sample2 - sample1) * srcFrac;
 
-            const outputOffset = (i * DEFAULT_CHANNELS + ch) * DEFAULT_BYTES_PER_CHANNEL;
+            const outputOffset = (i * AUDIO_CHANNELS + ch) * AUDIO_BYTES_PER_CHANNEL;
             output.writeInt16BE(Math.round(Math.max(-32768, Math.min(32767, sample))), outputOffset);
         }
     }

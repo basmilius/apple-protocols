@@ -9,13 +9,6 @@ import EventStream from './eventStream';
 import { describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from '@basmilius/apple-common';
 
 /**
- * Compares two semver-like version strings component by component.
- *
- * @param a - First version string (e.g. "935.7.1").
- * @param b - Second version string (e.g. "935.7").
- * @returns Negative if a < b, positive if a > b, 0 if equal.
- */
-/**
  * Parses a feature value from /info which can be a number, hex string, or decimal string.
  */
 function parseFeatureValue(value: unknown): number {
@@ -404,11 +397,10 @@ export default class Protocol {
      * Sends an RTSP SETUP request and parses the plist response.
      *
      * @param body - Plist body for the SETUP request.
-     * @param sharedSecret - Optional shared secret (unused, reserved for future use).
      * @returns Parsed plist response from the receiver.
      * @throws SetupError if the SETUP request returns a non-200 status.
      */
-    async #performSetup(body: Record<string, string | number | boolean>, sharedSecret?: Buffer): Promise<any> {
+    async #performSetup(body: Record<string, string | number | boolean>): Promise<any> {
         const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, body);
 
         if (response.status !== 200) {
@@ -477,7 +469,7 @@ export default class Protocol {
             body.timingProtocol = 'NTP';
         }
 
-        const plist = await this.#performSetup(body, sharedSecret);
+        const plist = await this.#performSetup(body);
         const eventPort = plist.eventPort & 0xFFFF;
 
         this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
@@ -520,7 +512,7 @@ export default class Protocol {
             body.timingProtocol = 'NTP';
         }
 
-        const plist = await this.#performSetup(body, sharedSecret);
+        const plist = await this.#performSetup(body);
         const eventPort = plist.eventPort & 0xFFFF;
 
         this.context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);

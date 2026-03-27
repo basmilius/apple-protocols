@@ -1,14 +1,11 @@
 import { createHash } from 'node:crypto';
-import { type Context, generateActiveRemoteId, generateDacpId, generateSessionId } from '@basmilius/apple-common';
+import { AUDIO_FRAMES_PER_PACKET, type Context, generateActiveRemoteId, generateDacpId, generateSessionId } from '@basmilius/apple-common';
 import { DAAP, Plist } from '@basmilius/apple-encoding';
 import { RtspClient } from '@basmilius/apple-rtsp';
 import type { MediaMetadata } from './types';
 
 /** User-Agent header value sent with all RTSP requests. */
 const USER_AGENT = 'AirPlay/550.10';
-
-/** Number of audio frames per RTP packet, used in SDP ANNOUNCE payload. */
-const FRAMES_PER_PACKET = 352;
 
 /** Single-byte flag indicating unencrypted auth-setup mode. */
 const AUTH_SETUP_UNENCRYPTED = Buffer.from([0x01]);
@@ -98,7 +95,7 @@ function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
         't=0 0',
         'm=audio 0 RTP/AVP 96',
         `a=rtpmap:96 L16/${options.sampleRate}/${options.channels}`,
-        `a=fmtp:96 ${FRAMES_PER_PACKET} 0 ${options.bitsPerChannel} 40 10 14 ${options.channels} 255 0 0 ${options.sampleRate}`
+        `a=fmtp:96 ${AUDIO_FRAMES_PER_PACKET} 0 ${options.bitsPerChannel} 40 10 14 ${options.channels} 255 0 0 ${options.sampleRate}`
     ].join('\r\n') + '\r\n';
 }
 
@@ -272,7 +269,7 @@ export default class RaopRtspClient extends RtspClient {
 
                 if (parts.length >= 5) {
                     this.#digestInfo = {
-                        username: 'pyatv',
+                        username: 'apple-protocols',
                         realm: parts[1],
                         password,
                         nonce: parts[3]

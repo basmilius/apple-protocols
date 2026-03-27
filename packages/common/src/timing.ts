@@ -27,18 +27,21 @@ export class TimingServer {
         this.#logger = new Logger('timing-server');
         this.#socket = createSocket('udp4');
 
-        this.onConnect = this.onConnect.bind(this);
         this.onError = this.onError.bind(this);
         this.onMessage = this.onMessage.bind(this);
 
-        this.#socket.on('connect', this.onConnect);
         this.#socket.on('error', this.onError);
         this.#socket.on('message', this.onMessage);
     }
 
     /** Closes the UDP socket and resets the port. */
     close(): void {
-        this.#socket.close();
+        try {
+            this.#socket.close();
+        } catch {
+            // Socket may not be bound yet.
+        }
+
         this.#port = 0;
     }
 
@@ -65,14 +68,6 @@ export class TimingServer {
             this.#socket.once('listening', onListening);
             this.#socket.bind(0);
         });
-    }
-
-    /**
-     * Handles the socket 'connect' event by configuring buffer sizes.
-     */
-    onConnect(): void {
-        this.#socket.setRecvBufferSize(16384);
-        this.#socket.setSendBufferSize(16384);
     }
 
     /**

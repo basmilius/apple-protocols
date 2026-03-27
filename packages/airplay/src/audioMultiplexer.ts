@@ -1,12 +1,7 @@
-import { type AudioSource, type Context, waitFor } from '@basmilius/apple-common';
-import AudioStream, { type AudioStreamOptions, FRAMES_PER_PACKET } from './audioStream';
+import { AUDIO_FRAMES_PER_PACKET, type AudioSource, type Context } from '@basmilius/apple-common';
+import AudioStream, { type AudioStreamOptions } from './audioStream';
 import type Protocol from './protocol';
-
-/** Maximum number of extra packets to send when catching up from being behind schedule. */
-const MAX_PACKETS_COMPENSATE = 3;
-
-/** Number of consecutive slow packets before logging a warning. */
-const SLOW_WARNING_THRESHOLD = 5;
+import { streamWithTiming } from './streamTiming';
 
 /**
  * A target device in the multiplexer, pairing a protocol instance with its audio stream.
@@ -26,7 +21,8 @@ type Target = {
  *
  * Timing is maintained by comparing wall-clock elapsed time against the expected
  * time based on the number of frames sent. When falling behind, extra packets
- * are sent to catch up (up to {@link MAX_PACKETS_COMPENSATE} per cycle).
+ * are sent to catch up. Timing logic is shared with {@link AudioStream} via
+ * {@link streamWithTiming}.
  */
 export default class AudioMultiplexer {
     readonly #context: Context;
@@ -96,20 +92,13 @@ export default class AudioMultiplexer {
         const packetSize = contexts[0].packetSize;
 
         try {
-            let firstPacket = true;
-            let packetCount = 0;
-            let slowCount = 0;
-            let totalFrames = 0;
-            const startTime = performance.now();
-
             this.#context.logger.info('[multiplexer]', 'Starting multi-room audio stream...');
 
-            while (true) {
-                let frames = await source.readFrames(FRAMES_PER_PACKET);
+            const sendPacket = async (firstPacket: boolean): Promise<number> => {
+                let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
 
                 if (!frames || frames.length === 0) {
-                    this.#context.logger.debug('[multiplexer]', `End of source after ${packetCount} packets`);
-                    break;
+                    return 0;
                 }
 
                 if (frames.length < packetSize) {
@@ -123,60 +112,14 @@ export default class AudioMultiplexer {
                     await target.stream.sendFrameData(frames!, firstPacket);
                 }));
 
-                totalFrames += FRAMES_PER_PACKET;
-                packetCount++;
-                firstPacket = false;
+                return AUDIO_FRAMES_PER_PACKET;
+            };
 
-                if (packetCount % 100 === 0) {
-                    this.#context.logger.debug('[multiplexer]', `Sent ${packetCount} packets to ${this.#targets.length} device(s)`);
-                }
-
-                const expectedTime = totalFrames / sampleRate * 1000;
-                const actualTime = performance.now() - startTime;
-                const sleepTime = expectedTime - actualTime;
-
-                if (sleepTime > 0) {
-                    slowCount = 0;
-                    await waitFor(sleepTime);
-                } else {
-                    const framesBehind = Math.floor((-sleepTime / 1000) * sampleRate);
-
-                    if (framesBehind >= FRAMES_PER_PACKET) {
-                        const extraPackets = Math.min(
-                            Math.floor(framesBehind / FRAMES_PER_PACKET),
-                            MAX_PACKETS_COMPENSATE
-                        );
-
-                        for (let i = 0; i < extraPackets; i++) {
-                            let extraFrames = await source.readFrames(FRAMES_PER_PACKET);
-
-                            if (!extraFrames || extraFrames.length === 0) {
-                                break;
-                            }
-
-                            if (extraFrames.length < packetSize) {
-                                const padded = Buffer.alloc(packetSize, 0);
-                                extraFrames.copy(padded);
-                                extraFrames = padded;
-                            }
-
-                            await Promise.all(this.#targets.map(async (target) => {
-                                await target.stream.sendFrameData(extraFrames!, false);
-                            }));
-
-                            totalFrames += FRAMES_PER_PACKET;
-                            packetCount++;
-                        }
-                    }
-
-                    slowCount++;
-
-                    if (slowCount >= SLOW_WARNING_THRESHOLD) {
-                        this.#context.logger.warn('[multiplexer]', `Stream behind schedule (${slowCount} consecutive, ${Math.abs(sleepTime).toFixed(1)}ms behind)`);
-                        slowCount = 0;
-                    }
-                }
-            }
+            const packetCount = await streamWithTiming(sendPacket, {
+                sampleRate,
+                logger: this.#context.logger,
+                logPrefix: '[multiplexer]'
+            });
 
             this.#context.logger.info('[multiplexer]', `Multi-room stream finished, sent ${packetCount} packets to ${this.#targets.length} device(s)`);
 

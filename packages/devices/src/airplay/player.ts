@@ -76,11 +76,6 @@ export default class Player {
         return this.#playbackState;
     }
 
-    /** The raw playback state as reported by the Apple TV, without corrections. */
-    get rawPlaybackState(): Proto.PlaybackState_Enum {
-        return this.#playbackState;
-    }
-
     /** Timestamp of the last playback state update, used to discard stale updates. */
     get playbackStateTimestamp(): number {
         return this.#playbackStateTimestamp;

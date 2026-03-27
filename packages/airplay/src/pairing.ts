@@ -1,5 +1,4 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, PairingError } from '@basmilius/apple-common';
-import { hkdf } from '@basmilius/apple-encryption';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, deriveEncryptionKeys, PairingError } from '@basmilius/apple-common';
 import type ControlStream from './controlStream';
 import type Protocol from './protocol';
 
@@ -167,21 +166,12 @@ export class Verify {
     async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
         const keys = await this.#internal.start(credentials);
 
-        const accessoryToControllerKey = hkdf({
-            hash: 'sha512',
-            key: keys.sharedSecret,
-            length: 32,
-            salt: Buffer.from('Control-Salt'),
-            info: Buffer.from('Control-Read-Encryption-Key')
-        });
-
-        const controllerToAccessoryKey = hkdf({
-            hash: 'sha512',
-            key: keys.sharedSecret,
-            length: 32,
-            salt: Buffer.from('Control-Salt'),
-            info: Buffer.from('Control-Write-Encryption-Key')
-        });
+        const {readKey: accessoryToControllerKey, writeKey: controllerToAccessoryKey} = deriveEncryptionKeys(
+            keys.sharedSecret,
+            'Control-Salt',
+            'Control-Read-Encryption-Key',
+            'Control-Write-Encryption-Key'
+        );
 
         return {
             accessoryToControllerKey,

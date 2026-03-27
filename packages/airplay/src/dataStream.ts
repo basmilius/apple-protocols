@@ -1,6 +1,5 @@
-import { ConnectionClosedError, type Context, randomInt32, TimeoutError } from '@basmilius/apple-common';
-import { NSKeyedArchiver, Plist } from '@basmilius/apple-encoding';
-import { hkdf } from '@basmilius/apple-encryption';
+import { ConnectionClosedError, type Context, deriveEncryptionKeys, randomInt32, TimeoutError } from '@basmilius/apple-common';
+import { Plist } from '@basmilius/apple-encoding';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
 import BaseStream from './baseStream';
@@ -8,21 +7,6 @@ import * as Proto from './proto';
 
 /** Size of the DataStream frame header in bytes. */
 const DATA_HEADER_LENGTH = 32;
-
-/**
- * Decodes a NSKeyedArchiver binary plist into a plain array of objects.
- *
- * Resolves CF$UID references and strips NSObject class metadata, returning
- * raw JavaScript values.
- *
- * @param data - NSKeyedArchiver-encoded binary plist bytes.
- * @returns Array of decoded objects.
- */
-const decodeNSKeyedArchiverArray = (data: Uint8Array): unknown[] => {
-    const buf = data;
-    const archive = Plist.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer) as any;
-    return NSKeyedArchiver.decodeAsArray(archive);
-};
 
 /**
  * Events emitted by the DataStream, one per MRP protobuf message type.
@@ -334,21 +318,12 @@ export default class DataStream extends BaseStream<EventMap> {
      * @param seed - Random 64-bit seed sent in the SETUP request.
      */
     setup(sharedSecret: Buffer, seed: bigint): void {
-        const readKey = hkdf({
-            hash: 'sha512',
-            key: sharedSecret,
-            length: 32,
-            salt: Buffer.from(`DataStream-Salt${seed}`),
-            info: Buffer.from('DataStream-Input-Encryption-Key')
-        });
-
-        const writeKey = hkdf({
-            hash: 'sha512',
-            key: sharedSecret,
-            length: 32,
-            salt: Buffer.from(`DataStream-Salt${seed}`),
-            info: Buffer.from('DataStream-Output-Encryption-Key')
-        });
+        const {readKey, writeKey} = deriveEncryptionKeys(
+            sharedSecret,
+            `DataStream-Salt${seed}`,
+            'DataStream-Input-Encryption-Key',
+            'DataStream-Output-Encryption-Key'
+        );
 
         this.enableEncryption(readKey, writeKey);
     }

@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import * as AirPlay from '@basmilius/apple-airplay';
 import type { AudioSource, DiscoveryResult } from '@basmilius/apple-common';
 import { type AirPlayClient, AirPlayDevice, type AirPlayRemote, type AirPlayState, type AirPlayVolume } from '../airplay';
+import { getCommandInfo, isCommandSupported } from '../utils';
 
 /**
  * Events emitted by HomePod models.
@@ -238,13 +239,7 @@ export default abstract class extends EventEmitter<EventMap> {
      * @returns The command info, or null if no client is active or command not found.
      */
     async getCommandInfo(command: AirPlay.Proto.Command): Promise<AirPlay.Proto.CommandInfo | null> {
-        const client = this.#airplay.state.nowPlayingClient;
-
-        if (!client) {
-            return null;
-        }
-
-        return client.supportedCommands.find(c => c.command === command) ?? null;
+        return getCommandInfo(this.#airplay.state, command);
     }
 
     /**
@@ -254,13 +249,7 @@ export default abstract class extends EventEmitter<EventMap> {
      * @returns True if supported and enabled, false otherwise.
      */
     async isCommandSupported(command: AirPlay.Proto.Command): Promise<boolean> {
-        const client = this.#airplay.state.nowPlayingClient;
-
-        if (!client) {
-            return false;
-        }
-
-        return client.isCommandSupported(command);
+        return isCommandSupported(this.#airplay.state, command);
     }
 
     /** Emits 'connected' when the AirPlay connection is established. */

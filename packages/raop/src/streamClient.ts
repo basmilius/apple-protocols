@@ -1,7 +1,7 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
-import { type AudioSource, type Context, type TimingServer, waitFor } from '@basmilius/apple-common';
-import { EMPTY_METADATA, FRAMES_PER_PACKET, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
+import { AUDIO_FRAMES_PER_PACKET, type AudioSource, type Context, type TimingServer, waitFor } from '@basmilius/apple-common';
+import { EMPTY_METADATA, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
 import { AudioPacketHeader, PacketFifo } from './packets';
 import { EncryptionType, type MediaMetadata, MetadataType, type PlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
 import { getAudioProperties, getEncryptionTypes, getMetadataTypes, pctToDbfs } from './utils';
@@ -115,6 +115,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
      */
     close(): void {
         this.#controlClient?.close();
+        this.#controlClient = undefined;
     }
 
     /**
@@ -200,8 +201,12 @@ export default class StreamClient extends EventEmitter<EventMap> {
 
         try {
             transport = createSocket('udp4');
-            await new Promise<void>((resolve) => {
-                transport!.connect(this.#streamContext.serverPort, this.#rtsp.connection.remoteIp, resolve);
+            await new Promise<void>((resolve, reject) => {
+                transport!.once('error', reject);
+                transport!.connect(this.#streamContext.serverPort, this.#rtsp.connection.remoteIp, () => {
+                    transport!.removeListener('error', reject);
+                    resolve();
+                });
             });
 
             this.#controlClient.start(this.#rtsp.connection.remoteIp);
@@ -307,9 +312,9 @@ export default class StreamClient extends EventEmitter<EventMap> {
             stats.tick(numSent);
             const framesBehind = stats.framesBehind;
 
-            if (framesBehind >= FRAMES_PER_PACKET) {
+            if (framesBehind >= AUDIO_FRAMES_PER_PACKET) {
                 const maxPackets = Math.min(
-                    Math.floor(framesBehind / FRAMES_PER_PACKET),
+                    Math.floor(framesBehind / AUDIO_FRAMES_PER_PACKET),
                     MAX_PACKETS_COMPENSATE
                 );
 
@@ -378,7 +383,7 @@ export default class StreamClient extends EventEmitter<EventMap> {
             return 0;
         }
 
-        let frames = await source.readFrames(FRAMES_PER_PACKET);
+        let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
 
         if (!frames) {
             frames = Buffer.alloc(this.#streamContext.packetSize);

@@ -55,10 +55,19 @@ export {
 export {
     AIRPLAY_SERVICE,
     AIRPLAY_TRANSIENT_PIN,
+    AUDIO_BYTES_PER_CHANNEL,
+    AUDIO_CHANNELS,
+    AUDIO_FRAMES_PER_PACKET,
+    AUDIO_SAMPLE_RATE,
     COMPANION_LINK_SERVICE,
     HTTP_TIMEOUT,
-    RAOP_SERVICE
+    RAOP_SERVICE,
+    SOCKET_TIMEOUT
 } from './const';
+
+export {
+    deriveEncryptionKeys
+} from './hkdf';
 
 export {
     type AccessoryCredentials,

@@ -1,22 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
-import { type AudioSource, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
 import { NTP, Plist } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import LatencyManager from './latencyManager';
 import type Protocol from './protocol';
-
-/** Default sample rate for audio streaming (CD quality). */
-const SAMPLE_RATE = 44100;
-
-/** Number of audio channels (stereo). */
-const CHANNELS = 2;
-
-/** Bytes per sample per channel (16-bit PCM). */
-const BYTES_PER_CHANNEL = 2;
-
-/** Number of audio frames per RTP packet. Matches Apple's ALAC/PCM packet size. */
-const FRAMES_PER_PACKET = 352;
+import { streamWithTiming } from './streamTiming';
 
 /** Latency in frames (0.25 seconds at 44,100 Hz). Used for silence padding at end of stream. */
 const LATENCY_FRAMES = 11025;
@@ -26,12 +15,6 @@ const PACKET_BACKLOG_SIZE = 1000;
 
 /** Interval in milliseconds between RTCP sync packets. */
 const SYNC_INTERVAL = 1000;
-
-/** Maximum number of extra packets to send when catching up from being behind schedule. */
-const MAX_PACKETS_COMPENSATE = 3;
-
-/** Number of consecutive slow packets before logging a warning. */
-const SLOW_WARNING_THRESHOLD = 5;
 
 /** Default number of previous frames to include as RFC 2198 redundancy (0 = disabled). */
 const DEFAULT_REDUNDANCY_COUNT = 0;
@@ -166,8 +149,6 @@ const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, a
     return anchorNtp + elapsedNtp;
 };
 
-export { FRAMES_PER_PACKET, SAMPLE_RATE };
-
 /**
  * Real-time RTP audio streaming over UDP with ChaCha20-Poly1305 encryption.
  *
@@ -201,9 +182,9 @@ export default class AudioStream {
     /** Connected UDP socket for sending RTP audio packets. */
     #dataSocket?: UdpSocket;
     /** Negotiated bytes per channel from format negotiation. */
-    #negotiatedBytesPerChannel: number = BYTES_PER_CHANNEL;
+    #negotiatedBytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL;
     /** Negotiated sample rate from format negotiation. */
-    #negotiatedSampleRate: number = SAMPLE_RATE;
+    #negotiatedSampleRate: number = AUDIO_SAMPLE_RATE;
     /** RTP timestamp at the anchor point for NTP conversion. */
     #anchorRtp: number = 0;
     /** NTP timestamp at the anchor point for RTP-to-NTP conversion. */
@@ -297,7 +278,7 @@ export default class AudioStream {
         const supportedFormats = this.#protocol.receiverInfo?.supportedAudioFormats as number | undefined;
         let ct = CompressionType.PCM;
         let audioFormat: number = AudioFormat.PCM_44100_24_2;
-        let sampleRate = SAMPLE_RATE;
+        let sampleRate = AUDIO_SAMPLE_RATE;
 
         if (supportedFormats) {
             this.#context.logger.info('[audio]', `Receiver supported formats: 0x${supportedFormats.toString(16)}`);
@@ -307,7 +288,7 @@ export default class AudioStream {
         // sources currently produce 16-bit PCM. Using bytesPerChannel=2 with a 24-bit audioFormat
         // works because the receiver compensates, but this is technically incorrect. Revisit when
         // audio sources support 24-bit output.
-        let bytesPerChannel = BYTES_PER_CHANNEL;
+        let bytesPerChannel = AUDIO_BYTES_PER_CHANNEL;
 
         const setupBody = Plist.serialize({
             streams: [{
@@ -319,7 +300,7 @@ export default class AudioStream {
                 latencyMax: sampleRate * 2,
                 latencyMin: Math.round(sampleRate * 0.25),
                 shk: shkArrayBuffer,
-                spf: FRAMES_PER_PACKET,
+                spf: AUDIO_FRAMES_PER_PACKET,
                 sr: sampleRate,
                 streamConnectionID,
                 supportsDynamicStreamID: false,
@@ -388,8 +369,8 @@ export default class AudioStream {
             });
         });
 
-        const frameSize = CHANNELS * this.#negotiatedBytesPerChannel;
-        const packetSize = FRAMES_PER_PACKET * frameSize;
+        const frameSize = AUDIO_CHANNELS * this.#negotiatedBytesPerChannel;
+        const packetSize = AUDIO_FRAMES_PER_PACKET * frameSize;
 
         this.#latencyManager = new LatencyManager(this.#negotiatedSampleRate);
         const latency = this.#latencyManager.getLatency();
@@ -403,7 +384,7 @@ export default class AudioStream {
 
         const ctx: AudioStreamContext = {
             sampleRate: this.#negotiatedSampleRate,
-            channels: CHANNELS,
+            channels: AUDIO_CHANNELS,
             bytesPerChannel: this.#negotiatedBytesPerChannel,
             frameSize,
             packetSize,
@@ -508,64 +489,16 @@ export default class AudioStream {
         const ctx = await this.prepare(remoteAddress);
 
         try {
-            let firstPacket = true;
-            let packetCount = 0;
-            let slowCount = 0;
-            const startTime = performance.now();
-
             this.#context.logger.info('[audio]', 'Starting audio stream...');
 
-            while (true) {
-                const framesSent = await this.#sendPacket(source, firstPacket, ctx);
-
-                if (framesSent === 0) {
-                    this.#context.logger.debug('[audio]', `End of audio stream after ${packetCount} packets (padding complete)`);
-                    break;
+            const packetCount = await streamWithTiming(
+                (firstPacket) => this.#sendPacket(source, firstPacket, ctx),
+                {
+                    sampleRate: ctx.sampleRate,
+                    logger: this.#context.logger,
+                    logPrefix: '[audio]'
                 }
-
-                packetCount++;
-                firstPacket = false;
-
-                if (packetCount % 100 === 0) {
-                    this.#context.logger.debug('[audio]', `Sent ${packetCount} packets, ${ctx.totalFrames} frames`);
-                }
-
-                const expectedTime = ctx.totalFrames / ctx.sampleRate * 1000;
-                const actualTime = performance.now() - startTime;
-                const sleepTime = expectedTime - actualTime;
-
-                if (sleepTime > 0) {
-                    slowCount = 0;
-                    await this.#sleep(sleepTime);
-                } else {
-                    // We're behind schedule — send extra packets to catch up.
-                    const framesBehind = Math.floor((-sleepTime / 1000) * ctx.sampleRate);
-
-                    if (framesBehind >= FRAMES_PER_PACKET) {
-                        const extraPackets = Math.min(
-                            Math.floor(framesBehind / FRAMES_PER_PACKET),
-                            MAX_PACKETS_COMPENSATE
-                        );
-
-                        for (let i = 0; i < extraPackets; i++) {
-                            const extra = await this.#sendPacket(source, false, ctx);
-
-                            if (extra === 0) {
-                                break;
-                            }
-
-                            packetCount++;
-                        }
-                    }
-
-                    slowCount++;
-
-                    if (slowCount >= SLOW_WARNING_THRESHOLD) {
-                        this.#context.logger.warn('[audio]', `Stream is behind schedule (${slowCount} consecutive slow packets, ${Math.abs(sleepTime).toFixed(1)}ms behind)`);
-                        slowCount = 0;
-                    }
-                }
-            }
+            );
 
             this.#context.logger.info('[audio]', `Audio stream finished, sent ${packetCount} packets`);
 
@@ -600,7 +533,7 @@ export default class AudioStream {
         }
 
         // Read frames from source
-        let frames = await source.readFrames(FRAMES_PER_PACKET);
+        let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
 
         if (!frames || frames.length === 0) {
             // No more audio data - send padding (silent frames)
@@ -651,7 +584,7 @@ export default class AudioStream {
             // Redundant block headers (F=1, 4 bytes each)
             for (let i = 0; i < redundantFrames.length; i++) {
                 const level = redundantFrames.length - i;
-                const tsOffset = level * FRAMES_PER_PACKET;
+                const tsOffset = level * AUDIO_FRAMES_PER_PACKET;
                 const blockLen = redundantFrames[i].length;
                 const header = Buffer.allocUnsafe(4);
 

@@ -16,12 +16,8 @@
         "resolveJsonModule": false,
         "isolatedDeclarations": false,
         "isolatedModules": true,
-        "jsx": "react-jsx",
         "rootDir": ".",
         "outDir": "dist",
-        "declaration": true,
-        "declarationDir": "dist",
-        "emitDeclarationOnly": true,
         "experimentalDecorators": true,
         "noEmit": true,
         "paths": {

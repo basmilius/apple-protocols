@@ -12,7 +12,7 @@ type ServiceType = 'airplay' | 'companionLink';
 /**
  * Discovers devices on the network and lets the user pick one.
  */
-export const discoverAndSelectDevice = async (service: ServiceType, promptMessage: string): Promise<DiscoveryResult | undefined> => {
+export async function discoverAndSelectDevice(service: ServiceType, promptMessage: string): Promise<DiscoveryResult | undefined> {
     const label = service === 'airplay' ? 'AirPlay' : 'Companion Link';
     const spinner = ora(`Searching for ${label} devices...`).start();
 
@@ -42,13 +42,15 @@ export const discoverAndSelectDevice = async (service: ServiceType, promptMessag
     });
 
     return devices.find(d => d.id === response.device)!;
-};
+}
 
-export const isAppleTVDevice = (device: DiscoveryResult): boolean =>
-    device.txt.model?.startsWith('AppleTV') ?? false;
+export function isAppleTVDevice(device: DiscoveryResult): boolean {
+    return device.txt.model?.startsWith('AppleTV') ?? false;
+}
 
-export const isHomePodDevice = (device: DiscoveryResult): boolean =>
-    device.txt.model?.startsWith('AudioAccessory') ?? false;
+export function isHomePodDevice(device: DiscoveryResult): boolean {
+    return device.txt.model?.startsWith('AudioAccessory') ?? false;
+}
 
 type ColorMap = Record<string, string>;
 
@@ -73,16 +75,22 @@ const monitorColors: ColorMap = {
 /**
  * Creates a colored log function for diagnostics output.
  */
-export const createColoredLogger = (colors: ColorMap = defaultColors) =>
-    (category: string, message: string, ...args: unknown[]): void => {
+export function createColoredLogger(colors: ColorMap = defaultColors): (category: string, message: string, ...args: unknown[]) => void {
+    return (category: string, message: string, ...args: unknown[]): void => {
         const time = new Date().toLocaleTimeString('nl-NL', {hour12: false});
         const color = colors[category] ?? '\x1b[37m';
 
         console.log(`\x1b[90m${time}\x1b[0m ${color}[${category}]\x1b[0m ${message}`, ...args);
     };
+}
 
-export const createInteractiveLogger = () => createColoredLogger(defaultColors);
-export const createMonitorLogger = () => createColoredLogger(monitorColors);
+export function createInteractiveLogger(): (category: string, message: string, ...args: unknown[]) => void {
+    return createColoredLogger(defaultColors);
+}
+
+export function createMonitorLogger(): (category: string, message: string, ...args: unknown[]) => void {
+    return createColoredLogger(monitorColors);
+}
 
 /**
  * Prints the full AirPlay state tree: all clients, their players, and active now-playing info.
@@ -90,7 +98,7 @@ export const createMonitorLogger = () => createColoredLogger(monitorColors);
  * @param state - The AirPlayState instance to print.
  * @param log - Logger function to use for output.
  */
-export const printAirPlayState = (state: AirPlayState, log: (category: string, message: string) => void): void => {
+export function printAirPlayState(state: AirPlayState, log: (category: string, message: string) => void): void {
     const clients = state.clients;
     const clientEntries = Object.values(clients);
     const nowPlayingClient = state.nowPlayingClient;
@@ -139,9 +147,9 @@ export const printAirPlayState = (state: AirPlayState, log: (category: string, m
 
         console.log();
     }
-};
+}
 
-const printClientDetails = (client: AirPlayClient): void => {
+function printClientDetails(client: AirPlayClient): void {
     const state = PlaybackStateLabel[client.playbackState] ?? 'Unknown';
     console.log(`    State: ${state}`);
 
@@ -162,9 +170,9 @@ const printClientDetails = (client: AirPlayClient): void => {
     if (commandCount > 0) {
         console.log(`    Commands: ${commandCount} supported`);
     }
-};
+}
 
-const printPlayerDetails = (player: AirPlayPlayer): void => {
+function printPlayerDetails(player: AirPlayPlayer): void {
     const state = PlaybackStateLabel[player.playbackState] ?? 'Unknown';
     console.log(`      State: ${state} (rate: ${player.playbackRate})`);
 
@@ -222,4 +230,4 @@ const printPlayerDetails = (player: AirPlayPlayer): void => {
             .join(', ');
         console.log(`      Commands: ${commands}`);
     }
-};
+}

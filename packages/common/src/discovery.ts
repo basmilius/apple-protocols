@@ -1,9 +1,8 @@
-import { createConnection } from 'node:net';
 import { parseFeatures } from './airplayFeatures';
 import { waitFor } from './cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from './const';
 import { DiscoveryError } from './errors';
-import { multicast, type MdnsService } from './mdns';
+import { knock, multicast, type MdnsService } from './mdns';
 import { Logger } from './reporter';
 import type { CombinedDiscoveryResult, DiscoveryResult } from './types';
 
@@ -15,9 +14,6 @@ type CacheEntry = {
 
 /** Cache time-to-live in milliseconds. */
 const CACHE_TTL = 30_000;
-
-/** Ports used for wake-on-network "knocking" to wake sleeping Apple devices. */
-const WAKE_PORTS = [7000, 3689, 49152, 32498];
 
 /**
  * Converts a raw mDNS service record into a {@link DiscoveryResult}.
@@ -163,15 +159,8 @@ export class Discovery {
      *
      * @param address - The IP address of the device to wake.
      */
-    static async wake(address: string): Promise<void> {
-        const promises = WAKE_PORTS.map(port => new Promise<void>((resolve) => {
-            const socket = createConnection({ host: address, port, timeout: 500 });
-            socket.on('connect', () => { socket.destroy(); resolve(); });
-            socket.on('error', () => { socket.destroy(); resolve(); });
-            socket.on('timeout', () => { socket.destroy(); resolve(); });
-        }));
-
-        await Promise.all(promises);
+    static wake(address: string): Promise<void> {
+        return knock(address);
     }
 
     /**

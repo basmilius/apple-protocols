@@ -260,10 +260,10 @@ export default class DeviceManager {
         }
 
         switch (cmd) {
-            case 'play': await device.play(); break;
-            case 'pause': await device.pause(); break;
-            case 'playpause': await device.playPause(); break;
-            case 'stop': await device.stop(); break;
+            case 'play': await device.remote.commandPlay(); break;
+            case 'pause': await device.remote.commandPause(); break;
+            case 'playpause': await device.remote.commandTogglePlayPause(); break;
+            case 'stop': await device.remote.commandStop(); break;
             case 'next': await device.next(); break;
             case 'previous': await device.previous(); break;
             case 'volup':

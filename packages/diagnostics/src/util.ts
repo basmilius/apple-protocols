@@ -9,9 +9,9 @@ export const PlaybackStateLabel: Record<number, string> = {
     [Proto.PlaybackState_Enum.Seeking]: 'Seeking'
 };
 
-export const formatTime = (seconds: number): string => {
+export function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
+}

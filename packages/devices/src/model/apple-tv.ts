@@ -4,6 +4,7 @@ import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-com
 import type { AttentionState, LaunchableApp, TextInputState, UserAccount } from '@basmilius/apple-companion-link';
 import { AirPlayDevice } from '../airplay';
 import { CompanionLinkDevice } from '../companion-link';
+import { getCommandInfo, isCommandSupported } from '../utils';
 import type Client from '../airplay/client';
 import type Remote from '../airplay/remote';
 import type State from '../airplay/state';
@@ -307,13 +308,7 @@ export default class extends EventEmitter<EventMap> {
      * @returns The command info, or null if no client is active or command not found.
      */
     async getCommandInfo(command: AirPlay.Proto.Command): Promise<AirPlay.Proto.CommandInfo | null> {
-        const client = this.#airplay.state.nowPlayingClient;
-
-        if (!client) {
-            return null;
-        }
-
-        return client.supportedCommands.find(c => c.command === command) ?? null;
+        return getCommandInfo(this.#airplay.state, command);
     }
 
     /**
@@ -323,13 +318,7 @@ export default class extends EventEmitter<EventMap> {
      * @returns True if supported and enabled, false otherwise.
      */
     async isCommandSupported(command: AirPlay.Proto.Command): Promise<boolean> {
-        const client = this.#airplay.state.nowPlayingClient;
-
-        if (!client) {
-            return false;
-        }
-
-        return client.isCommandSupported(command);
+        return isCommandSupported(this.#airplay.state, command);
     }
 
     /** Emits 'connected' when both AirPlay and Companion Link are connected. */

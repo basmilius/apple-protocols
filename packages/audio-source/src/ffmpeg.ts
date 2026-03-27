@@ -1,6 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import type { AudioSource } from '@basmilius/apple-common';
-import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE, FFMPEG_FRAMES_PER_PACKET } from './const';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioSource } from '@basmilius/apple-common';
 
 /**
  * Audio source that decodes any file format supported by FFmpeg into
@@ -33,7 +32,7 @@ export default class Ffmpeg implements AudioSource {
     #ended: boolean = false;
 
     /** Queue of pending consumers waiting for PCM data. */
-    #resolveQueue: Array<(value: Buffer | null) => void> = [];
+    #resolveQueue: Array<{ count: number; resolve: (value: Buffer | null) => void }> = [];
 
     /**
      * Creates an FFmpeg-based audio source.
@@ -44,7 +43,7 @@ export default class Ffmpeg implements AudioSource {
      * @param channels - Target number of audio channels.
      * @param bytesPerChannel - Number of bytes per sample per channel.
      */
-    constructor(filePath: string, duration: number, sampleRate: number = DEFAULT_SAMPLE_RATE, channels: number = DEFAULT_CHANNELS, bytesPerChannel: number = DEFAULT_BYTES_PER_CHANNEL) {
+    constructor(filePath: string, duration: number, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
         this.#filePath = filePath;
         this.duration = duration;
         this.#sampleRate = sampleRate;
@@ -78,8 +77,8 @@ export default class Ffmpeg implements AudioSource {
             this.#processQueue();
         });
 
-        this.#ffmpeg.on('error', (err) => {
-            console.error('ffmpeg error:', err);
+        this.#ffmpeg.on('error', () => {
+            this.#ffmpeg?.kill();
             this.#ended = true;
             this.#processQueue();
         });
@@ -102,7 +101,7 @@ export default class Ffmpeg implements AudioSource {
         }
 
         while (this.#resolveQueue.length > 0) {
-            this.#resolveQueue.shift()!(null);
+            this.#resolveQueue.shift()!.resolve(null);
         }
 
         this.#ffmpeg.stdout?.removeAllListeners();
@@ -138,7 +137,7 @@ export default class Ffmpeg implements AudioSource {
         }
 
         return new Promise((resolve) => {
-            this.#resolveQueue.push(resolve);
+            this.#resolveQueue.push({ count, resolve });
         });
     }
 
@@ -148,19 +147,23 @@ export default class Ffmpeg implements AudioSource {
      */
     #processQueue(): void {
         while (this.#resolveQueue.length > 0) {
-            const bytesNeeded = FFMPEG_FRAMES_PER_PACKET * this.#frameSize;
+            const { count, resolve } = this.#resolveQueue[0];
+            const bytesNeeded = count * this.#frameSize;
 
             if (this.#buffer.length >= bytesNeeded) {
                 const chunk = this.#buffer.subarray(0, bytesNeeded);
                 this.#buffer = this.#buffer.subarray(bytesNeeded);
-                this.#resolveQueue.shift()!(chunk);
+                this.#resolveQueue.shift();
+                resolve(chunk);
             } else if (this.#ended) {
+                this.#resolveQueue.shift();
+
                 if (this.#buffer.length > 0) {
                     const chunk = this.#buffer;
                     this.#buffer = Buffer.alloc(0);
-                    this.#resolveQueue.shift()!(chunk);
+                    resolve(chunk);
                 } else {
-                    this.#resolveQueue.shift()!(null);
+                    resolve(null);
                 }
             } else {
                 break;

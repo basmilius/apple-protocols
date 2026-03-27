@@ -1,24 +1,12 @@
-import type { AudioSource } from '@basmilius/apple-common';
-import { DEFAULT_BYTES_PER_CHANNEL, DEFAULT_CHANNELS, DEFAULT_SAMPLE_RATE } from './const';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isOgg } from './decoder';
+import BufferAudioSource from './bufferAudioSource';
 
 /**
  * Audio source for OGG Vorbis data. Decodes OGG to signed 16-bit
  * big-endian PCM using a WASM-based decoder and serves the resulting buffer.
  */
-export default class Ogg implements AudioSource {
-    /** Total duration of the audio in seconds. */
-    readonly duration: number;
-
-    /** Pre-decoded signed 16-bit big-endian PCM buffer. */
-    readonly #buffer: Buffer;
-
-    /** Size of a single audio frame in bytes. */
-    readonly #frameSize: number;
-
-    /** Current read position in the PCM buffer. */
-    #offset: number = 0;
-
+export default class Ogg extends BufferAudioSource {
     /**
      * Creates an OGG audio source from a pre-decoded PCM buffer.
      * Use {@link fromBuffer} or {@link fromUrl} to create instances
@@ -28,46 +16,7 @@ export default class Ogg implements AudioSource {
      * @param duration - Total duration of the audio in seconds.
      */
     constructor(buffer: Buffer, duration: number) {
-        this.#buffer = buffer;
-        this.#frameSize = DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL;
-        this.duration = duration;
-    }
-
-    /**
-     * Reads the specified number of audio frames from the PCM buffer.
-     *
-     * @param count - Number of audio frames to read.
-     * @returns A buffer containing the requested PCM data, or null if the end has been reached.
-     */
-    async readFrames(count: number): Promise<Buffer | null> {
-        if (this.#offset >= this.#buffer.length) {
-            return null;
-        }
-
-        const bytesToRead = count * this.#frameSize;
-        const chunk = this.#buffer.subarray(this.#offset, this.#offset + bytesToRead);
-        this.#offset += bytesToRead;
-
-        return chunk.length > 0 ? chunk : null;
-    }
-
-    /**
-     * Resets the read position to the beginning of the buffer.
-     */
-    async reset(): Promise<void> {
-        this.#offset = 0;
-    }
-
-    /**
-     * Starts the audio source. No-op for buffer-based sources.
-     */
-    async start(): Promise<void> {
-    }
-
-    /**
-     * Stops the audio source. No-op for buffer-based sources.
-     */
-    async stop(): Promise<void> {
+        super(buffer, duration);
     }
 
     /**
@@ -84,7 +33,7 @@ export default class Ogg implements AudioSource {
         }
 
         const pcmBuffer = await decode(oggBuffer);
-        const duration = pcmBuffer.length / (DEFAULT_CHANNELS * DEFAULT_BYTES_PER_CHANNEL) / DEFAULT_SAMPLE_RATE;
+        const duration = pcmBuffer.length / (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) / AUDIO_SAMPLE_RATE;
 
         return new Ogg(pcmBuffer, duration);
     }
@@ -98,6 +47,11 @@ export default class Ogg implements AudioSource {
      */
     static async fromUrl(url: string): Promise<Ogg> {
         const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
+        }
+
         const arrayBuffer = await response.arrayBuffer();
 
         return Ogg.fromBuffer(Buffer.from(arrayBuffer));

@@ -63,12 +63,15 @@ function event(identifier: string, content: Record<string, unknown> = {}): OPack
  */
 export function systemInfo(pairingId: Buffer, name: string = 'AP Companion Link', model: string = 'iPhone16,2', sourceVersion: string = '715.2'): OPackMessage {
     return requestBtHP('_systemInfo', {
+        // _bf: build flags, _cf: capability flags, _clFl: Companion Link flags
         _bf: 0,
         _cf: 512,
         _clFl: 128,
         // TODO: These identifiers are hardcoded. Ideally they should be persisted per-controller
         // so the Apple TV recognizes the same remote across sessions. Using random IDs causes the
         // Apple TV to treat each connection as a new remote.
+        // _i: device identifier (MAC-like), _pubID: public Bluetooth MAC address,
+        // _sf: supported features bitmask, _lP: local port, _dC: device category
         _i: 'b561af32aea6',
         _idsID: pairingId.toString(),
         _pubID: 'DA:6D:1E:D8:A0:4F',
@@ -87,7 +90,6 @@ export function systemInfo(pairingId: Buffer, name: string = 'AP Companion Link'
             'com.apple.biomesyncd.cascade.rapport',
             'com.apple.SeymourSession',
             'com.apple.workflow.remotewidgets',
-            'com.apple.ApplicationService.chrono',
             'SCD.MessageCenter.remoteIntelligence',
             'DeviceSharingDaemonApplicationService',
             'com.apple.biomesyncd.rapport',

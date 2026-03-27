@@ -1,6 +1,5 @@
-import type { Context } from '@basmilius/apple-common';
+import { deriveEncryptionKeys, type Context } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
-import { hkdf } from '@basmilius/apple-encryption';
 import { buildResponse, type Method, parseRequest } from '@basmilius/apple-rtsp';
 import BaseStream from './baseStream';
 
@@ -29,7 +28,7 @@ export type EventStreamEventMap = {
  * The stream is encrypted with ChaCha20-Poly1305 after setup. Note that the
  * HKDF info strings are swapped compared to what you might expect: the key
  * derived from 'Events-Write-Encryption-Key' becomes our read key, because
- * these names are from the Apple TV's perspective (see CLAUDE.md for details).
+ * these names are from the Apple TV's perspective.
  */
 export default class EventStream extends BaseStream<EventStreamEventMap> {
     /** Accumulated plaintext buffer for partial RTSP request reassembly. */
@@ -91,21 +90,14 @@ export default class EventStream extends BaseStream<EventStreamEventMap> {
      * @param sharedSecret - Shared secret from pair-verify.
      */
     setup(sharedSecret: Buffer): void {
-        const readKey = hkdf({
-            hash: 'sha512',
-            key: sharedSecret,
-            length: 32,
-            salt: Buffer.from('Events-Salt'),
-            info: Buffer.from('Events-Read-Encryption-Key')
-        });
-
-        const writeKey = hkdf({
-            hash: 'sha512',
-            key: sharedSecret,
-            length: 32,
-            salt: Buffer.from('Events-Salt'),
-            info: Buffer.from('Events-Write-Encryption-Key')
-        });
+        // Note: readInfo/writeInfo are named from the Apple TV's perspective, so the
+        // derived keys are intentionally swapped when passed to enableEncryption.
+        const {readKey, writeKey} = deriveEncryptionKeys(
+            sharedSecret,
+            'Events-Salt',
+            'Events-Read-Encryption-Key',
+            'Events-Write-Encryption-Key'
+        );
 
         this.enableEncryption(writeKey, readKey);
     }

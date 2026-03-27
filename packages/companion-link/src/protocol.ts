@@ -64,7 +64,7 @@ export default class Protocol {
     #sessionIdLocal: number = 0;
 
     /** The Apple TV's reported source version, used for feature detection. */
-    #sourceVersion: number = 0;
+    #sourceVersion: string = '0';
 
     /**
      * @param discoveryResult - The mDNS discovery result containing the Apple TV's address, port, and service info.
@@ -142,24 +142,24 @@ export default class Protocol {
 
     // --- System & Session ---
 
-    /** The Apple TV's reported protocol source version number (e.g. `715.2`). */
-    get sourceVersion(): number {
+    /** The Apple TV's reported protocol source version string (e.g. `715.2`). */
+    get sourceVersion(): string {
         return this.#sourceVersion;
     }
 
     /** Whether this Apple TV supports media control commands (sourceVersion >= 250.3). */
     get supportsMediaControl(): boolean {
-        return this.#sourceVersion >= 250.3;
+        return compareVersions(this.#sourceVersion, '250.3') >= 0;
     }
 
     /** Whether this Apple TV supports remote text input (sourceVersion >= 340.15). */
     get supportsTextInput(): boolean {
-        return this.#sourceVersion >= 340.15;
+        return compareVersions(this.#sourceVersion, '340.15') >= 0;
     }
 
     /** Whether this Apple TV supports Siri push-to-talk (sourceVersion >= 600.20). */
     get supportsSiriPTT(): boolean {
-        return this.#sourceVersion >= 600.20;
+        return compareVersions(this.#sourceVersion, '600.20') >= 0;
     }
 
     /**
@@ -177,7 +177,7 @@ export default class Protocol {
 
         const sv = result?._c?._sv;
         if (sv) {
-            this.#sourceVersion = parseFloat(String(sv));
+            this.#sourceVersion = String(sv);
             this.#context.logger.info('[companion-link]', `Receiver sourceVersion: ${sv} (mediaControl=${this.supportsMediaControl}, textInput=${this.supportsTextInput}, siriPTT=${this.supportsSiriPTT})`);
         }
 
@@ -804,6 +804,32 @@ export default class Protocol {
     #sendEvent(message: Record<string, unknown>): void {
         this.#stream.sendOPack(FrameType.OPackEncrypted, message);
     }
+}
+
+/**
+ * Compares two dot-separated version strings by splitting on '.' and comparing
+ * each segment as an integer. Returns a negative number if a < b, zero if equal,
+ * or a positive number if a > b.
+ *
+ * @param a - The first version string (e.g. '340.15').
+ * @param b - The second version string (e.g. '250.3').
+ * @returns A comparison result suitable for >= / <= checks.
+ */
+function compareVersions(a: string, b: string): number {
+    const partsA = a.split('.').map(Number);
+    const partsB = b.split('.').map(Number);
+    const length = Math.max(partsA.length, partsB.length);
+
+    for (let i = 0; i < length; i++) {
+        const segA = partsA[i] ?? 0;
+        const segB = partsB[i] ?? 0;
+
+        if (segA !== segB) {
+            return segA - segB;
+        }
+    }
+
+    return 0;
 }
 
 /**

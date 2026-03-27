@@ -1,4 +1,6 @@
 export {
+    AirPlayArtwork,
+    type ArtworkResult,
     AirPlayClient,
     AirPlayDevice,
     AirPlayPlayer,
@@ -11,6 +13,7 @@ export {
 
 export {
     CompanionLinkDevice,
+    type MediaCapabilities,
     COMPANION_LINK
 } from './companion-link';
 
@@ -19,3 +22,8 @@ export {
     HomePod,
     HomePodMini
 } from './model';
+
+export {
+    getCommandInfo,
+    isCommandSupported
+} from './utils';

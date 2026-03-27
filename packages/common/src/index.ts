@@ -11,6 +11,8 @@ export {
     isPasswordRequired,
     isRemoteControlSupported,
     parseFeatures,
+    SENDER_FEATURES_AUDIO,
+    SENDER_FEATURES_REMOTE_CONTROL,
     type AirPlayFeatureFlagName,
     type PairingRequirement
 } from './airplayFeatures';

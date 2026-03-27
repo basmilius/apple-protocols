@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
 import { type AccessoryCredentials, type AccessoryKeys, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer, waitFor } from '@basmilius/apple-common';
-import { AirPlayFeature } from '@basmilius/apple-airplay';
+import { AirPlayFeatureFlags } from '@basmilius/apple-common';
 import { FEEDBACK_INTERVAL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 import Artwork from './artwork';
 import Remote from './remote';
@@ -58,15 +58,15 @@ export default class extends EventEmitter<EventMap> {
         const has = (f: bigint) => this.#protocol?.hasReceiverFeature(f) ?? false;
 
         return {
-            supportsAudio: has(AirPlayFeature.SupportsAirPlayAudio),
-            supportsBufferedAudio: has(AirPlayFeature.SupportsBufferedAudio),
-            supportsPTP: has(AirPlayFeature.SupportsPTP),
-            supportsRFC2198Redundancy: has(AirPlayFeature.SupportsRFC2198Redundancy),
-            supportsHangdogRemoteControl: has(AirPlayFeature.SupportsHangdogRemoteControl),
-            supportsUnifiedMediaControl: has(AirPlayFeature.SupportsUnifiedMediaControl),
-            supportsTransientPairing: has(AirPlayFeature.SupportsHKPairingAndAccessControl),
-            supportsSystemPairing: has(AirPlayFeature.SupportsSystemPairing),
-            supportsCoreUtilsPairing: has(AirPlayFeature.SupportsCoreUtilsPairingAndEncryption)
+            supportsAudio: has(AirPlayFeatureFlags.SupportsAirPlayAudio),
+            supportsBufferedAudio: has(AirPlayFeatureFlags.SupportsBufferedAudio),
+            supportsPTP: has(AirPlayFeatureFlags.SupportsPTP),
+            supportsRFC2198Redundancy: has(AirPlayFeatureFlags.SupportsRFC2198Redundancy),
+            supportsHangdogRemoteControl: has(AirPlayFeatureFlags.SupportsHangdogRemoteControl),
+            supportsUnifiedMediaControl: has(AirPlayFeatureFlags.SupportsUnifiedMediaControl),
+            supportsTransientPairing: has(AirPlayFeatureFlags.SupportsHKPairingAndAccessControl),
+            supportsSystemPairing: has(AirPlayFeatureFlags.SupportsSystemPairing),
+            supportsCoreUtilsPairing: has(AirPlayFeatureFlags.SupportsCoreUtilsPairingAndEncryption)
         };
     }
 

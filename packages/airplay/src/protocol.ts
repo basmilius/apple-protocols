@@ -6,7 +6,7 @@ import ControlStream from './controlStream';
 import DataStream from './dataStream';
 import EventStream from './eventStream';
 
-import { decodeFeatures, hasFeature, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from './features';
+import { describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from '@basmilius/apple-common';
 
 /**
  * Compares two semver-like version strings component by component.
@@ -198,7 +198,7 @@ export default class Protocol {
      * @returns `true` if the receiver advertises support for this feature.
      */
     hasReceiverFeature(feature: bigint): boolean {
-        return hasFeature(this.#receiverFeatures, feature);
+        return hasFeatureFlag(this.#receiverFeatures, feature);
     }
 
     /**
@@ -241,7 +241,7 @@ export default class Protocol {
         }
 
         this.context.logger.info('[protocol]', `Receiver: ${info.name ?? 'unknown'}, model=${info.model ?? '?'}, sourceVersion=${receiverSourceVersion ?? '?'}`);
-        this.context.logger.info('[protocol]', `Receiver features: ${decodeFeatures(this.#receiverFeatures).join(', ')}`);
+        this.context.logger.info('[protocol]', `Receiver features: ${describeFlags(this.#receiverFeatures).join(', ')}`);
 
         if (info.initialVolume != null) {
             this.context.logger.info('[protocol]', `Receiver initial volume: ${info.initialVolume}`);

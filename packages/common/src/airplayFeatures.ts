@@ -1,57 +1,17 @@
-/** Type definition for the AirPlay feature flags bitmask object. */
-type AirPlayFeatureFlagsType = {
-    readonly SupportsAirPlayVideoV1: bigint;
-    readonly SupportsAirPlayPhoto: bigint;
-    readonly SupportsAirPlayVideoFairPlay: bigint;
-    readonly SupportsAirPlayVideoVolumeControl: bigint;
-    readonly SupportsAirPlayVideoHTTPLiveStreams: bigint;
-    readonly SupportsAirPlaySlideShow: bigint;
-    readonly SupportsAirPlayScreen: bigint;
-    readonly SupportsAirPlayAudio: bigint;
-    readonly AudioRedundant: bigint;
-    readonly Authentication_4: bigint;
-    readonly MetadataFeatures_0: bigint;
-    readonly MetadataFeatures_1: bigint;
-    readonly MetadataFeatures_2: bigint;
-    readonly AudioFormats_0: bigint;
-    readonly AudioFormats_1: bigint;
-    readonly AudioFormats_2: bigint;
-    readonly AudioFormats_3: bigint;
-    readonly Authentication_1: bigint;
-    readonly Authentication_8: bigint;
-    readonly SupportsLegacyPairing: bigint;
-    readonly HasUnifiedAdvertiserInfo: bigint;
-    readonly IsCarPlay: bigint;
-    readonly SupportsAirPlayVideoPlayQueue: bigint;
-    readonly SupportsAirPlayFromCloud: bigint;
-    readonly SupportsTLS_PSK: bigint;
-    readonly SupportsUnifiedMediaControl: bigint;
-    readonly SupportsBufferedAudio: bigint;
-    readonly SupportsPTP: bigint;
-    readonly SupportsScreenMultiCodec: bigint;
-    readonly SupportsSystemPairing: bigint;
-    readonly IsAPValeriaScreenSender: bigint;
-    readonly SupportsHKPairingAndAccessControl: bigint;
-    readonly SupportsCoreUtilsPairingAndEncryption: bigint;
-    readonly SupportsAirPlayVideoV2: bigint;
-    readonly MetadataFeatures_3: bigint;
-    readonly SupportsUnifiedPairSetupAndMFi: bigint;
-    readonly SupportsSetPeersExtendedMessage: bigint;
-    readonly SupportsAPSync: bigint;
-    readonly SupportsWoL: bigint;
-    readonly SupportsWoL2: bigint;
-    readonly SupportsHangdogRemoteControl: bigint;
-    readonly SupportsAudioStreamConnectionSetup: bigint;
-    readonly SupportsAudioMetadataControl: bigint;
-    readonly SupportsRFC2198Redundancy: bigint;
-};
-
 /**
  * AirPlay feature flags as a bitmask of bigint values. Each flag corresponds to a specific
  * capability advertised by an AirPlay device in its mDNS TXT record "features" field.
- * The bit positions match Apple's internal AirPlayFeatureFlags enum.
+ *
+ * Bit positions are derived from Apple's internal `APSFeaturesSetFeature()` calls in the
+ * AirPlayReceiver framework (`sysInfo_createFeaturesInternal`). Flag names follow the
+ * community convention (pyatv, emanuelecozzi.net) with camelCase normalization.
+ *
+ * Sources:
+ * - Apple AirPlayReceiver framework decompilation (sysInfo.c)
+ * - pyatv AirPlayFlags enum (pyatv/protocols/airplay/utils.py)
+ * - https://emanuelecozzi.net/docs/airplay2/features/
  */
-export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
+export const AirPlayFeatureFlags: Record<string, bigint> = {
     SupportsAirPlayVideoV1: 1n << 0n,
     SupportsAirPlayPhoto: 1n << 1n,
     SupportsAirPlayVideoFairPlay: 1n << 2n,
@@ -61,22 +21,22 @@ export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
     SupportsAirPlayScreen: 1n << 7n,
     SupportsAirPlayAudio: 1n << 9n,
     AudioRedundant: 1n << 11n,
-    Authentication_4: 1n << 14n,
-    MetadataFeatures_0: 1n << 15n,
-    MetadataFeatures_1: 1n << 16n,
-    MetadataFeatures_2: 1n << 17n,
-    AudioFormats_0: 1n << 18n,
-    AudioFormats_1: 1n << 19n,
-    AudioFormats_2: 1n << 20n,
-    AudioFormats_3: 1n << 21n,
-    Authentication_1: 1n << 23n,
-    Authentication_8: 1n << 26n,
+    Authentication4: 1n << 14n,
+    MetadataFeatures0: 1n << 15n,
+    MetadataFeatures1: 1n << 16n,
+    MetadataFeatures2: 1n << 17n,
+    AudioFormats0: 1n << 18n,
+    AudioFormats1: 1n << 19n,
+    AudioFormats2: 1n << 20n,
+    AudioFormats3: 1n << 21n,
+    Authentication1: 1n << 23n,
+    Authentication8: 1n << 26n,
     SupportsLegacyPairing: 1n << 27n,
     HasUnifiedAdvertiserInfo: 1n << 30n,
-    IsCarPlay: 1n << 32n,
+    SupportsVolume: 1n << 32n,
     SupportsAirPlayVideoPlayQueue: 1n << 33n,
     SupportsAirPlayFromCloud: 1n << 34n,
-    SupportsTLS_PSK: 1n << 35n,
+    SupportsTLSPSK: 1n << 35n,
     SupportsUnifiedMediaControl: 1n << 38n,
     SupportsBufferedAudio: 1n << 40n,
     SupportsPTP: 1n << 41n,
@@ -86,7 +46,7 @@ export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
     SupportsHKPairingAndAccessControl: 1n << 46n,
     SupportsCoreUtilsPairingAndEncryption: 1n << 48n,
     SupportsAirPlayVideoV2: 1n << 49n,
-    MetadataFeatures_3: 1n << 50n,
+    MetadataFeatures3: 1n << 50n,
     SupportsUnifiedPairSetupAndMFi: 1n << 51n,
     SupportsSetPeersExtendedMessage: 1n << 52n,
     SupportsAPSync: 1n << 54n,
@@ -98,8 +58,8 @@ export const AirPlayFeatureFlags: AirPlayFeatureFlagsType = {
     SupportsRFC2198Redundancy: 1n << 61n
 };
 
-/** String union of all known AirPlay feature flag names. */
-export type AirPlayFeatureFlagName = keyof typeof AirPlayFeatureFlags;
+/** String name of any known AirPlay feature flag. */
+export type AirPlayFeatureFlagName = string;
 
 /** The type of pairing required to connect to an AirPlay device. */
 export type PairingRequirement = 'none' | 'pin' | 'transient' | 'homekit';
@@ -147,7 +107,7 @@ export function parseFeatures(features: string): bigint {
  * @returns True if the flag is set.
  */
 export function hasFeatureFlag(features: bigint, flag: bigint): boolean {
-    return (features & flag) !== 0n;
+    return (features & flag) === flag;
 }
 
 /**
@@ -269,3 +229,46 @@ export function isRemoteControlSupported(txt: Record<string, string>): boolean {
 
     return hasFeatureFlag(features, AirPlayFeatureFlags.SupportsHangdogRemoteControl);
 }
+
+/**
+ * Feature bitmask advertised when connecting for remote control sessions.
+ *
+ * Includes media control, system pairing, encryption, volume, and
+ * hangdog remote control capabilities.
+ */
+export const SENDER_FEATURES_REMOTE_CONTROL: bigint =
+    AirPlayFeatureFlags.SupportsAirPlayAudio
+    | AirPlayFeatureFlags.AudioRedundant
+    | AirPlayFeatureFlags.MetadataFeatures0
+    | AirPlayFeatureFlags.MetadataFeatures1
+    | AirPlayFeatureFlags.MetadataFeatures2
+    | AirPlayFeatureFlags.MetadataFeatures3
+    | AirPlayFeatureFlags.Authentication4
+    | AirPlayFeatureFlags.Authentication1
+    | AirPlayFeatureFlags.HasUnifiedAdvertiserInfo
+    | AirPlayFeatureFlags.SupportsUnifiedMediaControl
+    | AirPlayFeatureFlags.SupportsSystemPairing
+    | AirPlayFeatureFlags.SupportsCoreUtilsPairingAndEncryption
+    | AirPlayFeatureFlags.SupportsHKPairingAndAccessControl
+    | AirPlayFeatureFlags.SupportsHangdogRemoteControl
+    | AirPlayFeatureFlags.SupportsAPSync
+    | AirPlayFeatureFlags.SupportsSetPeersExtendedMessage
+    | AirPlayFeatureFlags.SupportsVolume;
+
+/**
+ * Feature bitmask advertised when connecting for audio streaming sessions.
+ *
+ * Extends the remote control features with buffered audio, audio stream
+ * connection setup, metadata control, format negotiation, and PTP
+ * synchronization support.
+ */
+export const SENDER_FEATURES_AUDIO: bigint =
+    SENDER_FEATURES_REMOTE_CONTROL
+    | AirPlayFeatureFlags.SupportsBufferedAudio
+    | AirPlayFeatureFlags.SupportsAudioStreamConnectionSetup
+    | AirPlayFeatureFlags.SupportsAudioMetadataControl
+    | AirPlayFeatureFlags.AudioFormats0
+    | AirPlayFeatureFlags.AudioFormats1
+    | AirPlayFeatureFlags.AudioFormats2
+    | AirPlayFeatureFlags.AudioFormats3
+    | AirPlayFeatureFlags.SupportsPTP;

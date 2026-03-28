@@ -167,6 +167,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
         this.onClose = this.onClose.bind(this);
         this.onError = this.onError.bind(this);
+        this.onStreamError = this.onStreamError.bind(this);
         this.onNowPlayingChanged = this.onNowPlayingChanged.bind(this);
         this.onTimeout = this.onTimeout.bind(this);
         this.#volume = new AirPlayVolume(this);
@@ -226,9 +227,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             this.#feedbackInterval = undefined;
         }
 
-        this.#prevDataStream?.off('error', this.onError);
+        this.#prevDataStream?.off('error', this.onStreamError);
         this.#prevDataStream?.off('timeout', this.onTimeout);
-        this.#prevEventStream?.off('error', this.onError);
+        this.#prevEventStream?.off('error', this.onStreamError);
         this.#prevEventStream?.off('timeout', this.onTimeout);
         this.#prevDataStream = undefined;
         this.#prevEventStream = undefined;
@@ -561,12 +562,26 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     /**
-     * Handles stream error events by logging them.
+     * Handles control stream error events by logging them.
+     * Control stream errors are non-fatal by themselves; the 'close' event
+     * that follows will trigger disconnect.
      *
      * @param err - The error that occurred.
      */
     onError(err: Error): void {
         this.#protocol.context.logger.error('AirPlay error', err);
+    }
+
+    /**
+     * Handles data/event stream error events by tearing down the connection.
+     * These streams are critical for state tracking; if they fail, the device
+     * is effectively unreachable and a full reconnect is needed.
+     *
+     * @param err - The error that occurred.
+     */
+    onStreamError(err: Error): void {
+        this.#protocol.context.logger.error('AirPlay stream error', err);
+        this.#protocol.controlStream.destroy();
     }
 
     /**
@@ -610,17 +625,17 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
         try {
             // Remove listeners from previous streams (prevents accumulation on reconnect).
-            this.#prevDataStream?.off('error', this.onError);
+            this.#prevDataStream?.off('error', this.onStreamError);
             this.#prevDataStream?.off('timeout', this.onTimeout);
-            this.#prevEventStream?.off('error', this.onError);
+            this.#prevEventStream?.off('error', this.onStreamError);
             this.#prevEventStream?.off('timeout', this.onTimeout);
 
             await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
             await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
 
-            this.#protocol.dataStream.on('error', this.onError);
+            this.#protocol.dataStream.on('error', this.onStreamError);
             this.#protocol.dataStream.on('timeout', this.onTimeout);
-            this.#protocol.eventStream.on('error', this.onError);
+            this.#protocol.eventStream.on('error', this.onStreamError);
             this.#protocol.eventStream.on('timeout', this.onTimeout);
 
             this.#prevDataStream = this.#protocol.dataStream;

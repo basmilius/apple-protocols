@@ -21,42 +21,50 @@ export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | 
     let offset = 0;
     let readCount = state.readCount ?? 0;
 
-    while (offset < data.length) {
-        if (offset + 2 > data.length) {
-            return false;
+    try {
+        while (offset < data.length) {
+            if (offset + 2 > data.length) {
+                return false;
+            }
+
+            const frameLength = data.readUInt16LE(offset);
+            offset += 2;
+
+            if (frameLength === 0) {
+                throw new Error('Corrupt encrypted frame: zero-length frame');
+            }
+
+            const end = offset + frameLength + 16;
+
+            if (end > data.length) {
+                return false;
+            }
+
+            const ciphertext = data.subarray(offset, offset + frameLength);
+            const authTag = data.subarray(offset + frameLength, end);
+            offset = end;
+
+            const plaintext = Chacha20.decrypt(
+                state.readKey,
+                nonce(readCount++),
+                Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)),
+                ciphertext,
+                authTag
+            );
+
+            result.push(plaintext);
         }
 
-        const frameLength = data.readUInt16LE(offset);
-        offset += 2;
+        state.readCount = readCount;
 
-        if (frameLength === 0) {
-            throw new Error('Corrupt encrypted frame: zero-length frame');
-        }
-
-        const end = offset + frameLength + 16;
-
-        if (end > data.length) {
-            return false;
-        }
-
-        const ciphertext = data.subarray(offset, offset + frameLength);
-        const authTag = data.subarray(offset + frameLength, end);
-        offset = end;
-
-        const plaintext = Chacha20.decrypt(
-            state.readKey,
-            nonce(readCount++),
-            Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)),
-            ciphertext,
-            authTag
-        );
-
-        result.push(plaintext);
+        return Buffer.concat(result);
+    } catch (err) {
+        // Update counter on error so we stay in sync with the sender.
+        // The caller must discard the encrypted buffer to prevent retrying
+        // already-counted frames.
+        state.readCount = readCount;
+        throw err;
     }
-
-    state.readCount = readCount;
-
-    return Buffer.concat(result);
 }
 
 /**

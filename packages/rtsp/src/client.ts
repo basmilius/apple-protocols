@@ -296,6 +296,8 @@ export default class RtspClient extends Connection<{}> {
                 }
             }
         } catch (err) {
+            this.#encryptedBuffer = Buffer.alloc(0);
+            this.#buffer = Buffer.alloc(0);
             this.context.logger.error('[rtsp]', 'onRtspData()', err);
             this.emit('error', err as Error);
         }

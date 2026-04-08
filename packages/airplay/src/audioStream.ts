@@ -3,8 +3,8 @@ import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
 import { NTP, Plist } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
-import LatencyManager from './latencyManager';
-import type Protocol from './protocol';
+import { LatencyManager } from './latencyManager';
+import type { Protocol } from './protocol';
 import { streamWithTiming } from './streamTiming';
 
 /** Latency in frames (0.25 seconds at 44,100 Hz). Used for silence padding at end of stream. */
@@ -165,7 +165,7 @@ const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, a
  * - RFC 2198 audio redundancy support (configurable via AudioStreamOptions)
  * - Wall-clock-based timing to maintain real-time audio pace
  */
-export default class AudioStream {
+export class AudioStream {
     readonly #protocol: Protocol;
     readonly #context: Context;
     /** Configurable RFC 2198 redundancy count (0 = disabled). */

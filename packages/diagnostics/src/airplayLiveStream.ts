@@ -2,7 +2,7 @@ import * as AirPlay from '@basmilius/apple-airplay';
 import { Live } from '@basmilius/apple-audio-source';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AccessoryKeys, type Storage, TimingServer } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
-import getSavedCredentials from './getSavedCredentials';
+import { getSavedCredentials } from './getSavedCredentials';
 import { startSavingLogs } from './logger';
 import { discoverAndSelectDevice, isAppleTVDevice } from './shared';
 
@@ -43,7 +43,7 @@ async function generateSineWave(source: Live, frequency: number, durationSeconds
     source.end();
 }
 
-export default async function (storage: Storage): Promise<void> {
+export async function airplayLiveStream(storage: Storage): Promise<void> {
     console.log('This tool streams a live-generated sine wave to an AirPlay device.');
     console.log('It demonstrates the Live audio source with ring buffer.');
     console.log();

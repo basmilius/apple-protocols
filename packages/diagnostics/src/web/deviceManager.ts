@@ -5,7 +5,7 @@ import { Proto } from '@basmilius/apple-airplay';
 import * as CompanionLink from '@basmilius/apple-companion-link';
 import { COMPANION_LINK_PROTOCOL, AppleTV, HomePod } from '@basmilius/apple-sdk';
 import type { AirPlayPlayer, AirPlayState } from '@basmilius/apple-sdk';
-import getSavedCredentials from '../getSavedCredentials';
+import { getSavedCredentials } from '../getSavedCredentials';
 import { PlaybackStateLabel } from '../util';
 
 /** Set to true to include non-Apple TV / HomePod devices in the scan results. */
@@ -100,7 +100,7 @@ type PlayerSnapshot = {
 
 type DeviceManagerListener = (event: string, data: unknown) => void;
 
-export default class DeviceManager {
+export class DeviceManager {
 
     readonly #storage: Storage;
     readonly #listeners = new Set<DeviceManagerListener>();
@@ -241,7 +241,7 @@ export default class DeviceManager {
         const airplayCredentials = this.#storage.getCredentials(address, 'airplay');
 
         if (airplayCredentials) {
-            await this.#connectHomePod(syntheticResult);
+            await this.#connectAppleTV(syntheticResult);
         } else {
             await this.#connectHomePod(syntheticResult);
         }

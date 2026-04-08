@@ -8,7 +8,7 @@ import { hkdfSync } from 'node:crypto';
  * @param options - The HKDF parameters including hash algorithm, input key material, salt, info, and desired output length.
  * @returns The derived key material as a Buffer.
  */
-export default function (options: HKDFOptions): Buffer {
+export function hkdf(options: HKDFOptions): Buffer {
     return Buffer.from(hkdfSync(options.hash, options.key, options.salt, options.info, options.length));
 }
 

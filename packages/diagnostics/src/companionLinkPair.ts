@@ -4,7 +4,7 @@ import { prompt } from 'enquirer';
 import { startSavingLogs } from './logger';
 import { discoverAndSelectDevice } from './shared';
 
-export default async function (storage: Storage): Promise<void> {
+export async function companionLinkPair(storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
     const device = await discoverAndSelectDevice('companionLink', 'Which device would you like to pair?');

@@ -1,12 +1,12 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isMp3 } from './decoder';
-import BufferAudioSource from './bufferAudioSource';
+import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source for MP3 data. Decodes MP3 to signed 16-bit big-endian
  * PCM using a WASM-based decoder and serves the resulting buffer.
  */
-export default class Mp3 extends BufferAudioSource {
+export class Mp3 extends BufferAudioSource {
     /**
      * Creates an MP3 audio source from a pre-decoded PCM buffer.
      * Use {@link fromBuffer} or {@link fromUrl} to create instances

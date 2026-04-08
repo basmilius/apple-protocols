@@ -1,7 +1,7 @@
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE, mdnsMulticast, mdnsUnicast } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
 
-export default async function (): Promise<void> {
+export async function mdnsScan(): Promise<void> {
     const modeResponse: Record<string, string> = await prompt({
         name: 'mode',
         type: 'select',

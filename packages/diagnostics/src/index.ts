@@ -2,21 +2,21 @@ import { JsonStorage, reporter } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
 
 import { stopSavingLogs } from './logger';
-import airplayListen from './airplayListen';
-import airplayLiveStream from './airplayLiveStream';
-import airplayMonitor from './airplayMonitor';
-import airplayMultiRoom from './airplayMultiRoom';
-import airplayPlayUrl from './airplayPlayUrl';
-import airplayStreamAudio from './airplayStreamAudio';
-import airplayPair from './airplayPair';
-import companionLinkPair from './companionLinkPair';
-import companionLinkRemote from './companionLinkRemote';
-import appleTvAirPlayVerify from './appleTvAirPlayVerify';
-import appleTvCompanionLinkVerify from './appleTvCompanionLinkVerify';
-import homePodPlayAudio from './homePodPlayAudio';
-import mdnsScan from './mdnsScan';
-import interactiveAppleTv from './interactiveAppleTv';
-import interactiveHomePod from './interactiveHomePod';
+import { airplayListen } from './airplayListen';
+import { airplayLiveStream } from './airplayLiveStream';
+import { airplayMonitor } from './airplayMonitor';
+import { airplayMultiRoom } from './airplayMultiRoom';
+import { airplayPlayUrl } from './airplayPlayUrl';
+import { airplayStreamAudio } from './airplayStreamAudio';
+import { airplayPair } from './airplayPair';
+import { companionLinkPair } from './companionLinkPair';
+import { companionLinkRemote } from './companionLinkRemote';
+import { appleTvAirPlayVerify } from './appleTvAirPlayVerify';
+import { appleTvCompanionLinkVerify } from './appleTvCompanionLinkVerify';
+import { homePodPlayAudio } from './homePodPlayAudio';
+import { mdnsScan } from './mdnsScan';
+import { interactiveAppleTv } from './interactiveAppleTv';
+import { interactiveHomePod } from './interactiveHomePod';
 import { startWebServer } from './web/server';
 
 process.on('SIGINT', () => {

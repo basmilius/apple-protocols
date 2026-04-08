@@ -9,7 +9,7 @@ const DEFAULT_BUFFER_DURATION = 2;
  * via {@link readFrames}. When the buffer is full, the oldest data
  * is silently dropped to make room for new data.
  */
-export default class Live implements AudioSource {
+export class Live implements AudioSource {
     /** Duration is always Infinity for live sources. */
     readonly duration: number = Infinity;
 

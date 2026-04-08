@@ -1,6 +1,6 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { convertPcm } from './pcm';
-import audioDecode from './audioDecode';
+import { audioDecode } from './audioDecode';
 
 /**
  * Decodes an encoded audio buffer (MP3, OGG, WAV, FLAC, QOA) into
@@ -11,7 +11,7 @@ import audioDecode from './audioDecode';
  * @param buffer - Encoded audio data to decode.
  * @returns A buffer containing signed 16-bit big-endian interleaved stereo PCM.
  */
-export default async function (buffer: Buffer): Promise<Buffer> {
+export async function decode(buffer: Buffer): Promise<Buffer> {
     const audioBuffer = await audioDecode(buffer);
 
     const numChannels = audioBuffer.numberOfChannels;

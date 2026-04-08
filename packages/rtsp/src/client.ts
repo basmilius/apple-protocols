@@ -44,7 +44,7 @@ const MAX_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB
  * Subclasses should override {@link transformIncoming} and {@link transformOutgoing} to
  * add encryption/decryption, and {@link getDefaultHeaders} to inject per-request headers.
  */
-export default class RtspClient extends Connection<{}> {
+export class RtspClient extends Connection<{}> {
     /** Accumulates decrypted plaintext data waiting to be parsed as RTSP responses. */
     #buffer: Buffer = Buffer.alloc(0);
     /** Accumulates raw encrypted TCP data before transformation/decryption. */

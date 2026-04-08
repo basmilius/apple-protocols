@@ -142,7 +142,11 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         }
 
         this.#state?.unsubscribe();
-        await this.#protocol.disconnect();
+
+        // Snapshot the protocol reference to avoid a race condition where a
+        // concurrent connect() replaces this.#protocol before the await resumes.
+        const protocol = this.#protocol;
+        await protocol.disconnect();
     }
 
     /**
@@ -541,6 +545,7 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         this.#protocol.context.logger.net('onClose() called on companion link device.');
 
         if (!this.#disconnect) {
+            this.#disconnect = true;
             this.disconnectSafely();
             this.emit('disconnected', true);
         } else {

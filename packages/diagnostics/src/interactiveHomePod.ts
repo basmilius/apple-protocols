@@ -22,7 +22,7 @@ Available commands:
   quit                             Disconnect and exit
 `.trim();
 
-export default async function (storage: Storage): Promise<void> {
+export async function interactiveHomePod(storage: Storage): Promise<void> {
     const spinner = ora('Searching for HomePods...').start();
 
     const devices = await Discovery.airplay().find();

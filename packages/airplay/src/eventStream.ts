@@ -1,7 +1,7 @@
 import { deriveEncryptionKeys, type Context } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { buildResponse, type Method, parseRequest } from '@basmilius/apple-rtsp';
-import BaseStream from './baseStream';
+import { BaseStream } from './baseStream';
 
 /**
  * Event map for commands received from the Apple TV via the event stream.
@@ -30,7 +30,7 @@ export type EventStreamEventMap = {
  * derived from 'Events-Write-Encryption-Key' becomes our read key, because
  * these names are from the Apple TV's perspective.
  */
-export default class EventStream extends BaseStream<EventStreamEventMap> {
+export class EventStream extends BaseStream<EventStreamEventMap> {
     /** Accumulated plaintext buffer for partial RTSP request reassembly. */
     #buffer: Buffer = Buffer.alloc(0);
     /** Accumulated encrypted data awaiting decryption (may be a partial ChaCha20 frame). */

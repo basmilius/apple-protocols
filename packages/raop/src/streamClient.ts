@@ -5,9 +5,9 @@ import { EMPTY_METADATA, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLO
 import { AudioPacketHeader, PacketFifo } from './packets';
 import { EncryptionType, type MediaMetadata, MetadataType, type PlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
 import { getAudioProperties, getEncryptionTypes, getMetadataTypes, pctToDbfs } from './utils';
-import ControlClient from './controlClient';
-import Statistics from './statistics';
-import RtspClient from './rtspClient';
+import { ControlClient } from './controlClient';
+import { Statistics } from './statistics';
+import { RaopRtspClient as RtspClient } from './rtspClient';
 
 /**
  * Event map for the StreamClient, emitted during the audio streaming lifecycle.
@@ -28,7 +28,7 @@ export type EventMap = {
  * Uses a Statistics tracker to maintain real-time pacing and compensates
  * for slow packet sending by bursting additional packets when falling behind.
  */
-export default class StreamClient extends EventEmitter<EventMap> {
+export class StreamClient extends EventEmitter<EventMap> {
     /** Device info dictionary fetched from the receiver during initialization. */
     get info(): Record<string, unknown> {
         return this.#info;

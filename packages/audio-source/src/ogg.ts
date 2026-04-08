@@ -1,12 +1,12 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isOgg } from './decoder';
-import BufferAudioSource from './bufferAudioSource';
+import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source for OGG Vorbis data. Decodes OGG to signed 16-bit
  * big-endian PCM using a WASM-based decoder and serves the resulting buffer.
  */
-export default class Ogg extends BufferAudioSource {
+export class Ogg extends BufferAudioSource {
     /**
      * Creates an OGG audio source from a pre-decoded PCM buffer.
      * Use {@link fromBuffer} or {@link fromUrl} to create instances

@@ -18,7 +18,7 @@ type DefaultEventMap = {
  * encryption that uses length-prefixed frames and a 12-byte nonce with a
  * 4-byte zero prefix followed by an 8-byte little-endian counter.
  */
-export default class BaseStream<TEventMap extends EventMap = {}> extends EncryptionAwareConnection<DefaultEventMap & TEventMap> {
+export class BaseStream<TEventMap extends EventMap = {}> extends EncryptionAwareConnection<DefaultEventMap & TEventMap> {
     /**
      * Decrypts incoming data using AirPlay's ChaCha20 frame format.
      *

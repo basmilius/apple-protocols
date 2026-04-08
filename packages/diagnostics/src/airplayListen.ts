@@ -1,10 +1,10 @@
 import * as AirPlay from '@basmilius/apple-airplay';
 import { type AccessoryKeys, type Storage, TimingServer } from '@basmilius/apple-common';
-import getSavedCredentials from './getSavedCredentials';
+import { getSavedCredentials } from './getSavedCredentials';
 import { startSavingLogs } from './logger';
 import { discoverAndSelectDevice, isAppleTVDevice, isHomePodDevice } from './shared';
 
-export default async function (storage: Storage): Promise<void> {
+export async function airplayListen(storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
     const device = await discoverAndSelectDevice('airplay', 'Which device would you like to listen to?');

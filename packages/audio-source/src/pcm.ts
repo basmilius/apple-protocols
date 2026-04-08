@@ -1,11 +1,11 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
-import BufferAudioSource from './bufferAudioSource';
+import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source for raw signed 16-bit big-endian PCM data. Serves
  * the provided buffer directly without any decoding or conversion.
  */
-export default class Pcm extends BufferAudioSource {
+export class Pcm extends BufferAudioSource {
     /**
      * Creates a raw PCM audio source.
      *

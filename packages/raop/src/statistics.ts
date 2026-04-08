@@ -3,7 +3,7 @@
  * sending falls behind wall-clock time. Uses high-resolution monotonic
  * timers to compare actual frames sent against expected frame count.
  */
-export default class Statistics {
+export class Statistics {
     /** Audio sample rate in Hz, used to compute expected frame counts. */
     readonly sampleRate: number;
     /** High-resolution monotonic timestamp (nanoseconds) captured at construction. */

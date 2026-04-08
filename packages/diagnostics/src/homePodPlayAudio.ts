@@ -4,7 +4,7 @@ import { RaopClient } from '@basmilius/apple-raop';
 import { startSavingLogs } from './logger';
 import { discoverAndSelectDevice, isHomePodDevice } from './shared';
 
-export default async function (): Promise<void> {
+export async function homePodPlayAudio(): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
     const device = await discoverAndSelectDevice('airplay', 'Which device would you like to play audio on?');

@@ -31,7 +31,7 @@ type QueueEntry = [resolve: Function, reject: Function, timer: NodeJS.Timeout];
  *
  * Nonce format (Companion Link): 12-byte LE counter at offset 0 (8-byte counter + 4 zero bytes).
  */
-export default class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
+export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
     /** Accessor for the parent class's encryption state (keys and nonce counters). */
     get #encryptionState(): EncryptionState {
         return this._encryption;

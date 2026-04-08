@@ -2,8 +2,8 @@ import { EventEmitter } from 'node:events';
 import type { Socket as UdpSocket } from 'node:dgram';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, Context, Discovery, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
 import type { MediaMetadata, PlaybackInfo, Settings, StreamContext, StreamProtocol } from './types';
-import RtspClient from './rtspClient';
-import StreamClient from './streamClient';
+import { RaopRtspClient as RtspClient } from './rtspClient';
+import { StreamClient } from './streamClient';
 
 /**
  * Event map for the RaopClient, emitted during the streaming lifecycle.

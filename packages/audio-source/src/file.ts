@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isMp3, isOgg, isWav } from './decoder';
-import BufferAudioSource from './bufferAudioSource';
+import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source that reads from a pre-decoded PCM buffer loaded from a file.
  * Supports automatic detection and decoding of MP3, OGG, and WAV formats
  * via the {@link fromPath} factory method.
  */
-export default class File extends BufferAudioSource {
+export class File extends BufferAudioSource {
     /**
      * Creates a File audio source from a pre-decoded PCM buffer.
      *

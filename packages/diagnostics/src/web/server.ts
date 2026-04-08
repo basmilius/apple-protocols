@@ -2,10 +2,10 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Server, ServerWebSocket } from 'bun';
 import type { Storage } from '@basmilius/apple-common';
-import DeviceManager from './deviceManager';
+import { DeviceManager } from './deviceManager';
 import { handleApiRequest } from './api';
 import { addLogListener, getLogBuffer, installLogBridge, removeLogListener, type LogEntry } from './logBridge';
-import embeddedAssets from './embeddedAssets';
+import { embeddedAssets } from './embeddedAssets';
 
 type WebSocketData = {
     id: string;

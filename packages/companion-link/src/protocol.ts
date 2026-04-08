@@ -6,7 +6,7 @@ import { FrameType } from './frame';
 import { Pairing, Verify } from './pairing';
 import type { AttentionState, ButtonPressType, LaunchableApp, UserAccount } from './types';
 import { convertAttentionState } from './utils';
-import Stream from './stream';
+import { Stream } from './stream';
 import * as Message from './messages';
 
 /**
@@ -25,7 +25,7 @@ import * as Message from './messages';
  * 5. Use HID, touch, text input, media control, etc.
  * 6. `disconnect()` - gracefully tear down
  */
-export default class Protocol {
+export class Protocol {
     /** The device context providing logger, storage, and identity. */
     get context(): Context {
         return this.#context;

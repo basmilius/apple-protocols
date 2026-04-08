@@ -1,10 +1,10 @@
 import { type AudioSource, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, randomInt64, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
-import AudioStream from './audioStream';
-import ControlStream from './controlStream';
-import DataStream from './dataStream';
-import EventStream from './eventStream';
+import { AudioStream } from './audioStream';
+import { ControlStream } from './controlStream';
+import { DataStream } from './dataStream';
+import { EventStream } from './eventStream';
 
 import { describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from '@basmilius/apple-common';
 
@@ -90,7 +90,7 @@ export type PlaybackInfo = {
  *
  * For audio streaming, use `setupAudioStream()` or `playUrl()` instead of steps 5-6.
  */
-export default class Protocol {
+export class Protocol {
     /** Shared context with logger, device identity, and storage. */
     get context(): Context {
         return this.#context;

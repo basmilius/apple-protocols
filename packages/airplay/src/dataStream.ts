@@ -2,7 +2,7 @@ import { ConnectionClosedError, type Context, deriveEncryptionKeys, randomInt32,
 import { Plist } from '@basmilius/apple-encoding';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
-import BaseStream from './baseStream';
+import { BaseStream } from './baseStream';
 import * as Proto from './proto';
 
 /** Size of the DataStream frame header in bytes. */
@@ -101,7 +101,7 @@ type EventMap = {
  * type handlers that emit typed events for now-playing updates, volume changes,
  * keyboard input, device info, and more.
  */
-export default class DataStream extends BaseStream<EventMap> {
+export class DataStream extends BaseStream<EventMap> {
     /** Accumulated plaintext buffer for partial frame reassembly. */
     #buffer: Buffer = Buffer.alloc(0);
     /** Accumulated encrypted data awaiting decryption (may be a partial ChaCha20 frame). */

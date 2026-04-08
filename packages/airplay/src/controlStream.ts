@@ -11,7 +11,7 @@ import { chacha20Decrypt, chacha20Encrypt } from './encryption';
  * after pair-verify completes. All AirPlay RTSP methods (SETUP, RECORD, FLUSH,
  * TEARDOWN, etc.) are exposed as convenience methods.
  */
-export default class ControlStream extends RtspClient {
+export class ControlStream extends RtspClient {
     /** Unique identifier for DACP remote control, sent in every request. */
     get activeRemoteId(): string {
         return this.#activeRemoteId;

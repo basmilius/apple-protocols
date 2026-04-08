@@ -28,7 +28,7 @@ const GLITCH_WINDOW_MS = 5000;
  * 4. Call `reportGlitch()` when a glitch is detected (packet loss, NACK, late arrival)
  * 5. The manager automatically adjusts the latency tier
  */
-export default class LatencyManager {
+export class LatencyManager {
     readonly #sampleRate: number;
     #tierIndex: number = 0;
     #consecutiveSuccesses: number = 0;

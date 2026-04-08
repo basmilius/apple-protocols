@@ -27,9 +27,9 @@ export {
     pctToDbfs
 } from './utils';
 
-export { default as ControlClient } from './controlClient';
-export { default as RtspClient } from './rtspClient';
-export { default as Statistics } from './statistics';
-export { default as StreamClient } from './streamClient';
+export { ControlClient } from './controlClient';
+export { RaopRtspClient as RtspClient } from './rtspClient';
+export { Statistics } from './statistics';
+export { StreamClient } from './streamClient';
 
 export { RaopClient, type EventMap, type StreamOptions } from './raop';

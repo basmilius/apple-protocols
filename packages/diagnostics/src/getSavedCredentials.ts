@@ -1,6 +1,6 @@
 import type { AccessoryCredentials, DiscoveryResult, ProtocolType, Storage } from '@basmilius/apple-common';
 
-export default function (storage: Storage, device: DiscoveryResult, protocol: ProtocolType): AccessoryCredentials {
+export function getSavedCredentials(storage: Storage, device: DiscoveryResult, protocol: ProtocolType): AccessoryCredentials {
     const credentials = storage.getCredentials(device.id, protocol);
 
     if (!credentials) {

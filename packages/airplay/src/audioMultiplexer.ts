@@ -1,6 +1,6 @@
 import { AUDIO_FRAMES_PER_PACKET, type AudioSource, type Context } from '@basmilius/apple-common';
-import AudioStream, { type AudioStreamOptions } from './audioStream';
-import type Protocol from './protocol';
+import { AudioStream, type AudioStreamOptions } from './audioStream';
+import type { Protocol } from './protocol';
 import { streamWithTiming } from './streamTiming';
 
 /**
@@ -24,7 +24,7 @@ type Target = {
  * are sent to catch up. Timing logic is shared with {@link AudioStream} via
  * {@link streamWithTiming}.
  */
-export default class AudioMultiplexer {
+export class AudioMultiplexer {
     readonly #context: Context;
     readonly #targets: Target[] = [];
 

@@ -1,4 +1,4 @@
-import type DeviceManager from './deviceManager';
+import type { DeviceManager } from './deviceManager';
 
 export function handleApiRequest(req: Request, manager: DeviceManager): Response | null {
     const url = new URL(req.url);

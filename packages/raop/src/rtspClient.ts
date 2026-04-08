@@ -105,7 +105,7 @@ function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
  * ANNOUNCE, SETUP, RECORD, SET_PARAMETER, FLUSH, TEARDOWN, as well as
  * authentication (auth-setup, digest) and metadata/artwork publishing.
  */
-export default class RaopRtspClient extends RtspClient {
+export class RaopRtspClient extends RtspClient {
     /** Active-Remote identifier used for DACP remote control pairing. */
     get activeRemoteId(): string {
         return this.#activeRemoteId;

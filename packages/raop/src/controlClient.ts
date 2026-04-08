@@ -41,7 +41,7 @@ function ntpFromTs(rtpTimestamp: number, sampleRate: number, anchorRtp: number, 
  * 2. Handling retransmit requests from the receiver by resending lost
  *    packets from the packet backlog.
  */
-export default class ControlClient extends EventEmitter {
+export class ControlClient extends EventEmitter {
     /** Application context providing logger and device identity. */
     readonly #appContext: Context;
     /** UDP socket for the control channel. */

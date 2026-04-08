@@ -1,7 +1,7 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, deriveEncryptionKeys, InvalidResponseError } from '@basmilius/apple-common';
 import { FrameType } from './frame';
-import type Protocol from './protocol';
-import type Stream from './stream';
+import type { Protocol } from './protocol';
+import type { Stream } from './stream';
 
 /**
  * Handles the HAP pair-setup flow (M1-M6) for the Companion Link protocol.

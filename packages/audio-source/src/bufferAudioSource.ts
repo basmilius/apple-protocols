@@ -6,7 +6,7 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, type AudioSource } from '@basm
  * {@link start}, and {@link stop} so that subclasses only need to supply
  * the buffer, duration, and (optionally) the frame size.
  */
-export default abstract class BufferAudioSource implements AudioSource {
+export abstract class BufferAudioSource implements AudioSource {
     /** Total duration of the audio in seconds. */
     readonly duration: number;
 

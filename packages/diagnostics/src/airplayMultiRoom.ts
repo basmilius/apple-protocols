@@ -3,7 +3,7 @@ import { Url } from '@basmilius/apple-audio-source';
 import { type AccessoryKeys, Context, Discovery, type DiscoveryResult, type Storage, TimingServer } from '@basmilius/apple-common';
 import { prompt } from 'enquirer';
 import ora from 'ora';
-import getSavedCredentials from './getSavedCredentials';
+import { getSavedCredentials } from './getSavedCredentials';
 import { startSavingLogs } from './logger';
 import { isAppleTVDevice } from './shared';
 
@@ -51,7 +51,7 @@ async function prepareDevice(
     return {discoveryResult, protocol, keys, feedbackInterval};
 }
 
-export default async function (storage: Storage): Promise<void> {
+export async function airplayMultiRoom(storage: Storage): Promise<void> {
     console.log('This tool streams audio to multiple AirPlay devices simultaneously.');
     console.log('Select two or more devices for multi-room playback.');
     console.log();

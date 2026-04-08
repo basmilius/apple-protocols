@@ -3,7 +3,7 @@ import { type Protocol } from '@basmilius/apple-companion-link';
 import { CompanionLinkManager, COMPANION_LINK_PROTOCOL } from '@basmilius/apple-sdk';
 import { prompt } from 'enquirer';
 import ora from 'ora';
-import getSavedCredentials from './getSavedCredentials';
+import { getSavedCredentials } from './getSavedCredentials';
 import { createInteractiveLogger } from './shared';
 import { startSavingLogs } from './logger';
 
@@ -101,7 +101,7 @@ Available commands:
   quit                                Disconnect and exit
 `.trim();
 
-export default async function (storage: Storage): Promise<void> {
+export async function companionLinkRemote(storage: Storage): Promise<void> {
     const spinner = ora('Searching for Companion Link devices...').start();
     const devices = await Discovery.companionLink().find(false);
 

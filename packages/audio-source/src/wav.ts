@@ -1,12 +1,12 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isWav } from './decoder';
-import BufferAudioSource from './bufferAudioSource';
+import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source for WAV data. Decodes WAV (including WAVE_FORMAT_EXTENSIBLE)
  * to signed 16-bit big-endian PCM and serves the resulting buffer.
  */
-export default class Wav extends BufferAudioSource {
+export class Wav extends BufferAudioSource {
     /**
      * Creates a WAV audio source from a pre-decoded PCM buffer.
      * Use {@link fromBuffer} or {@link fromUrl} to create instances

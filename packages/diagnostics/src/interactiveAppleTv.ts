@@ -4,7 +4,7 @@ import { Proto } from '@basmilius/apple-airplay';
 import { AppleTV, COMPANION_LINK_PROTOCOL } from '@basmilius/apple-sdk';
 import { prompt } from 'enquirer';
 import ora from 'ora';
-import getSavedCredentials from './getSavedCredentials';
+import { getSavedCredentials } from './getSavedCredentials';
 import { createInteractiveLogger, formatTime, PlaybackStateLabel, printAirPlayState } from './shared';
 
 const log = createInteractiveLogger();
@@ -52,7 +52,7 @@ Available commands:
   quit                             Disconnect and exit
 `.trim();
 
-export default async function (storage: Storage): Promise<void> {
+export async function interactiveAppleTv(storage: Storage): Promise<void> {
     const spinner = ora('Searching for devices...').start();
 
     const airplayDevices = await Discovery.airplay().find(false);

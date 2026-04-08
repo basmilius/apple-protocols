@@ -1,6 +1,6 @@
 import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, deriveEncryptionKeys, PairingError } from '@basmilius/apple-common';
-import type ControlStream from './controlStream';
-import type Protocol from './protocol';
+import type { ControlStream } from './controlStream';
+import type { Protocol } from './protocol';
 
 /**
  * AirPlay-specific pair-setup wrapper.

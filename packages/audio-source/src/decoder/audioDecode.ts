@@ -14,7 +14,7 @@ const AudioBuffer = globalThis.AudioBuffer || AudioBufferShim;
  * @returns An AudioBuffer containing the decoded channel data.
  * @throws Error if the input is invalid, the format cannot be detected, or no decoder is available.
  */
-export default async function audioDecode(buf: any): Promise<any> {
+export async function audioDecode(buf: any): Promise<any> {
     if (!buf || !(buf.length || buf.buffer)) throw Error('Bad decode target');
     buf = new Uint8Array(buf.buffer || buf);
 

@@ -6,7 +6,7 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioS
  * signed 16-bit big-endian PCM by spawning an `ffmpeg` child process.
  * Requires FFmpeg to be installed and available on the system PATH.
  */
-export default class Ffmpeg implements AudioSource {
+export class Ffmpeg implements AudioSource {
     /** Total duration of the audio in seconds. */
     readonly duration: number;
 

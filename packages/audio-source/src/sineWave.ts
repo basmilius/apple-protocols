@@ -1,12 +1,12 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
-import BufferAudioSource from './bufferAudioSource';
+import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source that generates a pure sine wave tone. Useful for
  * testing and diagnostics. The generated signal includes a short
  * fade-in and fade-out envelope (50ms) to avoid click artifacts.
  */
-export default class SineWave extends BufferAudioSource {
+export class SineWave extends BufferAudioSource {
     /**
      * Creates a sine wave audio source with the specified parameters.
      *

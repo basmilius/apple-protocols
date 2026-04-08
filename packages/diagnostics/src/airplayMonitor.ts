@@ -1,12 +1,12 @@
 import { Proto } from '@basmilius/apple-airplay';
 import { TimingServer, type Storage } from '@basmilius/apple-common';
 import { AirPlayManager } from '@basmilius/apple-sdk';
-import getSavedCredentials from './getSavedCredentials';
+import { getSavedCredentials } from './getSavedCredentials';
 import { createMonitorLogger, discoverAndSelectDevice, formatTime, isAppleTVDevice, PlaybackStateLabel } from './shared';
 
 const log = createMonitorLogger();
 
-export default async function (storage: Storage): Promise<void> {
+export async function airplayMonitor(storage: Storage): Promise<void> {
     console.log('If your device is not shown, restart the diagnostics tool and try again.');
 
     const discoveryResult = await discoverAndSelectDevice('airplay', 'Which device would you like to monitor?');

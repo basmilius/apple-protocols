@@ -1,9 +1,16 @@
 # Apple Protocols
-
-TypeScript monorepo with implementations of proprietary Apple network protocols: **AirPlay 2**, **RAOP**, **Companion Link**, and supporting layers. Built with [Bun](https://bun.sh/) workspaces.
-
-Developed for use with [Apple for Homey Pro](https://github.com/basmilius/homey-apple).
-
+ 
+TypeScript monorepo with implementations of proprietary Apple network protocols: **AirPlay 2**, **RAOP**, **Companion Link**, and supporting layers.
+ 
+Apple doesn't document these protocols, so most of this was reverse-engineered by studying network traffic and similar projects. The TypeScript rewrite started because I needed something lightweight enough to run on a [Homey Pro](https://github.com/basmilius/homey-apple) without the overhead of a Python runtime. AI tooling (Claude Code) helped speed up the more tedious parts, like iterating through protocol handshakes and generating the 117 protobuf definitions.
+ 
+## What you can do with this
+ 
+- Discover, pair, and control Apple TV and HomePod devices from TypeScript/Node/Bun.
+- Stream audio (MP3, FLAC, OGG, WAV) to AirPlay 2 devices, including multi-room.
+- Read now-playing state, control playback, manage apps and accounts.
+- Use the diagnostics tool for interactive testing and debugging.
+ 
 ## Requirements
 
 - [Bun](https://bun.sh/)

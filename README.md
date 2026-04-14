@@ -1,4 +1,6 @@
 # Apple Protocols
+
+[![🚀 Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)
  
 TypeScript monorepo with implementations of proprietary Apple network protocols: **AirPlay 2**, **RAOP**, **Companion Link**, and supporting layers.
  

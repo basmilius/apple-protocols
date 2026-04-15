@@ -1,10 +1,12 @@
 :root {
-    --font-monospace: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    --font-family: 'Inter Variable', sans-serif;
+    --font-monospace: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Consolas', monospace;
 }
 
 body {
     -webkit-user-select: none;
     user-select: none;
+    font-family: var(--font-family);
 }
 
 #app {
@@ -17,12 +19,26 @@ body {
 
 .sidebar {
     display: flex;
-    width: 330px;
+    width: 360px;
     flex-flow: column;
     flex-shrink: 0;
     overflow: hidden;
     background: var(--gray-25);
     border-right: 1px solid var(--surface-stroke);
+}
+
+.sidebar-tabs {
+    flex-shrink: 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--surface-stroke);
+}
+
+.sidebar-content {
+    display: flex;
+    flex: 1;
+    flex-flow: column;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .sidebar-section {
@@ -661,6 +677,36 @@ $log-categories: (
 
 .section-body {
     padding: 0 16px 12px;
+}
+
+// mDNS scanner
+
+.mdns-results {
+    display: flex;
+    flex-flow: column;
+    gap: 2px;
+    padding: 0 8px 8px;
+    overflow-y: auto;
+}
+
+.mdns-result-item {
+    padding: 8px 10px;
+    border-radius: var(--radius-half);
+    background: var(--surface-hover);
+}
+
+.mdns-result-name {
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mdns-result-meta {
+    font-size: 11px;
+    color: var(--foreground-secondary);
+    margin-top: 1px;
 }
 
 // Pin input

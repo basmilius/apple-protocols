@@ -1,3 +1,4 @@
+import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE, mdnsMulticast, mdnsUnicast } from '@basmilius/apple-common';
 import type { DeviceManager } from './deviceManager';
 
 export function handleApiRequest(req: Request, manager: DeviceManager): Response | null {
@@ -40,6 +41,10 @@ export function handleApiRequest(req: Request, manager: DeviceManager): Response
 
     if (req.method === 'POST' && path === '/api/pair/cancel') {
         return handlePairCancel(manager);
+    }
+
+    if (req.method === 'POST' && path === '/api/mdns/scan') {
+        return handleMdnsScan(req);
     }
 
     const commandWithArgMatch = path.match(/^\/api\/command\/([^/]+)\/(.+)$/);
@@ -117,6 +122,27 @@ function handlePairPin(req: Request, manager: DeviceManager): Response {
 
         manager.submitPairingPin(body.pin);
         return {ok: true};
+    });
+}
+
+function handleMdnsScan(req: Request): Response {
+    return asyncJson(async () => {
+        const body = await req.json() as {mode?: string; host?: string; timeout?: number};
+        const mode = body.mode ?? 'multicast';
+        const timeout = body.timeout ?? 4;
+        const services = [AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE];
+
+        if (mode === 'unicast') {
+            if (!body.host) {
+                throw new Error('Host is required for unicast scan');
+            }
+
+            const results = await mdnsUnicast([body.host], services, timeout);
+            return {results};
+        }
+
+        const results = await mdnsMulticast(services, timeout);
+        return {results};
     });
 }
 

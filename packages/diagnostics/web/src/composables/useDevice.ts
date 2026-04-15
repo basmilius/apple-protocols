@@ -2,6 +2,14 @@ import { ref } from 'vue';
 import { showSnackbar } from '@flux-ui/components';
 import type { DeviceInfo } from './useWebSocket';
 
+export type MdnsResult = {
+    name: string;
+    type: string;
+    address: string;
+    port: number;
+    properties: Record<string, string>;
+};
+
 export function useDevice() {
     const devices = ref<DeviceInfo[]>([]);
     const discovering = ref(false);
@@ -118,5 +126,15 @@ export function useDevice() {
         }
     };
 
-    return {devices, discovering, connecting, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing};
+    const scanMdns = async (mode: 'multicast' | 'unicast', host?: string): Promise<MdnsResult[]> => {
+        try {
+            const data = await apiCall('/api/mdns/scan', 'POST', {mode, host});
+            return data?.results ?? [];
+        } catch {
+            showError('mDNS scan failed: network error');
+            return [];
+        }
+    };
+
+    return {devices, discovering, connecting, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing, scanMdns};
 }

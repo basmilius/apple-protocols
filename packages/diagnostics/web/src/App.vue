@@ -1,24 +1,44 @@
 <template>
     <FluxRoot>
         <div class="sidebar">
-            <DevicePicker
-                :devices="devices"
-                :discovering="discovering"
-                :connecting="connecting"
-                :connected-device="state.device"
-                :ws-connected="wsConnected"
-                @discover="discover"
-                @connect="connectDevice"
-                @connect-ip="connectByIp"
-                @disconnect="disconnectDevice"
-                @pair="openPairing"/>
+            <div class="sidebar-tabs">
+                <FluxSegmentedControl
+                    v-model="sidebarTab"
+                    :items="sidebarTabs"
+                    is-fill/>
+            </div>
 
-            <AppAccountSwitcher
-                v-if="state.companionLink"
-                :companion-link-connected="state.companionLink?.connected === true"
-                :send-command="sendCommand"/>
+            <div class="sidebar-content">
+                <!-- Tab: Devices -->
+                <template v-if="sidebarTab === 0">
+                    <DevicePicker
+                        :devices="devices"
+                        :discovering="discovering"
+                        :connecting="connecting"
+                        :connected-device="state.device"
+                        :ws-connected="wsConnected"
+                        @discover="discover"
+                        @connect="connectDevice"
+                        @connect-ip="connectByIp"
+                        @disconnect="disconnectDevice"
+                        @pair="openPairing"/>
+                </template>
 
-            <StatePanel :state="state"/>
+                <!-- Tab: Device -->
+                <template v-if="sidebarTab === 1">
+                    <AppAccountSwitcher
+                        v-if="state.companionLink"
+                        :companion-link-connected="state.companionLink?.connected === true"
+                        :send-command="sendCommand"/>
+
+                    <StatePanel :state="state"/>
+                </template>
+
+                <!-- Tab: Network -->
+                <template v-if="sidebarTab === 2">
+                    <MdnsScanPanel :scan-mdns="scanMdns"/>
+                </template>
+            </div>
         </div>
 
         <div class="main">
@@ -56,7 +76,7 @@
     setup
     lang="ts">
     import { ref } from 'vue';
-    import { FluxRoot } from '@flux-ui/components';
+    import { FluxRoot, FluxSegmentedControl } from '@flux-ui/components';
     import { useWebSocket } from './composables/useWebSocket';
     import { useDevice } from './composables/useDevice';
     import AppAccountSwitcher from './components/AppAccountSwitcher.vue';
@@ -66,10 +86,18 @@
     import NowPlaying from './components/NowPlaying.vue';
     import StatePanel from './components/StatePanel.vue';
     import ConsoleLog from './components/ConsoleLog.vue';
+    import MdnsScanPanel from './components/MdnsScanPanel.vue';
     import PairingDialog from './components/PairingDialog.vue';
 
     const {logs, state, wsConnected, pairing, clearLogs, dismissPairingResult} = useWebSocket();
-    const {devices, discovering, connecting, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing} = useDevice();
+    const {devices, discovering, connecting, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing, scanMdns} = useDevice();
+
+    const sidebarTab = ref(0);
+    const sidebarTabs = [
+        {label: 'Devices', icon: 'radar'},
+        {label: 'Device', icon: 'display'},
+        {label: 'Network', icon: 'network-wired'}
+    ];
 
     const showPairingDialog = ref(false);
 

@@ -566,10 +566,12 @@ export function knock(address: string): Promise<void> {
  * @returns An array of resolved mDNS services.
  */
 export function unicast(hosts: string[], services: string[], timeout: number = 4): Promise<MdnsService[]> {
+    const expectedCount = hosts.length * services.length;
+
     return new Promise((resolve) => {
-        const queries = createQueryPackets(services);
+        const queries = createQueryPackets(services, QueryType.PTR, true);
         const collector = new ServiceCollector();
-        const sockets: UdpSocket[] = [];
+        const socket = createSocket('udp4');
         let resolved = false;
 
         const finish = () => {
@@ -580,45 +582,44 @@ export function unicast(hosts: string[], services: string[], timeout: number = 4
             resolved = true;
             clearInterval(interval);
 
-            for (const socket of sockets) {
-                try {
-                    socket.close();
-                } catch {}
-            }
+            try {
+                socket.close();
+            } catch {}
 
             resolve(collector.services);
         };
 
+        socket.on('message', (data) => {
+            try {
+                const response = decodeDnsResponse(data);
+                collector.addRecords(response.answers, response.resources);
+
+                if (collector.services.length >= expectedCount) {
+                    finish();
+                }
+            } catch {}
+        });
+
+        socket.on('error', () => {});
+
+        // Wake devices (fire-and-forget) and start querying immediately.
         for (const host of hosts) {
-            const socket = createSocket('udp4');
-            sockets.push(socket);
-
-            socket.on('message', (data) => {
-                try {
-                    const response = decodeDnsResponse(data);
-                    collector.addRecords(response.answers, response.resources);
-                } catch {}
-            });
-
-            socket.on('error', () => {});
+            knock(host);
         }
+
+        const sendQueries = () => {
+            for (const host of hosts) {
+                for (const query of queries) {
+                    socket.send(query, MDNS_PORT, host);
+                }
+            }
+        };
 
         let interval: NodeJS.Timeout;
 
-        // Wake devices first, then start querying
-        Promise.all(hosts.map(h => knock(h))).then(() => {
-            const sendQueries = () => {
-                for (let i = 0; i < hosts.length; i++) {
-                    for (const query of queries) {
-                        sockets[i]?.send(query, MDNS_PORT, hosts[i]);
-                    }
-                }
-            };
-
-            sendQueries();
-            interval = setInterval(sendQueries, 1000);
-            setTimeout(finish, timeout * 1000);
-        });
+        sendQueries();
+        interval = setInterval(sendQueries, 1000);
+        setTimeout(finish, timeout * 1000);
     });
 }
 

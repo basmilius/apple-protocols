@@ -1,4 +1,5 @@
 export {
+    faAngleDown,
     faArrowLeft,
     faArrowsRotate,
     faBackward,
@@ -20,10 +21,12 @@ export {
     faMagnifyingGlass,
     faMicrophone,
     faMoon,
+    faNetworkWired,
     faPause,
     faPlay,
     faPlus,
     faPowerOff,
+    faRadar,
     faRocketLaunch,
     faSun,
     faTrash,

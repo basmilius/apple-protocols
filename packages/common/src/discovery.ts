@@ -2,7 +2,7 @@ import { parseFeatures } from './airplayFeatures';
 import { waitFor } from './cli';
 import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from './const';
 import { DiscoveryError } from './errors';
-import { knock, multicast, type MdnsService } from './mdns';
+import { knock, multicast, unicast, type MdnsService } from './mdns';
 import { Logger } from './reporter';
 import type { CombinedDiscoveryResult, DiscoveryResult } from './types';
 
@@ -146,6 +146,21 @@ export class Discovery {
         }
 
         throw new DiscoveryError(`Device '${id}' not found after several tries, aborting.`);
+    }
+
+    /**
+     * Discovers a device at a specific IP address via unicast DNS-SD.
+     * Bypasses the cache entirely since it targets a known host.
+     *
+     * @param address - The IP address of the device to query.
+     * @param timeout - Discovery duration in seconds. Defaults to 4.
+     * @returns The discovered device, or null if not found.
+     */
+    async findByAddress(address: string, timeout: number = 4): Promise<DiscoveryResult | null> {
+        const services = await unicast([address], [this.#service], timeout);
+        const match = services.find(s => s.address === address);
+
+        return match ? toDiscoveryResult(match) : null;
     }
 
     /** Clears all cached discovery results across all service types. */

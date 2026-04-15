@@ -15,3 +15,5 @@ node_modules/
 
 /error.log
 /output.log
+
+packages/diagnostics/src/web/embeddedAssets.ts

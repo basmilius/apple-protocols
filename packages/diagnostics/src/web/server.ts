@@ -5,7 +5,8 @@ import type { Storage } from '@basmilius/apple-common';
 import { DeviceManager } from './deviceManager';
 import { handleApiRequest } from './api';
 import { addLogListener, getLogBuffer, installLogBridge, removeLogListener, type LogEntry } from './logBridge';
-import { embeddedAssets } from './embeddedAssets';
+
+let embeddedAssets: Record<string, string> = {};
 
 type WebSocketData = {
     id: string;
@@ -21,6 +22,17 @@ export type WebServer = {
 
 export async function startWebServer(storage: Storage, port = 3000): Promise<WebServer> {
     installLogBridge();
+
+    const DEV = process.env.DEV === '1';
+
+    if (!DEV && !useFileSystem) {
+        try {
+            const mod = await import('./embeddedAssets');
+            embeddedAssets = mod.embeddedAssets;
+        } catch {
+            // embeddedAssets.ts nog niet gegenereerd — embedded serving zal 404 geven.
+        }
+    }
 
     const manager = new DeviceManager(storage);
     const clients = new Set<ServerWebSocket<WebSocketData>>();
@@ -51,6 +63,10 @@ export async function startWebServer(storage: Storage, port = 3000): Promise<Web
 
             if (apiResponse) {
                 return apiResponse;
+            }
+
+            if (DEV) {
+                return new Response('Not found (dev mode — use http://localhost:5173)', {status: 404});
             }
 
             return serveStatic(url.pathname);
@@ -91,7 +107,11 @@ export async function startWebServer(storage: Storage, port = 3000): Promise<Web
         }
     });
 
-    console.log(`Web diagnostics server running at http://localhost:${port}`);
+    if (DEV) {
+        console.log(`Web diagnostics API running at http://localhost:${port} (dev mode — frontend at http://localhost:5173)`);
+    } else {
+        console.log(`Web diagnostics server running at http://localhost:${port}`);
+    }
 
     return {
         server,

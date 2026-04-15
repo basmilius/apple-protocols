@@ -46,8 +46,8 @@
     "devDependencies": {
         "@plist/binary.parse": "^1.1.0",
         "@plist/binary.serialize": "^1.1.0",
-        "@types/bun": "^1.3.11",
-        "@types/node": "^25.5.0",
-        "tsdown": "^0.21.6"
+        "@types/bun": "^1.3.12",
+        "@types/node": "^25.6.0",
+        "tsdown": "^0.21.8"
     }
 }

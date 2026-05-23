@@ -1,4 +1,4 @@
-import { type AudioSource, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, randomInt64, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
+import { type AudioSource, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, type PtpMaster, randomInt64, selectTimingStrategy, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import { AudioStream } from './audioStream';
@@ -157,6 +157,7 @@ export class Protocol {
     #eventStream?: EventStream;
     #keepAlivePort?: number;
     #playUrlFeedbackInterval?: NodeJS.Timeout;
+    #ptpMaster?: PtpMaster;
     #receiverFeatures: bigint = 0n;
     #receiverInfo?: Record<string, any>;
     #timingServer?: TimingServer;
@@ -297,10 +298,17 @@ export class Protocol {
             this.#context.logger.warn('[protocol]', 'Error destroying control stream', err);
         }
 
+        try {
+            this.#ptpMaster?.stop();
+        } catch (err) {
+            this.#context.logger.warn('[protocol]', 'Error stopping PTP master', err);
+        }
+
         this.#stopPlayUrlFeedback();
         this.#audioStream = undefined;
         this.#dataStream = undefined;
         this.#eventStream = undefined;
+        this.#ptpMaster = undefined;
         this.#timingServer = undefined;
     }
 
@@ -423,6 +431,42 @@ export class Protocol {
     }
 
     /**
+     * Fills in the timing-related fields (`timingProtocol`, `timingPort`) on a
+     * SETUP body based on the receiver's capabilities and our configuration.
+     *
+     * Preference order:
+     * 1. Receiver advertises `SupportsPTP` and we have a {@link PtpMaster} —
+     *    start the master (if needed) and advertise `PTP` with its event port.
+     * 2. We have an NTP {@link TimingServer} — advertise `NTP` with its port.
+     * 3. Otherwise — advertise `None`.
+     *
+     * @param body - The SETUP body to mutate.
+     */
+    async #applyTimingToSetupBody(body: Record<string, any>): Promise<void> {
+        const strategy = selectTimingStrategy(this.#receiverFeatures);
+
+        if (strategy === 'PTP' && this.#ptpMaster) {
+            if (this.#ptpMaster.state === 'idle') {
+                const { eventPort } = await this.#ptpMaster.start();
+                body.timingPort = eventPort;
+            } else {
+                body.timingPort = this.#ptpMaster.eventPort;
+            }
+
+            body.timingProtocol = 'PTP';
+            return;
+        }
+
+        if (this.#timingServer) {
+            body.timingPort = this.#timingServer.port;
+            body.timingProtocol = 'NTP';
+            return;
+        }
+
+        body.timingProtocol = 'None';
+    }
+
+    /**
      * Builds the common SETUP request body with device identity and features.
      *
      * @param pairingId - The pairing identifier from pair-verify.
@@ -460,14 +504,10 @@ export class Protocol {
     async setupEventStream(sharedSecret: Buffer, pairingId: Buffer): Promise<void> {
         const body: Record<string, any> = {
             ...this.#setupBody(pairingId, SENDER_FEATURES_REMOTE_CONTROL),
-            timingProtocol: 'None',
             isRemoteControlOnly: true
         };
 
-        if (this.#timingServer) {
-            body.timingPort = this.#timingServer.port;
-            body.timingProtocol = 'NTP';
-        }
+        await this.#applyTimingToSetupBody(body);
 
         const plist = await this.#performSetup(body);
         const eventPort = plist.eventPort & 0xFFFF;
@@ -503,14 +543,10 @@ export class Protocol {
             senderSupportsRelay: false,
             statsCollectionEnabled: false,
             supportsGroupCohesion: true,
-            timingProtocol: 'None',
             updateSessionRequest: false
         };
 
-        if (this.#timingServer) {
-            body.timingPort = this.#timingServer.port;
-            body.timingProtocol = 'NTP';
-        }
+        await this.#applyTimingToSetupBody(body);
 
         const plist = await this.#performSetup(body);
         const eventPort = plist.eventPort & 0xFFFF;
@@ -555,12 +591,7 @@ export class Protocol {
             updateSessionRequest: false
         };
 
-        if (this.#timingServer) {
-            setupBody.timingPort = this.#timingServer.port;
-            setupBody.timingProtocol = 'NTP';
-        } else {
-            setupBody.timingProtocol = 'None';
-        }
+        await this.#applyTimingToSetupBody(setupBody);
 
         const setupResponse = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, setupBody);
 
@@ -776,11 +807,25 @@ export class Protocol {
      *
      * When set, SETUP requests include the timing server's port and use NTP
      * as the timing protocol instead of 'None'. Required for multi-room audio
-     * synchronization.
+     * synchronization on receivers without PTP support.
      *
      * @param timingServer - The NTP timing server instance.
      */
     useTimingServer(timingServer: TimingServer): void {
         this.#timingServer = timingServer;
+    }
+
+    /**
+     * Configures a PTP master for IEEE 1588 timing.
+     *
+     * When set, SETUP requests for receivers that advertise `SupportsPTP`
+     * (feature bit 41) use PTP instead of NTP. The master is started lazily
+     * on the first SETUP and runs its BMCA yield-state-machine in the
+     * background until {@link disconnect} is called.
+     *
+     * @param ptpMaster - The PTP master instance (one per protocol instance).
+     */
+    usePtpMaster(ptpMaster: PtpMaster): void {
+        this.#ptpMaster = ptpMaster;
     }
 }

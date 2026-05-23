@@ -1,0 +1,1 @@
+export { defineTitle } from './defineTitle';

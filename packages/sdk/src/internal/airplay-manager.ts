@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, type DeviceIdentity, type DiscoveryResult, PtpMaster, type TimingServer } from '@basmilius/apple-common';
 import { AirPlayArtwork } from './airplay-artwork';
 import { AirPlayRemote } from './airplay-remote';
 import { AirPlayState } from './airplay-state';
@@ -325,6 +325,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             await playProtocol.connect();
             await playProtocol.fetchInfo();
 
+            if (playProtocol.hasReceiverFeature(AirPlayFeatureFlags.SupportsPTP)) {
+                playProtocol.usePtpMaster(new PtpMaster(this.#discoveryResult.address));
+            }
+
             let keys: AccessoryKeys;
 
             if (this.#credentials) {
@@ -407,6 +411,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         try {
             await streamProtocol.connect();
             await streamProtocol.fetchInfo();
+
+            if (streamProtocol.hasReceiverFeature(AirPlayFeatureFlags.SupportsPTP)) {
+                streamProtocol.usePtpMaster(new PtpMaster(this.#discoveryResult.address));
+            }
 
             let keys: AccessoryKeys;
 

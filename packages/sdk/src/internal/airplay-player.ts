@@ -222,6 +222,10 @@ export class AirPlayPlayer {
             // After track restarts or seeks, metadata may have a more
             // recent timestamp than NowPlayingInfo.
             if (meta.elapsedTimeTimestamp > npi.timestamp) {
+                // Don't extrapolate if elapsed time was reset to 0 (track just started).
+                if (meta.elapsedTime === 0) {
+                    return 0;
+                }
                 return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
             }
 
@@ -233,6 +237,10 @@ export class AirPlayPlayer {
         }
 
         if (metaValid) {
+            // Don't extrapolate if elapsed time was reset to 0 (track just started).
+            if (meta.elapsedTime === 0) {
+                return 0;
+            }
             return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
         }
 
@@ -474,6 +482,18 @@ export class AirPlayPlayer {
 
         if (item.artworkData != null) {
             existing.artworkData = item.artworkData;
+        }
+
+        if (item.dataArtworks != null) {
+            existing.dataArtworks = item.dataArtworks;
+        }
+
+        if (item.remoteArtworks != null) {
+            existing.remoteArtworks = item.remoteArtworks;
+        }
+
+        if (item.animatedArtworks != null) {
+            existing.animatedArtworks = item.animatedArtworks;
         }
 
         if (item.lyrics != null) {

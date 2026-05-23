@@ -92,7 +92,10 @@ export {
 } from './recovery';
 
 export {
-    TimingServer
+    PtpMaster,
+    selectTimingStrategy,
+    TimingServer,
+    type TimingStrategy
 } from './timing';
 
 export {

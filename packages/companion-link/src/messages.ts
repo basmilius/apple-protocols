@@ -143,7 +143,7 @@ export function sessionStop(localSid: number): OPackMessage {
  * @returns The TVRC session start request message.
  */
 export function tvrcSessionStart(): OPackMessage {
-    return { _i: 'TVRCSessionStart', _t: MessageType.Request, _btHP: false, _inUseProc: 'tvremoted', _c: {} };
+    return { _i: 'TVRCSessionStart', _t: MessageType.Request, _btHP: false, _inUseProc: 'tvremoted', _c: { ProtocolVersionKey: '1.2' } };
 }
 
 /**

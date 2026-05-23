@@ -648,6 +648,22 @@ export class AirPlayState extends EventEmitter<EventMap> {
      * @param message - The update content item artwork message.
      */
     onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
+        const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
+
+        if (bundleIdentifier) {
+            const client = this.#client(bundleIdentifier, message.playerPath?.client?.displayName ?? '');
+            const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
+            const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
+
+            for (const item of message.contentItems) {
+                player.updateContentItem(item);
+            }
+
+            if (bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
+                this.#emitNowPlayingChangedIfNeeded();
+            }
+        }
+
         this.emit('updateContentItemArtwork', message);
 
         const client = this.nowPlayingClient;

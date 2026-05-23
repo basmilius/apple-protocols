@@ -19,9 +19,6 @@
         "outDir": "dist",
         "experimentalDecorators": true,
         "noEmit": true,
-        "paths": {
-            "@basmilius/apple-*": ["../*/src"]
-        },
         "types": [
             "node"
         ]

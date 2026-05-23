@@ -52,8 +52,8 @@
         "@basmilius/apple-raop": "workspace:*"
     },
     "devDependencies": {
-        "@types/bun": "^1.3.12",
-        "@types/node": "^25.6.0",
-        "tsdown": "^0.21.8"
+        "@types/bun": "^1.3.14",
+        "@types/node": "^25.9.1",
+        "tsdown": "^0.22.0"
     }
 }

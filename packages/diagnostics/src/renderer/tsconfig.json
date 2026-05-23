@@ -1,0 +1,20 @@
+{
+    "extends": "../../tsconfig.web.json",
+    "compilerOptions": {
+        "baseUrl": "../..",
+        "paths": {
+            "@renderer/*": [
+                "src/renderer/*"
+            ],
+            "@shared/*": [
+                "src/shared/*"
+            ],
+            "~flux/components/*": [
+                "node_modules/@flux-ui/components/src/*"
+            ],
+            "~flux/application/*": [
+                "node_modules/@flux-ui/application/src/*"
+            ]
+        }
+    }
+}

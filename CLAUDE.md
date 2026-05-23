@@ -8,7 +8,7 @@ TypeScript monorepo voor Apple device protocollen (AirPlay 2, MRP, Companion Lin
 bash build.sh        # Bouwt alle packages in dependency-volgorde
 ```
 
-Elke package gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `tsgo && bun -b build.ts` (compileert standalone binaries voor 5 platforms).
+Elke package gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `electron-vite build && electron-builder` (Electron app, distribueerbaar voor macOS arm64/x64, Linux arm64/x64 en Windows x64).
 
 ### Protobuf genereren
 
@@ -20,7 +20,7 @@ bun --cwd packages/airplay gen:proto   # buf generate → packages/airplay/src/p
 
 ## Validatie tegen Homey app
 
-Na elke wijziging moet de Homey app (`~/Development/Projects/homey/com.basmilius.apple`) blijven bouwen:
+Na elke wijziging moet de Homey app (`~/Development/Projects/homey/com.basmilius.apple`) blijven bouwen. `diagnostics` is alleen een consumer en hoeft niet gekopieerd te worden:
 
 ```bash
 # 1. Build apple-protocols
@@ -50,7 +50,7 @@ Als stap 3 faalt, is er een breaking change in de public API.
 | `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing                     |
 | `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                                 |
 | `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing             |
-| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Interactieve test/debug CLI (standalone binaries)                             |
+| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Electron app voor interactieve protocol-diagnostiek (Vue 3 + Flux Application)|
 
 ## Dependency graph
 

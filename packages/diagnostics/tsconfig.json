@@ -1,11 +1,38 @@
 {
-    "files": [],
-    "references": [
-        {
-            "path": "./tsconfig.node.json"
+    "compilerOptions": {
+        "target": "esnext",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
+        "allowJs": true,
+        "skipLibCheck": true,
+        "strict": false,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": false,
+        "isolatedModules": true,
+        "rootDir": ".",
+        "outDir": "dist",
+        "experimentalDecorators": true,
+        "noEmit": true,
+        "paths": {
+            "@basmilius/apple-*": ["../*/src"]
         },
-        {
-            "path": "./tsconfig.web.json"
-        }
+        "types": [
+            "node"
+        ]
+    },
+    "include": [
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "build.ts"
+    ],
+    "exclude": [
+        "dist",
+        "node_modules"
     ]
 }

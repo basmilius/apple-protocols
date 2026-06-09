@@ -31,7 +31,7 @@
         "provenance": false
     },
     "scripts": {
-        "build": "tsgo && bun -b build.ts",
+        "build": "bun -b embedWebAssets.ts && tsgo && bun -b build.ts",
         "web": "bun run src/webEntry.ts",
         "web:dev": "concurrently -k -n api,web -c blue,green \"DEV=1 bun run src/webEntry.ts\" \"cd web && bun run dev\"",
         "web:build": "cd web && bun install && bun run build"

@@ -13,4 +13,5 @@ bun --cwd packages/raop build
 
 bun --cwd packages/sdk build
 
-# Diagnostics is een Electron app — bouw apart met `bun run --cwd packages/diagnostics build`.
+bun --cwd packages/diagnostics web:build
+bun --cwd packages/diagnostics build

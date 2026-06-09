@@ -13,6 +13,9 @@
             ],
             "$flux/*": [
                 "../../../node_modules/@flux-ui/components/src/*"
+            ],
+            "~flux/components/*": [
+                "/Users/bas/Development/Projects/@basmilius/apple-protocols/packages/diagnostics/web/node_modules/@flux-ui/components/src/*"
             ]
         }
     },

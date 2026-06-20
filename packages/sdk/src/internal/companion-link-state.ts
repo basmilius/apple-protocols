@@ -139,12 +139,18 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
         stream.on('_tiStarted', this.onTextInputStarted);
         stream.on('_tiStopped', this.onTextInputStopped);
 
-        // Register interests individually (like Apple does).
-        this.#protocol.registerInterests(['_iMC']);
-        this.#protocol.registerInterests(['SystemStatus']);
-        this.#protocol.registerInterests(['TVSystemStatus']);
-        this.#protocol.registerInterests(['NowPlayingInfo']);
-        this.#protocol.registerInterests(['SupportedActions']);
+        // Register interests individually (like Apple does). Keep this resilient: a failed
+        // interest registration must not abort setup, otherwise live status updates (and
+        // recovery from a failed initial fetch) would be lost.
+        try {
+            this.#protocol.registerInterests(['_iMC']);
+            this.#protocol.registerInterests(['SystemStatus']);
+            this.#protocol.registerInterests(['TVSystemStatus']);
+            this.#protocol.registerInterests(['NowPlayingInfo']);
+            this.#protocol.registerInterests(['SupportedActions']);
+        } catch (err) {
+            this.#protocol.context.logger.warn('[cl-state]', 'Failed to register interests for live status updates', err);
+        }
     }
 
     /**

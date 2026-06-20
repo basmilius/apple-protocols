@@ -1,4 +1,4 @@
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, PlaybackError } from '@basmilius/apple-common';
 import { decode, isMp3, isOgg, isWav } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
 
@@ -28,18 +28,34 @@ export class Url extends BufferAudioSource {
      * @returns A new Url audio source with the decoded PCM data.
      */
     static async fromUrl(url: string): Promise<Url> {
-        const response = await fetch(url);
+        let response: Response;
+
+        try {
+            response = await fetch(url);
+        } catch (err) {
+            const error = new PlaybackError(`Failed to fetch audio from ${url}: ${err instanceof Error ? err.message : String(err)}`);
+            error.cause = err;
+            throw error;
+        }
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
+            throw new PlaybackError(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
         }
 
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const pcmBuffer = (isMp3(buffer) || isOgg(buffer) || isWav(buffer))
-            ? await decode(buffer)
-            : buffer;
+        let pcmBuffer: Buffer;
+
+        try {
+            pcmBuffer = (isMp3(buffer) || isOgg(buffer) || isWav(buffer))
+                ? await decode(buffer)
+                : buffer;
+        } catch (err) {
+            const error = new PlaybackError(`Failed to decode audio from ${url}: ${err instanceof Error ? err.message : String(err)}`);
+            error.cause = err;
+            throw error;
+        }
 
         const duration = pcmBuffer.length / (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) / AUDIO_SAMPLE_RATE;
 

@@ -586,7 +586,7 @@ export function unicast(hosts: string[], services: string[], timeout: number = 4
                 socket.close();
             } catch {}
 
-            resolve(collector.services);
+            resolve(collector.services.filter(service => services.includes(service.type)));
         };
 
         socket.on('message', (data) => {
@@ -658,7 +658,7 @@ export function multicast(services: string[], timeout: number = 4): Promise<Mdns
                 } catch {}
             }
 
-            resolve(collector.services);
+            resolve(collector.services.filter(service => services.includes(service.type)));
         };
 
         const onMessage = (data: Buffer) => {

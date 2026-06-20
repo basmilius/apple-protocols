@@ -71,9 +71,15 @@ export {
 
 export {
     type AccessoryCredentials,
+    type AccessoryIdentity,
     type AccessoryKeys,
     AccessoryPair,
-    AccessoryVerify
+    AccessoryPairServer,
+    AccessoryVerify,
+    AccessoryVerifyServer,
+    type ControllerResolver,
+    generateAccessoryIdentity,
+    type PairedController
 } from './pairing';
 
 export {

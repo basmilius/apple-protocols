@@ -49,6 +49,19 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
     }
 
     /**
+     * The controller's active iCloud account (alternate DSID) to announce during the session handshake.
+     * Optional: when left unset, no `SwitchActiveUserAccountEvent` is sent — matching real controllers,
+     * where announcing the active account is optional.
+     */
+    get activeUserAccount(): string | undefined {
+        return this.#activeUserAccount;
+    }
+
+    set activeUserAccount(iCloudAltDSID: string | undefined) {
+        this.#activeUserAccount = iCloudAltDSID;
+    }
+
+    /**
      * Whether the Companion Link stream is currently connected.
      */
     get isConnected(): boolean {
@@ -69,6 +82,7 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         return this.#state.textInputState;
     }
 
+    #activeUserAccount?: string;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
@@ -274,6 +288,16 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         await this.#protocol.switchUserAccount(accountId);
     }
 
+    /**
+     * Announces the controller's active iCloud account to the device, as a real iOS Remote does during
+     * the handshake.
+     *
+     * @param iCloudAltDSID - The controller's active iCloud account identifier (alternate DSID).
+     */
+    async switchActiveUserAccount(iCloudAltDSID: string): Promise<void> {
+        await this.#protocol.switchActiveUserAccount(iCloudAltDSID);
+    }
+
     // --- Text Input ---
 
     /**
@@ -470,6 +494,12 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
             await this.#protocol.systemInfo(this.#credentials!.pairingId);
             await this.#protocol.sessionStart();
             await this.#protocol.tvrcSessionStart();
+
+            // A real iOS Remote announces its active iCloud account here; optional, so only when configured.
+            if (this.#activeUserAccount) {
+                await this.#protocol.switchActiveUserAccount(this.#activeUserAccount);
+            }
+
             await this.#protocol.touchStart();
             await this.#protocol.tiStart();
 

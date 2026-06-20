@@ -629,7 +629,6 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         }
 
         newOffset = pos;
-        addToObjectList = false;
     } else if ((tag & 0xF0) === TAG.DICT_BASE) {
         const count = tag & 0xF;
         const obj: Record<string, any> = {};
@@ -656,7 +655,6 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
 
         value = obj;
         newOffset = pos;
-        addToObjectList = false;
     } else if (tag >= TAG.REF_BASE && tag <= TAG.REF_MAX_INLINE) {
         const idx = tag - TAG.REF_BASE;
 
@@ -682,7 +680,11 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         throw new TypeError(`Unknown tag 0x${tag.toString(16)}`);
     }
 
-    if (addToObjectList) {
+    // Mirror the packer's reference table: only objects whose encoded form is longer than one byte are
+    // added (single-byte values like booleans, null and inline integers are skipped), and back-references
+    // themselves are never re-added. Containers are included, after their children. Keeping this rule in
+    // lock-step with _pack is what makes back-reference indices resolve to the correct object.
+    if (addToObjectList && newOffset - offset > 1) {
         objectList.push(value);
     }
 

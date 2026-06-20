@@ -6,6 +6,7 @@ export { EventStream, type EventStreamEventMap } from './eventStream';
 export { LatencyManager } from './latencyManager';
 export { Pairing, Verify } from './pairing';
 export { Protocol, type PlaybackInfo } from './protocol';
+export { parseMessages } from './utils';
 
 export * as DataStreamMessage from './dataStreamMessages';
 export * as Proto from './proto';

@@ -59,5 +59,20 @@ export const TouchPhase = {
 /** Numeric value of a touch phase. */
 export type TouchPhaseValue = typeof TouchPhase[keyof typeof TouchPhase];
 
+/**
+ * Touch phase identifiers for HID touch events (`_hidT`). Unlike {@link TouchPhase} (UIKit's 0-based
+ * `UITouchPhase`, used by the `_touchC` event), the HID touch stream observed over the wire is 1-based.
+ */
+export const HidTouchPhase = {
+    Began: 1,
+    Moved: 2,
+    Stationary: 3,
+    Ended: 4,
+    Cancelled: 5
+} as const;
+
+/** Numeric value of a HID touch phase. */
+export type HidTouchPhaseValue = typeof HidTouchPhase[keyof typeof HidTouchPhase];
+
 /** Cardinal direction for swipe gestures on the virtual touchpad. */
 export type SwipeDirection = 'up' | 'down' | 'left' | 'right';

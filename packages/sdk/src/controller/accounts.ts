@@ -27,4 +27,26 @@ export class AccountsController {
     async switch(accountId: string): Promise<void> {
         await this.#companionLink.switchUserAccount(accountId);
     }
+
+    /**
+     * The controller's active iCloud account (alternate DSID) announced to the device during the session
+     * handshake. Optional: set it before connecting to mimic a real iOS Remote; leave unset to skip it.
+     */
+    get active(): string | undefined {
+        return this.#companionLink.activeUserAccount;
+    }
+
+    set active(iCloudAltDSID: string | undefined) {
+        this.#companionLink.activeUserAccount = iCloudAltDSID;
+    }
+
+    /**
+     * Announces the controller's active iCloud account to the device immediately, as a real iOS Remote
+     * does during the handshake.
+     *
+     * @param iCloudAltDSID - The controller's active iCloud account identifier (alternate DSID).
+     */
+    async switchActive(iCloudAltDSID: string): Promise<void> {
+        await this.#companionLink.switchActiveUserAccount(iCloudAltDSID);
+    }
 }

@@ -314,6 +314,19 @@ export class Protocol {
         this.#sendEvent(Message.touchEvent(finger, phase, x, y));
     }
 
+    /**
+     * Sends a HID touch event (`_hidT`), the transport real Apple controllers use for touchpad gestures.
+     * Coordinates are integers in the 0-1000 touchpad space.
+     *
+     * @param finger - The finger index.
+     * @param phase - The HID touch phase (see {@link HidTouchPhase}): 1 = began, 2 = moved, 3 = stationary, 4 = ended, 5 = cancelled.
+     * @param x - Horizontal position in the touchpad coordinate space (0-1000).
+     * @param y - Vertical position in the touchpad coordinate space (0-1000).
+     */
+    sendHidTouchEvent(finger: number, phase: number, x: number, y: number): void {
+        this.#sendEvent(Message.hidTouchEvent(finger, phase, x, y));
+    }
+
     // --- Text Input ---
 
     /**
@@ -477,6 +490,16 @@ export class Protocol {
     }
 
     /**
+     * Fetches the current Top Shelf items from the Apple TV.
+     *
+     * @returns The raw top shelf payload.
+     */
+    async fetchTopShelfItems(): Promise<any> {
+        const [, payload] = await this.#exchange(Message.fetchCurrentTopShelfItems());
+        return payload;
+    }
+
+    /**
      * Fetches and converts the Apple TV's current attention (power) state.
      *
      * @returns The attention state as a human-readable string.
@@ -532,6 +555,16 @@ export class Protocol {
      */
     async switchUserAccount(accountId: string): Promise<void> {
         await this.#exchange(Message.switchUserAccount(accountId));
+    }
+
+    /**
+     * Sends the active iCloud account to the Apple TV, as a real iOS Remote does during the session
+     * handshake. Tells the receiver which account the controller is currently active on.
+     *
+     * @param iCloudAltDSID - The controller's active iCloud account identifier (alternate DSID).
+     */
+    async switchActiveUserAccount(iCloudAltDSID: string): Promise<void> {
+        await this.#exchange(Message.switchActiveUserAccount(iCloudAltDSID));
     }
 
     // --- Interests ---

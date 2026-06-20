@@ -112,6 +112,19 @@ export function systemInfo(pairingId: Buffer, name: string = 'AP Companion Link'
 }
 
 /**
+ * Builds a `_systemInfoUpdate` event carrying an updated HomeKit user identity and its signature
+ * (observed over the wire). Advanced: the signature must be produced with the controller's HomeKit user
+ * key, so this is only useful when those credentials are available.
+ *
+ * @param idHKU - The HomeKit user identity UUID.
+ * @param sigHKU - The Ed25519 signature over the identity.
+ * @returns The system info update event message.
+ */
+export function systemInfoUpdate(idHKU: string, sigHKU: Buffer): OPackMessage {
+    return event('_systemInfoUpdate', { _sigHKU: sigHKU, _idHKU: idHKU });
+}
+
+/**
  * Builds a session start request for the `com.apple.tvremoteservices` service.
  *
  * @param localSid - The locally generated session identifier.
@@ -210,6 +223,22 @@ export function touchStop(): OPackMessage {
  */
 export function touchEvent(finger: number, phase: number, x: number, y: number): OPackMessage {
     return event('_touchC', { _tFg: finger, _tPh: phase, _tX: OPack.float(x), _tY: OPack.float(y) });
+}
+
+/**
+ * Builds a HID touch event (`_hidT`) — the transport a real Apple controller uses for touchpad gestures
+ * (observed over the wire). Unlike {@link touchEvent}, coordinates are integers in the virtual touchpad
+ * space and the event carries a monotonic nanosecond timestamp.
+ *
+ * @param finger - The finger index (1-based).
+ * @param phase - The HID touch phase (see {@link HidTouchPhase}): 1 = began, 2 = moved, 3 = stationary, 4 = ended, 5 = cancelled.
+ * @param x - Horizontal position in the virtual touchpad coordinate space.
+ * @param y - Vertical position in the virtual touchpad coordinate space.
+ * @param timestamp - Monotonic event timestamp in nanoseconds.
+ * @returns The HID touch event message.
+ */
+export function hidTouchEvent(finger: number, phase: number, x: number, y: number, timestamp: number = Number(process.hrtime.bigint())): OPackMessage {
+    return event('_hidT', { _ns: OPack.sizedInteger(timestamp, 8), _tFg: finger, _cx: Math.round(x), _tPh: phase, _cy: Math.round(y) });
 }
 
 // --- Text Input ---
@@ -426,6 +455,15 @@ export function fetchSupportedActions(): OPackMessage {
 }
 
 /**
+ * Builds a request to fetch the current Top Shelf items from the Apple TV (observed over the wire).
+ *
+ * @returns The fetch current top shelf items request message.
+ */
+export function fetchCurrentTopShelfItems(): OPackMessage {
+    return requestBtHP('FetchCurrentTopShelfItemsEvent');
+}
+
+/**
  * Builds a request to fetch the user accounts registered on the Apple TV.
  *
  * @returns The user accounts fetch request message.
@@ -444,6 +482,17 @@ export function fetchUserAccounts(): OPackMessage {
  */
 export function switchUserAccount(accountId: string): OPackMessage {
     return request('SwitchUserAccountEvent', { SwitchAccountID: accountId });
+}
+
+/**
+ * Builds the `SwitchActiveUserAccountEvent` that a real iOS Remote sends during the session handshake to
+ * tell the Apple TV which iCloud account the controller is currently active on (observed over the wire).
+ *
+ * @param iCloudAltDSID - The controller's active iCloud account identifier (alternate DSID).
+ * @returns The switch active user account request message.
+ */
+export function switchActiveUserAccount(iCloudAltDSID: string): OPackMessage {
+    return requestBtHP('SwitchActiveUserAccountEvent', { iCloudAltDSID });
 }
 
 // --- Interests ---

@@ -24,12 +24,14 @@ export {
 export * as CompanionLinkMessage from './messages';
 
 export {
+    HidTouchPhase,
     TouchPhase
 } from './types';
 
 export type {
     AttentionState,
     ButtonPressType,
+    HidTouchPhaseValue,
     LaunchableApp,
     SwipeDirection,
     TextInputState,

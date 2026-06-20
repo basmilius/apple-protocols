@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "lib": [
+            "esnext"
+        ],
+        "allowJs": true,
+        "skipLibCheck": true,
+        "strict": false,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": false,
+        "isolatedModules": true,
+        "rootDir": ".",
+        "outDir": "dist",
+        "noEmit": true,
+        "types": [
+            "node"
+        ]
+    },
+    "include": [
+        "src/**/*.ts",
+        "build.ts"
+    ],
+    "exclude": [
+        "dist",
+        "node_modules"
+    ]
+}

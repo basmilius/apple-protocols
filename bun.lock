@@ -121,6 +121,25 @@
         "tsdown": "^0.22.2",
       },
     },
+    "packages/proxy": {
+      "name": "@basmilius/apple-proxy",
+      "version": "0.0.0",
+      "dependencies": {
+        "@basmilius/apple-airplay": "workspace:*",
+        "@basmilius/apple-common": "workspace:*",
+        "@basmilius/apple-companion-link": "workspace:*",
+        "@basmilius/apple-encoding": "workspace:*",
+        "@basmilius/apple-encryption": "workspace:*",
+        "@basmilius/apple-rtsp": "workspace:*",
+        "enquirer": "^2.4.1",
+        "ora": "^9.3.0",
+      },
+      "devDependencies": {
+        "@basmilius/tools": "^3.35.0",
+        "@types/bun": "^1.3.12",
+        "@types/node": "^25.9.2",
+      },
+    },
     "packages/raop": {
       "name": "@basmilius/apple-raop",
       "version": "0.0.0",
@@ -190,6 +209,8 @@
     "@basmilius/apple-encoding": ["@basmilius/apple-encoding@workspace:packages/encoding"],
 
     "@basmilius/apple-encryption": ["@basmilius/apple-encryption@workspace:packages/encryption"],
+
+    "@basmilius/apple-proxy": ["@basmilius/apple-proxy@workspace:packages/proxy"],
 
     "@basmilius/apple-raop": ["@basmilius/apple-raop@workspace:packages/raop"],
 

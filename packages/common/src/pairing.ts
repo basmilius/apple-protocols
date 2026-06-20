@@ -1,7 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { OPack, TLV8 } from '@basmilius/apple-encoding';
 import { Aes, Chacha20, Curve25519, Ed25519, hkdf, type KeyPair } from '@basmilius/apple-encryption';
 import { deriveEncryptionKeys } from './hkdf';
-import { SRP, SrpClient } from 'fast-srp-hap';
+import { SRP, SrpClient, SrpServer } from 'fast-srp-hap';
 import { v4 as uuid } from 'uuid';
 import { AIRPLAY_TRANSIENT_PIN } from './const';
 import type { Context } from './context';
@@ -543,6 +544,438 @@ export class AccessoryVerify extends BasePairing {
             sharedSecret: m2.sharedSecret
         };
     }
+}
+
+/**
+ * Server (accessory) side of the HAP Pair-Setup flow — the mirror image of {@link AccessoryPair}.
+ *
+ * The controller drives the exchange; this class consumes the incoming M1/M3/M5 requests, produces the
+ * M2/M4/M6 responses, verifies the controller's Ed25519 identity, and presents the accessory's own
+ * long-term identity. Used by the proxy to terminate a controller's pairing so the subsequent encrypted
+ * session can be read.
+ *
+ * Flow: M1 (salt + SRP public key) → M3 (verify controller proof, send server proof) →
+ *       M5 (decrypt + verify controller identity, return the encrypted accessory identity as M6).
+ */
+export class AccessoryPairServer extends BasePairing {
+    /** The controller's verified identity, available after M5 completes. */
+    get controller(): PairedController | undefined {
+        return this.#controller;
+    }
+
+    /** The SRP shared secret, available after M3 completes. */
+    get sharedSecret(): Buffer | undefined {
+        return this.#sharedSecret;
+    }
+
+    /** The accessory's persistent long-term identity presented to the controller. */
+    readonly #identity: AccessoryIdentity;
+    /** The setup PIN the controller must prove knowledge of. */
+    readonly #pin: string;
+    /** Whether to use AES-128-CTR instead of ChaCha20-Poly1305 for M5/M6 encryption. */
+    readonly #useAes: boolean;
+    /** The controller's verified identity, set in M5. */
+    #controller: PairedController | undefined;
+    /** Random SRP salt generated in M1. */
+    #salt: Buffer;
+    /** SRP shared secret, set in M3. */
+    #sharedSecret: Buffer | undefined;
+    /** SRP server instance handling PIN-based authentication. */
+    #srp: SrpServer;
+
+    /**
+     * @param context - Shared context for logging and device identity.
+     * @param identity - The accessory's persistent long-term identity.
+     * @param pin - The setup PIN the controller must enter.
+     * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for M5/M6 encryption (legacy devices).
+     */
+    constructor(context: Context, identity: AccessoryIdentity, pin: string, useAes: boolean = false) {
+        super(context);
+
+        this.#identity = identity;
+        this.#pin = pin;
+        this.#useAes = useAes;
+    }
+
+    /**
+     * Routes an incoming TLV8 pair-setup request to the matching step and returns the TLV8 response.
+     *
+     * @param request - The TLV8-encoded request from the controller.
+     * @returns The TLV8-encoded response to send back.
+     * @throws {PairingError} If the request carries an unexpected state.
+     */
+    async handle(request: Buffer): Promise<Buffer> {
+        const data = this.tlv(request);
+        const state = data.get(TLV8.Value.State)?.[0];
+
+        switch (state) {
+            case TLV8.State.M1:
+                return this.m1();
+
+            case TLV8.State.M3:
+                return this.m3(data);
+
+            case TLV8.State.M5:
+                return this.m5(data);
+
+            default:
+                throw new PairingError(`Unexpected pair-setup state ${state}.`);
+        }
+    }
+
+    /**
+     * SRP Step M1 → M2: generates a salt and the accessory's SRP public key (B) from the PIN.
+     */
+    async m1(): Promise<Buffer> {
+        this.#salt = randomBytes(16);
+
+        const secretKey = await SRP.genKey(32);
+        this.#srp = new SrpServer(SRP.params.hap, this.#salt, Buffer.from('Pair-Setup'), Buffer.from(this.#pin), secretKey);
+
+        return TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M2],
+            [TLV8.Value.PublicKey, this.#srp.computeB()],
+            [TLV8.Value.Salt, this.#salt]
+        ]);
+    }
+
+    /**
+     * SRP Step M3 → M4: verifies the controller's proof and returns the accessory's proof.
+     *
+     * @throws {AuthenticationError} If the controller proof is invalid (wrong PIN).
+     */
+    async m3(data: Map<number, Buffer>): Promise<Buffer> {
+        this.#srp.setA(data.get(TLV8.Value.PublicKey));
+
+        try {
+            this.#srp.checkM1(data.get(TLV8.Value.Proof));
+        } catch {
+            throw new AuthenticationError('Invalid controller proof, wrong PIN.');
+        }
+
+        const serverProof = this.#srp.computeM2();
+        this.#sharedSecret = this.#srp.computeK();
+
+        return TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M4],
+            [TLV8.Value.Proof, serverProof]
+        ]);
+    }
+
+    /**
+     * HAP Step M5 → M6: decrypts and verifies the controller's identity, then returns the accessory's
+     * own encrypted identity. After this completes, {@link controller} holds the controller's long-term
+     * public key.
+     *
+     * @throws {AuthenticationError} If the controller signature is invalid.
+     */
+    async m5(data: Map<number, Buffer>): Promise<Buffer> {
+        const sessionKey = hkdf({
+            hash: 'sha512',
+            key: this.#sharedSecret,
+            length: 32,
+            salt: Buffer.from('Pair-Setup-Encrypt-Salt', 'utf8'),
+            info: Buffer.from('Pair-Setup-Encrypt-Info', 'utf8')
+        });
+
+        const encrypted = data.get(TLV8.Value.EncryptedData);
+
+        let decrypted: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-IV')});
+            decrypted = Aes.decrypt(aesKey, aesIv, encrypted);
+        } else {
+            decrypted = Chacha20.decrypt(sessionKey, Buffer.from('PS-Msg05'), null, encrypted.subarray(0, -16), encrypted.subarray(-16));
+        }
+
+        const inner = TLV8.decode(decrypted);
+        const controllerIdentifier = inner.get(TLV8.Value.Identifier);
+        const controllerPublicKey = inner.get(TLV8.Value.PublicKey);
+        const controllerSignature = inner.get(TLV8.Value.Signature);
+
+        const iosDeviceX = hkdf({
+            hash: 'sha512',
+            key: this.#sharedSecret,
+            length: 32,
+            salt: Buffer.from('Pair-Setup-Controller-Sign-Salt', 'utf8'),
+            info: Buffer.from('Pair-Setup-Controller-Sign-Info', 'utf8')
+        });
+
+        const controllerInfo = Buffer.concat([
+            iosDeviceX,
+            controllerIdentifier,
+            controllerPublicKey
+        ]);
+
+        if (!Ed25519.verify(controllerInfo, controllerSignature, controllerPublicKey)) {
+            throw new AuthenticationError('Invalid controller signature.');
+        }
+
+        this.#controller = {
+            identifier: controllerIdentifier.toString(),
+            longTermPublicKey: controllerPublicKey
+        };
+
+        const accessoryIdentifier = Buffer.from(this.#identity.identifier);
+
+        const accessoryX = hkdf({
+            hash: 'sha512',
+            key: this.#sharedSecret,
+            length: 32,
+            salt: Buffer.from('Pair-Setup-Accessory-Sign-Salt'),
+            info: Buffer.from('Pair-Setup-Accessory-Sign-Info')
+        });
+
+        const accessoryInfo = Buffer.concat([
+            accessoryX,
+            accessoryIdentifier,
+            this.#identity.publicKey
+        ]);
+
+        const accessorySignature = Buffer.from(Ed25519.sign(accessoryInfo, this.#identity.secretKey));
+
+        const innerTlv = TLV8.encode([
+            [TLV8.Value.Identifier, accessoryIdentifier],
+            [TLV8.Value.PublicKey, this.#identity.publicKey],
+            [TLV8.Value.Signature, accessorySignature]
+        ]);
+
+        let response: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Setup-AES-IV')});
+            response = Aes.encrypt(aesKey, aesIv, innerTlv);
+        } else {
+            const {authTag, ciphertext} = Chacha20.encrypt(sessionKey, Buffer.from('PS-Msg06'), null, innerTlv);
+            response = Buffer.concat([ciphertext, authTag]);
+        }
+
+        return TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M6],
+            [TLV8.Value.EncryptedData, response]
+        ]);
+    }
+}
+
+/**
+ * Server (accessory) side of the HAP Pair-Verify flow — the mirror image of {@link AccessoryVerify}.
+ *
+ * Establishes a forward-secret session with a previously paired controller: generates an ephemeral
+ * Curve25519 key, signs the accessory identity, and verifies the controller's proof against its stored
+ * long-term key. After completion, {@link sharedSecret} feeds the channel key derivation.
+ *
+ * Flow: M1 (ephemeral key exchange + encrypted accessory identity) → M3 (verify controller proof).
+ */
+export class AccessoryVerifyServer extends BasePairing {
+    /** The verified controller's pairing identifier, available after M3 completes. */
+    get pairingId(): Buffer | undefined {
+        return this.#pairingId;
+    }
+
+    /** The ECDH shared secret, available after M1 completes. */
+    get sharedSecret(): Buffer | undefined {
+        return this.#sharedSecret;
+    }
+
+    /** The accessory's persistent long-term identity. */
+    readonly #identity: AccessoryIdentity;
+    /** Resolves a controller's long-term public key for signature verification. */
+    readonly #resolveController: ControllerResolver;
+    /** Whether to use AES-128-CTR instead of ChaCha20-Poly1305 for encryption. */
+    readonly #useAes: boolean;
+    /** The controller's ephemeral public key from M1. */
+    #controllerPublicKey: Buffer;
+    /** The accessory's ephemeral Curve25519 key pair, generated in M1. */
+    #ephemeralKeyPair: KeyPair;
+    /** The verified controller pairing identifier, set in M3. */
+    #pairingId: Buffer | undefined;
+    /** The HKDF session key for M2/M3 encryption. */
+    #sessionKey: Buffer;
+    /** The ECDH shared secret, set in M1. */
+    #sharedSecret: Buffer | undefined;
+
+    /**
+     * @param context - Shared context for logging and device identity.
+     * @param identity - The accessory's persistent long-term identity.
+     * @param resolveController - Looks up a controller's long-term public key by pairing identifier.
+     * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for encryption (legacy devices).
+     */
+    constructor(context: Context, identity: AccessoryIdentity, resolveController: ControllerResolver, useAes: boolean = false) {
+        super(context);
+
+        this.#identity = identity;
+        this.#resolveController = resolveController;
+        this.#useAes = useAes;
+    }
+
+    /**
+     * Routes an incoming TLV8 pair-verify request to the matching step and returns the TLV8 response.
+     *
+     * @param request - The TLV8-encoded request from the controller.
+     * @returns The TLV8-encoded response to send back.
+     * @throws {PairingError} If the request carries an unexpected state.
+     */
+    async handle(request: Buffer): Promise<Buffer> {
+        const data = this.tlv(request);
+        const state = data.get(TLV8.Value.State)?.[0];
+
+        switch (state) {
+            case TLV8.State.M1:
+                return this.m1(data);
+
+            case TLV8.State.M3:
+                return this.m3(data);
+
+            default:
+                throw new PairingError(`Unexpected pair-verify state ${state}.`);
+        }
+    }
+
+    /**
+     * Pair-Verify Step M1 → M2: ECDH key exchange and the encrypted accessory identity proof.
+     */
+    async m1(data: Map<number, Buffer>): Promise<Buffer> {
+        this.#controllerPublicKey = data.get(TLV8.Value.PublicKey);
+        this.#ephemeralKeyPair = Curve25519.generateKeyPair();
+
+        this.#sharedSecret = Buffer.from(Curve25519.generateSharedSecKey(
+            this.#ephemeralKeyPair.secretKey,
+            this.#controllerPublicKey
+        ));
+
+        this.#sessionKey = hkdf({
+            hash: 'sha512',
+            key: this.#sharedSecret,
+            length: 32,
+            salt: Buffer.from('Pair-Verify-Encrypt-Salt'),
+            info: Buffer.from('Pair-Verify-Encrypt-Info')
+        });
+
+        const accessoryEphemeralPublicKey = Buffer.from(this.#ephemeralKeyPair.publicKey);
+        const accessoryIdentifier = Buffer.from(this.#identity.identifier);
+
+        const accessoryInfo = Buffer.concat([
+            accessoryEphemeralPublicKey,
+            accessoryIdentifier,
+            this.#controllerPublicKey
+        ]);
+
+        const accessorySignature = Buffer.from(Ed25519.sign(accessoryInfo, this.#identity.secretKey));
+
+        const innerTlv = TLV8.encode([
+            [TLV8.Value.Identifier, accessoryIdentifier],
+            [TLV8.Value.Signature, accessorySignature]
+        ]);
+
+        let encrypted: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-IV')});
+            encrypted = Aes.encrypt(aesKey, aesIv, innerTlv);
+        } else {
+            const {authTag, ciphertext} = Chacha20.encrypt(this.#sessionKey, Buffer.from('PV-Msg02'), null, innerTlv);
+            encrypted = Buffer.concat([ciphertext, authTag]);
+        }
+
+        return TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M2],
+            [TLV8.Value.PublicKey, accessoryEphemeralPublicKey],
+            [TLV8.Value.EncryptedData, encrypted]
+        ]);
+    }
+
+    /**
+     * Pair-Verify Step M3 → M4: decrypts and verifies the controller's proof.
+     *
+     * @throws {AuthenticationError} If a known controller's signature is invalid.
+     */
+    async m3(data: Map<number, Buffer>): Promise<Buffer> {
+        const encrypted = data.get(TLV8.Value.EncryptedData);
+
+        let decrypted: Buffer;
+
+        if (this.#useAes) {
+            const aesKey = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-Key')});
+            const aesIv = hkdf({hash: 'sha512', key: this.#sharedSecret, length: 16, salt: Buffer.alloc(0), info: Buffer.from('Pair-Verify-AES-IV')});
+            decrypted = Aes.decrypt(aesKey, aesIv, encrypted);
+        } else {
+            decrypted = Chacha20.decrypt(this.#sessionKey, Buffer.from('PV-Msg03'), null, encrypted.subarray(0, -16), encrypted.subarray(-16));
+        }
+
+        const inner = TLV8.decode(decrypted);
+        const controllerIdentifier = inner.get(TLV8.Value.Identifier);
+        const controllerSignature = inner.get(TLV8.Value.Signature);
+
+        const longTermPublicKey = this.#resolveController(controllerIdentifier.toString());
+
+        if (longTermPublicKey) {
+            const controllerInfo = Buffer.concat([
+                this.#controllerPublicKey,
+                controllerIdentifier,
+                Buffer.from(this.#ephemeralKeyPair.publicKey)
+            ]);
+
+            if (!Ed25519.verify(controllerInfo, controllerSignature, longTermPublicKey)) {
+                throw new AuthenticationError('Invalid controller signature.');
+            }
+        } else {
+            this.context.logger.warn(`Unknown controller ${controllerIdentifier.toString()}, skipping signature verification.`);
+        }
+
+        this.#pairingId = controllerIdentifier;
+
+        return TLV8.encode([
+            [TLV8.Value.State, TLV8.State.M4]
+        ]);
+    }
+}
+
+/**
+ * The accessory's persistent long-term identity, mimicking a real Apple receiver. Generated once via
+ * {@link generateAccessoryIdentity} and persisted (e.g. in Storage) so paired controllers stay paired.
+ */
+export type AccessoryIdentity = {
+    /** The accessory's pairing identifier (a MAC-like string, e.g. "AA:BB:CC:DD:EE:FF"). */
+    readonly identifier: string;
+    /** The accessory's Ed25519 long-term public key. */
+    readonly publicKey: Buffer;
+    /** The accessory's Ed25519 long-term secret key for signing identity proofs. */
+    readonly secretKey: Buffer;
+};
+
+/** A controller that has completed pair-setup with the accessory. */
+export type PairedController = {
+    /** The controller's pairing identifier. */
+    readonly identifier: string;
+    /** The controller's Ed25519 long-term public key for signature verification. */
+    readonly longTermPublicKey: Buffer;
+};
+
+/**
+ * Resolves a paired controller's long-term Ed25519 public key by its pairing identifier. Returns
+ * undefined when the controller is unknown, in which case {@link AccessoryVerifyServer} proceeds and
+ * logs a warning rather than rejecting the connection.
+ */
+export type ControllerResolver = (pairingId: string) => Buffer | undefined;
+
+/**
+ * Generates a fresh accessory identity: a random MAC-like identifier and a new Ed25519 key pair.
+ *
+ * @returns A new accessory identity to persist and present to controllers.
+ */
+export function generateAccessoryIdentity(): AccessoryIdentity {
+    const keyPair = Ed25519.generateKeyPair();
+    const identifier = Array.from(randomBytes(6)).map((byte) => byte.toString(16).padStart(2, '0').toUpperCase()).join(':');
+
+    return {
+        identifier,
+        publicKey: Buffer.from(keyPair.publicKey),
+        secretKey: Buffer.from(keyPair.secretKey)
+    };
 }
 
 /**

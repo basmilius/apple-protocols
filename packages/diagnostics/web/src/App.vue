@@ -4,8 +4,11 @@
             <div class="sidebar-tabs">
                 <FluxSegmentedControl
                     v-model="sidebarTab"
-                    :items="sidebarTabs"
-                    is-fill/>
+                    is-fill>
+                    <FluxSegmentedControlItem :value="0" icon="radar" label="Devices"/>
+                    <FluxSegmentedControlItem :value="1" icon="display" label="Device"/>
+                    <FluxSegmentedControlItem :value="2" icon="network-wired" label="Network"/>
+                </FluxSegmentedControl>
             </div>
 
             <div class="sidebar-content">
@@ -76,7 +79,7 @@
     setup
     lang="ts">
     import { ref } from 'vue';
-    import { FluxRoot, FluxSegmentedControl } from '@flux-ui/components';
+    import { FluxRoot, FluxSegmentedControl, FluxSegmentedControlItem } from '@flux-ui/components';
     import { useWebSocket } from './composables/useWebSocket';
     import { useDevice } from './composables/useDevice';
     import AppAccountSwitcher from './components/AppAccountSwitcher.vue';
@@ -93,11 +96,6 @@
     const {devices, discovering, connecting, discover, connectDevice, connectByIp, disconnectDevice, sendCommand, startPairing, submitPin, cancelPairing, scanMdns} = useDevice();
 
     const sidebarTab = ref(0);
-    const sidebarTabs = [
-        {label: 'Devices', icon: 'radar'},
-        {label: 'Device', icon: 'display'},
-        {label: 'Network', icon: 'network-wired'}
-    ];
 
     const showPairingDialog = ref(false);
 

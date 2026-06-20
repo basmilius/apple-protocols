@@ -4,11 +4,10 @@
             <FluxSegmentedControl
                 v-model="tab"
                 is-fill
-                :items="[
-                    {label: 'Apps'},
-                    {label: 'Accounts'}
-                ]"
-                style="width: 100%"/>
+                style="width: 100%">
+                <FluxSegmentedControlItem :value="0" label="Apps"/>
+                <FluxSegmentedControlItem :value="1" label="Accounts"/>
+            </FluxSegmentedControl>
         </div>
 
         <div class="switcher-body">
@@ -66,7 +65,7 @@
     setup
     lang="ts">
     import { ref, watch } from 'vue';
-    import { FluxButtonGroup, FluxSecondaryButton, FluxSegmentedControl, FluxSpinner, showSnackbar } from '@flux-ui/components';
+    import { FluxButtonGroup, FluxSecondaryButton, FluxSegmentedControl, FluxSegmentedControlItem, FluxSpinner, showSnackbar } from '@flux-ui/components';
 
     type LaunchableApp = {
         bundleId: string;

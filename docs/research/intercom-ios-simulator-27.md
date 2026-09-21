@@ -1,6 +1,6 @@
 # Intercom from the iOS 27 simulator
 
-The installed iOS 27.0 simulator runtime, build **24A434**, contains the Announce client and daemon binaries missing from the native macOS investigation. They identify an Intercom request and payload structure for Rapport/Companion Link, plus an IDS path. Whether existing HomePod pairing can authorize the request remains unknown.
+The installed iOS 27.0 simulator runtime, build **24A434**, contains the Announce client and daemon binaries missing from the native macOS investigation. They identify an Intercom request and payload structure for Rapport, plus an IDS path. Mapping that request onto our Companion Link transport was not verified. Whether existing HomePod pairing can authorize the request remains unknown.
 
 ## Extracted files
 
@@ -94,4 +94,4 @@ Under `.research/ios-simulator-intercom/`:
 
 Tools: ipsw 3.1.711, Ghidra 12.1.3, Java 21. Some inferred Objective-C receiver/argument types in the pseudocode are wrong; the decisive request ID and validation stub were checked in assembly. The exported text is analysis material, not compilable Apple source.
 
-No Intercom feature was added to the library. The next step is to finish the payload and identity mapping, then compare the validation/service configuration against a physical iOS or HomePod firmware image before attempting a device test.
+A subsequent diagnostics PoC and iOS identifier helper were built and then removed at the user's request. The [PoC findings](intercom-poc.md) record the additional payload work and authentication blocker. No working Intercom route was established. Future work must first verify HomePod authentication and service routing; the simulator validation stub cannot resolve those requirements.

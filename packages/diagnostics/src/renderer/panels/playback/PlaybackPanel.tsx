@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { Music } from 'lucide-react';
+import { LyricsView } from './LyricsView';
+import { LyricsDemo } from './LyricsDemo';
+import type { LyricsResult } from '@basmilius/apple-sdk';
 import { formatDuration, formatTime } from '@shared/helpers';
 import { Badge, Button, CommandButton, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents, usePlayhead } from '@/panels/hooks';
@@ -81,7 +84,12 @@ export function PlaybackPanel({deviceId}: PanelProps) {
     const [sleepSeconds, setSleepSeconds] = useState('1800');
     const [stopMode, setStopMode] = useState('0');
     const [queueLength, setQueueLength] = useState('10');
-    const [lyricsLength, setLyricsLength] = useState('10');
+    const [showLyricsDemo, setShowLyricsDemo] = useState(false);
+    const [bearerToken, setBearerToken] = useState('');
+    const [musicUserToken, setMusicUserToken] = useState('');
+    const [storefront, setStorefront] = useState('nl');
+    const lyricsGeneration = useRef(0);
+    const [lyricsResult, setLyricsResult] = useState<LyricsResult | null | undefined>(undefined);
     const [command, setCommand] = useState('Play');
     const [commandOptions, setCommandOptions] = useState('');
     const [optionsError, setOptionsError] = useState<string | null>(null);
@@ -89,7 +97,26 @@ export function PlaybackPanel({deviceId}: PanelProps) {
     const lyrics = useDeviceEvents(deviceId, {sources: ['airplayState'], names: ['lyricsEvent'], limit: 20});
     const supported = snapshot?.supportedCommands ?? [];
     const nowPlaying = snapshot?.nowPlaying ?? null;
-    const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
+    const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt, lyricsResult?.text ? 100 : 500);
+
+    useEffect(() => {
+        lyricsGeneration.current++;
+        setLyricsResult(undefined);
+    }, [deviceId, connected, snapshot?.clients.find(client => client.isActive)?.contentIdentifier]);
+
+    useEffect(() => {
+        setBearerToken('');
+        setMusicUserToken('');
+    }, [deviceId]);
+
+    async function fetchLyrics(catalog: boolean): Promise<void> {
+        const generation = ++lyricsGeneration.current;
+        setLyricsResult(undefined);
+        const result = await call('device', catalog ? 'media.getLyricsFromCatalog' : 'media.getLyrics', catalog
+            ? [{bearerToken, musicUserToken, storefront}]
+            : []);
+        if (generation === lyricsGeneration.current) setLyricsResult(result as LyricsResult | null);
+    }
 
     const modes = useMemo(() => {
         const player = snapshot?.clients.flatMap(client => client.players).find(entry => entry.isActive) ?? null;
@@ -323,11 +350,38 @@ export function PlaybackPanel({deviceId}: PanelProps) {
 
             <Section title="Lyrics" actions={<Badge tone="muted">{`${lyrics.length} events`}</Badge>}>
                 <Row>
-                    <Labeled label="Length">
-                        <NumberInput label="Lyrics length" value={lyricsLength} onValueChange={setLyricsLength}/>
-                    </Labeled>
-                    <CommandButton label="Request lyrics" run={() => call('device', 'media.requestLyrics', [numberOf(lyricsLength, 10)])} disabled={!connected}/>
+                    <Button size="sm" variant="secondary" onClick={() => setShowLyricsDemo(value => !value)}>{showLyricsDemo ? 'Close preview' : 'Try preview'}</Button>
+                    <CommandButton label="Get lyrics" run={() => fetchLyrics(false)} disabled={!connected}/>
+                    <CommandButton label="Get from Apple Music" run={() => fetchLyrics(true)} disabled={!connected || !bearerToken.trim() || !musicUserToken.trim()}/>
                 </Row>
+                {showLyricsDemo && <LyricsDemo/>}
+                <details className="text-xs">
+                    <summary className="cursor-pointer text-text-muted">Apple Music authorization</summary>
+                    <div className="mt-2 space-y-2">
+                        <p className="text-text-muted">Use headers from your signed-in Apple Music web session. Tokens are kept only while this panel is open.</p>
+                        <Field label="Bearer token" type="password" autoComplete="off" value={bearerToken} onChange={event => setBearerToken(event.target.value)}/>
+                        <Field label="Music user token" type="password" autoComplete="off" value={musicUserToken} onChange={event => setMusicUserToken(event.target.value)}/>
+                        <Field label="Account storefront" value={storefront} maxLength={2} onChange={event => setStorefront(event.target.value.toLowerCase())}/>
+                        <Button size="sm" variant="secondary" onClick={() => {setBearerToken(''); setMusicUserToken('');}}>Clear tokens</Button>
+                    </div>
+                </details>
+                {lyricsResult === null && <p className="text-xs text-text-muted">No current item, or the track changed during the request.</p>}
+                {lyricsResult && (
+                    <div className="space-y-2">
+                        {lyricsResult.text ? (
+                            <LyricsView text={lyricsResult.text} elapsed={elapsed} title={nowPlaying?.title} artist={nowPlaying?.artist} artworkUrl={nowPlaying?.artworkUrl}/>
+                        ) : (
+                            <p className="text-xs text-text-muted">{lyricsResult.available
+                                ? 'Lyrics are available in the music app, but the device returned no lyrics text.'
+                                : 'The device returned no lyrics text for this item.'}</p>
+                        )}
+                        <KeyValueList>
+                            <KeyValue label="Lyrics available">{lyricsResult.available === null ? 'Unknown' : lyricsResult.available ? 'Yes' : 'No'}</KeyValue>
+                            <KeyValue label="Lyrics URL">{lyricsResult.url ?? '-'}</KeyValue>
+                            <KeyValue label="Catalog ID">{lyricsResult.catalogId ?? '-'}</KeyValue>
+                        </KeyValueList>
+                    </div>
+                )}
                 <div className="max-h-56 overflow-auto rounded-lg border border-border bg-code-bg p-2">
                     {lyrics.length === 0 ? (
                         <p className="text-xs text-text-muted">No lyrics event has come in yet.</p>

@@ -468,16 +468,25 @@ export class AirPlayPlayer {
             existing.artworkData = item.artworkData;
         }
 
-        if (item.dataArtworks != null) {
+        if (item.dataArtworks.length > 0) {
             existing.dataArtworks = item.dataArtworks;
         }
 
-        if (item.remoteArtworks != null) {
+        if (item.remoteArtworks.length > 0) {
             existing.remoteArtworks = item.remoteArtworks;
         }
 
-        if (item.animatedArtworks != null) {
+        // Protobuf creates empty repeated fields even when an update only contains metadata.
+        if (item.animatedArtworks.length > 0) {
             existing.animatedArtworks = item.animatedArtworks;
+        }
+
+        if (item.availableAnimatedArtworkFormats.length > 0) {
+            existing.availableAnimatedArtworkFormats = item.availableAnimatedArtworkFormats;
+        }
+
+        if (item.animatedArtworkPreviewFrames.length > 0) {
+            existing.animatedArtworkPreviewFrames = item.animatedArtworkPreviewFrames;
         }
 
         if (item.lyrics != null) {

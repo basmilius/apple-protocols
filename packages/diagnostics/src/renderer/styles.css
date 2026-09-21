@@ -365,3 +365,10 @@
         *, *::before, *::after { transition: none !important; animation: none !important; }
     }
 }
+
+/* The lyrics stage uses a fixed dark palette in both diagnostics themes. */
+@theme inline {
+    --color-lyrics-foreground: #fff;
+    --color-lyrics-background: #25202c;
+    --color-lyrics-shadow: #000;
+}

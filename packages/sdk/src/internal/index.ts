@@ -1,4 +1,4 @@
-export { AirPlayArtwork, type ArtworkResult } from './airplay-artwork';
+export { AirPlayArtwork, type AnimatedArtworkResult, type ArtworkResult } from './airplay-artwork';
 export { AirPlayClient } from './airplay-client';
 export { AirPlayManager } from './airplay-manager';
 export { AirPlayPlayer } from './airplay-player';

@@ -1,5 +1,14 @@
 import type { AudioSource } from '@basmilius/apple-common';
 import type { AirPlayManager } from '../internal';
+import { fetchAppleMusicLyrics, type AppleMusicLyricsOptions } from '../internal/apple-music-lyrics';
+
+export type LyricsResult = {
+    readonly identifier: string;
+    readonly text: string | null;
+    readonly available: boolean | null;
+    readonly url: string | null;
+    readonly catalogId: string | null;
+};
 
 /**
  * Media source controller for Apple devices.
@@ -59,9 +68,38 @@ export class MediaController {
     /**
      * Requests lyrics for the current playback.
      *
-     * @param length - Maximum number of lyrics items to retrieve.
+     * @param length - Maximum number of queue items to retrieve.
      */
     async requestLyrics(length: number = 10): Promise<void> {
         await this.#airplay.requestPlaybackQueue(length);
+    }
+
+    /** Opt-in authenticated catalog lookup, independent of Apple TV pairing credentials. */
+    async getLyricsFromCatalog(options: AppleMusicLyricsOptions): Promise<LyricsResult | null> {
+        const player = this.#airplay.state.nowPlayingClient?.activePlayer;
+        const identifier = player?.currentItem?.identifier;
+        const catalogId = player?.currentItemMetadata?.lyricsAdamID;
+        if (!identifier || !catalogId) return null;
+
+        const text = await fetchAppleMusicLyrics(catalogId.toString(), options);
+        if (this.#airplay.state.nowPlayingClient?.activePlayer !== player || player.currentItem?.identifier !== identifier) return null;
+        return {identifier, catalogId: catalogId.toString(), text, available: text ? true : null, url: null};
+    }
+
+    /** Reads queue lyrics rather than waiting for independent SEND_LYRICS_EVENT messages. */
+    async getLyrics(): Promise<LyricsResult | null> {
+        const item = await this.#airplay.requestContentItemAssets();
+
+        if (!item) {
+            return null;
+        }
+
+        return {
+            identifier: item.identifier,
+            text: item.lyrics?.lyrics || null,
+            available: item.metadata && Object.hasOwn(item.metadata, 'lyricsAvailable') ? item.metadata.lyricsAvailable : null,
+            url: item.metadata?.lyricsURL || null,
+            catalogId: item.metadata?.lyricsAdamID ? item.metadata.lyricsAdamID.toString() : null
+        };
     }
 }

@@ -2,6 +2,14 @@ import { DataStreamMessage, type Protocol } from '@basmilius/apple-airplay';
 import type { AirPlayManager } from './airplay-manager';
 import type { AirPlayState } from './airplay-state';
 import { PROTOCOL } from './const';
+import { decodeArtworkAssetURL } from './artwork-url';
+import { fetchAppleMusicArtwork } from './apple-music-artwork';
+
+export type AnimatedArtworkResult = {
+    readonly format: string;
+    readonly url: string | null;
+    readonly source?: 'device' | 'apple-music';
+};
 
 /**
  * Artwork result from the unified artwork API.
@@ -64,6 +72,41 @@ export class AirPlayArtwork {
 
     constructor(device: AirPlayManager) {
         this.#device = device;
+    }
+
+    /** Discovers formats first, then requests the archived asset URLs for those formats. */
+    async getAnimated(width: number = 600, height: number = -1): Promise<AnimatedArtworkResult[]> {
+        const item = await this.#device.requestContentItemAssets({includeAvailableArtworkFormats: true}, width, height);
+        if (!item) {
+            return [];
+        }
+
+        const formats = item.availableAnimatedArtworkFormats;
+        const assets = formats.length > 0
+            ? await this.#device.requestContentItemAssets({requestedAnimatedArtworkAssetURLFormats: formats}, width, height)
+            : item;
+
+        if (!assets || assets.identifier !== item.identifier) {
+            return [];
+        }
+
+        return assets.animatedArtworks.map(artwork => ({
+            format: artwork.type ?? '',
+            url: decodeArtworkAssetURL(artwork.assetFileURLData)
+        }));
+    }
+
+    /** Opt-in catalog lookup; unlike getAnimated(), this contacts music.apple.com. */
+    async getAnimatedFromCatalog(storefront: string = 'us'): Promise<AnimatedArtworkResult[]> {
+        const player = this.#state.nowPlayingClient?.activePlayer;
+        const identifier = player?.currentItem?.identifier;
+        const albumId = player?.currentItemMetadata?.iTunesStoreAlbumIdentifier;
+        if (!identifier || !albumId) {
+            return [];
+        }
+
+        const results = await fetchAppleMusicArtwork(albumId.toString(), storefront);
+        return this.#state.nowPlayingClient?.activePlayer === player && player.currentItem?.identifier === identifier ? results : [];
     }
 
     /**

@@ -1,4 +1,4 @@
-import type { AirPlayManager, ArtworkResult } from '../internal';
+import type { AirPlayManager, AnimatedArtworkResult, ArtworkResult } from '../internal';
 
 /**
  * Artwork controller for Apple devices.
@@ -20,5 +20,14 @@ export class ArtworkController {
      */
     async get(width: number = 600, height: number = -1): Promise<ArtworkResult | null> {
         return await this.#airplay.artwork.get(width, height);
+    }
+
+    async getAnimated(width: number = 600, height: number = -1): Promise<AnimatedArtworkResult[]> {
+        return await this.#airplay.artwork.getAnimated(width, height);
+    }
+
+    /** Fetches animated artwork from the public Apple Music album page. */
+    async getAnimatedFromCatalog(storefront: string = 'us'): Promise<AnimatedArtworkResult[]> {
+        return await this.#airplay.artwork.getAnimatedFromCatalog(storefront);
     }
 }

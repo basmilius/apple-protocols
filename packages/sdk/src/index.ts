@@ -1,4 +1,7 @@
+export type { AppleMusicLyricsOptions } from './internal/apple-music-lyrics';
 /// <reference types="node" preserve="true" />
+export type { AnimatedArtworkResult } from './internal/airplay-artwork';
+export type { LyricsResult } from './controller/media';
 // --- Devices ---
 export { AbstractDevice, AppleTV, type AppleTVOptions, HomePod, HomePodMini } from './device';
 
@@ -65,4 +68,3 @@ export { SendCommandError } from './types';
 export { Proto } from '@basmilius/apple-airplay';
 export { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, ConnectionRecovery, JsonStorage, MemoryStorage, mdnsMulticast, mdnsUnicast, RAOP_SERVICE, reporter, Storage, TimingServer } from '@basmilius/apple-common';
 export type { AudioSource, DebugGroup, MdnsService, ProtocolType, ReporterEntry, ReporterSink, ReporterSinkOptions, TrafficDirection, TrafficEntry, TrafficProtocol, TrafficSink } from '@basmilius/apple-common';
-

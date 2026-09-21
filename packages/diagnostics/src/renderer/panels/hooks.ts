@@ -79,7 +79,7 @@ export type Playhead = {
  * @param updatedAt - Snapshot timestamp in milliseconds.
  * @returns Elapsed playback time in seconds.
  */
-export function usePlayhead(playhead: Playhead | null, updatedAt: number | undefined): number {
+export function usePlayhead(playhead: Playhead | null, updatedAt: number | undefined, tickMs = TICK_MS): number {
     const playing = playhead !== null && playhead.playbackState === 'Playing' && playhead.playbackRate !== 0;
     const [now, setNow] = useState(() => Date.now());
 
@@ -90,10 +90,10 @@ export function usePlayhead(playhead: Playhead | null, updatedAt: number | undef
 
         setNow(Date.now());
 
-        const timer = window.setInterval(() => setNow(Date.now()), TICK_MS);
+        const timer = window.setInterval(() => setNow(Date.now()), tickMs);
 
         return () => window.clearInterval(timer);
-    }, [playing, playhead?.elapsedTime, updatedAt]);
+    }, [playing, playhead?.elapsedTime, updatedAt, tickMs]);
 
     if (playhead === null) {
         return 0;

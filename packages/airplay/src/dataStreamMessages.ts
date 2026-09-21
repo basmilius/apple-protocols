@@ -209,18 +209,19 @@ export function notification(notification: string): [Proto.ProtocolMessage, Desc
     ];
 }
 
+export type PlaybackQueueAssetOptions = Pick<Proto.PlaybackQueueRequestMessage,
+    'contentItemIdentifiers' | 'playerPath' | 'includeAvailableArtworkFormats' |
+    'requestedAnimatedArtworkPreviewFrameFormats' | 'requestedAnimatedArtworkAssetURLFormats'>;
+
 /**
- * Builds a PLAYBACK_QUEUE_REQUEST message to retrieve the playback queue.
- *
- * Requests detailed queue information including metadata, lyrics, artwork,
- * sections, participants, and animated artwork formats.
+ * Requests queue metadata and assets. Animated artwork formats must be requested explicitly.
  *
  * @param location - Starting index in the queue.
  * @param length - Number of items to retrieve.
  * @param artworkWidth - Desired artwork width in pixels.
  * @param artworkHeight - Desired artwork height in pixels (-1 for proportional).
  */
-export function playbackQueueRequest(location: number, length: number, artworkWidth: number = 600, artworkHeight: number = -1): [Proto.ProtocolMessage, DescExtension] {
+export function playbackQueueRequest(location: number, length: number, artworkWidth: number = 600, artworkHeight: number = -1, options: Partial<PlaybackQueueAssetOptions> = {}): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
     const message = create(Proto.PlaybackQueueRequestMessageSchema, {
         location,
@@ -236,7 +237,8 @@ export function playbackQueueRequest(location: number, length: number, artworkWi
         includeAlignments: true,
         includeParticipants: true,
         isLegacyNowPlayingInfoRequest: false,
-        /* Requesting available artwork formats disables inline artworkData. */
+        /* Opt in separately: requesting available formats disables inline artworkData. */
+        ...options
     });
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);

@@ -1,3 +1,6 @@
+const MAX_HEADER_LENGTH = 64 * 1024;
+const MAX_BODY_LENGTH = 16 * 1024 * 1024;
+
 /**
  * Supported RTSP/HTTP method verbs used in Apple protocol communication.
  */
@@ -108,17 +111,17 @@ export function buildResponse(options: BuildResponseOptions): Buffer {
 export function parseRequest(buffer: Buffer): RtspRequest | null {
     const headerLength = buffer.indexOf('\r\n\r\n');
 
+    if (headerLength > MAX_HEADER_LENGTH || (headerLength === -1 && buffer.length > MAX_HEADER_LENGTH)) {
+        throw new Error('RTSP headers exceed maximum length');
+    }
+
     if (headerLength === -1) {
         return null;
     }
 
     const {headers, method, path} = parseRequestHeaders(buffer.subarray(0, headerLength));
 
-    let contentLength = headers['Content-Length'] ? Number(headers['Content-Length']) : 0;
-
-    if (isNaN(contentLength)) {
-        contentLength = 0;
-    }
+    const contentLength = parseContentLength(headers);
 
     const requestLength = headerLength + 4 + contentLength;
 
@@ -151,17 +154,17 @@ export function parseRequest(buffer: Buffer): RtspRequest | null {
 export function parseResponse(buffer: Buffer): RtspResponse | null {
     const headerLength = buffer.indexOf('\r\n\r\n');
 
+    if (headerLength > MAX_HEADER_LENGTH || (headerLength === -1 && buffer.length > MAX_HEADER_LENGTH)) {
+        throw new Error('RTSP headers exceed maximum length');
+    }
+
     if (headerLength === -1) {
         return null;
     }
 
     const {headers, status, statusText} = parseResponseHeaders(buffer.subarray(0, headerLength));
 
-    let contentLength = headers['Content-Length'] ? Number(headers['Content-Length']) : 0;
-
-    if (isNaN(contentLength)) {
-        contentLength = 0;
-    }
+    const contentLength = parseContentLength(headers);
 
     const responseLength = headerLength + 4 + contentLength;
 
@@ -170,7 +173,7 @@ export function parseResponse(buffer: Buffer): RtspResponse | null {
     }
 
     const body = buffer.subarray(headerLength + 4, responseLength);
-    const response = new Response(body as unknown as ReadableStream, {
+    const response = new Response(status === 204 || status === 205 || status === 304 ? null : new Uint8Array(body), {
         status,
         statusText,
         headers
@@ -202,11 +205,17 @@ function parseHeaders(lines: string[]): Record<string, string> {
             continue;
         }
 
-        // Normalize to capitalized form (e.g. 'content-length' → 'Content-Length')
-        // so lookups like headers['CSeq'] work regardless of sender casing.
         const rawName = lines[i].substring(0, colon).trim();
-        const name = rawName.toLowerCase().replace(/(^|-)(\w)/g, (_, prefix, char) => prefix + char.toUpperCase());
-        headers[name] = lines[i].substring(colon + 1).trim();
+        const name = rawName.toLowerCase() === 'cseq'
+            ? 'CSeq'
+            : rawName.toLowerCase().replace(/(^|-)(\w)/g, (_, prefix, char) => prefix + char.toUpperCase());
+        const value = lines[i].substring(colon + 1).trim();
+
+        if (name === 'Content-Length' && headers[name] !== undefined && headers[name] !== value) {
+            throw new Error('Conflicting Content-Length headers');
+        }
+
+        headers[name] = value;
     }
 
     return headers;
@@ -262,4 +271,20 @@ function parseResponseHeaders(buffer: Buffer): { headers: Record<string, string>
     const headers = parseHeaders(lines.slice(1));
 
     return {headers, status, statusText};
+}
+
+function parseContentLength(headers: Record<string, string>): number {
+    const value = headers['Content-Length'];
+
+    if (value === undefined) {
+        return 0;
+    }
+
+    const length = Number(value);
+
+    if (!/^\d+$/.test(value) || !Number.isSafeInteger(length) || length > MAX_BODY_LENGTH) {
+        throw new Error('Invalid or excessive Content-Length');
+    }
+
+    return length;
 }

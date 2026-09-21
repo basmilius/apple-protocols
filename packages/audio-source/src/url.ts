@@ -1,11 +1,10 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, PlaybackError } from '@basmilius/apple-common';
-import { decode, isMp3, isOgg, isWav } from './decoder';
+import { decode } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source that fetches audio from a URL, automatically detecting
- * and decoding MP3, OGG, and WAV formats. Unknown formats are treated
- * as raw PCM data.
+ * and decoding the formats supported by the shared audio decoder.
  */
 export class Url extends BufferAudioSource {
     /**
@@ -20,14 +19,12 @@ export class Url extends BufferAudioSource {
     }
 
     /**
-     * Fetches audio from a URL, automatically detecting and decoding
-     * MP3, OGG, and WAV formats. Data that does not match any known
-     * format is treated as raw PCM.
+     * Fetches and decodes audio. Raw PCM requires an explicit format option.
      *
      * @param url - URL pointing to an audio file.
      * @returns A new Url audio source with the decoded PCM data.
      */
-    static async fromUrl(url: string): Promise<Url> {
+    static async fromUrl(url: string, options: {format?: 'encoded' | 'pcm'} = {}): Promise<Url> {
         let response: Response;
 
         try {
@@ -42,15 +39,14 @@ export class Url extends BufferAudioSource {
             throw new PlaybackError(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
         }
 
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
         let pcmBuffer: Buffer;
 
         try {
-            pcmBuffer = (isMp3(buffer) || isOgg(buffer) || isWav(buffer))
-                ? await decode(buffer)
-                : buffer;
+            const buffer = Buffer.from(await response.arrayBuffer());
+            pcmBuffer = options.format === 'pcm' ? buffer : await decode(buffer);
+            if (pcmBuffer.length % (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) !== 0) {
+                throw new Error('PCM data does not contain complete stereo frames');
+            }
         } catch (err) {
             const error = new PlaybackError(`Failed to decode audio from ${url}: ${err instanceof Error ? err.message : String(err)}`);
             error.cause = err;

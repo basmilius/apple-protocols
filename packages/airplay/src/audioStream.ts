@@ -239,7 +239,7 @@ export class AudioStream {
      *
      * Generates a random shared encryption key and SSRC, creates a local UDP
      * socket for RTCP control, then sends the SETUP request with format
-     * preferences (PCM 44100/24/stereo by default). On success, stores the
+     * preferences (PCM 44100/16/stereo). On success, stores the
      * assigned data and control ports and sends RECORD.
      *
      * @returns The assigned data and control port numbers.
@@ -276,19 +276,15 @@ export class AudioStream {
         // ct = compression type (1=PCM, 2=ALAC, 4=AAC-LC, 8=AAC-ELD)
         // audioFormat = bitmask for specific variant within that compression type
         const supportedFormats = this.#protocol.receiverInfo?.supportedAudioFormats as number | undefined;
-        let ct = CompressionType.PCM;
-        let audioFormat: number = AudioFormat.PCM_44100_24_2;
-        let sampleRate = AUDIO_SAMPLE_RATE;
+        const ct = CompressionType.PCM;
+        const audioFormat: number = AudioFormat.PCM_44100_16_2;
+        const sampleRate = AUDIO_SAMPLE_RATE;
 
         if (supportedFormats) {
             this.#context.logger.info('[audio]', `Receiver supported formats: 0x${supportedFormats.toString(16)}`);
         }
 
-        // TODO(audio-format): bytesPerChannel should be 3 for 24-bit formats, but our audio
-        // sources currently produce 16-bit PCM. Using bytesPerChannel=2 with a 24-bit audioFormat
-        // works because the receiver compensates, but this is technically incorrect. Revisit when
-        // audio sources support 24-bit output.
-        let bytesPerChannel = AUDIO_BYTES_PER_CHANNEL;
+        const bytesPerChannel = AUDIO_BYTES_PER_CHANNEL;
 
         const setupBody = Plist.serialize({
             streams: [{

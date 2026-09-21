@@ -376,7 +376,7 @@ export class DataStream extends BaseStream<EventMap> {
      * Each frame consists of a 32-byte header followed by a plist payload.
      * The header's command tag determines handling:
      * - 'sync': parse protobuf messages from payload, then send a reply
-     * - 'rply': resolve the first outstanding exchange
+     * - 'rply': transport acknowledgement, independent of protobuf exchanges
      *
      * @param data - Raw data from the TCP socket.
      */
@@ -397,9 +397,13 @@ export class DataStream extends BaseStream<EventMap> {
                 this.#buffer = Buffer.concat([this.#buffer, data]);
             }
 
-            while (this.#buffer.byteLength > DATA_HEADER_LENGTH) {
+            while (this.#buffer.byteLength >= DATA_HEADER_LENGTH) {
                 const header = this.#buffer.subarray(0, DATA_HEADER_LENGTH);
                 const totalLength = header.readUint32BE();
+
+                if (totalLength < DATA_HEADER_LENGTH || totalLength > 16 * 1024 * 1024) {
+                    throw new Error(`Invalid DataStream frame length: ${totalLength}`);
+                }
 
                 if (this.#buffer.byteLength < totalLength) {
                     this.context.logger.warn('[data]', `Data packet is too short needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
@@ -407,24 +411,16 @@ export class DataStream extends BaseStream<EventMap> {
                 }
 
                 const frame = this.#buffer.subarray(DATA_HEADER_LENGTH, totalLength);
-                const plist = Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any;
+                const plist = frame.length > 0
+                    ? Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as any) as any
+                    : null;
                 const command = header.toString('ascii', 4, 8);
 
                 this.#buffer = this.#buffer.subarray(totalLength);
 
                 if (!plist || !plist.params || !plist.params.data) {
-                    if (command === 'rply') {
-                        this.context.logger.raw('[data]', 'Received reply packet.');
-
-                        const first = this.#outstanding.entries().next();
-
-                        if (!first.done) {
-                            const [id, req] = first.value;
-                            this.#outstanding.delete(id);
-                            clearTimeout(req.timer);
-                            req.resolve(undefined);
-                        }
-                    } else if (command === 'sync') {
+                    // Transport acknowledgements do not complete protobuf exchanges.
+                    if (command === 'sync') {
                         this.reply(parseHeaderSeqno(header));
                     }
 
@@ -446,6 +442,7 @@ export class DataStream extends BaseStream<EventMap> {
             this.#encryptedBuffer = Buffer.alloc(0);
             this.#buffer = Buffer.alloc(0);
             this.context.logger.error('[data]', 'onStreamData()', err);
+            this.destroy();
             this.emit('error', err);
         }
     }

@@ -213,6 +213,7 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
             this.#encryptedBuffer = Buffer.alloc(0);
             this.#buffer = Buffer.alloc(0);
             this.context.logger.error('[event]', 'onStreamData()', err);
+            this.destroy();
             this.emit('error', err);
         }
     }

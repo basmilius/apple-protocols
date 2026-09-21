@@ -139,17 +139,12 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
         stream.on('_tiStarted', this.onTextInputStarted);
         stream.on('_tiStopped', this.onTextInputStopped);
 
-        // Register interests individually (like Apple does). Keep this resilient: a failed
-        // interest registration must not abort setup, otherwise live status updates (and
-        // recovery from a failed initial fetch) would be lost.
-        try {
-            this.#protocol.registerInterests(['_iMC']);
-            this.#protocol.registerInterests(['SystemStatus']);
-            this.#protocol.registerInterests(['TVSystemStatus']);
-            this.#protocol.registerInterests(['NowPlayingInfo']);
-            this.#protocol.registerInterests(['SupportedActions']);
-        } catch (err) {
-            this.#protocol.context.logger.warn('[cl-state]', 'Failed to register interests for live status updates', err);
+        for (const event of ['_iMC', 'SystemStatus', 'TVSystemStatus', 'NowPlayingInfo', 'SupportedActions']) {
+            try {
+                this.#protocol.registerInterests([event]);
+            } catch (err) {
+                this.#protocol.context.logger.warn('[cl-state]', `Failed to register interest for ${event}`, err);
+            }
         }
     }
 
@@ -250,8 +245,14 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
      * @param data - The raw system status payload containing a state code.
      */
     onSystemStatus(data: unknown): void {
-        const payload = data as { state: number };
-        const state = convertAttentionState(payload.state);
+        const value = (data as { state?: unknown } | null)?.state;
+        if (typeof value !== 'number' && !(typeof value === 'string' && /^[1-4]$/.test(value))) {
+            return;
+        }
+        const state = convertAttentionState(Number(value));
+        if (state === 'unknown') {
+            return;
+        }
 
         if (state !== this.#attentionState) {
             this.#attentionState = state;
@@ -265,8 +266,14 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
      * @param data - The raw TV system status payload containing a state code.
      */
     onTVSystemStatus(data: unknown): void {
-        const payload = data as { state: number };
-        const state = convertAttentionState(payload.state);
+        const value = (data as { state?: unknown } | null)?.state;
+        if (typeof value !== 'number' && !(typeof value === 'string' && /^[1-4]$/.test(value))) {
+            return;
+        }
+        const state = convertAttentionState(Number(value));
+        if (state === 'unknown') {
+            return;
+        }
 
         if (state !== this.#attentionState) {
             this.#attentionState = state;

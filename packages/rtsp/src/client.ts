@@ -299,6 +299,7 @@ export class RtspClient extends Connection<{}> {
             this.#encryptedBuffer = Buffer.alloc(0);
             this.#buffer = Buffer.alloc(0);
             this.context.logger.error('[rtsp]', 'onRtspData()', err);
+            this.destroy();
             this.emit('error', err as Error);
         }
     }

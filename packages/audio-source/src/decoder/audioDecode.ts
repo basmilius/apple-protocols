@@ -15,8 +15,11 @@ const AudioBuffer = globalThis.AudioBuffer || AudioBufferShim;
  * @throws Error if the input is invalid, the format cannot be detected, or no decoder is available.
  */
 export async function audioDecode(buf: any): Promise<any> {
-    if (!buf || !(buf.length || buf.buffer)) throw Error('Bad decode target');
-    buf = new Uint8Array(buf.buffer || buf);
+    if (!buf || !buf.byteLength) throw Error('Bad decode target');
+    // audio-type and node-wav assume that the backing buffer starts at byte zero.
+    buf = ArrayBuffer.isView(buf)
+        ? new Uint8Array(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength))
+        : new Uint8Array(buf);
 
     let type = getType(buf);
 
@@ -73,16 +76,8 @@ export const decoders: Record<string, any> = {
             const {FLACDecoder} = await import('@wasm-audio-decoders/flac');
             await (decoders.flac.decoder = decoder = new FLACDecoder()).ready;
         } else await decoder.reset();
-        return buf && createBuffer(await decoder.decode(buf));
+        return buf && createBuffer(await decoder.decodeFile(buf));
     },
-    // async opus(buf) {
-    //     let {decoder} = decoders.opus;
-    //     if (!decoder) {
-    //         const {OggOpusDecoder} = await import('ogg-opus-decoder');
-    //         await (decoders.opus.decoder = decoder = new OggOpusDecoder()).ready;
-    //     } else await decoder.reset();
-    //     return buf && createBuffer(await decoder.decodeFile(buf));
-    // },
     /**
      * Decodes WAV audio using node-wav, with a fallback to a custom
      * decoder for WAVE_FORMAT_EXTENSIBLE (0xFFFE) files.

@@ -6,6 +6,8 @@
 dist/
 dist-web/
 node_modules/
+out/
+release/
 
 .env
 *.ap-creds
@@ -16,4 +18,3 @@ node_modules/
 /error.log
 /output.log
 
-packages/diagnostics/src/web/embeddedAssets.ts

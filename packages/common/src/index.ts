@@ -83,8 +83,12 @@ export {
 } from './pairing';
 
 export {
+    type DebugGroup,
     type Logger,
     type Reporter,
+    type ReporterEntry,
+    type ReporterSink,
+    type ReporterSinkOptions,
     reporter
 } from './reporter';
 

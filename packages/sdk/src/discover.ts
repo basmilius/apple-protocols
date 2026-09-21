@@ -19,12 +19,24 @@ export type DiscoveredDevice = {
 };
 
 /**
+ * Options for {@link discover}.
+ */
+export type DiscoverOptions = {
+    /**
+     * Reuse the results of an earlier scan when they are still fresh. Set to
+     * false to force a new mDNS query. Default: true.
+     */
+    readonly useCache?: boolean;
+};
+
+/**
  * Discovers Apple devices on the local network via mDNS.
  * Returns device descriptors that can be passed to createDevice().
  */
-export async function discover(): Promise<DiscoveredDevice[]> {
-    const airplayResults = await Discovery.airplay().find();
-    const companionLinkResults = await Discovery.companionLink().find();
+export async function discover(options: DiscoverOptions = {}): Promise<DiscoveredDevice[]> {
+    const useCache = options.useCache ?? true;
+    const airplayResults = await Discovery.airplay().find(useCache);
+    const companionLinkResults = await Discovery.companionLink().find(useCache);
 
     // Group results by address.
     const byAddress = new Map<string, DiscoveredDevice>();

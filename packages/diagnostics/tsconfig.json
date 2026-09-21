@@ -1,36 +1,11 @@
 {
-    "compilerOptions": {
-        "target": "esnext",
-        "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
-        ],
-        "allowJs": true,
-        "skipLibCheck": true,
-        "strict": false,
-        "forceConsistentCasingInFileNames": true,
-        "esModuleInterop": true,
-        "module": "esnext",
-        "moduleResolution": "bundler",
-        "resolveJsonModule": false,
-        "isolatedModules": true,
-        "rootDir": ".",
-        "outDir": "dist",
-        "experimentalDecorators": true,
-        "noEmit": true,
-        "types": [
-            "node"
-        ]
-    },
-    "include": [
-        "src/**/*.ts",
-        "test/**/*.ts",
-        "build.ts",
-        "embedWebAssets.ts"
-    ],
-    "exclude": [
-        "dist",
-        "node_modules"
+    "files": [],
+    "references": [
+        {
+            "path": "./tsconfig.node.json"
+        },
+        {
+            "path": "./tsconfig.web.json"
+        }
     ]
 }

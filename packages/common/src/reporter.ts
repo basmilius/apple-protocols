@@ -2,13 +2,44 @@
  * Available debug output groups. Each group can be independently enabled
  * or disabled via the global {@link Reporter} singleton.
  */
-type DebugGroup =
+export type DebugGroup =
     | 'debug'
     | 'error'
     | 'info'
     | 'net'
     | 'raw'
     | 'warn';
+
+/**
+ * A single log record handed to a {@link ReporterSink}.
+ */
+export type ReporterEntry = {
+    /** The debug group the record belongs to. */
+    readonly group: DebugGroup;
+    /** The {@link Logger} identifier, or `null` for output not tied to a logger. */
+    readonly deviceId: string | null;
+    /** The values passed to the logging method, unformatted. */
+    readonly args: readonly unknown[];
+    /** Wall-clock milliseconds since the Unix epoch. */
+    readonly timestamp: number;
+};
+
+/**
+ * Receives every log record, whether or not its group prints to the console.
+ */
+export type ReporterSink = (entry: ReporterEntry) => void;
+
+/**
+ * Options for {@link Reporter.setSink}.
+ */
+export type ReporterSinkOptions = {
+    /** Stops console output entirely while the sink is installed. Default: false. */
+    readonly silenceConsole?: boolean;
+    /** Limits which groups reach the sink. Default: every group. */
+    readonly groups?: readonly DebugGroup[];
+};
+
+const ALL_GROUPS: readonly DebugGroup[] = ['debug', 'error', 'info', 'net', 'raw', 'warn'];
 
 /**
  * Scoped logger instance tagged with a device or component identifier.
@@ -43,7 +74,7 @@ export class Logger {
      * @param data - Values to log.
      */
     debug(...data: any[]): void {
-        debug(this.#label, ...data);
+        write('debug', this.#id, this.#label, data);
     }
 
     /**
@@ -52,7 +83,7 @@ export class Logger {
      * @param data - Values to log.
      */
     error(...data: any[]): void {
-        error(this.#label, ...data);
+        write('error', this.#id, this.#label, data);
     }
 
     /**
@@ -61,7 +92,7 @@ export class Logger {
      * @param data - Values to log.
      */
     info(...data: any[]): void {
-        info(this.#label, ...data);
+        write('info', this.#id, this.#label, data);
     }
 
     /**
@@ -70,7 +101,7 @@ export class Logger {
      * @param data - Values to log.
      */
     net(...data: any[]): void {
-        net(this.#label, ...data);
+        write('net', this.#id, this.#label, data);
     }
 
     /**
@@ -80,7 +111,7 @@ export class Logger {
      * @param data - Values to log.
      */
     raw(...data: any[]): void {
-        raw(this.#label, ...data);
+        write('raw', this.#id, this.#label, data);
     }
 
     /**
@@ -89,7 +120,7 @@ export class Logger {
      * @param data - Values to log.
      */
     warn(...data: any[]): void {
-        warn(this.#label, ...data);
+        write('warn', this.#id, this.#label, data);
     }
 }
 
@@ -99,6 +130,9 @@ export class Logger {
  */
 export class Reporter {
     #enabled: DebugGroup[] = [];
+    #sink: ReporterSink | null = null;
+    #sinkGroups: readonly DebugGroup[] = ALL_GROUPS;
+    #silenceConsole = false;
 
     /** Enables all debug groups (except 'raw' which is very verbose). */
     all(): void {
@@ -142,60 +176,92 @@ export class Reporter {
     isEnabled(group: DebugGroup): boolean {
         return this.#enabled.includes(group);
     }
+
+    /**
+     * Installs a sink that receives every log record, regardless of which groups
+     * print. Replaces a sink that was already installed.
+     *
+     * @param sink - Receives one record per logging call.
+     * @param options - Console silencing and group filtering.
+     */
+    setSink(sink: ReporterSink, options: ReporterSinkOptions = {}): void {
+        this.#sink = sink;
+        this.#sinkGroups = options.groups ?? ALL_GROUPS;
+        this.#silenceConsole = options.silenceConsole === true;
+    }
+
+    /** Removes the installed sink and restores console output. */
+    clearSink(): void {
+        this.#sink = null;
+        this.#sinkGroups = ALL_GROUPS;
+        this.#silenceConsole = false;
+    }
+
+    /**
+     * Whether a group still reaches the console. False while a sink asked to take
+     * console output over.
+     *
+     * @param group - The debug group to check.
+     */
+    printsToConsole(group: DebugGroup): boolean {
+        return !this.#silenceConsole && this.#enabled.includes(group);
+    }
+
+    /**
+     * Hands one record to the installed sink. A throwing sink must never take the
+     * caller down with it, so the failure is swallowed here.
+     *
+     * @param group - The debug group of the record.
+     * @param deviceId - The logger identifier, or null when there is none.
+     * @param args - The values passed to the logging method.
+     */
+    report(group: DebugGroup, deviceId: string | null, args: readonly unknown[]): void {
+        if (this.#sink === null || !this.#sinkGroups.includes(group)) {
+            return;
+        }
+
+        try {
+            this.#sink({group, deviceId, args, timestamp: Date.now()});
+        } catch {
+            // A broken sink is the sink's problem, not the caller's.
+        }
+    }
 }
 
-/**
- * Logs a debug-level message if the 'debug' group is enabled.
- *
- * @param data - Values to log.
- */
-function debug(...data: any[]): void {
-    reporter.isEnabled('debug') && console.debug(`\u001b[36m[debug]\u001b[39m`, ...data);
-}
+/** How each group prints: the console method and the ANSI color of its tag. */
+const CONSOLE: Record<DebugGroup, { method: 'debug' | 'error' | 'info' | 'log' | 'warn'; color: string }> = {
+    debug: {method: 'debug', color: '36'},
+    error: {method: 'error', color: '31'},
+    info: {method: 'info', color: '32'},
+    net: {method: 'info', color: '33'},
+    raw: {method: 'log', color: '34'},
+    warn: {method: 'warn', color: '33'}
+};
 
 /**
- * Logs an error-level message if the 'error' group is enabled.
+ * The single path every {@link Logger} method takes: the console, gated by the
+ * enabled groups, and the sink, which sees a record whether or not it printed.
  *
- * @param data - Values to log.
+ * @param group - The debug group of the record.
+ * @param id - The logger identifier, or null when the record has no logger.
+ * @param label - ANSI-colored prefix printed before the values.
+ * @param data - The values passed to the logging method.
  */
-function error(...data: any[]): void {
-    reporter.isEnabled('error') && console.error(`\u001b[31m[error]\u001b[39m`, ...data);
-}
+function write(group: DebugGroup, id: string | null, label: string | null, data: readonly unknown[]): void {
+    reporter.report(group, id, data);
 
-/**
- * Logs an info-level message if the 'info' group is enabled.
- *
- * @param data - Values to log.
- */
-function info(...data: any[]): void {
-    reporter.isEnabled('info') && console.info(`\u001b[32m[info]\u001b[39m`, ...data);
-}
+    if (!reporter.printsToConsole(group)) {
+        return;
+    }
 
-/**
- * Logs a network-level message if the 'net' group is enabled.
- *
- * @param data - Values to log.
- */
-function net(...data: any[]): void {
-    reporter.isEnabled('net') && console.info(`\u001b[33m[net]\u001b[39m`, ...data);
-}
+    const {method, color} = CONSOLE[group];
+    const tag = `\u001b[${color}m[${group}]\u001b[39m`;
 
-/**
- * Logs a raw data message if the 'raw' group is enabled.
- *
- * @param data - Values to log.
- */
-function raw(...data: any[]): void {
-    reporter.isEnabled('raw') && console.log(`\u001b[34m[raw]\u001b[39m`, ...data);
-}
-
-/**
- * Logs a warning-level message if the 'warn' group is enabled.
- *
- * @param data - Values to log.
- */
-function warn(...data: any[]): void {
-    reporter.isEnabled('warn') && console.warn(`\u001b[33m[warn]\u001b[39m`, ...data);
+    if (label === null) {
+        console[method](tag, ...data);
+    } else {
+        console[method](tag, label, ...data);
+    }
 }
 
 /** Global reporter singleton controlling which debug groups produce output. */

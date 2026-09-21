@@ -36,7 +36,7 @@ export {
 } from './internal';
 
 // --- Discovery ---
-export { discover, createDevice, type DiscoveredDevice } from './discover';
+export { discover, createDevice, type DiscoveredDevice, type DiscoverOptions } from './discover';
 
 // --- Configuration ---
 export { configure, type SdkConfig } from './configure';
@@ -62,6 +62,6 @@ export { SendCommandError } from './types';
 
 // --- Re-exports from protocol packages ---
 export { Proto } from '@basmilius/apple-airplay';
-export { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, ConnectionRecovery, mdnsMulticast, mdnsUnicast, RAOP_SERVICE, TimingServer } from '@basmilius/apple-common';
-export type { AudioSource, MdnsService } from '@basmilius/apple-common';
+export { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, ConnectionRecovery, JsonStorage, MemoryStorage, mdnsMulticast, mdnsUnicast, RAOP_SERVICE, reporter, Storage, TimingServer } from '@basmilius/apple-common';
+export type { AudioSource, DebugGroup, MdnsService, ProtocolType, ReporterEntry, ReporterSink, ReporterSinkOptions } from '@basmilius/apple-common';
 

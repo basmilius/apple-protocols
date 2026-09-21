@@ -32,6 +32,14 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     /**
+     * The dedicated protocol behind the running {@link streamAudio} session, or undefined when
+     * nothing is streaming. Exposed so a diagnostics client can read `audioStream.stats`.
+     */
+    get streamProtocol(): Protocol | undefined {
+        return this.#streamProtocol;
+    }
+
+    /**
      * The mDNS discovery result used to connect to this device.
      */
     get discoveryResult(): DiscoveryResult {

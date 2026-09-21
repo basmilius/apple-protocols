@@ -1,0 +1,33 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "skipLibCheck": true,
+        "strict": false,
+        "noEmit": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "jsx": "react-jsx",
+        "useDefineForClassFields": true,
+        "paths": {
+            "@/*": [
+                "./src/renderer/*"
+            ],
+            "@shared/*": [
+                "./src/shared/*"
+            ]
+        }
+    },
+    "include": [
+        "src/renderer/**/*.ts",
+        "src/renderer/**/*.tsx",
+        "src/shared/**/*.ts"
+    ]
+}

@@ -8,7 +8,7 @@ TypeScript monorepo voor Apple device protocollen (AirPlay 2, MRP, Companion Lin
 bash build.sh        # Bouwt alle packages in dependency-volgorde
 ```
 
-Elke package gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `electron-vite build && electron-builder` (Electron app, distribueerbaar voor macOS arm64/x64, Linux arm64/x64 en Windows x64).
+Elke package gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `tsgo --noEmit` + `electron-vite build`; `bun run pack` draait electron-builder (macOS arm64/x64, Linux arm64/x64, Windows x64).
 
 ### Protobuf genereren
 
@@ -50,7 +50,7 @@ Als stap 3 faalt, is er een breaking change in de public API.
 | `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing                     |
 | `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                                 |
 | `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing             |
-| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Electron app voor interactieve protocol-diagnostiek (Vue 3 + Flux Application)|
+| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Electron app voor protocol-diagnostiek (React 19 + Tailwind 4, UI naar Ruimte)  |
 
 ## Dependency graph
 
@@ -114,6 +114,17 @@ Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, C
 
 ### Storage
 `abstract Storage` → `JsonStorage` (schrijft naar `~/.config/apple-protocols/storage.json`) of `MemoryStorage` (in-memory). Credentials worden base64-geserialiseerd.
+
+## Diagnostics app
+
+`packages/diagnostics`: `src/main` (Electron main), `src/preload`, `src/renderer` (React), `src/shared` (IPC contract). De `@basmilius/apple-*` deps staan bewust in `devDependencies`: electron-vite externaliseert `dependencies`, en dan werkt de alias naar `../*/src` niet.
+
+- Meerdere devices tegelijk: `SessionManager` (`src/main/session.ts`) houdt een `Map<deviceId, DeviceSession>`, met één gedeelde `TimingServer` en een save-queue om `JsonStorage`.
+- `device:call { deviceId, root, path, args }` roept een pad aan op een allowlisted root (`device`, `airplay`, `airplayState`, `companionLink`, `airplayProtocol`, `companionLinkProtocol`). Zonder `args` leest het een getter. Setters kan het niet.
+- Contract per domein: `contract.ts` (core), `contract.media.ts` (pair, audio, raop, raw, recovery), `contract.tools.ts` (tool, storage, mdns). Handlers in `src/main/channels/<domein>`. Een kanaal toevoegen: map + kanaallijst in het contractbestand, handler in de channels-module.
+- Een paneel toevoegen: map onder `src/renderer/panels/<id>/` plus een regel in `registry.sdk.ts`, `registry.media.ts` of `registry.tools.ts`.
+- Logs komen via `reporter.setSink()` (common) met `deviceId` binnen, zonder console-patching.
+- Split grid (`src/renderer/shell/split.ts`): kolommen van cellen, max 3x3, een cel is `{ deviceId, panelId }`.
 
 ## Event systeem
 

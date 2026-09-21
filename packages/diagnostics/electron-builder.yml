@@ -1,0 +1,49 @@
+# Everything the app needs is bundled into `out/` by electron-vite, so no node_modules ship along.
+appId: dev.bas.apple-protocols-diagnostics
+productName: Apple Protocols Diagnostics
+copyright: Copyright © 2026 Bas Milius
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+asar: true
+npmRebuild: false
+nodeGypRebuild: false
+electronLanguages: [en-US]
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: entitlements.plist
+  entitlementsInherit: entitlements.plist
+  notarize: false
+dmg:
+  contents:
+    - x: 140
+      y: 200
+    - x: 420
+      y: 200
+      type: link
+      path: /Applications
+linux:
+  category: Development
+  maintainer: Bas Milius <bas@mili.us>
+  target:
+    - target: AppImage
+      arch: [arm64, x64]
+    - target: deb
+      arch: [arm64, x64]
+  # The package name is scoped, and deb puts ${name} in the file name, so the slash would end up as
+  # a directory that is not there. Every artifact is named after the product instead.
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  executableName: apple-protocols-diagnostics
+win:
+  target:
+    - target: nsis
+      arch: [x64]

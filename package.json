@@ -17,5 +17,8 @@
         "@basmilius/tools": "^3.35.0",
         "@types/bun": "^1.3.14",
         "@typescript/native-preview": "^7.0.0-dev.20260609.1"
-    }
+    },
+    "trustedDependencies": [
+        "electron"
+    ]
 }

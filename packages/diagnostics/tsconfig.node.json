@@ -1,0 +1,61 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+        ],
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "skipLibCheck": true,
+        "strict": false,
+        "noEmit": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "allowImportingTsExtensions": true,
+        "types": [
+            "node"
+        ],
+        "paths": {
+            "@shared/*": [
+                "./src/shared/*"
+            ],
+            "@basmilius/apple-airplay": [
+                "./../airplay/src"
+            ],
+            "@basmilius/apple-audio-source": [
+                "./../audio-source/src"
+            ],
+            "@basmilius/apple-common": [
+                "./../common/src"
+            ],
+            "@basmilius/apple-companion-link": [
+                "./../companion-link/src"
+            ],
+            "@basmilius/apple-encoding": [
+                "./../encoding/src"
+            ],
+            "@basmilius/apple-encryption": [
+                "./../encryption/src"
+            ],
+            "@basmilius/apple-raop": [
+                "./../raop/src"
+            ],
+            "@basmilius/apple-rtsp": [
+                "./../rtsp/src"
+            ],
+            "@basmilius/apple-sdk": [
+                "./../sdk/src"
+            ]
+        }
+    },
+    "include": [
+        "src/main/**/*.ts",
+        "src/preload/**/*.ts",
+        "src/shared/**/*.ts",
+        "electron.vite.config.ts"
+    ]
+}

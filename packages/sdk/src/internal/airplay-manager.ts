@@ -669,7 +669,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId, this.#protocol.context.identity));
             this.#protocol.dataStream.send(DataStreamMessage.setConnectionState());
             this.#protocol.dataStream.send(DataStreamMessage.clientUpdatesConfig(true, true, true, true));
-            await this.#protocol.dataStream.exchange(DataStreamMessage.getState());
+            // The device answers with unidentified SET_STATE pushes, never with a reply to this identifier.
+            this.#protocol.dataStream.send(DataStreamMessage.getState());
 
             // Auto-fetch playback queue (with artwork) on track changes.
             // Only fetch when artwork might have changed (different artworkId or no artwork yet).

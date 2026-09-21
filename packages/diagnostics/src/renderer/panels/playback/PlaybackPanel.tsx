@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
+import { Music } from 'lucide-react';
 import { formatDuration, formatTime } from '@shared/helpers';
-import { Badge, Button, CommandButton, Field, JsonView, Section, Select, Slider } from '@/ui';
-import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents } from '@/panels/hooks';
+import { Badge, Button, CommandButton, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
+import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
     COMMAND_ITEMS,
@@ -92,6 +93,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
     const lyrics = useDeviceEvents(deviceId, {sources: ['airplayState'], names: ['lyricsEvent'], limit: 20});
     const supported = snapshot?.supportedCommands ?? [];
     const nowPlaying = snapshot?.nowPlaying ?? null;
+    const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
 
     const modes = useMemo(() => {
         const player = snapshot?.clients.flatMap(client => client.players).find(entry => entry.isActive) ?? null;
@@ -123,6 +125,40 @@ export function PlaybackPanel({deviceId}: PanelProps) {
         <PanelBody>
             {!connected && <NotConnected/>}
 
+            <Section title="Now playing" actions={nowPlaying?.mediaType !== undefined && nowPlaying.mediaType !== 'Unknown' && <Badge tone="muted">{nowPlaying.mediaType}</Badge>}>
+                {nowPlaying === null || (nowPlaying.title === '' && nowPlaying.appName === null) ? (
+                    <EmptyState icon={<Icon icon={Music} size={18}/>} className="py-4">
+                        Nothing is playing on this device.
+                    </EmptyState>
+                ) : (
+                    <div className="flex gap-4">
+                        <div className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-sunken">
+                            {nowPlaying.artworkUrl && <img src={nowPlaying.artworkUrl} alt="" className="h-full w-full object-cover"/>}
+                        </div>
+                        <div className="min-w-0 grow">
+                            <KeyValueList>
+                                <KeyValue label="Title" mono={false}>
+                                    {nowPlaying.title || '-'}
+                                </KeyValue>
+                                <KeyValue label="Artist" mono={false}>
+                                    {nowPlaying.artist || '-'}
+                                </KeyValue>
+                                <KeyValue label="Album" mono={false}>
+                                    {nowPlaying.album || '-'}
+                                </KeyValue>
+                                <KeyValue label="Genre" mono={false}>
+                                    {nowPlaying.genre || '-'}
+                                </KeyValue>
+                                <KeyValue label="App" mono={false}>
+                                    {nowPlaying.appName ?? nowPlaying.bundleIdentifier ?? '-'}
+                                </KeyValue>
+                                <KeyValue label="Rate">{nowPlaying.playbackRate}</KeyValue>
+                            </KeyValueList>
+                        </div>
+                    </div>
+                )}
+            </Section>
+
             <Section
                 title="Transport"
                 actions={
@@ -132,7 +168,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                     </>
                 }
             >
-                <Scrubber elapsed={nowPlaying?.elapsedTime ?? 0} duration={nowPlaying?.duration ?? 0} connected={connected} call={call}/>
+                <Scrubber elapsed={elapsed} duration={nowPlaying?.duration ?? 0} connected={connected} call={call}/>
                 <Row>
                     <PlaybackCommand label="Play" command="Play" path="playback.play" call={call} supported={supported} connected={connected} variant="primary"/>
                     <PlaybackCommand label="Pause" command="Pause" path="playback.pause" call={call} supported={supported} connected={connected}/>

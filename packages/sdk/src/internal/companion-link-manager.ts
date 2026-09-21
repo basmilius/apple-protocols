@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CredentialsError, type AccessoryCredentials, type AccessoryKeys, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
-import { type AttentionState, type ButtonPressType, type HidCommandKey, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
+import { type AttentionState, type ButtonPressType, type HidCommandKey, HidTouchPhase, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@basmilius/apple-companion-link';
 import { CompanionLinkState, type MediaCapabilities } from './companion-link-state';
 import { COMPANION_LINK_PROTOCOL } from './const';
 
@@ -26,6 +26,9 @@ type EventMap = {
  * media control, text input, touch, Siri, and system controls.
  * Requires credentials (obtained from pair-setup) to connect.
  */
+/** The finger a gesture reports itself as; the HID touch stream is 1-based. */
+const TOUCH_FINGER = 1;
+
 export class CompanionLinkManager extends EventEmitter<EventMap> {
     /**
      * @returns The underlying Companion Link Protocol instance (accessed via symbol for internal use).
@@ -328,7 +331,8 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
     // --- Touch ---
 
     /**
-     * Sends a raw touch event to the device.
+     * Sends a `_touchC` touch event. Kept for protocol work: tvOS registers no handler for it, so
+     * {@link sendHidTouchEvent} is what reaches the device.
      *
      * @param finger - Finger index (0-based).
      * @param phase - Touch phase (0 = Began, 1 = Moved, 2 = Ended).
@@ -340,15 +344,34 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
     }
 
     /**
-     * Simulates a tap at the given coordinates.
+     * Sends a HID touch event, the form the Apple TV's HID daemon listens for.
      *
-     * @param x - Horizontal position (defaults to center 500).
-     * @param y - Vertical position (defaults to center 500).
+     * @param finger - Finger index (1-based).
+     * @param phase - HID touch phase (see `HidTouchPhase`).
+     * @param x - Horizontal position (0-1000).
+     * @param y - Vertical position (0-1000).
      */
-    async tap(x: number = 500, y: number = 500): Promise<void> {
-        await this.sendTouchEvent(0, 0, x, y);
-        await waitFor(50);
-        await this.sendTouchEvent(0, 2, x, y);
+    sendHidTouchEvent(finger: number, phase: number, x: number, y: number): void {
+        this.#protocol.sendHidTouchEvent(finger, phase, x, y);
+    }
+
+    /**
+     * Taps the touch surface, which selects whatever has focus.
+     *
+     * The Apple TV's HID touch device reports contact and position, nothing else, so a touch that
+     * lands and lifts again moves no focus and clicks nothing. A tap is the Select button, which is
+     * what a real remote sends for it.
+     *
+     * @param holdMs - How long to hold the button, in milliseconds. Omit for a plain tap.
+     */
+    async tap(holdMs?: number): Promise<void> {
+        if (holdMs === undefined) {
+            await this.pressButton('Select', 'SingleTap');
+
+            return;
+        }
+
+        await this.pressButton('Select', 'Hold', holdMs);
     }
 
     /**
@@ -371,15 +394,15 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         const deltaY = (endY - startY) / steps;
         const stepDuration = duration / steps;
 
-        await this.sendTouchEvent(0, 0, startX, startY);
+        this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Began, startX, startY);
 
         for (let i = 1; i < steps; i++) {
             await waitFor(stepDuration);
-            await this.sendTouchEvent(0, 1, Math.round(startX + deltaX * i), Math.round(startY + deltaY * i));
+            this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Moved, Math.round(startX + deltaX * i), Math.round(startY + deltaY * i));
         }
 
         await waitFor(stepDuration);
-        await this.sendTouchEvent(0, 2, endX, endY);
+        this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Ended, endX, endY);
     }
 
     // --- System Controls ---

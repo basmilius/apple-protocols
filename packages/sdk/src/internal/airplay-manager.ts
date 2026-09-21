@@ -178,6 +178,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.onStreamError = this.onStreamError.bind(this);
         this.onNowPlayingChanged = this.onNowPlayingChanged.bind(this);
         this.onTimeout = this.onTimeout.bind(this);
+        this.onConnectionState = this.onConnectionState.bind(this);
         this.#volume = new AirPlayVolume(this);
     }
 
@@ -617,6 +618,22 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     /**
+     * Handles the connection state the Apple TV reports over the data stream. It answers a message
+     * it rejects with Disconnected and then ignores the session, so the connection has to go down
+     * with it instead of staying up in name only.
+     *
+     * @param message - The connection state the Apple TV reports.
+     */
+    onConnectionState(message: Proto.SetConnectionStateMessage): void {
+        if (message.state !== Proto.SetConnectionStateMessage_ConnectionState.Disconnected) {
+            return;
+        }
+
+        this.#protocol.context.logger.error('AirPlay session dropped by the device');
+        this.#protocol.controlStream.destroy();
+    }
+
+    /**
      * Handles stream timeout events by destroying the control stream.
      */
     onTimeout(): void {
@@ -646,6 +663,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             // Remove listeners from previous streams (prevents accumulation on reconnect).
             this.#prevDataStream?.off('error', this.onStreamError);
             this.#prevDataStream?.off('timeout', this.onTimeout);
+            this.#prevDataStream?.off('setConnectionState', this.onConnectionState);
             this.#prevEventStream?.off('error', this.onStreamError);
             this.#prevEventStream?.off('timeout', this.onTimeout);
 
@@ -654,6 +672,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
             this.#protocol.dataStream.on('error', this.onStreamError);
             this.#protocol.dataStream.on('timeout', this.onTimeout);
+            this.#protocol.dataStream.on('setConnectionState', this.onConnectionState);
             this.#protocol.eventStream.on('error', this.onStreamError);
             this.#protocol.eventStream.on('timeout', this.onTimeout);
 

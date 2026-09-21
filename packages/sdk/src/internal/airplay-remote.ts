@@ -34,8 +34,10 @@ export class SendCommandError extends CommandError {
 /**
  * Remote control for an AirPlay device.
  * Provides HID-based navigation and media keys (USB usage pages: Generic Desktop 0x01
- * and Consumer 0x0c), SendCommand-based media controls, keyboard/text input,
- * and touch/gesture simulation.
+ * and Consumer 0x0c), SendCommand-based media controls and keyboard/text input.
+ *
+ * Touch and gestures are not here: tvOS rejects a virtual touch event over MRP and drops the
+ * session with it. `CompanionLinkManager` carries them over `_hidT` instead.
  */
 export class AirPlayRemote {
     /**
@@ -445,58 +447,9 @@ export class AirPlayRemote {
         await this.#dataStream.send(DataStreamMessage.getKeyboardSession());
     }
 
-    // Touch/gesture input
-
-    /**
-     * Simulates a tap at the given coordinates.
-     *
-     * @param x - Horizontal position in the virtual touch area.
-     * @param y - Vertical position in the virtual touch area.
-     * @param finger - Finger index for multi-touch (defaults to 1).
-     */
-    async tap(x: number, y: number, finger: number = 1): Promise<void> {
-        await this.#sendTouch(x, y, 1, finger); // Began
-        await waitFor(50);
-        await this.#sendTouch(x, y, 4, finger); // Ended
-    }
-
-    /**
-     * Simulates an upward swipe gesture.
-     *
-     * @param duration - Swipe duration in milliseconds (defaults to 200).
-     */
-    async swipeUp(duration: number = 200): Promise<void> {
-        await this.#swipe(200, 400, 200, 100, duration);
-    }
-
-    /**
-     * Simulates a downward swipe gesture.
-     *
-     * @param duration - Swipe duration in milliseconds (defaults to 200).
-     */
-    async swipeDown(duration: number = 200): Promise<void> {
-        await this.#swipe(200, 100, 200, 400, duration);
-    }
-
-    /**
-     * Simulates a leftward swipe gesture.
-     *
-     * @param duration - Swipe duration in milliseconds (defaults to 200).
-     */
-    async swipeLeft(duration: number = 200): Promise<void> {
-        await this.#swipe(400, 200, 100, 200, duration);
-    }
-
-    /**
-     * Simulates a rightward swipe gesture.
-     *
-     * @param duration - Swipe duration in milliseconds (defaults to 200).
-     */
-    async swipeRight(duration: number = 200): Promise<void> {
-        await this.#swipe(100, 200, 400, 200, duration);
-    }
-
     // HID primitives
+    // The Apple TV never answers a HID event, so these go out fire-and-forget; waiting for a reply
+    // times out on the key-down and the release never reaches the device.
 
     /**
      * Sends a double press of a HID key (two press-and-release cycles with a 150ms gap).
@@ -518,9 +471,9 @@ export class AirPlayRemote {
      * @param duration - Hold duration in milliseconds (defaults to 1000).
      */
     async longPress(usePage: number, usage: number, duration: number = 1000): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, true));
+        this.#dataStream.send(DataStreamMessage.sendHIDEvent(usePage, usage, true));
         await waitFor(duration);
-        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, false));
+        this.#dataStream.send(DataStreamMessage.sendHIDEvent(usePage, usage, false));
     }
 
     /**
@@ -530,9 +483,9 @@ export class AirPlayRemote {
      * @param usage - USB HID usage code.
      */
     async pressAndRelease(usePage: number, usage: number): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, true));
+        this.#dataStream.send(DataStreamMessage.sendHIDEvent(usePage, usage, true));
         await waitFor(25);
-        await this.#dataStream.exchange(DataStreamMessage.sendHIDEvent(usePage, usage, false));
+        this.#dataStream.send(DataStreamMessage.sendHIDEvent(usePage, usage, false));
     }
 
     // Private helpers
@@ -587,48 +540,5 @@ export class AirPlayRemote {
         }
 
         return result;
-    }
-
-    /**
-     * Sends a virtual touch event at the given coordinates.
-     *
-     * @param x - Horizontal position.
-     * @param y - Vertical position.
-     * @param phase - Touch phase (1 = Began, 2 = Moved, 4 = Ended).
-     * @param finger - Finger index for multi-touch.
-     */
-    async #sendTouch(x: number, y: number, phase: number, finger: number): Promise<void> {
-        await this.#dataStream.exchange(DataStreamMessage.sendVirtualTouchEvent(x, y, phase, finger));
-    }
-
-    /**
-     * Performs a swipe gesture by interpolating touch events between start and end coordinates.
-     *
-     * @param startX - Starting horizontal position.
-     * @param startY - Starting vertical position.
-     * @param endX - Ending horizontal position.
-     * @param endY - Ending vertical position.
-     * @param duration - Total swipe duration in milliseconds.
-     */
-    async #swipe(startX: number, startY: number, endX: number, endY: number, duration: number): Promise<void> {
-        const steps = Math.max(4, Math.floor(duration / 50));
-        const deltaX = (endX - startX) / steps;
-        const deltaY = (endY - startY) / steps;
-        const stepDuration = duration / steps;
-
-        await this.#sendTouch(startX, startY, 1, 1); // Began
-
-        for (let i = 1; i < steps; i++) {
-            await waitFor(stepDuration);
-            await this.#sendTouch(
-                Math.round(startX + deltaX * i),
-                Math.round(startY + deltaY * i),
-                2, // Moved
-                1
-            );
-        }
-
-        await waitFor(stepDuration);
-        await this.#sendTouch(endX, endY, 4, 1); // Ended
     }
 }

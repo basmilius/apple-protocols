@@ -207,8 +207,14 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
     dataStream('sendHIDEvent', 'sendHIDEvent', 'Input', 'A HID usage page event, which is how remote control navigation is sent.', [number('usePage', 'Usage page', 0x01), number('usage', 'Usage', 0x8d), boolean('down', 'Down', true)], args =>
         DataStreamMessage.sendHIDEvent(asNumber(args, 'usePage'), asNumber(args, 'usage'), asBoolean(args, 'down'))
     ),
-    dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1)], args =>
-        DataStreamMessage.sendVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'finger', 1))
+    dataStream('registerHIDDevice', 'registerHIDDevice', 'Input', 'Claims a virtual touch device and answers with the identifier a touch event has to carry.', [number('screenWidth', 'Screen width', 1000), number('screenHeight', 'Screen height', 1000), boolean('absolute', 'Absolute', true), boolean('integratedDisplay', 'Integrated display', false)], args =>
+        DataStreamMessage.registerHIDDevice(asNumber(args, 'screenWidth', 1000), asNumber(args, 'screenHeight', 1000), asBoolean(args, 'absolute'), asBoolean(args, 'integratedDisplay'))
+    ),
+    dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1), number('deviceId', 'Device id', 1)], args =>
+        DataStreamMessage.sendVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'finger', 1), asNumber(args, 'deviceId', 1))
+    ),
+    dataStream('sendPackedVirtualTouchEvent', 'sendPackedVirtualTouchEvent', 'Input', 'The packed form of a virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('deviceId', 'Device id', 1), number('finger', 'Finger', 1)], args =>
+        DataStreamMessage.sendPackedVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'deviceId', 1), asNumber(args, 'finger', 1))
     ),
     dataStream('wakeDevice', 'wakeDevice', 'Power', 'Wakes the device over the data stream.', [], () => DataStreamMessage.wakeDevice())
 ];

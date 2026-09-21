@@ -2,8 +2,10 @@ import type { AirPlayManager } from '../internal';
 
 /**
  * Remote controller for Apple devices.
- * Provides all HID-based keys (navigation, media, volume, power),
- * touch/swipe gestures, and low-level HID primitives.
+ * Provides all HID-based keys (navigation, media, volume, power) and low-level HID primitives.
+ *
+ * Touch and swipe gestures live on `AppleTV.companionLink`: tvOS answers a virtual touch event over
+ * MRP by dropping the session.
  */
 export class RemoteController {
     readonly #airplay: AirPlayManager;
@@ -102,29 +104,6 @@ export class RemoteController {
 
     async suspend(): Promise<void> {
         await this.#airplay.remote.suspend();
-    }
-
-    // --- Touch & Gestures ---
-
-    async tap(x: number, y: number, finger: number = 1): Promise<void> {
-        await this.#airplay.remote.tap(x, y, finger);
-    }
-
-    async swipe(direction: 'up' | 'down' | 'left' | 'right', duration: number = 200): Promise<void> {
-        switch (direction) {
-            case 'up':
-                await this.#airplay.remote.swipeUp(duration);
-                break;
-            case 'down':
-                await this.#airplay.remote.swipeDown(duration);
-                break;
-            case 'left':
-                await this.#airplay.remote.swipeLeft(duration);
-                break;
-            case 'right':
-                await this.#airplay.remote.swipeRight(duration);
-                break;
-        }
     }
 
     // --- HID Primitives ---

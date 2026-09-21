@@ -45,7 +45,7 @@ export function RemotePanel({deviceId}: PanelProps) {
 
             <Section title="Touch">
                 <div className="flex flex-wrap items-start gap-6">
-                    <TouchPad deviceId={deviceId} disabled={!connected} finger={numberOf(finger, 1)}/>
+                    <TouchPad deviceId={deviceId} disabled={!companionConnected} finger={numberOf(finger, 1)}/>
                     <div className="flex flex-col gap-2">
                         <Labeled label="Finger">
                             <NumberInput label="Finger" value={finger} onValueChange={setFinger} className="w-14"/>
@@ -58,13 +58,13 @@ export function RemotePanel({deviceId}: PanelProps) {
                                 <CommandButton
                                     key={direction}
                                     label={`Swipe ${direction}`}
-                                    run={() => call('device', 'remote.swipe', [direction, numberOf(swipeDuration, 200)])}
-                                    disabled={!connected}
+                                    run={() => call('companionLink', 'swipe', [direction, numberOf(swipeDuration, 200)])}
+                                    disabled={!companionConnected}
                                 />
                             ))}
                         </Row>
                         <Row>
-                            <CommandButton label="Tap center" run={() => call('device', 'remote.tap', [250, 250, numberOf(finger, 1)])} disabled={!connected}/>
+                            <CommandButton label="Tap (select)" run={() => call('companionLink', 'tap')} disabled={!companionConnected}/>
                         </Row>
                     </div>
                 </div>
@@ -168,7 +168,7 @@ export function RemotePanel({deviceId}: PanelProps) {
                         ))}
                     </Row>
                     <Row>
-                        <CommandButton label="Companion tap (500, 500)" run={() => call('companionLink', 'tap', [500, 500])}/>
+                        <CommandButton label="Companion tap (select)" run={() => call('companionLink', 'tap')}/>
                         {DIRECTIONS.map(direction => (
                             <CommandButton key={direction} label={`CL swipe ${direction}`} run={() => call('companionLink', 'swipe', [direction, numberOf(swipeDuration, 200)])}/>
                         ))}

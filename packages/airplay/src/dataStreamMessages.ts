@@ -434,6 +434,70 @@ export function sendCommandWithSleepTimer(seconds: number, stopMode: number = 0)
 }
 
 /**
+ * Builds a REGISTER_HID_DEVICE message that claims a virtual touch device.
+ *
+ * The Apple TV answers with a REGISTER_HID_DEVICE_RESULT holding the device identifier that
+ * {@link sendVirtualTouchEvent} has to carry; an unclaimed identifier makes it drop the session.
+ *
+ * @param screenWidth - Width of the virtual touch surface.
+ * @param screenHeight - Height of the virtual touch surface.
+ * @param absolute - Whether coordinates are absolute positions instead of relative movement.
+ * @param integratedDisplay - Whether the surface sits on top of a display, as on a phone.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function registerHIDDevice(screenWidth: number = 1000, screenHeight: number = 1000, absolute: boolean = true, integratedDisplay: boolean = false): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.REGISTER_HID_DEVICE_MESSAGE);
+    const message = create(Proto.RegisterHIDDeviceMessageSchema, {
+        deviceDescriptor: create(Proto.VirtualTouchDeviceDescriptorSchema, {
+            absolute,
+            integratedDisplay,
+            screenSizeWidth: screenWidth,
+            screenSizeHeight: screenHeight
+        })
+    });
+
+    setExtension(protocolMessage, Proto.registerHIDDeviceMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.registerHIDDeviceMessage
+    ];
+}
+
+/**
+ * Builds a SEND_PACKED_VIRTUAL_TOUCH_EVENT message, the packed form of a touch event.
+ *
+ * The five values sit in one byte array as 16-bit little endian integers, in the order
+ * x, y, phase, device identifier, finger.
+ *
+ * @param x - X coordinate on the virtual touchpad.
+ * @param y - Y coordinate on the virtual touchpad.
+ * @param phase - Touch phase (1=began, 2=moved, 3=stationary, 4=ended, 5=cancelled).
+ * @param deviceId - Identifier handed out by {@link registerHIDDevice}.
+ * @param finger - Finger index for multi-touch.
+ * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
+ */
+export function sendPackedVirtualTouchEvent(x: number, y: number, phase: number, deviceId: number, finger: number): [Proto.ProtocolMessage, DescExtension] {
+    const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_PACKED_VIRTUAL_TOUCH_EVENT_MESSAGE);
+    const data = Buffer.alloc(10);
+
+    data.writeUInt16LE(x, 0);
+    data.writeUInt16LE(y, 2);
+    data.writeUInt16LE(phase, 4);
+    data.writeUInt16LE(deviceId, 6);
+    data.writeUInt16LE(finger, 8);
+
+    const message = create(Proto.SendPackedVirtualTouchEventMessageSchema, {data});
+
+    setExtension(protocolMessage, Proto.sendPackedVirtualTouchEventMessage, message);
+
+    return [
+        protocolMessage,
+        Proto.sendPackedVirtualTouchEventMessage
+    ];
+}
+
+/**
  * Builds a SEND_VIRTUAL_TOUCH_EVENT message for touchpad simulation.
  *
  * Simulates touch input on a virtual trackpad, used for gesture-based
@@ -441,14 +505,15 @@ export function sendCommandWithSleepTimer(seconds: number, stopMode: number = 0)
  *
  * @param x - X coordinate on the virtual touchpad.
  * @param y - Y coordinate on the virtual touchpad.
- * @param phase - Touch phase (0=began, 1=moved, 2=ended, etc.).
+ * @param phase - Touch phase (1=began, 2=moved, 3=stationary, 4=ended, 5=cancelled).
  * @param finger - Finger index for multi-touch.
+ * @param deviceId - Identifier handed out by {@link registerHIDDevice}.
  * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
-export function sendVirtualTouchEvent(x: number, y: number, phase: number, finger: number): [Proto.ProtocolMessage, DescExtension] {
+export function sendVirtualTouchEvent(x: number, y: number, phase: number, finger: number, deviceId: number = 1): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_VIRTUAL_TOUCH_EVENT_MESSAGE);
     const message = create(Proto.SendVirtualTouchEventMessageSchema, {
-        virtualDeviceID: 1n,
+        virtualDeviceID: BigInt(deviceId),
         event: create(Proto.VirtualTouchEventSchema, {
             x: BigInt(x),
             y: BigInt(y),

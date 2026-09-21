@@ -3,10 +3,10 @@ import clsx from 'clsx';
 import { isCallFailure } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 
-/* The touch plane the SDK's own swipes move through: `AirPlayRemote` sweeps between 100 and 400. */
-export const TOUCH_RANGE = 500;
+/* The plane the Apple TV's HID touch device reports: its descriptor runs 0 to 1000 on both axes. */
+export const TOUCH_RANGE = 1000;
 
-/** Virtual touch phases as `AirPlayRemote` sends them. */
+/** HID touch phases, which are 1-based where UIKit's `_touchC` phases are 0-based. */
 const PHASE_BEGAN = 1;
 const PHASE_MOVED = 2;
 const PHASE_ENDED = 4;
@@ -17,15 +17,19 @@ const MOVE_INTERVAL_MS = 50;
 /** Under this distance, in touch units, a press that lifted again reads as a tap. */
 const TAP_DISTANCE = 12;
 
+/** Held longer than this, a tap that never moved becomes a long press of Select. */
+const HOLD_MS = 500;
+
 type Point = {
     readonly x: number;
     readonly y: number;
 };
 
 type Gesture = {
-    readonly kind: 'tap' | 'swipe';
+    readonly kind: 'tap' | 'hold' | 'swipe';
     readonly from: Point;
     readonly to: Point;
+    readonly finger: number;
     readonly durationMs: number;
     readonly error: string | null;
 };
@@ -49,14 +53,18 @@ const pointOf = (event: ReactPointerEvent<HTMLDivElement>): Point => {
 const percent = (value: number): string => `${(value / TOUCH_RANGE) * 100}%`;
 
 /*
- * A trackpad: the touch goes out while the pointer is down, phase by phase, so a drag arrives as
- * the swipe that was drawn rather than as one of the SDK's four fixed sweeps. The SDK keeps its
- * touch phases private, which is why this goes through the raw data stream builder.
+ * A trackpad, in the two gestures the Apple TV knows. A drag is a touch stream, phase by phase over
+ * Companion Link as `_hidT`, so it arrives as the swipe that was drawn rather than as one of the
+ * SDK's four fixed sweeps; the SDK keeps its touch phases private, hence the raw builder. A press
+ * that never moved is the Select button, because the HID touch device carries position and contact
+ * but no click. Which one it is only shows on release, so nothing goes out until the pointer has
+ * moved past the tap distance.
  */
 export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
     const [trail, setTrail] = useState<readonly Point[]>([]);
     const [gesture, setGesture] = useState<Gesture | null>(null);
     const start = useRef<{ point: Point; time: number } | null>(null);
+    const dragging = useRef(false);
     const lastMove = useRef(0);
     /* Phases must reach the device in the order they happened, so each send waits for the last. */
     const queue = useRef<Promise<void>>(Promise.resolve());
@@ -67,10 +75,30 @@ export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
             try {
                 const result = await invoke('raw:send', {
                     deviceId,
-                    transport: 'dataStream',
-                    id: 'sendVirtualTouchEvent',
-                    args: {x: point.x, y: point.y, phase, finger},
-                    exchange: true
+                    transport: 'companionLink',
+                    id: 'cl.sendHidTouchEvent',
+                    args: {finger, phase, x: point.x, y: point.y}
+                });
+
+                if (isCallFailure(result)) {
+                    failure.current = result.error.message;
+                }
+            } catch (error) {
+                failure.current = messageOf(error);
+            }
+        });
+
+        return queue.current;
+    };
+
+    const press = (durationMs: number): Promise<void> => {
+        queue.current = queue.current.then(async () => {
+            try {
+                const result = await invoke('device:call', {
+                    deviceId,
+                    root: 'companionLink',
+                    path: 'tap',
+                    args: durationMs >= HOLD_MS ? [durationMs] : []
                 });
 
                 if (isCallFailure(result)) {
@@ -93,19 +121,30 @@ export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
 
         event.currentTarget.setPointerCapture(event.pointerId);
         start.current = {point, time: performance.now()};
+        dragging.current = false;
         lastMove.current = performance.now();
         failure.current = null;
         setTrail([point]);
         setGesture(null);
-        void send(point, PHASE_BEGAN);
     };
 
     const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
-        if (start.current === null || performance.now() - lastMove.current < MOVE_INTERVAL_MS) {
+        const began = start.current;
+
+        if (began === null || performance.now() - lastMove.current < MOVE_INTERVAL_MS) {
             return;
         }
 
         const point = pointOf(event);
+
+        if (!dragging.current) {
+            if (Math.hypot(point.x - began.point.x, point.y - began.point.y) < TAP_DISTANCE) {
+                return;
+            }
+
+            dragging.current = true;
+            void send(began.point, PHASE_BEGAN);
+        }
 
         lastMove.current = performance.now();
         setTrail(current => [...current, point]);
@@ -120,16 +159,25 @@ export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
         }
 
         const point = pointOf(event);
-        const distance = Math.hypot(point.x - began.point.x, point.y - began.point.y);
+        const swiped = dragging.current;
+        const durationMs = Math.round(performance.now() - began.time);
 
         start.current = null;
+        dragging.current = false;
         setTrail(current => [...current, point]);
-        await send(point, PHASE_ENDED);
+
+        if (swiped) {
+            await send(point, PHASE_ENDED);
+        } else {
+            await press(durationMs);
+        }
+
         setGesture({
-            kind: distance < TAP_DISTANCE ? 'tap' : 'swipe',
+            kind: swiped ? 'swipe' : (durationMs >= HOLD_MS ? 'hold' : 'tap'),
             from: began.point,
             to: point,
-            durationMs: Math.round(performance.now() - began.time),
+            finger,
+            durationMs,
             error: failure.current
         });
     };
@@ -171,12 +219,12 @@ export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
                     />
                 )}
             </div>
-            <span className={clsx('mono text-2xs', failed ? 'text-status-error' : 'text-text-muted')}>{describe(gesture, finger)}</span>
+            <span className={clsx('mono text-2xs', failed ? 'text-status-error' : 'text-text-muted')}>{describe(gesture)}</span>
         </div>
     );
 }
 
-function describe(gesture: Gesture | null, finger: number): string {
+function describe(gesture: Gesture | null): string {
     if (gesture === null) {
         return `press to tap, drag to swipe (0 to ${TOUCH_RANGE})`;
     }
@@ -186,8 +234,12 @@ function describe(gesture: Gesture | null, finger: number): string {
     }
 
     if (gesture.kind === 'tap') {
-        return `tap(${gesture.to.x}, ${gesture.to.y}) finger ${finger}, ${gesture.durationMs} ms`;
+        return `select, ${gesture.durationMs} ms`;
     }
 
-    return `swipe(${gesture.from.x}, ${gesture.from.y}) to (${gesture.to.x}, ${gesture.to.y}), ${gesture.durationMs} ms`;
+    if (gesture.kind === 'hold') {
+        return `select held ${gesture.durationMs} ms`;
+    }
+
+    return `swipe(${gesture.from.x}, ${gesture.from.y}) to (${gesture.to.x}, ${gesture.to.y}) finger ${gesture.finger}, ${gesture.durationMs} ms`;
 }

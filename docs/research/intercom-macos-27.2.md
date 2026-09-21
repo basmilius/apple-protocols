@@ -2,6 +2,8 @@
 
 Examined on macOS 27.2, build 26B5086k, on 21 September 2026. The additional inspection supports looking beyond AirPlay, but it also exposes a platform boundary: the Home announcement entry points examined here are disabled or inert on macOS. We still do not have a standalone Intercom send command for Homey.
 
+The [iOS simulator follow-up](intercom-ios-simulator-27.md) now contains the Announce client/daemon binaries and a concrete Rapport request ID. The macOS findings below remain specific to that platform.
+
 ## New evidence
 
 The Home application's load commands reference the Catalyst frameworks under `/System/iOSSupport`, including `Home`, `HomeUI`, `HomeUI2`, `HomeUICommon` and `HomeKit`. These are additional search targets beyond the native frameworks examined earlier.

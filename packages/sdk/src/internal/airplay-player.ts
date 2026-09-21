@@ -207,9 +207,14 @@ export class AirPlayPlayer {
     }
 
     /**
-     * Extrapolated elapsed time in seconds. Uses the most recent timestamp
-     * from either NowPlayingInfo or content item metadata, accounting for
-     * playback rate to provide a real-time estimate.
+     * Extrapolated elapsed time in seconds, read from whichever of NowPlayingInfo and the content
+     * item metadata carries the newer timestamp.
+     *
+     * Two quirks of the Apple TV shape this. A metadata update that only announces a track carries
+     * an elapsed time of 0 and a rate of 0 while the player keeps going, so the rate falls back to
+     * the one the player reports and the position is counted from that timestamp; taking those
+     * zeroes at face value would freeze the position at the start of every track. And a paused
+     * player keeps reporting a rate of 1, so it reports the position it stopped at instead.
      */
     get elapsedTime(): number {
         const npi = this.#nowPlayingInfo;
@@ -218,33 +223,20 @@ export class AirPlayPlayer {
         const npiValid = npi?.elapsedTime != null && npi.timestamp != null && npi.timestamp !== 0;
         const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp != null && meta.elapsedTimeTimestamp !== 0;
 
-        if (npiValid && metaValid) {
-            // After track restarts or seeks, metadata may have a more
-            // recent timestamp than NowPlayingInfo.
-            if (meta.elapsedTimeTimestamp > npi.timestamp) {
-                // Don't extrapolate if elapsed time was reset to 0 (track just started).
-                if (meta.elapsedTime === 0) {
-                    return 0;
-                }
-                return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
-            }
-
-            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate);
+        if (!npiValid && !metaValid) {
+            return npi?.elapsedTime || meta?.elapsedTime || 0;
         }
 
-        if (npiValid) {
-            return extrapolateElapsed(npi.elapsedTime, npi.timestamp, npi.playbackRate);
+        // After a track change or a seek, metadata can carry the newer timestamp of the two.
+        const newest = metaValid && (!npiValid || meta.elapsedTimeTimestamp > npi.timestamp)
+            ? {elapsed: meta.elapsedTime, timestamp: meta.elapsedTimeTimestamp, rate: meta.playbackRate}
+            : {elapsed: npi.elapsedTime, timestamp: npi.timestamp, rate: npi.playbackRate};
+
+        if (this.#playbackState !== Proto.PlaybackState_Enum.Playing && this.#playbackState !== Proto.PlaybackState_Enum.Unknown) {
+            return newest.elapsed;
         }
 
-        if (metaValid) {
-            // Don't extrapolate if elapsed time was reset to 0 (track just started).
-            if (meta.elapsedTime === 0) {
-                return 0;
-            }
-            return extrapolateElapsed(meta.elapsedTime, meta.elapsedTimeTimestamp, meta.playbackRate);
-        }
-
-        return npi?.elapsedTime || meta?.elapsedTime || 0;
+        return extrapolateElapsed(newest.elapsed, newest.timestamp, newest.rate || this.playbackRate);
     }
 
     /**

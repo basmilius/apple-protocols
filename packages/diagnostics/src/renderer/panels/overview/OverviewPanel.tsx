@@ -3,7 +3,7 @@ import { Music, Plug, PlugZap } from 'lucide-react';
 import { formatDuration } from '@shared/helpers';
 import { Badge, Button, CommandButton, EmptyState, Icon, KeyValue, KeyValueList, PanelBody, Section, Slider } from '@/ui';
 import type { VolumeSnapshot } from '@shared/contract';
-import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
+import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 
 /* The slider follows the pointer on its own and only tells the device where it landed: a set on
@@ -47,6 +47,7 @@ export function OverviewPanel({deviceId}: PanelProps) {
 
     const connection = snapshot?.connection ?? null;
     const nowPlaying = snapshot?.nowPlaying ?? null;
+    const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
     const volume = snapshot?.volume ?? null;
 
     return (
@@ -115,7 +116,7 @@ export function OverviewPanel({deviceId}: PanelProps) {
                                 </KeyValue>
                                 <KeyValue label="State">{nowPlaying.playbackState}</KeyValue>
                                 <KeyValue label="Position">
-                                    {formatDuration(nowPlaying.elapsedTime)} / {formatDuration(nowPlaying.duration)}
+                                    {formatDuration(elapsed)} / {formatDuration(nowPlaying.duration)}
                                 </KeyValue>
                                 <KeyValue label="App">{nowPlaying.bundleIdentifier ?? '-'}</KeyValue>
                             </KeyValueList>

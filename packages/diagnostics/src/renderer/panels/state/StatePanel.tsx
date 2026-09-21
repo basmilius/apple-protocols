@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { formatDuration, formatTime } from '@shared/helpers';
 import type { ClientSnapshot, PlayerSnapshot } from '@shared/contract';
 import { Badge, CommandButton, EmptyState, JsonView, KeyValue, KeyValueList, Section } from '@/ui';
-import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents } from '@/panels/hooks';
+import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { NotConnected, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
 
@@ -29,7 +29,9 @@ const SCALAR_GETTERS: readonly string[] = [
     'isClusterLeader'
 ];
 
-function PlayerBlock({player}: { readonly player: PlayerSnapshot }) {
+function PlayerBlock({player, updatedAt}: { readonly player: PlayerSnapshot; readonly updatedAt: number | undefined }) {
+    const elapsed = usePlayhead(player, updatedAt);
+
     return (
         <div className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -65,7 +67,7 @@ function PlayerBlock({player}: { readonly player: PlayerSnapshot }) {
                 </KeyValue>
                 <KeyValue label="Rate">{player.playbackRate}</KeyValue>
                 <KeyValue label="Position">
-                    {formatDuration(player.elapsedTime)} / {formatDuration(player.duration)}
+                    {formatDuration(elapsed)} / {formatDuration(player.duration)}
                 </KeyValue>
             </KeyValueList>
             <div className="flex flex-wrap gap-1">
@@ -83,7 +85,7 @@ function PlayerBlock({player}: { readonly player: PlayerSnapshot }) {
     );
 }
 
-function ClientBlock({client}: { readonly client: ClientSnapshot }) {
+function ClientBlock({client, updatedAt}: { readonly client: ClientSnapshot; readonly updatedAt: number | undefined }) {
     return (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-sunken p-2">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -97,7 +99,7 @@ function ClientBlock({client}: { readonly client: ClientSnapshot }) {
             </div>
             <div className="flex flex-col gap-2">
                 {client.players.map(player => (
-                    <PlayerBlock key={`${client.bundleIdentifier}:${player.identifier}`} player={player}/>
+                    <PlayerBlock key={`${client.bundleIdentifier}:${player.identifier}`} player={player} updatedAt={updatedAt}/>
                 ))}
             </div>
         </div>
@@ -166,7 +168,7 @@ export function StatePanel({deviceId}: PanelProps) {
                 ) : (
                     <div className="flex flex-col gap-2">
                         {clients.map(client => (
-                            <ClientBlock key={client.bundleIdentifier} client={client}/>
+                            <ClientBlock key={client.bundleIdentifier} client={client} updatedAt={snapshot?.updatedAt}/>
                         ))}
                     </div>
                 )}

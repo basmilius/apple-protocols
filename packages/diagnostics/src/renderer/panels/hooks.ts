@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type CallRoot, type DebugGroup, type DeviceEvent, type DeviceEventSource, type DiscoveredDeviceInfo, isCallFailure, type LogEntry, type StateSnapshot } from '@shared/contract';
 import { invoke } from '@/client';
 import { useDevices } from '@/state/devices';
@@ -68,6 +68,50 @@ export function useDeviceCall(deviceId: string | null): DeviceCall {
         },
         [deviceId]
     );
+}
+
+/** How often a running position is redrawn. Fast enough that the seconds never skip. */
+const TICK_MS = 500;
+
+export type Playhead = {
+    readonly elapsedTime: number;
+    readonly playbackRate: number;
+    readonly playbackState: string;
+};
+
+/**
+ * The position of a playhead right now. A snapshot only arrives when the device sends something,
+ * which on a long track is minutes apart, so the position is carried forward from the one in hand.
+ *
+ * @param playhead - The position as the snapshot reported it.
+ * @param updatedAt - When that snapshot was built, in milliseconds.
+ * @returns The elapsed time in seconds, moving while the player plays.
+ */
+export function usePlayhead(playhead: Playhead | null, updatedAt: number | undefined): number {
+    const playing = playhead !== null && playhead.playbackState === 'Playing' && playhead.playbackRate !== 0;
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        if (!playing) {
+            return;
+        }
+
+        setNow(Date.now());
+
+        const timer = window.setInterval(() => setNow(Date.now()), TICK_MS);
+
+        return () => window.clearInterval(timer);
+    }, [playing, playhead?.elapsedTime, updatedAt]);
+
+    if (playhead === null) {
+        return 0;
+    }
+
+    if (!playing || updatedAt === undefined) {
+        return playhead.elapsedTime;
+    }
+
+    return Math.max(0, playhead.elapsedTime + ((now - updatedAt) / 1000) * playhead.playbackRate);
 }
 
 export type EventFilter = {

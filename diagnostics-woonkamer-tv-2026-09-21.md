@@ -1,5 +1,23 @@
 # Testresultaten Woonkamer TV
 
+## Hertest na de implementatiefixes
+
+Op 21 september 2026 vanaf circa 20:17 UTC is commit `9ceb238` op Woonkamer TV getest. De werkboom was bij aanvang schoon. Tijdens de drie herstelproeven bleef diagnostics hetzelfde proces, 63420.
+
+| Onderdeel | Resultaat |
+| --- | --- |
+| Data-, event- en controlstreamverlies | Drie afzonderlijke simulateDrop-acties. Elke keer automatisch recovered, met beide protocollen weer verbonden. Geen handmatige reconnect nodig |
+| Bediening na herstel | AirPlay-pauze slaagt en de snapshot wordt Paused; Companion hervat de muziek |
+| Companion-tekstinvoer vóór aanvullende correctie | Plist wordt gelezen, maar sessie-UUID wordt afgewezen |
+| Aanvullende correctie | De ontvangen UUID is rechtstreeks 16 bytes, geen NSUUID-object. De decoder accepteert nu beide vormen. Diagnostics is voor deze bronwijziging automatisch herstart |
+| Companion vervangen en toevoegen | Gebruiker bevestigt exact `test`, daarna `test café 😀` |
+| Publieke keyboard-controller | Gebruiker bevestigt leeg veld na clear. Na opnieuw openen van Zoek bevestigt de gebruiker exact `nieuw` via keyboard.type |
+| Directe AirPlay-tekstinvoer | De RTI-sessieaanvraag krijgt een antwoord zonder sessiedata. De API geeft No active AirPlay text input session. Deze route is nog niet werkend aangetoond |
+
+De CLI-wachtfunctie zag het recovered-event niet. De recovery-status meldde wel recovered en de opnieuw uitgevoerde protocolcalls werkten. Dit is een afzonderlijke beperking in de waarneembaarheid via de agent-bridge, geen mislukte reconnect.
+
+De kleine UUID-correctie en dit verslag staan lokaal. Projectbuild en Homey-build slagen. Er zijn geen geautomatiseerde tests toegevoegd. Na afloop zijn de zoektekst gewist, Muziek hervat en beide verbindingen als connected teruggelezen. Recovery staat weer uit, zoals bij aanvang.
+
 ## Hertest zonder ander werk
 
 Op 21 september 2026, ongeveer 19:48–19:53 UTC, zijn de kerntests opnieuw uitgevoerd op commit `d299753`. De werkboom was voor en na de hardwaretests schoon. Diagnostics behield proces 51237. Er waren geen waargenomen herstarts. Onderstaande resultaten vervangen de eerdere beoordeling waar ze verschillen.

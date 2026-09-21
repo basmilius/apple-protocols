@@ -4,6 +4,8 @@ Gebaseerd op de hertest van Woonkamer TV op 21 september 2026, commit `d299753`.
 
 ## Implementatiestatus
 
+De hardwarehertest bevestigt inmiddels herstel bij verlies van elk van de drie streams en werkende tekstinvoer via Companion/de publieke controller. Eén aanvullende decoderwijziging was nodig: Woonkamer TV stuurt de UUID rechtstreeks als 16 bytes. Vervangen, toevoegen met accent/emoji, wissen en invoeren na opnieuw openen zijn door de gebruiker bevestigd. Directe AirPlay-tekstinvoer blijft open; de receiver antwoordt zonder actieve RTI-sessiedata.
+
 De codewijzigingen zijn uitgevoerd. Vóór verwijdering slaagden de 66 tests op Bun en Node; de projectbuild inclusief diagnostics en de Homey-build slaagden ook. De geautomatiseerde tests, fixtures en runner zijn daarna op verzoek verwijderd. De testscenario’s hieronder zijn bewaard voor een later, grondig testtraject. De hardwarehertest staat nog open.
 
 - De manager bewaakt close op alle essentiële streams, maakt teardown eenmalig en meldt connected pas na volledige setup. Vernietigen annuleert socket-retries. Late recovery-resultaten na dispose/reset worden genegeerd.

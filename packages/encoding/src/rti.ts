@@ -40,7 +40,7 @@ export function decodeSession(data: Uint8Array | ArrayBuffer): TextInputSession 
 
     const roots = resolve(archive.$top);
     const root = roots.root ?? roots;
-    const uuidValue = root.sessionUUID?.['NS.uuidbytes'];
+    const uuidValue = root.sessionUUID?.['NS.uuidbytes'] ?? root.sessionUUID;
     const uuid = uuidValue instanceof ArrayBuffer ? new Uint8Array(uuidValue)
         : uuidValue instanceof Uint8Array ? uuidValue : null;
     if (!uuid || uuid.byteLength !== 16) throw new Error('Invalid RTI session UUID.');

@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
+import { CommandError, Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
 import { Plist, RTI } from '@basmilius/apple-encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType } from './frame';
@@ -799,8 +799,19 @@ export class Protocol {
      * @param message - The OPack message object to send.
      * @returns A tuple of `[headerByte, decodedPayload]` from the response.
      */
-    #exchange(message: Record<string, unknown>): Promise<[number, unknown]> {
-        return this.#stream.exchange(FrameType.OPackEncrypted, message);
+    async #exchange(message: Record<string, unknown>): Promise<[number, unknown]> {
+        const response = await this.#stream.exchange(FrameType.OPackEncrypted, message);
+        const payload = objectOrFail<Record<string, unknown>>(response[1]);
+
+        if (payload._em || (payload._ec !== undefined && Number(payload._ec) !== 0)) {
+            const details = [payload._ed, payload._ec === undefined ? undefined : Number(payload._ec)]
+                .filter(value => value !== undefined)
+                .join(' ');
+
+            throw new CommandError(`${message._i}: ${payload._em || 'Command failed'}${details ? ` (${details})` : ''}`);
+        }
+
+        return response;
     }
 
     /**

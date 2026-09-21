@@ -189,8 +189,16 @@ export function decode(buf: Buffer): Map<number, Buffer> {
     let i = 0;
 
     while (i < buf.length) {
+        if (buf.length - i < 2) {
+            throw new RangeError('Truncated TLV8 header');
+        }
+
         const type = buf[i++];
         const len = buf[i++];
+
+        if (len > buf.length - i) {
+            throw new RangeError('Truncated TLV8 value');
+        }
 
         const existing = map.get(type);
         if (existing) {

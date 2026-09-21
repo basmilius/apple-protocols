@@ -75,11 +75,11 @@ export function buildReply(seqno: bigint): Buffer {
  *
  * @param value - Non-negative integer to encode.
  * @returns Varint-encoded byte array.
- * @throws RangeError if the value is negative.
+ * @throws RangeError if the value is outside uint32.
  */
 export function encodeVarint(value: number): Uint8Array {
-    if (value < 0) {
-        throw new RangeError('Varint only supports non-negative integers');
+    if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+        throw new RangeError('Varint only supports uint32 integers');
     }
 
     const bytes: number[] = [];
@@ -120,34 +120,24 @@ export function parseHeaderSeqno(header: Buffer): bigint {
  * @returns Array of decoded ProtocolMessage instances.
  */
 export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
-    const messages: Proto.ProtocolMessage[] = [];
-    let offset = 0;
-
-    while (offset < content.length) {
-        const firstByte = content[offset];
-
-        if (firstByte === 0x08) {
-            const message = content.subarray(offset);
-            const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
-            messages.push(decoded);
-            break;
+    try {
+        const messages: Proto.ProtocolMessage[] = [];
+        let offset = 0;
+        while (offset < content.length) {
+            const [length, prefixLength] = readVariant(content, offset);
+            offset += prefixLength;
+            if (length === 0 || length > content.length - offset) {
+                throw new RangeError('Invalid protobuf message length');
+            }
+            messages.push(fromBinary(Proto.ProtocolMessageSchema, content.subarray(offset, offset + length), {readUnknownFields: true}));
+            offset += length;
         }
-
-        const [length, variantLen] = readVariant(content, offset);
-        offset += variantLen;
-
-        if (offset + length > content.length) {
-            break;
-        }
-
-        const message = content.subarray(offset, offset + length);
-        offset += length;
-
-        const decoded = fromBinary(Proto.ProtocolMessageSchema, message, {readUnknownFields: true});
-        messages.push(decoded);
+        return messages;
+    } catch (error) {
+        // A length prefix of eight is also the first field tag of a legacy bare message.
+        if (content[0] !== 0x08) throw error;
+        return [fromBinary(Proto.ProtocolMessageSchema, content, {readUnknownFields: true})];
     }
-
-    return messages;
 }
 
 /**
@@ -159,19 +149,12 @@ export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
  */
 export function readVariant(buf: Buffer, offset = 0): [number, number] {
     let result = 0;
-    let shift = 0;
-    let bytesRead = 0;
-
-    while (offset + bytesRead < buf.length) {
-        const byte = buf[offset + bytesRead++];
-        result |= (byte & 0x7f) << shift;
-
-        if ((byte & 0x80) === 0) {
-            break;
-        }
-
-        shift += 7;
+    for (let i = 0; i < 5; i++) {
+        if (offset + i >= buf.length) throw new RangeError('Truncated varint');
+        const byte = buf[offset + i];
+        if (i === 4 && byte > 0x0f) throw new RangeError('Varint exceeds uint32');
+        result += (byte & 0x7f) * 2 ** (7 * i);
+        if ((byte & 0x80) === 0) return [result, i + 1];
     }
-
-    return [result, bytesRead];
+    throw new RangeError('Varint exceeds uint32');
 }

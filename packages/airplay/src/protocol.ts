@@ -5,33 +5,9 @@ import { AudioStream } from './audioStream';
 import { ControlStream } from './controlStream';
 import { DataStream } from './dataStream';
 import { EventStream } from './eventStream';
+import { encodeFeatures, parseReceiverFeatures } from './features';
 
 import { describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from '@basmilius/apple-common';
-
-/**
- * Parses a feature value from /info which can be a number, hex string, or decimal string.
- */
-function parseFeatureValue(value: unknown): number {
-    if (typeof value === 'number') {
-        return value;
-    }
-
-    const str = String(value);
-
-    if (str.startsWith('0x') || str.startsWith('0X')) {
-        return parseInt(str, 16);
-    }
-
-    const asInt = parseInt(str, 10);
-
-    if (!isNaN(asInt)) {
-        return asInt;
-    }
-
-    // Last resort: try hex without prefix (e.g. "1a0")
-    const asHex = parseInt(str, 16);
-    return isNaN(asHex) ? 0 : asHex;
-}
 
 function compareVersions(a: string, b: string): number {
     const pa = a.split('.').map(Number);
@@ -224,14 +200,8 @@ export class Protocol {
 
         const receiverSourceVersion = info.sourceVersion as string | undefined;
 
-        if (info.features != null) {
-            let features = BigInt(parseFeatureValue(info.features));
-
-            if (info.featuresEx != null) {
-                features |= BigInt(parseFeatureValue(info.featuresEx)) << 32n;
-            }
-
-            this.#receiverFeatures = features;
+        if (info.features != null || info.featuresEx != null) {
+            this.#receiverFeatures = parseReceiverFeatures(info);
         }
 
         this.context.logger.info('[protocol]', `Receiver: ${info.name ?? 'unknown'}, model=${info.model ?? '?'}, sourceVersion=${receiverSourceVersion ?? '?'}`);
@@ -478,8 +448,7 @@ export class Protocol {
 
         return {
             deviceID: pairingId.toString(),
-            features: Number(features & 0xFFFFFFFFn),
-            featuresEx: Number(features >> 32n),
+            ...encodeFeatures(features),
             macAddress: getMacAddress().toUpperCase(),
             model: id.model,
             name: id.name,

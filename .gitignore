@@ -17,3 +17,5 @@ node_modules/
 /output.log
 
 packages/diagnostics/src/web/embeddedAssets.ts
+
+.test-build/

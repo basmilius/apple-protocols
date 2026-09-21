@@ -173,7 +173,7 @@ export function getPairingRequirement(txt: Record<string, string>): PairingRequi
     }
 
     const features = parseFeatures(featuresStr);
-    const sf = txt.sf ? BigInt(txt.sf) : 0n;
+    const sf = parseStatusFlags(txt);
 
     if (hasFeatureFlag(features, AirPlayFeatureFlags.SupportsHKPairingAndAccessControl)) {
         return 'homekit';
@@ -206,7 +206,7 @@ export function isPasswordRequired(txt: Record<string, string>): boolean {
         return true;
     }
 
-    const sf = txt.sf ? BigInt(txt.sf) : 0n;
+    const sf = parseStatusFlags(txt);
 
     return (sf & PASSWORD_BIT) !== 0n;
 }
@@ -272,3 +272,13 @@ export const SENDER_FEATURES_AUDIO: bigint =
     | AirPlayFeatureFlags.AudioFormats2
     | AirPlayFeatureFlags.AudioFormats3
     | AirPlayFeatureFlags.SupportsPTP;
+
+function parseStatusFlags(txt: Record<string, string>): bigint {
+    const value = (txt.sf || txt.flags || '0').trim().replace(/^0x/i, '');
+
+    if (!/^[0-9a-f]+$/i.test(value)) {
+        return 0n;
+    }
+
+    return BigInt(`0x${value}`);
+}

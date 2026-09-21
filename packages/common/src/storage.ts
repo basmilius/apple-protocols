@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { type AccessoryCredentials } from './pairing';
 
@@ -215,15 +216,35 @@ export class JsonStorage extends Storage {
         const raw = readFileSync(this.#path, 'utf-8');
         const json = JSON.parse(raw);
 
-        if (json.version === 1) {
-            this.setData(json);
+        const isRecord = (value: unknown): value is Record<string, any> =>
+            value !== null && typeof value === 'object' && !Array.isArray(value);
+        if (!isRecord(json) || json.version !== 1 || !isRecord(json.devices) || !isRecord(json.credentials)) {
+            throw new Error('Invalid credential storage schema');
         }
+        for (const device of Object.values(json.devices)) {
+            if (!isRecord(device) || typeof device.identifier !== 'string' || typeof device.name !== 'string') {
+                throw new Error('Invalid stored device');
+            }
+        }
+        for (const credentials of Object.values(json.credentials)) {
+            if (!isRecord(credentials) || ['accessoryIdentifier', 'accessoryLongTermPublicKey', 'pairingId', 'publicKey', 'secretKey']
+                .some(key => typeof credentials[key] !== 'string')) {
+                throw new Error('Invalid stored credentials');
+            }
+        }
+        this.setData(json as StorageData);
     }
 
     /** Saves the current storage data to the JSON file, creating directories as needed. */
     async save(): Promise<void> {
         mkdirSync(dirname(this.#path), { recursive: true });
-        writeFileSync(this.#path, JSON.stringify(this.data, null, 2), 'utf-8');
+        const temporaryPath = `${this.#path}.${randomUUID()}.tmp`;
+        try {
+            writeFileSync(temporaryPath, JSON.stringify(this.data, null, 2), {encoding: 'utf-8', mode: 0o600, flag: 'wx'});
+            renameSync(temporaryPath, this.#path);
+        } finally {
+            if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+        }
     }
 }
 

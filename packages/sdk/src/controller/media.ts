@@ -42,9 +42,11 @@ export class MediaController {
      * Creates a separate protocol session to avoid conflicting with remote control.
      *
      * @param source - The audio source to stream (MP3, OGG, WAV, PCM, FFmpeg, URL, live).
+     * @param volumeDb - Stream volume in dB (-144 = mute, 0 = max). A fresh audio
+     *   session starts silent, so an audible default is applied.
      */
-    async streamAudio(source: AudioSource): Promise<void> {
-        await this.#airplay.streamAudio(source);
+    async streamAudio(source: AudioSource, volumeDb: number = -20): Promise<void> {
+        await this.#airplay.streamAudio(source, volumeDb);
     }
 
     /**

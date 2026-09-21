@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, type DeviceIdentity, type DiscoveryResult, PtpMaster, type TimingServer } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
 import { AirPlayArtwork } from './airplay-artwork';
 import { AirPlayRemote } from './airplay-remote';
 import { AirPlayState } from './airplay-state';
@@ -325,9 +325,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             await playProtocol.connect();
             await playProtocol.fetchInfo();
 
-            if (playProtocol.hasReceiverFeature(AirPlayFeatureFlags.SupportsPTP)) {
-                playProtocol.usePtpMaster(new PtpMaster(this.#discoveryResult.address));
-            }
+            // PTP stays off: PtpMaster yields silent playback on PTP-capable
+            // receivers, the NTP timing server does not.
 
             let keys: AccessoryKeys;
 
@@ -394,8 +393,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * existing remote control session, following the same approach as playUrl.
      *
      * @param source - The audio source to stream (e.g. MP3, WAV, URL, live).
+     * @param volumeDb - Stream volume in dB (-144 = mute, 0 = max). A fresh
+     *   audio session starts silent, so an audible default is applied.
      */
-    async streamAudio(source: AudioSource): Promise<void> {
+    async streamAudio(source: AudioSource, volumeDb: number = -20): Promise<void> {
         if (!this.#keys) {
             throw new Error('Not connected. Call connect() first.');
         }
@@ -412,9 +413,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             await streamProtocol.connect();
             await streamProtocol.fetchInfo();
 
-            if (streamProtocol.hasReceiverFeature(AirPlayFeatureFlags.SupportsPTP)) {
-                streamProtocol.usePtpMaster(new PtpMaster(this.#discoveryResult.address));
-            }
+            // PTP stays off: PtpMaster yields silent playback on PTP-capable
+            // receivers, the NTP timing server does not.
 
             let keys: AccessoryKeys;
 
@@ -433,6 +433,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             this.#streamProtocol = streamProtocol;
 
             await streamProtocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
+
+            // A fresh AirPlay audio session starts silent.
+            await streamProtocol.controlStream.setParameter('volume', String(volumeDb));
 
             this.#streamFeedbackInterval = setInterval(async () => {
                 try {

@@ -265,6 +265,20 @@ export function getKeyboardSession(): [Proto.ProtocolMessage, DescExtension] {
     ];
 }
 
+/** Requests an RTI session; the receiver supplies a RemoteTextInputMessage. */
+export function getRemoteTextInputSession(): [Proto.ProtocolMessage, DescExtension] {
+    const message = protocol(Proto.ProtocolMessage_Type.GET_REMOTE_TEXT_INPUT_SESSION_MESSAGE);
+    setExtension(message, Proto.getRemoteTextInputSessionMessage, create(Proto.GetRemoteTextInputSessionMessageSchema));
+    return [message, Proto.getRemoteTextInputSessionMessage];
+}
+
+/** MediaRemote MRRemoteTextInputMessage.initWithVersion:data: carries the RTI archive. */
+export function remoteTextInput(data: Uint8Array, version: bigint = 1n): [Proto.ProtocolMessage, DescExtension] {
+    const message = protocol(Proto.ProtocolMessage_Type.REMOTE_TEXT_INPUT_MESSAGE);
+    setExtension(message, Proto.remoteTextInputMessage, create(Proto.RemoteTextInputMessageSchema, {version, data}));
+    return [message, Proto.remoteTextInputMessage];
+}
+
 /**
  * Builds a TEXT_INPUT message to send text to an active keyboard session.
  *

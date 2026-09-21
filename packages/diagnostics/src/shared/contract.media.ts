@@ -233,7 +233,7 @@ export type MediaInvokeMap = {
 
     'recovery:status': [{ readonly deviceId: string }, RecoveryStatus];
     'recovery:configure': [RecoveryConfigureRequest, RecoveryStatus];
-    'recovery:simulateDrop': [{ readonly deviceId: string }, void];
+    'recovery:simulateDrop': [{ readonly deviceId: string; readonly stream?: 'control' | 'data' | 'event' }, void];
     'recovery:wake': [{ readonly deviceId: string }, void];
 };
 

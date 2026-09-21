@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
+import { Plist, RTI } from '@basmilius/apple-encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType } from './frame';
 import { Pairing, Verify } from './pairing';
@@ -49,6 +49,9 @@ export class Protocol {
 
     /** The combined session identifier (remote SID << 32 | local SID). */
     #sessionId: bigint = 0n;
+    #textQueue: Promise<unknown> = Promise.resolve();
+    #textGeneration: number = 0;
+    #textSession: string | undefined;
 
     /** The locally generated session identifier. */
     #sessionIdLocal: number = 0;
@@ -65,6 +68,18 @@ export class Protocol {
         this.#stream = new Stream(this.#context, discoveryResult.address, discoveryResult.service.port);
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
+        this.#stream.on('_tiStopped', () => { this.#textGeneration++; this.#textSession = undefined; });
+        this.#stream.on('_tiStarted', (payload: any) => {
+            try {
+                const uuid = Buffer.from(RTI.decodeSession(payload?._tiD).uuid).toString('hex');
+                if (this.#textSession && this.#textSession !== uuid) this.#textGeneration++;
+                this.#textSession = uuid;
+            } catch {
+                this.#textGeneration++;
+                this.#textSession = undefined;
+            }
+        });
+        this.#stream.on('close', () => { this.#textGeneration++; });
     }
 
     // --- Lifecycle ---
@@ -345,47 +360,29 @@ export class Protocol {
      *
      * @param text - The text to type into the input field.
      * @param clearPreviousInput - Whether to clear the existing text before typing.
-     * @returns The text that was sent, or `null` if no keyboard session was available.
+     * @returns The text sent. Throws when no valid keyboard session is available.
      */
     async textInputCommand(text: string, clearPreviousInput: boolean): Promise<string | null> {
-        await this.tiStop();
-        const response = await this.tiStart();
-
-        const tiD = (response as any)?._c?._tiD;
-        if (!tiD) {
-            return null;
-        }
-
-        const archive = Plist.parse(Buffer.from(tiD).buffer as ArrayBuffer) as any;
-        const objects = archive?.['$objects'];
-        const top = archive?.['$top'];
-        if (!objects || !top) {
-            return null;
-        }
-
-        const ref = top.sessionUUID;
-        const refIndex = typeof ref === 'object' && ref !== null ? ref['CF$UID'] : ref;
-        const sessionUUID = objects[refIndex];
-
-        if (!sessionUUID) {
-            return null;
-        }
-
-        const sessionBytes = Buffer.from(
-            sessionUUID instanceof ArrayBuffer ? sessionUUID
-                : sessionUUID instanceof Uint8Array ? sessionUUID
-                    : sessionUUID.buffer ?? sessionUUID
-        );
-
-        if (clearPreviousInput) {
-            this.#sendEvent(Message.tiChange(Buffer.from(Message.buildRtiClearPayload(sessionBytes))));
-        }
-
-        if (text) {
-            this.#sendEvent(Message.tiChange(Buffer.from(Message.buildRtiInputPayload(sessionBytes, text))));
-        }
-
-        return text;
+        const generation = this.#textGeneration;
+        const operation = this.#textQueue.then(async () => {
+            if (generation !== this.#textGeneration) throw new Error('Text input session changed.');
+            const response = await this.tiStart();
+            if (generation !== this.#textGeneration) {
+                throw new Error('Text input session changed; retry with the active field.');
+            }
+            const data = (response as any)?._c?._tiD;
+            if (!data) throw new Error('No active text input session.');
+            const session = RTI.decodeSession(data);
+            if (clearPreviousInput) {
+                this.#sendEvent(Message.tiChange(Buffer.from(RTI.encodeOperation(session.uuid, '', true))));
+            }
+            if (text) {
+                this.#sendEvent(Message.tiChange(Buffer.from(RTI.encodeOperation(session.uuid, text, false))));
+            }
+            return text;
+        });
+        this.#textQueue = operation.catch(() => {});
+        return operation;
     }
 
     // --- Media Control ---

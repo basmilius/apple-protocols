@@ -133,14 +133,17 @@ export function registerRecoveryChannels(context: ChannelContext): void {
         const entry = entryOf(deviceId);
 
         // Recovery listens for the device's own disconnect, so arming without a session is a no-op.
-        sessionOf(deviceId);
+        const requireCompanion = (sessionOf(deviceId).device as {companionLink?: {isConnected: boolean}})?.companionLink?.isConnected === true;
 
         const recovery = new ConnectionRecovery({
             baseDelay: options.baseDelay,
             maxDelay: options.maxDelay,
             maxAttempts: options.maxAttempts,
             onReconnect: async () => {
-                await context.sessions.connect(deviceId);
+                const snapshot = await context.sessions.connect(deviceId);
+                if (!snapshot.connection.airplay.connected || (requireCompanion && !snapshot.connection.companionLink.connected)) {
+                    throw new Error('The required device protocols did not reconnect.');
+                }
                 attach(deviceId, recovery);
             }
         });
@@ -207,10 +210,13 @@ export function registerRecoveryChannels(context: ChannelContext): void {
             throw new Error('This device is not connected, so there is nothing to drop.');
         }
 
-        const stream = device.airplay[AIRPLAY_PROTOCOL].dataStream as unknown as { destroy?(): void } | undefined;
+        const protocol = device.airplay[AIRPLAY_PROTOCOL];
+        const kind = request.stream ?? 'data';
+        if (!['control', 'data', 'event'].includes(kind)) throw new Error('Unknown stream to drop.');
+        const stream = kind === 'control' ? protocol.controlStream : kind === 'event' ? protocol.eventStream : protocol.dataStream;
 
         if (!stream?.destroy) {
-            throw new Error('This device has no data stream socket to drop.');
+            throw new Error('This device has no selected stream socket to drop.');
         }
 
         const entry = entryOf(request.deviceId);

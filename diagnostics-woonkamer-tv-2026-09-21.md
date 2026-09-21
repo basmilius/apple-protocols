@@ -1,5 +1,34 @@
 # Testresultaten Woonkamer TV
 
+## Hertest zonder ander werk
+
+Op 21 september 2026, ongeveer 19:48–19:53 UTC, zijn de kerntests opnieuw uitgevoerd op commit `d299753`. De werkboom was voor en na de hardwaretests schoon. Diagnostics behield proces 51237. Er waren geen waargenomen herstarts. Onderstaande resultaten vervangen de eerdere beoordeling waar ze verschillen.
+
+| Onderdeel | Resultaat hertest |
+| --- | --- |
+| AirPlay en Companion verbinden | Beide verbonden; handmatig disconnect/connect slaagt met bestaande credentials |
+| Pauze/hervatten | Via beide protocollen geslaagd, zowel teruggelezen als door gebruiker bevestigd. AirPlay-antwoorden 71/194 ms, Companion 7/35 ms |
+| AirPlay metadata | Titel, artiest, album en afspeelstatus ontvangen; trackwissels blijven binnenkomen |
+| Companion applijst en apps openen | 26 apps; Zoek opent en gebruiker bevestigt zichtbaar toetsenbord; Muziek na afloop weer geopend |
+| Companion wakkerstatus | `awake`, 15 ms |
+| Companion media-capabilities | Play, pause, vorige/volgende, spoelen en volume staan nu true. Skip forward/backward false. Eerdere afwijking met uitsluitend false reproduceert niet |
+| Volume uitlezen | Afwijking blijft: AirPlay 0, Companion circa 0.10. Betekenis per route niet vastgesteld |
+| Companion tekstinvoer | Actieve lege tekstsessie bevestigd. `textSet('test')` faalt met `Invalid binary plist. Expected 'bplist00' at offset 0.` |
+| AirPlay tekstinvoer | `remote.textSet('test')` meldt succes; gebruiker bevestigt leeg veld |
+| AirPlay audiostream | 440 Hz gedurende 10 seconden op -20 dB, standaardpad zonder PTP-experiment. Gebruiker bevestigt hoorbaar, zonder haperingen |
+| Audiotelemetrie | Tijdens stream 270 pakketten en 389880 bytes; geen retransmitrequests. Dit is een tussentijdse meting |
+| Automatisch herstel | Recovery ingeschakeld, DataStream vernietigd, geen recovered-event binnen 10 seconden. Ook daarna geen herstelpoging; connected blijft staan. Volgend AirPlay-commando faalt met ConnectionClosedError. Handmatig opnieuw verbinden herstelt bediening |
+
+De ontvangen Companion-tekstpayload begint aantoonbaar met `bplist00`, 1835 bytes in traffic-record 2706. Toch faalt de parser. `textInputCommand` gebruikt `Buffer.from(tiD).buffer` zonder byteOffset/byteLength. Dit is een concrete aanwijzing voor een fout bij het doorgeven van de buffer aan de parser; in deze testronde is geen reparatie uitgevoerd. Een latere tekstsessie-notificatie levert dezelfde parserfout in CompanionLinkState op.
+
+De audiotest slaagt nu op -20 dB. De eerste ronde gebruikte -30 dB en een andere, veranderende codeversie. Daardoor is niet vastgesteld waarom die eerdere test stil bleef. Tien seconden goed geluid is geen bewijs voor langdurige streamingstabiliteit.
+
+Conclusie van de hertest: basisbediening, metadata, app openen en korte audiostreaming werken. Tekstinvoer en automatisch herstel na de gesimuleerde socketbreuk falen reproduceerbaar zonder verstoring door ander werk. Nieuwe pairing, URL/video-playback, langdurige belasting, echte netwerkuitval en overige niet uitgevoerde functies blijven onbeoordeeld.
+
+Na afloop is de teststream gestopt en Muziek hervat, teruggelezen als Playing. Beide protocollen zijn verbonden. Recovery is weer uitgeschakeld zoals bij aanvang. Alleen dit verslag is aangepast.
+
+## Eerste ronde, met tussentijdse bronwijzigingen
+
 Getest op 21 september 2026 met de draaiende diagnostics-app, ongeveer 18:40–18:47 UTC. Device: AppleTV11,1, OS-build 24K5088l. De gebruiker keek en luisterde mee.
 
 De basis voor afstandsbediening werkt. Deze ronde geeft geen grond om de volledige AirPlay- en Companion Link-implementatie compleet of stabiel te noemen.

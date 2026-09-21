@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { Music } from 'lucide-react';
 import { LyricsView } from './LyricsView';
 import { LyricsDemo } from './LyricsDemo';
+import { useAppleMusic } from '@/state/apple-music';
 import type { LyricsResult } from '@basmilius/apple-sdk';
 import { formatDuration, formatTime } from '@shared/helpers';
 import { Badge, Button, CommandButton, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
@@ -85,9 +86,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
     const [stopMode, setStopMode] = useState('0');
     const [queueLength, setQueueLength] = useState('10');
     const [showLyricsDemo, setShowLyricsDemo] = useState(false);
-    const [bearerToken, setBearerToken] = useState('');
-    const [musicUserToken, setMusicUserToken] = useState('');
-    const [storefront, setStorefront] = useState('nl');
+    const {bearerToken, musicUserToken, storefront, update: updateAppleMusic, clearTokens, storageError} = useAppleMusic();
     const lyricsGeneration = useRef(0);
     const [lyricsResult, setLyricsResult] = useState<LyricsResult | null | undefined>(undefined);
     const [command, setCommand] = useState('Play');
@@ -103,11 +102,6 @@ export function PlaybackPanel({deviceId}: PanelProps) {
         lyricsGeneration.current++;
         setLyricsResult(undefined);
     }, [deviceId, connected, snapshot?.clients.find(client => client.isActive)?.contentIdentifier]);
-
-    useEffect(() => {
-        setBearerToken('');
-        setMusicUserToken('');
-    }, [deviceId]);
 
     async function fetchLyrics(catalog: boolean): Promise<void> {
         const generation = ++lyricsGeneration.current;
@@ -358,11 +352,12 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                 <details className="text-xs">
                     <summary className="cursor-pointer text-text-muted">Apple Music authorization</summary>
                     <div className="mt-2 space-y-2">
-                        <p className="text-text-muted">Use headers from your signed-in Apple Music web session. Tokens are kept only while this panel is open.</p>
-                        <Field label="Bearer token" type="password" autoComplete="off" value={bearerToken} onChange={event => setBearerToken(event.target.value)}/>
-                        <Field label="Music user token" type="password" autoComplete="off" value={musicUserToken} onChange={event => setMusicUserToken(event.target.value)}/>
-                        <Field label="Account storefront" value={storefront} maxLength={2} onChange={event => setStorefront(event.target.value.toLowerCase())}/>
-                        <Button size="sm" variant="secondary" onClick={() => {setBearerToken(''); setMusicUserToken('');}}>Clear tokens</Button>
+                        <p className="text-text-muted">Use headers from your signed-in Apple Music web session. Tokens are remembered locally on this computer.</p>
+                        <Field label="Bearer token" type="password" autoComplete="off" value={bearerToken} onChange={event => updateAppleMusic({bearerToken: event.target.value})}/>
+                        <Field label="Music user token" type="password" autoComplete="off" value={musicUserToken} onChange={event => updateAppleMusic({musicUserToken: event.target.value})}/>
+                        <Field label="Account storefront" value={storefront} maxLength={2} onChange={event => updateAppleMusic({storefront: event.target.value.toLowerCase()})}/>
+                        <Button size="sm" variant="secondary" onClick={clearTokens}>Clear tokens</Button>
+                        {storageError && <p className="text-status-error">{storageError}</p>}
                     </div>
                 </details>
                 {lyricsResult === null && <p className="text-xs text-text-muted">No current item, or the track changed during the request.</p>}

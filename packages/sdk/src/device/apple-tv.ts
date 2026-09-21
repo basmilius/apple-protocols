@@ -45,8 +45,6 @@ export class AppleTV extends AbstractDevice {
     constructor(options: AppleTVOptions) {
         super(options);
 
-        this.keyboard = new KeyboardController(this.airplay);
-
         if (options.companionLink) {
             this.#companionLink = new CompanionLinkManager(options.companionLink);
             this.accounts = new AccountsController(this.#companionLink);
@@ -62,6 +60,8 @@ export class AppleTV extends AbstractDevice {
                 this.emit('textInput', state);
             });
         }
+
+        this.keyboard = new KeyboardController(this.airplay, this.#companionLink);
     }
 
     /**

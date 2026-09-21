@@ -1,5 +1,6 @@
 import { type DataStream, DataStreamMessage, Proto, type Protocol } from '@basmilius/apple-airplay';
-import { CommandError, waitFor } from '@basmilius/apple-common';
+import { CommandError, ConnectionClosedError, TimeoutError, waitFor } from '@basmilius/apple-common';
+import { RTI } from '@basmilius/apple-encoding';
 import type { AirPlayManager } from './airplay-manager';
 import { PROTOCOL } from './const';
 
@@ -52,6 +53,7 @@ export class AirPlayRemote {
     }
 
     readonly #device: AirPlayManager;
+    #textQueue: Promise<unknown> = Promise.resolve();
 
     /**
      * Creates a new Remote controller.
@@ -418,7 +420,7 @@ export class AirPlayRemote {
      * @param text - The text to set.
      */
     async textSet(text: string): Promise<void> {
-        await this.#dataStream.send(DataStreamMessage.textInput(text, Proto.ActionType_Enum.Set));
+        await this.#sendText(text, true);
     }
 
     /**
@@ -427,14 +429,60 @@ export class AirPlayRemote {
      * @param text - The text to append.
      */
     async textAppend(text: string): Promise<void> {
-        await this.#dataStream.send(DataStreamMessage.textInput(text, Proto.ActionType_Enum.Insert));
+        await this.#sendText(text, false);
     }
 
     /**
      * Clears the text input field.
      */
     async textClear(): Promise<void> {
-        await this.#dataStream.send(DataStreamMessage.textInput('', Proto.ActionType_Enum.ClearAction));
+        await this.#sendText('', true);
+    }
+
+    #requestTextSession(stream: DataStream): Promise<{session: RTI.TextInputSession; version: bigint}> {
+        return new Promise((resolve, reject) => {
+            const cleanup = (): void => {
+                clearTimeout(timer);
+                stream.off('remoteTextInput', onSession);
+                stream.off('close', onClose);
+                stream.off('error', onError);
+            };
+            const onError = (error: Error): void => { cleanup(); reject(error); };
+            const onClose = (): void => onError(new ConnectionClosedError());
+            const onSession = (message: Proto.RemoteTextInputMessage): void => {
+                try {
+                    if (!message.data?.byteLength) throw new CommandError('No active AirPlay text input session.');
+                    if (message.version !== 1n) throw new CommandError('Unsupported AirPlay text input version.');
+                    const session = RTI.decodeSession(message.data);
+                    cleanup();
+                    resolve({session, version: message.version});
+                } catch (error) {
+                    onError(error instanceof Error ? error : new Error(String(error)));
+                }
+            };
+            const timer = setTimeout(() => onError(new TimeoutError('AirPlay did not provide an RTI text session.')), 5000);
+            stream.on('remoteTextInput', onSession);
+            stream.on('close', onClose);
+            stream.on('error', onError);
+            try {
+                stream.send(DataStreamMessage.getRemoteTextInputSession());
+            } catch (error) {
+                onError(error instanceof Error ? error : new Error(String(error)));
+            }
+        });
+    }
+
+    #sendText(text: string, clear: boolean): Promise<void> {
+        const stream = this.#dataStream;
+        const operation = this.#textQueue.then(async () => {
+            if (!stream?.isConnected || stream !== this.#dataStream) throw new ConnectionClosedError();
+            const {session, version} = await this.#requestTextSession(stream);
+            if (!stream.isConnected || stream !== this.#dataStream) throw new ConnectionClosedError();
+            if (clear) stream.send(DataStreamMessage.remoteTextInput(new Uint8Array(RTI.encodeOperation(session.uuid, '', true)), version));
+            if (text) stream.send(DataStreamMessage.remoteTextInput(new Uint8Array(RTI.encodeOperation(session.uuid, text, false)), version));
+        });
+        this.#textQueue = operation.catch(() => {});
+        return operation;
     }
 
     /**

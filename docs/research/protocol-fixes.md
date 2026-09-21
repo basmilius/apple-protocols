@@ -26,16 +26,16 @@ The feature-vector correction follows the extracted AirPlaySupport/AirPlayReceiv
 
 ## Validation
 
-- `bash test.sh`: 37 tests pass on Bun 1.4.0 and Node 26.7.0. The script builds the nine library packages first, then runs both runtimes. Tests cover malformed inputs, fragmented/coalesced packets, ACK-versus-response correlation, all feature bits through bit 98, codec decoding and storage reloads.
+- Before removal, 37 tests passed on Bun 1.4.0 and Node 26.7.0. The former runner built the nine library packages first, then ran both runtimes. Tests cover malformed inputs, fragmented/coalesced packets, ACK-versus-response correlation, all feature bits through bit 98, codec decoding and storage reloads.
 - All nine library typechecks/builds pass. Diagnostics web build and all five CLI target builds pass after downloading missing dependencies and the Windows Bun runtime. The original `bash build.sh` run stopped at sandbox network restrictions; the remaining web/build steps were rerun successfully with network access.
 - In `/private/tmp/apple-homey-validation`, the Homey source and dependencies were copied, then all nine local library `dist` directories substituted. Both `bun run build` and `homey app build` pass, including Homey's debug-level validation. The original Homey installation was not changed. This checks source/API compatibility; it is not a test on Homey's Node runtime or hardware.
 - No live device commands, pairing attempts or playback tests were performed. Before merging, check pairing/reconnect, power pushes and short URL playback on the existing Homey devices.
 
-Reproduce automated tests with `bash test.sh`. Large build logs and reverse-engineering artifacts are under ignored `.research/`; the Intercom conclusions are recorded separately in `intercom-macos-27.2.md`.
+The automated tests and their runner were subsequently removed at the project owner’s request; the results above describe validation before removal. Large build logs and reverse-engineering artifacts are under ignored `.research/`; the Intercom conclusions are recorded separately in `intercom-macos-27.2.md`.
 
 ## Validation after merging into main
 
-Main also contains the Electron diagnostics rewrite from `b48b78f`. The merge only needed a `.gitignore` resolution: keep the Electron output ignores and add `.test-build/`.
+Main also contains the Electron diagnostics rewrite from `b48b78f`. The merge only needed a `.gitignore` resolution: keep the Electron output ignores and add an ignore for temporary test output, subsequently removed along with the test runner.
 
 Rebuilding against main's tooling exposed a declaration compatibility issue: generated declarations no longer included the Node type reference that the earlier worktree build emitted. Each library entry point now explicitly preserves its Node reference, so TypeScript 6 consumers resolve Node globals and EventEmitter types. No Homey configuration change was needed.
 

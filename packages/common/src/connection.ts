@@ -138,8 +138,15 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         return this.#attemptConnect();
     }
 
-    /** Immediately destroys the underlying socket without graceful shutdown. */
+    /** Cancels connection attempts and destroys the socket without graceful shutdown. */
     destroy(): void {
+        this.#retryEnabled = false;
+        if (this.#retryTimeout) {
+            clearTimeout(this.#retryTimeout);
+            this.#retryTimeout = undefined;
+        }
+        this.#connectPromise?.reject(new ConnectionClosedError());
+        this.#connectPromise = undefined;
         this.#socket?.destroy();
     }
 

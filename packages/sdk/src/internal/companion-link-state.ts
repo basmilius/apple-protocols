@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { type AttentionState, convertAttentionState, MediaControlFlag, type Protocol, type TextInputState } from '@basmilius/apple-companion-link';
-import { NSKeyedArchiver, Plist } from '@basmilius/apple-encoding';
+import { NSKeyedArchiver, Plist, RTI } from '@basmilius/apple-encoding';
 
 /**
  * Events emitted by CompanionLinkState.
@@ -331,24 +331,16 @@ export class CompanionLinkState extends EventEmitter<EventMap> {
     onTextInputStarted(data: unknown): void {
         try {
             const payload = data as { readonly _tiV?: number; readonly _tiD?: Uint8Array };
-            let documentText = '';
-            let isSecure = false;
-            let keyboardType = 0;
-            let autocorrection = false;
-            let autocapitalization = false;
-
-            if (payload?._tiD) {
-                const plistData = Plist.parse(Buffer.from(payload._tiD).buffer as ArrayBuffer) as Record<string, unknown>;
-                documentText = (plistData._tiDT as string) ?? '';
-                isSecure = (plistData._tiSR as boolean) ?? false;
-                keyboardType = (plistData._tiKT as number) ?? 0;
-                autocorrection = (plistData._tiAC as boolean) ?? false;
-                autocapitalization = (plistData._tiAP as boolean) ?? false;
+            if (!payload?._tiD) {
+                this.#textInputState = {...DEFAULT_TEXT_INPUT};
+            } else {
+                const {uuid, ...state} = RTI.decodeSession(payload._tiD);
+                this.#textInputState = {isActive: true, ...state};
             }
-
-            this.#textInputState = {isActive: true, documentText, isSecure, keyboardType, autocorrection, autocapitalization};
             this.emit('textInputChanged', this.#textInputState);
         } catch (err) {
+            this.#textInputState = {...DEFAULT_TEXT_INPUT};
+            this.emit('textInputChanged', this.#textInputState);
             this.#protocol.context.logger.error('[cl-state]', 'Text input started parse error', err);
         }
     }

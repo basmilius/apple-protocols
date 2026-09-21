@@ -247,7 +247,7 @@ Enige workflow: `.github/workflows/released.yml` (trigger: GitHub Release). Verv
 
 ## Tests en tooling
 
-- `bash test.sh` bouwt de library-packages en draait de tests in `packages/*/test/*.test.ts` op Bun en Node.
+- Geautomatiseerde tests zijn uitgesteld tot een apart, grondig testtraject. Voeg voorlopig geen tests toe. Valideer wijzigingen met de builds en diagnostics.
 - Handmatige device-tests lopen via diagnostics; per package staan ook testscripts.
 - Geen linter of formatter; stijlregels staan in `.editorconfig`.
 - Geen Docker of `.env`-bestanden.

@@ -240,13 +240,7 @@ Build the app with `bun --cwd packages/diagnostics build`. Create installers wit
 
 ### Testing
 
-Run the automated tests on Bun and Node:
-
-```bash
-bash test.sh
-```
-
-For device tests, start diagnostics with its agent bridge:
+Automated tests are deferred until a dedicated testing effort. For device tests, start diagnostics with its agent bridge:
 
 ```bash
 bun --cwd packages/diagnostics dev:agent

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, ConnectionClosedError, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
 import { AirPlayArtwork } from './airplay-artwork';
 import { AirPlayRemote } from './airplay-remote';
 import { AirPlayState } from './airplay-state';
@@ -84,10 +84,13 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     /**
-     * Whether the control stream TCP connection is currently active.
+     * Whether setup completed and all required streams are connected.
      */
     get isConnected(): boolean {
-        return this.#protocol?.controlStream?.isConnected ?? false;
+        return this.#ready && !this.#disconnect
+            && !!this.#protocol?.controlStream?.isConnected
+            && !!this.#protocol?.dataStream?.isConnected
+            && !!this.#protocol?.eventStream?.isConnected;
     }
 
     /**
@@ -144,7 +147,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     readonly #state: AirPlayState;
     readonly #volume: AirPlayVolume;
     #credentials?: AccessoryCredentials;
-    #disconnect: boolean = false;
+    #disconnect: boolean = true;
+    #ready: boolean = false;
+    #connecting?: Promise<void>;
+    #closeListeners: (() => void)[] = [];
     #discoveryResult: DiscoveryResult;
     #identity?: Partial<DeviceIdentity>;
     #feedbackInterval: NodeJS.Timeout | undefined;
@@ -188,38 +194,65 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * If credentials are set, uses pair-verify; otherwise uses transient pairing.
      */
     async connect(): Promise<void> {
-        /* Close the previous protocol to prevent stale close events and leaked sockets or timers. */
-        if (this.#protocol) {
-            this.#protocol.controlStream.off('close', this.onClose);
-            this.#protocol.controlStream.off('error', this.onError);
-            this.#protocol.controlStream.off('timeout', this.onTimeout);
+        if (this.#connecting) return this.#connecting;
+        const connecting = this.#connect();
+        this.#connecting = connecting;
+        try {
+            await connecting;
+        } finally {
+            this.#connecting = undefined;
+        }
+    }
 
-            try {
-                this.#protocol.disconnect();
-            } catch {
-                // Best-effort cleanup of old protocol.
-            }
+    async #connect(): Promise<void> {
+        if (!this.#disconnect) {
+            this.disconnect();
         }
 
         this.#disconnect = false;
+        this.#ready = false;
         this.#state.clear();
 
-        this.#protocol = new Protocol(this.#discoveryResult, this.#identity);
-        this.#protocol.controlStream.on('close', this.onClose);
-        this.#protocol.controlStream.on('error', this.onError);
-        this.#protocol.controlStream.on('timeout', this.onTimeout);
+        const protocol = new Protocol(this.#discoveryResult, this.#identity);
+        this.#protocol = protocol;
+        this.#observeClose(protocol.controlStream, protocol);
+        protocol.controlStream.on('error', this.onError);
+        protocol.controlStream.on('timeout', this.onTimeout);
 
-        await this.#protocol.connect();
-        await this.#protocol.fetchInfo();
+        const assertCurrent = (): void => {
+            if (this.#protocol !== protocol || this.#disconnect) {
+                protocol.disconnect();
+                throw new ConnectionClosedError('AirPlay setup was interrupted.');
+            }
+        };
 
-        if (this.#credentials) {
-            this.#keys = await this.#protocol.verify.start(this.#credentials);
-        } else {
-            await this.#protocol.pairing.start();
-            this.#keys = await this.#protocol.pairing.transient();
+        try {
+            await protocol.connect();
+            assertCurrent();
+            await protocol.fetchInfo();
+            assertCurrent();
+
+            if (this.#credentials) {
+                this.#keys = await protocol.verify.start(this.#credentials);
+            } else {
+                await protocol.pairing.start();
+                assertCurrent();
+                this.#keys = await protocol.pairing.transient();
+            }
+
+            assertCurrent();
+            await this.#setup();
+            assertCurrent();
+            if (!protocol.controlStream.isConnected || !protocol.dataStream?.isConnected || !protocol.eventStream?.isConnected) {
+                throw new ConnectionClosedError('An AirPlay stream closed during setup.');
+            }
+            this.#ready = true;
+        } catch (error) {
+            if (this.#protocol === protocol) {
+                this.disconnectSafely();
+            }
+            throw error;
         }
-
-        await this.#setup();
 
         this.emit('connected');
     }
@@ -228,13 +261,28 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * Gracefully disconnects from the device, clears intervals, and tears down all streams.
      */
     disconnect(): void {
+        this.#endSession(false);
+    }
+
+    #endSession(unexpected: boolean): void {
+        if (this.#disconnect) {
+            return;
+        }
+
         this.#disconnect = true;
+        this.#ready = false;
+        for (const detach of this.#closeListeners.splice(0)) {
+            detach();
+        }
+        this.#protocol?.controlStream.off('error', this.onError);
+        this.#protocol?.controlStream.off('timeout', this.onTimeout);
 
         if (this.#feedbackInterval) {
             clearInterval(this.#feedbackInterval);
             this.#feedbackInterval = undefined;
         }
 
+        this.#prevDataStream?.off('setConnectionState', this.onConnectionState);
         this.#prevDataStream?.off('error', this.onStreamError);
         this.#prevDataStream?.off('timeout', this.onTimeout);
         this.#prevEventStream?.off('error', this.onStreamError);
@@ -246,8 +294,11 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#cleanupStream();
         this.#unsubscribe();
         this.#artwork.clear();
-        this.#protocol.disconnect();
-        this.emit('disconnected', false);
+        try {
+            this.#protocol.disconnect();
+        } finally {
+            this.emit('disconnected', unexpected);
+        }
     }
 
     /**
@@ -589,18 +640,21 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     /**
-     * Handles the control stream close event. Emits 'disconnected' with unexpected=true if not intentional.
+     * Handles an essential stream closing outside an intentional disconnect.
      */
     onClose(): void {
-        this.#protocol.context.logger.net('onClose() called on airplay device.');
+        this.#endSession(true);
+    }
 
-        if (this.#disconnect) {
-            return;
-        }
-
-        this.#disconnect = true;
-        this.disconnectSafely();
-        this.emit('disconnected', true);
+    #observeClose(stream: Protocol['controlStream'] | DataStream | EventStream, protocol: Protocol): void {
+        if (stream !== protocol.controlStream && !stream.isConnected) throw new ConnectionClosedError();
+        const onClose = (): void => {
+            if (this.#protocol === protocol) {
+                this.onClose();
+            }
+        };
+        stream.on('close', onClose);
+        this.#closeListeners.push(() => stream.off('close', onClose));
     }
 
     /**
@@ -665,8 +719,9 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      */
     async #setup(): Promise<void> {
         const keys = this.#keys;
+        const protocol = this.#protocol;
 
-        this.#protocol.controlStream.enableEncryption(
+        protocol.controlStream.enableEncryption(
             keys.accessoryToControllerKey,
             keys.controllerToAccessoryKey
         );
@@ -674,28 +729,40 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#unsubscribe();
 
         if (this.#timingServer) {
-            this.#protocol.useTimingServer(this.#timingServer);
+            protocol.useTimingServer(this.#timingServer);
         }
 
         try {
-            // Remove listeners from previous streams (prevents accumulation on reconnect).
+            // Old subscriptions must be removed before binding the new streams.
             this.#prevDataStream?.off('error', this.onStreamError);
             this.#prevDataStream?.off('timeout', this.onTimeout);
             this.#prevDataStream?.off('setConnectionState', this.onConnectionState);
             this.#prevEventStream?.off('error', this.onStreamError);
             this.#prevEventStream?.off('timeout', this.onTimeout);
 
-            await this.#protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
-            await this.#protocol.setupDataStream(keys.sharedSecret, () => this.#subscribe());
+            await protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
+            if (this.#disconnect || protocol !== this.#protocol) {
+                protocol.disconnect();
+                throw new ConnectionClosedError();
+            }
+            this.#observeClose(protocol.eventStream, protocol);
+            await protocol.setupDataStream(keys.sharedSecret, () => {
+                if (!this.#disconnect && protocol === this.#protocol) this.#subscribe();
+            });
+            if (this.#disconnect || protocol !== this.#protocol) {
+                protocol.disconnect();
+                throw new ConnectionClosedError();
+            }
+            this.#observeClose(protocol.dataStream, protocol);
 
-            this.#protocol.dataStream.on('error', this.onStreamError);
-            this.#protocol.dataStream.on('timeout', this.onTimeout);
-            this.#protocol.dataStream.on('setConnectionState', this.onConnectionState);
-            this.#protocol.eventStream.on('error', this.onStreamError);
-            this.#protocol.eventStream.on('timeout', this.onTimeout);
+            protocol.dataStream.on('error', this.onStreamError);
+            protocol.dataStream.on('timeout', this.onTimeout);
+            protocol.dataStream.on('setConnectionState', this.onConnectionState);
+            protocol.eventStream.on('error', this.onStreamError);
+            protocol.eventStream.on('timeout', this.onTimeout);
 
-            this.#prevDataStream = this.#protocol.dataStream;
-            this.#prevEventStream = this.#protocol.eventStream;
+            this.#prevDataStream = protocol.dataStream;
+            this.#prevEventStream = protocol.eventStream;
 
             if (this.#feedbackInterval) {
                 clearInterval(this.#feedbackInterval);
@@ -703,25 +770,25 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
             this.#feedbackInterval = setInterval(async () => await this.#feedback(), FEEDBACK_INTERVAL);
 
-            await this.#protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId, this.#protocol.context.identity));
-            this.#protocol.dataStream.send(DataStreamMessage.setConnectionState());
-            this.#protocol.dataStream.send(DataStreamMessage.clientUpdatesConfig(true, true, true, true));
+            await protocol.dataStream.exchange(DataStreamMessage.deviceInfo(keys.pairingId, protocol.context.identity));
+            protocol.dataStream.send(DataStreamMessage.setConnectionState());
+            protocol.dataStream.send(DataStreamMessage.clientUpdatesConfig(true, true, true, true));
             // The device answers with unidentified SET_STATE pushes, never with a reply to this identifier.
-            this.#protocol.dataStream.send(DataStreamMessage.getState());
+            protocol.dataStream.send(DataStreamMessage.getState());
 
             /* Fetch the playback queue when the artwork ID changes or artwork is missing. */
             this.#lastArtworkId = null;
             this.#state.on('nowPlayingChanged', this.onNowPlayingChanged);
 
-            this.#protocol.context.logger.info('Protocol ready.');
+            protocol.context.logger.info('Protocol ready.');
         } catch (err) {
             if (this.#feedbackInterval) {
                 clearInterval(this.#feedbackInterval);
                 this.#feedbackInterval = undefined;
             }
 
-            this.#protocol.context.logger.error('[device]', 'Setup failed, cleaning up', err);
-            this.#protocol.disconnect();
+            protocol.context.logger.error('[device]', 'Setup failed, cleaning up', err);
+            protocol.disconnect();
 
             throw err;
         }

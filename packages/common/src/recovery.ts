@@ -43,6 +43,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
     #retryTimeout?: NodeJS.Timeout;
     #reconnectInterval?: NodeJS.Timeout;
     #disposed: boolean = false;
+    #generation: number = 0;
 
     /**
      * @param options - Recovery configuration including the reconnect callback.
@@ -91,6 +92,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
 
     /** Resets the recovery state and restarts the periodic reconnect interval if configured. */
     reset(): void {
+        this.#generation++;
         this.#attempt = 0;
         this.#errors = [];
         this.#isRecovering = false;
@@ -107,6 +109,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
 
     /** Permanently disposes this recovery instance, cancelling all timers and removing listeners. */
     dispose(): void {
+        this.#generation++;
         this.#disposed = true;
         this.#isRecovering = false;
         this.#isScheduledReconnecting = false;
@@ -141,11 +144,14 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
 
         const delay = this.#calculateDelay();
 
+        const generation = this.#generation;
         this.#retryTimeout = setTimeout(async () => {
+            if (this.#disposed || generation !== this.#generation) return;
             this.#retryTimeout = undefined;
 
             try {
                 await this.#options.onReconnect();
+                if (this.#disposed || generation !== this.#generation) return;
                 this.#isRecovering = false;
                 this.#attempt = 0;
                 this.#errors = [];
@@ -155,6 +161,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
                     this.#startReconnectInterval();
                 }
             } catch (err) {
+                if (this.#disposed || generation !== this.#generation) return;
                 this.#isRecovering = false;
                 this.#errors.push(err instanceof Error ? err : new Error(String(err)));
                 this.#recover();

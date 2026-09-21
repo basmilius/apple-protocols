@@ -1,19 +1,9 @@
-import { OPack, Plist } from '@basmilius/apple-encoding';
+import { OPack, RTI } from '@basmilius/apple-encoding';
 import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 
 /** An OPack-encoded message to be sent over the Companion Link stream. */
 type OPackMessage = Record<string, unknown>;
-
-/**
- * Creates a Core Foundation UID reference for NSKeyedArchiver payloads.
- *
- * @param n - The index into the `$objects` array.
- * @returns A `CF$UID` reference object.
- */
-function UID(n: number): { 'CF$UID': number } {
-    return { 'CF$UID': n };
-}
 
 /**
  * Creates a standard Companion Link request message.
@@ -279,21 +269,7 @@ export function tiChange(tiD: Buffer): OPackMessage {
  * @returns The binary plist payload ready to be sent via {@link tiChange}.
  */
 export function buildRtiClearPayload(sessionUUID: Buffer): ArrayBuffer {
-    return Plist.serialize({
-        '$version': 100000,
-        '$archiver': 'RTIKeyedArchiver',
-        '$top': { textOperations: UID(1) },
-        '$objects': [
-            '$null',
-            { '$class': UID(7), targetSessionUUID: UID(5), keyboardOutput: UID(2), textToAssert: UID(4) },
-            { '$class': UID(3) },
-            { '$classname': 'TIKeyboardOutput', '$classes': ['TIKeyboardOutput', 'NSObject'] },
-            '',
-            { 'NS.uuidbytes': sessionUUID.buffer.slice(sessionUUID.byteOffset, sessionUUID.byteOffset + sessionUUID.byteLength) as ArrayBuffer, '$class': UID(6) },
-            { '$classname': 'NSUUID', '$classes': ['NSUUID', 'NSObject'] },
-            { '$classname': 'RTITextOperations', '$classes': ['RTITextOperations', 'NSObject'] }
-        ]
-    } as any) as ArrayBuffer;
+    return RTI.encodeOperation(sessionUUID, '', true);
 }
 
 /**
@@ -305,21 +281,7 @@ export function buildRtiClearPayload(sessionUUID: Buffer): ArrayBuffer {
  * @returns The binary plist payload ready to be sent via {@link tiChange}.
  */
 export function buildRtiInputPayload(sessionUUID: Buffer, text: string): ArrayBuffer {
-    return Plist.serialize({
-        '$version': 100000,
-        '$archiver': 'RTIKeyedArchiver',
-        '$top': { textOperations: UID(1) },
-        '$objects': [
-            '$null',
-            { keyboardOutput: UID(2), '$class': UID(7), targetSessionUUID: UID(5) },
-            { insertionText: UID(3), '$class': UID(4) },
-            text,
-            { '$classname': 'TIKeyboardOutput', '$classes': ['TIKeyboardOutput', 'NSObject'] },
-            { 'NS.uuidbytes': sessionUUID.buffer.slice(sessionUUID.byteOffset, sessionUUID.byteOffset + sessionUUID.byteLength) as ArrayBuffer, '$class': UID(6) },
-            { '$classname': 'NSUUID', '$classes': ['NSUUID', 'NSObject'] },
-            { '$classname': 'RTITextOperations', '$classes': ['RTITextOperations', 'NSObject'] }
-        ]
-    } as any) as ArrayBuffer;
+    return RTI.encodeOperation(sessionUUID, text, false);
 }
 
 // --- Media Control ---

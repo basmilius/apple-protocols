@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 export { AudioMultiplexer } from './audioMultiplexer';
 export { AudioStream, type AudioStreamOptions, type AudioStreamStats } from './audioStream';
 export { ControlStream } from './controlStream';

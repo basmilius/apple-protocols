@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 // --- Devices ---
 export { AbstractDevice, AppleTV, type AppleTVOptions, HomePod, HomePodMini } from './device';
 

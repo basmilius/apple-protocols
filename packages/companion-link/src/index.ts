@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 export { Protocol } from './protocol';
 export { Stream } from './stream';
 export { Pairing, Verify } from './pairing';

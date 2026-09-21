@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 export * as Aes from './aes';
 export * as Chacha20 from './chacha20';
 export * as Curve25519 from './curve25519';

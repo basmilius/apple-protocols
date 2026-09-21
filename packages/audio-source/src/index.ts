@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 export { BufferAudioSource } from './bufferAudioSource';
 export { Ffmpeg } from './ffmpeg';
 export { File } from './file';

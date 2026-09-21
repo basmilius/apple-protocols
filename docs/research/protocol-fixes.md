@@ -1,6 +1,6 @@
 # Protocol fixes and validation
 
-Worktree: `/private/tmp/apple-protocols-fixes`, branch `fix/protocol-validation`, based on `a10898cacb7bbcf45560daca8656cb2358cd26a3`. The existing stream-volume fix and disabled PTP default are preserved. Nothing has been merged, published or installed on Homey.
+Worktree: `/private/tmp/apple-protocols-fixes`, branch `fix/protocol-validation`, based on `a10898cacb7bbcf45560daca8656cb2358cd26a3`. The existing stream-volume fix and disabled PTP default are preserved. The fixes were merged into main as `d4938ea` on 21 September 2026. Nothing has been pushed, published or installed on Homey.
 
 ## Changes
 
@@ -32,3 +32,11 @@ The feature-vector correction follows the extracted AirPlaySupport/AirPlayReceiv
 - No live device commands, pairing attempts or playback tests were performed. Before merging, check pairing/reconnect, power pushes and short URL playback on the existing Homey devices.
 
 Reproduce automated tests with `bash test.sh`. Large build logs and reverse-engineering artifacts are under ignored `.research/`; the Intercom conclusions are recorded separately in `intercom-macos-27.2.md`.
+
+## Validation after merging into main
+
+Main also contains the Electron diagnostics rewrite from `b48b78f`. The merge only needed a `.gitignore` resolution: keep the Electron output ignores and add `.test-build/`.
+
+Rebuilding against main's tooling exposed a declaration compatibility issue: generated declarations no longer included the Node type reference that the earlier worktree build emitted. Each library entry point now explicitly preserves its Node reference, so TypeScript 6 consumers resolve Node globals and EventEmitter types. No Homey configuration change was needed.
+
+After that correction, all 37 tests pass on both runtimes, the nine libraries build, the Electron diagnostics typecheck/build passes, and the isolated Homey copy passes both `bun run build` and `homey app build` again. Current logs are in `.research/ios-simulator-intercom/merge-*.log` and `/private/tmp/apple-homey-merge-validation.log`.

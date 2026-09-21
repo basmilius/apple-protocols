@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 export * as DAAP from './daap';
 export * as NSKeyedArchiver from './nskeyedarchiver';
 export * as NTP from './ntp';

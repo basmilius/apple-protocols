@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 export {
     v4 as uuid
 } from 'uuid';

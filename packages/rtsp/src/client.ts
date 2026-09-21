@@ -1,4 +1,4 @@
-import { Connection, ConnectionClosedError, ConnectionTimeoutError, type Context, HTTP_TIMEOUT, InvalidResponseError, TimeoutError } from '@basmilius/apple-common';
+import { Connection, ConnectionClosedError, ConnectionTimeoutError, type Context, HTTP_TIMEOUT, InvalidResponseError, reporter, TimeoutError } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { type Method, parseResponse } from './encoding';
 
@@ -183,6 +183,10 @@ export class RtspClient extends Connection<{}> {
 
         this.context.logger.net('[rtsp]', method, path, `cseq=${cseq}`);
 
+        if (reporter.tapsTraffic) {
+            this.context.logger.traffic('rtsp', 'out', `${method} ${path} cseq=${cseq}`, {headers, body: decodeBody(String(headers['Content-Type'] ?? ''), bodyBuffer)}, raw);
+        }
+
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.#requests.delete(cseq);
@@ -282,6 +286,10 @@ export class RtspClient extends Connection<{}> {
                     return;
                 }
 
+                if (reporter.tapsTraffic) {
+                    this.#tapResponse(result.response, this.#buffer.subarray(0, result.responseLength));
+                }
+
                 this.#buffer = this.#buffer.subarray(result.responseLength);
 
                 const cseqHeader = result.response.headers.get('CSeq');
@@ -302,6 +310,22 @@ export class RtspClient extends Connection<{}> {
             this.destroy();
             this.emit('error', err as Error);
         }
+    }
+
+    /**
+     * Reports a response to the traffic sink. The body is cut from the frame, because reading it
+     * off the `Response` would consume it before the caller gets to.
+     *
+     * @param response - The parsed response.
+     * @param bytes - The plaintext response as it was framed.
+     */
+    #tapResponse(response: Response, bytes: Buffer): void {
+        const frame = Buffer.from(bytes);
+        const headers = Object.fromEntries(response.headers.entries());
+        const bodyStart = frame.indexOf('\r\n\r\n') + 4;
+        const body = decodeBody(headers['content-type'] ?? '', frame.subarray(bodyStart));
+
+        this.context.logger.traffic('rtsp', 'in', `${response.status} ${response.statusText} cseq=${headers['cseq'] ?? '?'}`, {headers, body}, frame);
     }
 
     /**
@@ -332,4 +356,28 @@ export class RtspClient extends Connection<{}> {
 
         this.context.logger.net('[rtsp]', 'onRtspTimeout()');
     }
+}
+
+/**
+ * Turns a body into something readable for the traffic sink: a parsed plist, text, or nothing
+ * when it is binary the sink already gets as bytes.
+ */
+function decodeBody(contentType: string, body: Buffer | undefined): unknown {
+    if (!body || body.byteLength === 0) {
+        return undefined;
+    }
+
+    try {
+        if (contentType.includes('plist')) {
+            return Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any);
+        }
+
+        if (contentType.startsWith('text/') || contentType.includes('sdp') || contentType.includes('parameters')) {
+            return body.toString('utf8');
+        }
+    } catch {
+        // An undecodable body is still in the entry as bytes.
+    }
+
+    return undefined;
 }

@@ -64,5 +64,5 @@ export { SendCommandError } from './types';
 // --- Re-exports from protocol packages ---
 export { Proto } from '@basmilius/apple-airplay';
 export { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, ConnectionRecovery, JsonStorage, MemoryStorage, mdnsMulticast, mdnsUnicast, RAOP_SERVICE, reporter, Storage, TimingServer } from '@basmilius/apple-common';
-export type { AudioSource, DebugGroup, MdnsService, ProtocolType, ReporterEntry, ReporterSink, ReporterSinkOptions } from '@basmilius/apple-common';
+export type { AudioSource, DebugGroup, MdnsService, ProtocolType, ReporterEntry, ReporterSink, ReporterSinkOptions, TrafficDirection, TrafficEntry, TrafficProtocol, TrafficSink } from '@basmilius/apple-common';
 

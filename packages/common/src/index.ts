@@ -90,6 +90,10 @@ export {
     type ReporterEntry,
     type ReporterSink,
     type ReporterSinkOptions,
+    type TrafficDirection,
+    type TrafficEntry,
+    type TrafficProtocol,
+    type TrafficSink,
     reporter
 } from './reporter';
 

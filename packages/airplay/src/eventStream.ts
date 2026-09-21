@@ -1,4 +1,4 @@
-import { deriveEncryptionKeys, type Context } from '@basmilius/apple-common';
+import { type Context, deriveEncryptionKeys, reporter } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { buildResponse, type Method, parseRequest } from '@basmilius/apple-rtsp';
 import { BaseStream } from './baseStream';
@@ -71,6 +71,8 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
      */
     respond(status: number, statusText: string, headers?: Record<string, string | number>, body?: Buffer): void {
         let data = buildResponse({status, statusText, headers, body});
+
+        this.context.logger.traffic('eventStream', 'out', `${status} ${statusText}`, {headers}, data);
 
         if (this.isEncrypted) {
             data = this.encrypt(data);
@@ -206,6 +208,10 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
                     return;
                 }
 
+                if (reporter.tapsTraffic) {
+                    this.context.logger.traffic('eventStream', 'in', `${result.method} ${result.path}`, {headers: result.headers, body: decodePlist(result.body)}, Buffer.from(this.#buffer.subarray(0, result.requestLength)));
+                }
+
                 this.#buffer = this.#buffer.subarray(result.requestLength);
                 await this.#handle(result.method, result.path, result.headers, result.body);
             }
@@ -216,5 +222,17 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
             this.destroy();
             this.emit('error', err);
         }
+    }
+}
+
+function decodePlist(body: Buffer): unknown {
+    if (body.byteLength === 0) {
+        return undefined;
+    }
+
+    try {
+        return Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any);
+    } catch {
+        return undefined;
     }
 }

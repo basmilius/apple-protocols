@@ -153,6 +153,7 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
         obj._x ??= OPack.sizedInteger(_x, 8);
 
         this.context.logger.raw('[companion-link]', 'Sending opack frame', type, this.isEncrypted, obj);
+        this.context.logger.traffic('companionLink', 'out', summarizeOPack(type, obj), obj);
 
         this.send(type, Buffer.from(OPack.encode(obj)));
     }
@@ -292,6 +293,7 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
         payload = OPack.decode(payload);
 
         this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
+        this.context.logger.traffic('companionLink', 'in', summarizeOPack(type, payload as unknown as Record<string, unknown>), payload);
 
         // Match responses to pending exchanges by _x.
         // Only match if this is actually a Response (_t: 3), not a server Event (_t: 1)
@@ -322,4 +324,18 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
             this.context.logger.warn('[companion-link]', 'Unhandled message', payload);
         }
     }
+}
+
+const MESSAGE_TYPE_NAMES: Record<number, string> = {
+    [MessageType.Event]: 'event',
+    [MessageType.Request]: 'request',
+    [MessageType.Response]: 'response'
+};
+
+function summarizeOPack(frameType: number, obj: Record<string, unknown>): string {
+    const frameName = Object.keys(FrameType).find(name => FrameType[name] === frameType) ?? `frame=${frameType}`;
+    const kind = MESSAGE_TYPE_NAMES[Number(obj['_t'])];
+    const parts = [frameName, kind, obj['_i'], '_x' in obj ? `x=${Number(obj['_x'])}` : undefined];
+
+    return parts.filter(part => part !== undefined).join(' ');
 }

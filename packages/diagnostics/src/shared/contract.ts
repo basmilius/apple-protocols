@@ -217,6 +217,26 @@ export type LogEntry = {
     readonly timestamp: number;
 };
 
+// --- Traffic ---
+
+export type TrafficProtocol = 'companionLink' | 'dataStream' | 'eventStream' | 'rtsp';
+
+/** One protocol message in plaintext, as tapped inside the protocol packages. */
+export type TrafficRecord = {
+    readonly id: number;
+    readonly deviceId: string | null;
+    readonly protocol: TrafficProtocol;
+    readonly direction: 'in' | 'out';
+    readonly summary: string;
+    /** The decoded message, serialized. */
+    readonly decoded: unknown;
+    /** Lowercase hex, cut at 16 KiB. `null` when the tap had no frame to give. */
+    readonly bytes: string | null;
+    /** The uncut frame length in bytes. */
+    readonly size: number | null;
+    readonly timestamp: number;
+};
+
 // --- Generic call channel ---
 
 /** The objects `device:call` may resolve a path against. */
@@ -294,6 +314,9 @@ export type CoreInvokeMap = {
 
     'log:history': [void, readonly LogEntry[]];
     'log:clear': [void, void];
+
+    'traffic:history': [void, readonly TrafficRecord[]];
+    'traffic:clear': [void, void];
 };
 
 /** Domain maps live in their own files so each can grow without touching this one. */
@@ -304,6 +327,7 @@ export type CoreEventMap = {
     'device:snapshot': StateSnapshot;
     'discovery:changed': readonly DiscoveredDeviceInfo[];
     'log:entry': LogEntry;
+    'traffic:entry': TrafficRecord;
 };
 
 /** Channel name to the payload main pushes at the renderer. */
@@ -333,11 +357,13 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
     'device:call',
     'log:history',
     'log:clear',
+    'traffic:history',
+    'traffic:clear',
     ...MEDIA_INVOKE_CHANNELS,
     ...TOOLS_INVOKE_CHANNELS
 ];
 
-export const EVENT_CHANNELS: readonly EventChannel[] = ['device:event', 'device:snapshot', 'discovery:changed', 'log:entry', ...MEDIA_EVENT_CHANNELS, ...TOOLS_EVENT_CHANNELS];
+export const EVENT_CHANNELS: readonly EventChannel[] = ['device:event', 'device:snapshot', 'discovery:changed', 'log:entry', 'traffic:entry', ...MEDIA_EVENT_CHANNELS, ...TOOLS_EVENT_CHANNELS];
 
 export const DEBUG_GROUPS: readonly DebugGroup[] = ['debug', 'error', 'info', 'net', 'raw', 'warn'];
 

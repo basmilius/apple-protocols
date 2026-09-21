@@ -39,6 +39,31 @@ export type ReporterSinkOptions = {
     readonly groups?: readonly DebugGroup[];
 };
 
+/** The framed channels whose messages can be tapped. */
+export type TrafficProtocol = 'companionLink' | 'dataStream' | 'eventStream' | 'rtsp';
+
+export type TrafficDirection = 'in' | 'out';
+
+/**
+ * One protocol message as it crossed the wire, after decryption or before encryption.
+ */
+export type TrafficEntry = {
+    /** The {@link Logger} identifier of the device the message belongs to. */
+    readonly deviceId: string | null;
+    readonly protocol: TrafficProtocol;
+    readonly direction: TrafficDirection;
+    /** One line that identifies the message, for example `SETUP /stream cseq=4`. */
+    readonly summary: string;
+    /** The decoded message, when the caller has one. */
+    readonly decoded?: unknown;
+    /** The plaintext frame. */
+    readonly bytes?: Uint8Array;
+    /** Wall-clock milliseconds since the Unix epoch. */
+    readonly timestamp: number;
+};
+
+export type TrafficSink = (entry: TrafficEntry) => void;
+
 const ALL_GROUPS: readonly DebugGroup[] = ['debug', 'error', 'info', 'net', 'raw', 'warn'];
 
 /**
@@ -122,6 +147,20 @@ export class Logger {
     warn(...data: any[]): void {
         write('warn', this.#id, this.#label, data);
     }
+
+    /**
+     * Hands one protocol message to the traffic sink. Does nothing without a sink, so callers
+     * that have to build `decoded` first should check {@link Reporter.tapsTraffic}.
+     *
+     * @param protocol - The channel the message crossed.
+     * @param direction - `out` for what we sent, `in` for what the device sent.
+     * @param summary - One line that identifies the message.
+     * @param decoded - The decoded message.
+     * @param bytes - The plaintext frame.
+     */
+    traffic(protocol: TrafficProtocol, direction: TrafficDirection, summary: string, decoded?: unknown, bytes?: Uint8Array): void {
+        reporter.reportTraffic({deviceId: this.#id, protocol, direction, summary, decoded, bytes, timestamp: Date.now()});
+    }
 }
 
 /**
@@ -133,6 +172,12 @@ export class Reporter {
     #sink: ReporterSink | null = null;
     #sinkGroups: readonly DebugGroup[] = ALL_GROUPS;
     #silenceConsole = false;
+    #trafficSink: TrafficSink | null = null;
+
+    /** Whether a traffic sink is installed. */
+    get tapsTraffic(): boolean {
+        return this.#trafficSink !== null;
+    }
 
     /** Enables all debug groups (except 'raw' which is very verbose). */
     all(): void {
@@ -195,6 +240,38 @@ export class Reporter {
         this.#sink = null;
         this.#sinkGroups = ALL_GROUPS;
         this.#silenceConsole = false;
+    }
+
+    /**
+     * Installs a sink that receives every tapped protocol message. Replaces a sink that was
+     * already installed.
+     *
+     * @param sink - Receives one entry per message.
+     */
+    setTrafficSink(sink: TrafficSink): void {
+        this.#trafficSink = sink;
+    }
+
+    /** Removes the installed traffic sink. */
+    clearTrafficSink(): void {
+        this.#trafficSink = null;
+    }
+
+    /**
+     * Hands one entry to the traffic sink, swallowing a failing sink like {@link report} does.
+     *
+     * @param entry - The tapped message.
+     */
+    reportTraffic(entry: TrafficEntry): void {
+        if (this.#trafficSink === null) {
+            return;
+        }
+
+        try {
+            this.#trafficSink(entry);
+        } catch {
+            // A broken sink is the sink's problem, not the caller's.
+        }
     }
 
     /**

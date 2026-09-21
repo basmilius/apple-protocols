@@ -124,7 +124,41 @@ Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, C
 - Contract per domein: `contract.ts` (core), `contract.media.ts` (pair, audio, raop, raw, recovery), `contract.tools.ts` (tool, storage, mdns). Handlers in `src/main/channels/<domein>`. Een kanaal toevoegen: map + kanaallijst in het contractbestand, handler in de channels-module.
 - Een paneel toevoegen: map onder `src/renderer/panels/<id>/` plus een regel in `registry.sdk.ts`, `registry.media.ts` of `registry.tools.ts`.
 - Logs komen via `reporter.setSink()` (common) met `deviceId` binnen, zonder console-patching.
+- Agent-bridge in `src/main/agent/` (`server.ts`, `guard.ts`, `resume.ts`), CLI in `cli/diag.ts`, gedeelde types in `src/shared/agent.ts`. `handle()` registreert elke handler ook voor `invoke()` in `ipc.ts`, dus een nieuw kanaal is vanzelf beschikbaar voor de agent. De bridge staat aan in dev, of met `--agent` / `DIAGNOSTICS_AGENT=1`.
 - Split grid (`src/renderer/shell/split.ts`): kolommen van cellen, max 3x3, een cel is `{ deviceId, panelId }`.
+
+## Debuggen tegen een echt device (agent-loop)
+
+De diagnostics app heeft een agent-bridge: een HTTP-server op loopback die alle invoke-kanalen van het contract aanbiedt, plus de log-, event- en traffic-buffers. `diag` is de CLI ervoor. De gebruiker start de app zelf met `bun --cwd packages/diagnostics dev:agent` (`electron-vite dev --watch`); start hem nooit zelf. Meldt `diag` dat de bridge niet draait, vraag de gebruiker dan om hem te starten.
+
+```bash
+bun run diag wait-ready                          # wacht op de app en op het herverbinden van devices
+bun run diag devices --scan                      # <device> is daarna een id of een stuk van de naam
+bun run diag connect woonkamer
+bun run diag mark                                # onthoud de cursors van nu
+bun run diag call woonkamer device remote.up     # of: invoke <channel> '<json>'
+bun run diag traffic --since-mark --decoded      # wat ging er over de lijn
+bun run diag events --since-mark --source dataStream
+bun run diag logs --since-mark --group error
+bun run diag wait events --name volumeDidChange --timeout 10
+```
+
+Verbinden, stap voor stap:
+
+1. `wait-ready` leest poort en token uit `~/.config/apple-protocols/diagnostics-agent.json`. Dat bestand bestaat alleen zolang de app draait.
+2. `devices --scan` vult de discovery. `connect` werkt alleen op een device uit de laatste scan.
+3. `<device>` moet precies één device raken. "Woonkamer" raakt er drie, gebruik dan `Woonkamer-TV` of het id. De foutmelding noemt de kandidaten.
+4. `connect` gebruikt de credentials uit `storage.json`. Een Apple TV zonder credentials moet eerst gepaird worden (`pair:start`, de gebruiker geeft de PIN). Een HomePod verbindt zonder.
+5. `connect` zet AirPlay op en daarna Companion Link, en komt terug met de snapshot. Controleer met `status` of `snapshot <device>`.
+
+Loopt het vast, lees dan eerst het verkeer in plaats van de code: `traffic --limit 60` toont waar de handshake stopt, `logs --group error` de fout. Een `Exchange timed out for <uuid>` zoek je op met `traffic --grep <uuid> --decoded`: staat er alleen een uitgaand bericht, dan beantwoordt het device dat berichttype niet en hoort het een `send()` te zijn. Zet `timeout 20` voor een commando dat kan blijven hangen.
+
+Het recept: `mark`, actie uitvoeren, `traffic`/`events`/`logs --since-mark` lezen, code aanpassen, `wait-ready`, herhalen. Een wijziging in `packages/*/src` herstart main vanzelf; de bridge verbindt de devices die via `connect` verbonden waren opnieuw. Cursors beginnen na een herstart weer bij 0, `--since-mark` vangt dat op.
+
+- Uitvoer is compact. `--decoded` toont de gedecodeerde berichten, `--json` het hele record, `--grep`, `--limit` en `--protocol`/`--direction`/`--source`/`--name`/`--group` filteren. Binaire waarden zijn afgekapt op 64 bytes, `--bytes <n>` of `--full` haalt dat weg. Filter altijd eerst, artwork alleen al is honderden kilobytes.
+- Traffic is plaintext (na decryptie, voor encryptie) en komt van `logger.traffic()` in `DataStream`, `EventStream`, Companion Link `stream.ts` en `RtspClient` (dus ook de AirPlay control stream en RAOP). RTP-audiopakketten zitten er niet in. Een nieuw tap-punt is een `logger.traffic()`-aanroep; zonder sink (Homey) doet die niets.
+- Grenzen (`src/main/agent/guard.ts`): volume boven 0.5 en kanalen die credentials weggooien (`pair:forget`, `storage:remove*`) worden geweigerd tot de gebruiker akkoord is, daarna met `--confirm`. `storage:read` met `reveal` en `audio:pickFile` kunnen nooit. PIN-pairing vraagt de gebruiker: die leest de code van het scherm.
+- Het device staat bij iemand thuis. Geen acties in een lus zonder reden, en zet terug wat je veranderde (volume, power, afspelen).
 
 ## Event systeem
 

@@ -27,6 +27,8 @@
     "main": "./out/main/index.mjs",
     "scripts": {
         "dev": "electron-vite dev",
+        "dev:agent": "electron-vite dev --watch",
+        "diag": "bun cli/diag.ts",
         "build": "bun run typecheck && electron-vite build",
         "typecheck": "tsgo --noEmit -p tsconfig.node.json && tsgo --noEmit -p tsconfig.web.json",
         "pack": "bun run build && electron-builder --publish never",

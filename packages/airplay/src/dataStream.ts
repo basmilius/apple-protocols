@@ -1,4 +1,4 @@
-import { ConnectionClosedError, type Context, deriveEncryptionKeys, randomInt32, TimeoutError } from '@basmilius/apple-common';
+import { ConnectionClosedError, type Context, deriveEncryptionKeys, randomInt32, reporter, TimeoutError } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
@@ -303,8 +303,35 @@ export class DataStream extends BaseStream<EventMap> {
         }
 
         this.context.logger.raw('[data]', 'Sending message.', message.type, extension ? getExtension(message, extension) : message);
+        this.#tap('out', message, extension, bytes);
 
         this.write(frame);
+    }
+
+    /**
+     * Reports a message to the traffic sink, with its extension unpacked when the type is known.
+     *
+     * @param direction - `out` for what we sent, `in` for what the device sent.
+     * @param message - The envelope.
+     * @param extension - The descriptor of the payload the envelope carries.
+     * @param bytes - The serialized envelope.
+     */
+    #tap(direction: 'in' | 'out', message: Proto.ProtocolMessage, extension?: DescExtension, bytes?: Uint8Array): void {
+        if (!reporter.tapsTraffic) {
+            return;
+        }
+
+        let payload: unknown;
+
+        try {
+            payload = extension ? getExtension(message, extension) : undefined;
+        } catch {
+            payload = undefined;
+        }
+
+        const summary = Proto.ProtocolMessage_Type[message.type] ?? `type=${message.type}`;
+
+        this.context.logger.traffic('dataStream', direction, summary, {identifier: message.identifier, errorCode: message.errorCode, payload: payload ?? message}, bytes);
     }
 
     /**
@@ -431,6 +458,7 @@ export class DataStream extends BaseStream<EventMap> {
 
                 for (const message of parseMessages(content)) {
                     this.context.logger.raw('[data]', `Received message.`, message);
+                    this.#tap('in', message, this.#handlers[message.type]?.[0]);
                     this.#handleMessage(message);
                 }
 

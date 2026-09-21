@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Activity, LayoutDashboard, Sparkles } from 'lucide-react';
+import { Activity, ArrowLeftRight, LayoutDashboard, Sparkles } from 'lucide-react';
 import type { DiscoveredDeviceInfo, StateSnapshot } from '@shared/contract';
 import { EventsPanel } from './events/EventsPanel';
 import { OverviewPanel } from './overview/OverviewPanel';
+import { TrafficPanel } from './traffic/TrafficPanel';
 import { WelcomePanel } from './welcome/WelcomePanel';
 import { MEDIA_PANELS } from './registry.media';
 import { SDK_PANELS } from './registry.sdk';
@@ -67,6 +68,14 @@ export const PANELS: readonly PanelDefinition[] = [
         group: 'protocol',
         appliesTo: context => context.device !== null,
         component: EventsPanel
+    },
+    {
+        id: 'traffic',
+        title: 'Traffic',
+        icon: ArrowLeftRight,
+        group: 'protocol',
+        appliesTo: context => context.device !== null,
+        component: TrafficPanel
     },
     ...SDK_PANELS,
     ...MEDIA_PANELS,

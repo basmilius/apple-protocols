@@ -13,17 +13,12 @@ const LIVE_CHUNK_MS = 200;
 
 export type BuiltSource = {
     readonly source: AudioSource;
-    /** What the status event shows for this source. */
     readonly description: string;
     /** Stops whatever keeps feeding the source, for {@link Live}. */
     dispose(): void;
 };
 
-/**
- * Turns the renderer's description of a source into the real thing.
- *
- * @param spec - Which audio source class to build and what to feed it.
- */
+/** Constructs an audio source from the renderer's serializable specification. */
 export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
     switch (spec.kind) {
         case 'url':
@@ -65,10 +60,7 @@ type FromBuffer = {
     fromUrl(url: string): Promise<AudioSource>;
 };
 
-/**
- * A {@link Live} source fed a generated tone, which is the only way to exercise the ring buffer
- * path without a real capture device.
- */
+/** Feeds a generated tone into {@link Live} to test the ring buffer without a capture device. */
 function live(spec: Extract<AudioSourceSpec, { kind: 'live' }>): BuiltSource {
     const source = new Live(spec.bufferDuration ?? 2);
     const frameBytes = CHANNELS * BYTES_PER_CHANNEL;

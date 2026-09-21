@@ -25,10 +25,7 @@ const STAGE_TEXT: Record<PairStage, string> = {
     failed: 'Pairing did not finish.'
 };
 
-/**
- * Pairing for both protocols. It works while the device is disconnected, which is the only state a
- * device that has never been paired can be in.
- */
+/** Pairing must work before the device has a connected session. */
 export function PairingPanel({deviceId}: PanelProps) {
     const {device} = useDevice(deviceId);
     const [status] = useStatus('pair:status', 'pair:status', deviceId);

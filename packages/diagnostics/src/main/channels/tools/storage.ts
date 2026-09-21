@@ -2,7 +2,7 @@ import type { StorageData } from '@basmilius/apple-common';
 import { STORAGE_PROTOCOLS, type StorageDump, type StoredDeviceInfo, type StorageProtocol } from '@shared/contract';
 import type { StorageQueue } from '../../storage';
 
-/** The credential fields that are key material. `accessoryIdentifier` is a name, so it stays. */
+/** Mask credential key material; keep `accessoryIdentifier` visible as the device name. */
 const SECRET_FIELDS: readonly string[] = ['accessoryLongTermPublicKey', 'pairingId', 'publicKey', 'secretKey'];
 
 const mask = (value: unknown): string => {
@@ -10,10 +10,7 @@ const mask = (value: unknown): string => {
     return `[hidden, ${length} bytes]`;
 };
 
-/**
- * Masking happens here rather than in the renderer: without the reveal toggle the key material
- * never crosses the bridge, so it cannot be read out of a devtools payload either.
- */
+/** Mask keys in main so they never cross IPC without an explicit reveal request. */
 const maskData = (data: StorageData): unknown => ({
     ...data,
     credentials: Object.fromEntries(

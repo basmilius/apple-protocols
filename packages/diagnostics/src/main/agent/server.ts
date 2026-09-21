@@ -35,9 +35,8 @@ type Filter = {
 };
 
 /**
- * Lets an agent outside the app drive what the window drives: every invoke channel, plus the log,
- * event and traffic buffers read by cursor. Bound to loopback and gated by a token that only
- * someone who can read the user's config directory gets.
+ * Exposes invoke channels and cursor-based log, event and traffic reads.
+ * Bound to loopback and authenticated with a token stored in the user's config directory.
  */
 export class AgentServer {
     readonly #options: AgentServerOptions;
@@ -255,10 +254,7 @@ function bytesLimit(query: URLSearchParams): number | null {
     return Number(query.get('bytes') ?? DEFAULT_BYTES);
 }
 
-/**
- * Cuts every binary value down to `limit` bytes. One artwork message is hundreds of kilobytes of
- * hex, and what reads this is an agent with a context window.
- */
+/** Limits binary values to avoid filling an agent's context with artwork hex dumps. */
 function shrink(value: unknown, limit: number | null): unknown {
     if (limit === null || value === null || typeof value !== 'object') {
         return value;

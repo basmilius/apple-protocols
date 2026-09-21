@@ -178,17 +178,10 @@ export class StreamClient extends EventEmitter<EventMap> {
     }
 
     /**
-     * Main entry point for streaming audio. Resets the stream context,
-     * connects the UDP audio transport, publishes metadata/artwork/progress,
-     * starts the RTSP RECORD session, and enters the real-time streaming loop.
+     * Streams PCM after setting up metadata, volume and RTSP RECORD.
+     * On completion or error, clears the backlog, tears down RTSP, closes UDP and emits `stopped`.
      *
-     * On completion or error, performs full teardown: clears the packet backlog,
-     * sends RTSP TEARDOWN, closes the UDP transport, and emits 'stopped'.
-     *
-     * @param source - Audio source providing PCM frames to stream.
-     * @param metadata - Track metadata to display on the receiver.
-     * @param volume - Optional initial volume as a percentage (0-100), converted to dBFS.
-     * @throws When streaming encounters an unrecoverable error.
+     * @param volume - Initial percentage, 0-100, converted to dBFS.
      */
     async sendAudio(source: AudioSource, metadata: MediaMetadata = EMPTY_METADATA, volume?: number): Promise<void> {
         if (!this.#controlClient) {

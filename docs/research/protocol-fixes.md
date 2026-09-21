@@ -15,7 +15,7 @@ Worktree: `/private/tmp/apple-protocols-fixes`, branch `fix/protocol-validation`
 | Companion Link | A failed interest registration does not prevent later registrations. Accept numeric-string power states and preserve the previous state on malformed updates. |
 | Credential storage | Write a private temporary file (0600) and atomically rename it. Validate stored structure before replacing in-memory data. This does not add multi-process locking or crash-durable fsync. |
 
-The feature-vector correction follows the extracted AirPlaySupport/AirPlayReceiver code from macOS 27.2, not an assumed meaning of the property name. The binary plist generated for the sender was also accepted by Apple's `plutil`, retaining integer `2041620749713656320` and extended value `AMq/QEFLVRw=`.
+The feature-vector correction follows the extracted AirPlaySupport/AirPlayReceiver code from macOS 27.2. The binary plist generated for the sender was also accepted by Apple's `plutil`, retaining integer `2041620749713656320` and extended value `AMq/QEFLVRw=`.
 
 ## Compatibility changes to review
 

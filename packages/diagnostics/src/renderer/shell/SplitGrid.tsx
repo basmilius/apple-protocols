@@ -7,12 +7,7 @@ import { CellToolbar } from './CellToolbar';
 import { carriesCell, draggingRef, readCell } from './cell-drag';
 import { canSplit, cellAt, type CellAt, cellCount, cellKey, isSameCell, MIN_SHARE, shapeOf, snapToEven, type SplitLayout, type SplitZone, zoneAt } from './split';
 
-/*
- * Dragging the line between two columns or two cells. Sizes are shares of an axis rather than
- * pixels, so the grid keeps its proportions when the window changes size; the drag measures against
- * the box the two neighbors share, which is the only place a share can be turned back into a
- * pointer position.
- */
+/* Use axis shares to preserve proportions on resize. Measure the drag against the two neighbors' shared box. */
 const splitDrag = (
     axis: 'x' | 'y',
     before: number,
@@ -22,7 +17,6 @@ const splitDrag = (
     return (event: ReactPointerEvent<HTMLElement>): void => {
         event.preventDefault();
         const handle = event.currentTarget;
-        // The splitter's parent is the box the two neighbors share, which is what a share is a share of.
         const box = handle.parentElement?.getBoundingClientRect();
         const span = axis === 'x' ? (box?.width ?? 0) : (box?.height ?? 0);
 
@@ -65,11 +59,7 @@ function Splitter({axis, onPointerDown}: { readonly axis: 'x' | 'y'; readonly on
     );
 }
 
-/*
- * The rectangle the dragged cell would take, drawn over the column rather than over the cell the
- * pointer is on: a side drop on a cell in a column of three gives a whole new column. You aim at a
- * cell and get a column, so that has to be visible before the pointer is let go.
- */
+/* Side drops create a column, so preview them across the column rather than just the target cell. */
 function DropIndicator({box, zone}: { readonly box: { top: number; height: number }; readonly zone: SplitZone }) {
     const shape = shapeOf(zone);
 
@@ -90,7 +80,6 @@ function DropIndicator({box, zone}: { readonly box: { top: number; height: numbe
 function Cell({at, focused, split, onZone}: {
     readonly at: CellAt;
     readonly focused: boolean;
-    /* More than one cell on screen, which is what gives a cell a bar of its own. */
     readonly split: boolean;
     readonly onZone: (zone: SplitZone | null, box: { top: number; height: number }) => void;
 }) {
@@ -106,8 +95,7 @@ function Cell({at, focused, split, onZone}: {
     const panel = panelById(cell.panelId);
     const Panel = panel?.component ?? null;
 
-    /* Where the drag would land, or null for a drop the grid cannot take: the pointer then reads
-       `no-drop` and nothing lights up. A target that is not there needs no explanation. */
+    /* Return null for an invalid drop so the browser shows `no-drop`. */
     const zoneFor = (event: ReactDragEvent<HTMLElement>): SplitZone | null => {
         if (!carriesCell(event.dataTransfer)) {
             return null;
@@ -132,7 +120,6 @@ function Cell({at, focused, split, onZone}: {
     return (
         <div
             className="flex min-h-0 min-w-0 grow flex-col overflow-hidden"
-            // A press anywhere in a cell is what moves the focus to it.
             onPointerDownCapture={() => focusAt(at)}
             onFocusCapture={() => focusAt(at)}
             onDragOver={event => {
@@ -182,8 +169,7 @@ function Cell({at, focused, split, onZone}: {
 function Column({layout, at}: { readonly layout: SplitLayout; readonly at: number }) {
     const resizeCell = useLayout(state => state.resizeCell);
     const column = layout.columns[at]!;
-    /* Which cell the drag is over and where in it. It is held here and not in the cell, because a
-       side drop reaches across the whole column and the indicator is drawn against that box. */
+    /* Keep the indicator at column level because side drops span the column. */
     const [drop, setDrop] = useState<{ zone: SplitZone; box: { top: number; height: number } } | null>(null);
 
     const resize = (cell: number): ((event: ReactPointerEvent<HTMLElement>) => void) =>
@@ -209,10 +195,6 @@ function Column({layout, at}: { readonly layout: SplitLayout; readonly at: numbe
     );
 }
 
-/*
- * The panels beside each other: columns of cells, at most three by three. The model and its limits
- * are pure (`shell/split.ts`); this only draws what the layout says and hands a drag back to it.
- */
 export function SplitGrid() {
     const layout = useLayout(state => state.layout);
     const resizeColumn = useLayout(state => state.resizeColumn);

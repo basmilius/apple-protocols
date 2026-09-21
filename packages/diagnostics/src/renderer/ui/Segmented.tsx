@@ -16,7 +16,6 @@ type SegmentedProps<T extends string> = {
     readonly className?: string;
 };
 
-/* Two to four choices that are all worth showing at once: the theme switch, a panel's view mode. */
 export function Segmented<T extends string>({value, onValueChange, items, label, size = 'sm', className}: SegmentedProps<T>) {
     return (
         <div role="radiogroup" aria-label={label} className={clsx('inline-flex w-fit shrink-0 items-center gap-px self-start rounded-lg bg-surface-sunken p-px', className)}>

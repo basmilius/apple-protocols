@@ -19,14 +19,7 @@ export class File extends BufferAudioSource {
         super(buffer, duration);
     }
 
-    /**
-     * Loads an audio file from disk, automatically detecting and decoding
-     * MP3, OGG, and WAV formats to signed 16-bit big-endian PCM. Files
-     * that don't match any known format are treated as raw PCM.
-     *
-     * @param filePath - Absolute or relative path to the audio file.
-     * @returns A new File audio source with the decoded PCM data.
-     */
+    /** Loads MP3, OGG or WAV as signed 16-bit big-endian PCM. Unrecognized files are treated as raw PCM. */
     static async fromPath(filePath: string): Promise<File> {
         const raw = await readFile(filePath);
         const buffer = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);

@@ -14,7 +14,7 @@ type JsonViewProps = {
     readonly className?: string;
 };
 
-/* A serialized payload as a tree. `{ $bytes }` is printed as hex, which is the point of the format. */
+/* Renders serialized payloads, including `{ $bytes }` hex values. */
 export function JsonView({value, defaultDepth = 2, className}: JsonViewProps) {
     return (
         <div className={clsx('mono text-code-fg', className)}>
@@ -111,7 +111,6 @@ function summaryOf(value: unknown, count: number): string {
     return typeName ? `${typeName} {${count}}` : `{${count}}`;
 }
 
-/* The first bytes, so a row says what it is without pushing everything beside it off the line. */
 function hexPreview(hex: string): string {
     const head = hex.slice(0, 32);
     const grouped = head.match(/.{1,2}/g)?.join(' ') ?? '';

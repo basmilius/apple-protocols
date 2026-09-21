@@ -22,7 +22,6 @@ export function serialize(value: unknown): unknown {
     return walk(value, 0, new WeakSet<object>());
 }
 
-/** Serializes the arguments of an event listener or a logging call. */
 export function serializeAll(values: readonly unknown[]): unknown[] {
     return values.map(value => serialize(value));
 }
@@ -146,10 +145,7 @@ function record(object: object, depth: number, seen: WeakSet<object>): Record<st
     return result;
 }
 
-/**
- * The getters a class declares on its prototypes. The SDK keeps almost everything readable behind
- * one, so an instance serialized from its own keys alone would come back empty.
- */
+/** Include prototype getters because SDK instances expose most readable state through them. */
 function getters(object: object): [string, () => unknown][] {
     const found: [string, () => unknown][] = [];
     let prototype = Object.getPrototypeOf(object);

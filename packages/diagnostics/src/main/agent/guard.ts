@@ -8,7 +8,7 @@ const DESTRUCTIVE: readonly InvokeChannel[] = ['pair:forget', 'storage:removeCre
 
 const VOLUME_PATH = /(^|\.)volume\.(set|fade|setForDevice)$/;
 
-/** As a fraction of full scale. An agent has no ears, and the device is in someone's living room. */
+/** Fraction of full volume allowed without confirmation when an agent controls a device. */
 const MAX_VOLUME = Number(process.env.DIAGNOSTICS_AGENT_MAX_VOLUME ?? 0.5);
 
 export function isDenied(channel: InvokeChannel): boolean {
@@ -16,8 +16,8 @@ export function isDenied(channel: InvokeChannel): boolean {
 }
 
 /**
- * Security boundary of the agent bridge: returns why a request is refused, or `null` when it may
- * run. `confirm` lifts the refusals that exist to prevent an accident, never the denied channels.
+ * Agent bridge security boundary. Returns a refusal reason or `null`.
+ * `confirm` permits volume changes and credential removal, but never denied channels.
  */
 export function refusal(channel: InvokeChannel, request: unknown, confirm: boolean): string | null {
     if (isDenied(channel)) {

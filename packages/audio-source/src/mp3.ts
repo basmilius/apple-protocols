@@ -24,7 +24,6 @@ export class Mp3 extends BufferAudioSource {
      * it to signed 16-bit big-endian PCM.
      *
      * @param mp3Buffer - Raw MP3 data to decode.
-     * @returns A new Mp3 audio source with the decoded PCM data.
      * @throws Error if the buffer does not contain valid MP3 data.
      */
     static async fromBuffer(mp3Buffer: Buffer): Promise<Mp3> {
@@ -42,7 +41,6 @@ export class Mp3 extends BufferAudioSource {
      * Fetches an MP3 file from a URL and decodes it to PCM.
      *
      * @param url - URL pointing to an MP3 file.
-     * @returns A new Mp3 audio source with the decoded PCM data.
      * @throws Error if the fetched data is not valid MP3.
      */
     static async fromUrl(url: string): Promise<Mp3> {

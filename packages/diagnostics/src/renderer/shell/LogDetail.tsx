@@ -5,7 +5,6 @@ import type { DebugGroup, LogEntry } from '@shared/contract';
 import { formatTime, isBytes } from '@shared/helpers';
 import { BTN_GROUP, IconButton, JsonView, KeyValue, KeyValueList, SECTION_LABEL } from '@/ui';
 
-/** How many bytes a dump puts on one line, which is what every hex viewer prints. */
 const DUMP_WIDTH = 16;
 
 const PRINTABLE = /[ -~]/;
@@ -16,7 +15,6 @@ type DumpLine = {
     readonly ascii: string;
 };
 
-/* The classic three columns: the offset, the bytes, and what those bytes are as text. */
 const dumpOf = (hex: string): DumpLine[] => {
     const bytes = hex.match(/.{1,2}/g) ?? [];
     const lines: DumpLine[] = [];
@@ -74,11 +72,6 @@ const copy = (text: string): void => {
     void navigator.clipboard.writeText(text);
 };
 
-/*
- * One log line, unpacked: the stamp it carries, where it came from, the whole message, and every
- * argument the protocol package passed along. A row in the list is one truncated line, so this is
- * the only place a payload can be read.
- */
 export function LogDetail({entry, deviceName, groupColor, onClose, className}: {
     readonly entry: LogEntry;
     readonly deviceName: string | null;

@@ -13,10 +13,7 @@ const ARROWS: Record<string, SplitDirection> = {
 const isTyping = (target: EventTarget | null): boolean =>
     target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
-/**
- * The shortcuts of the shell, bound once on the window. Panels bring their own; nothing here
- * listens per cell, which is what keeps a grid of nine from registering nine handlers.
- */
+/** Register shell shortcuts once on the window, independent of the number of cells. */
 export function startShortcuts(): void {
     window.addEventListener('keydown', event => {
         const layout = useLayout.getState();

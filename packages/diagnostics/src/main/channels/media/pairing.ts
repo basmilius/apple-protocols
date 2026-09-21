@@ -5,10 +5,7 @@ import type { PairRequest, PairStage, PairStatus, ProtocolName } from '@shared/c
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';
 
-/**
- * One pairing attempt. AirPlay runs through the SDK's {@link PairingSession}; Companion Link has
- * no SDK path and drives `Protocol.pairing` directly, the way the legacy tool did.
- */
+/** AirPlay uses {@link PairingSession}; Companion Link requires direct `Protocol.pairing` calls. */
 class PairingAttempt {
     readonly deviceId: string;
     readonly protocol: ProtocolName;
@@ -21,7 +18,7 @@ class PairingAttempt {
     #pinResolve: ((pin: string) => void) | null = null;
     #pinReject: ((reason: Error) => void) | null = null;
     #companionCredentials: Promise<AccessoryCredentials> | null = null;
-    /** A PIN typed before the M3 exchange reached its callback, which is a race the user can win. */
+    /** Buffers a PIN submitted before the M3 callback is ready. */
     #pendingPin: string | null = null;
 
     constructor(deviceId: string, protocol: ProtocolName, serviceId: string) {
@@ -45,7 +42,6 @@ class PairingAttempt {
         };
     }
 
-    /** Whether the PIN shown on screen is still being waited for. */
     get awaitingPin(): boolean {
         return this.#stage === 'awaitingPin';
     }
@@ -79,10 +75,7 @@ class PairingAttempt {
         await protocol.pairing.start();
     }
 
-    /**
-     * Finishes the exchange with the PIN the user read off the screen. For Companion Link this
-     * resolves the promise the `pin()` callback is parked on.
-     */
+    /** Completes pairing; for Companion Link, resolves the waiting `pin()` callback. */
     async submit(pin: string): Promise<AccessoryCredentials> {
         if (this.protocol === 'airplay') {
             if (this.#airplay === null) {
@@ -130,8 +123,7 @@ class PairingAttempt {
                 })
         );
 
-        // Nothing awaits this promise until submit() does, and an early rejection would otherwise
-        // take the main process down.
+        /* Prevent an unhandled rejection before submit() starts awaiting this promise. */
         this.#companionCredentials.catch(() => undefined);
     }
 
@@ -143,13 +135,13 @@ class PairingAttempt {
         try {
             this.#airplay?.abort();
         } catch {
-            // A pairing session that never connected has nothing to tear down.
+            /* Cancellation may happen before the pairing session connects. */
         }
 
         try {
             void this.#companion?.disconnect();
         } catch {
-            // Same here: a socket that is already gone is what cancelling wanted.
+            /* An already-closed socket needs no further cancellation. */
         }
 
         this.#airplay = null;
@@ -157,10 +149,7 @@ class PairingAttempt {
     }
 }
 
-/**
- * Registers `pair:*`. Credentials land under the service id of the protocol that produced them,
- * which is the key {@link SessionManager} reads them back from.
- */
+/** Store credentials under the protocol's service ID, as expected by {@link SessionManager}. */
 export function registerPairingChannels(context: ChannelContext): void {
     const attempts = new Map<string, PairingAttempt>();
 

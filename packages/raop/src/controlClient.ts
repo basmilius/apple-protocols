@@ -6,17 +6,10 @@ import { decodeRetransmitRequest, PacketFifo, SyncPacket } from './packets';
 import type { StreamContext } from './types';
 
 /**
- * Converts an RTP timestamp to a wall-clock NTP timestamp using anchor points.
+ * Converts RTP frames to a wall-clock NTP timestamp using the stream-start anchor and 32-bit wrap handling.
  *
- * Uses a fixed anchor pair (RTP timestamp + NTP time) established when the
- * stream starts. The elapsed samples from the anchor are computed with 32-bit
- * unsigned wrap handling, then converted to an NTP offset added to the anchor NTP.
- *
- * @param rtpTimestamp - Current RTP timestamp in audio frames.
- * @param sampleRate - Audio sample rate in Hz.
- * @param anchorRtp - RTP timestamp at the anchor point.
- * @param anchorNtp - NTP timestamp at the anchor point.
- * @returns 64-bit NTP wall-clock timestamp.
+ * @param sampleRate - Samples per second.
+ * @returns 64-bit NTP timestamp.
  */
 function ntpFromTs(rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint {
     let elapsedSamples: number;

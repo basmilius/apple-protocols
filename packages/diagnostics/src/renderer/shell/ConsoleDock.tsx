@@ -5,11 +5,7 @@ import { ErrorBoundary } from '@/ui';
 import { LogConsole } from './LogConsole';
 import { useColumnResize } from './useColumnResize';
 
-/*
- * The log console, hanging off the edge it is docked to. The shell is a column or a row of size 0
- * while it is shut; the console itself keeps the stored size inside it, so nothing reflows on the
- * way out. The inner edge is the drag handle.
- */
+/* Keep the inner console at its stored size while collapsing the outer shell to avoid reflow during closing. */
 export function ConsoleDock() {
     const open = useLayout(state => state.consoleOpen);
     const dock = useLayout(state => state.consoleDock);

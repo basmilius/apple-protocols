@@ -7,11 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const packages = fileURLToPath(new URL('..', import.meta.url));
 
-/*
- * The protocol packages are resolved to their sources rather than to their `dist`, the same way the
- * tsconfig path aliases do it in every other package here, so working on a protocol and working on
- * the app that inspects it never needs a rebuild in between.
- */
+/* Resolve protocol packages to source, matching tsconfig aliases, so protocol edits need no separate build. */
 const protocolAliases = {
     '@basmilius/apple-airplay': `${packages}/airplay/src`,
     '@basmilius/apple-audio-source': `${packages}/audio-source/src`,
@@ -24,7 +20,6 @@ const protocolAliases = {
     '@basmilius/apple-sdk': `${packages}/sdk/src`
 };
 
-/* Electron and everything Node brings stay outside the bundle; the rest is inlined. */
 const external = ['electron', /^electron\/.+/, ...builtinModules, ...builtinModules.map(name => `node:${name}`)];
 
 export default defineConfig({

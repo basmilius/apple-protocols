@@ -93,9 +93,6 @@ export class AirPlayState extends EventEmitter<EventMap> {
         return this.#protocol.dataStream;
     }
 
-    /**
-     * @returns The underlying AirPlay Protocol instance.
-     */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }

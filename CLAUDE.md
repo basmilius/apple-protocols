@@ -72,27 +72,27 @@ Alle interne deps gebruiken `workspace:*`. Bij release vervangt CI dit met de re
 ## Architectuur
 
 ```
-devices (AppleTV, HomePod)
-  ├── airplay/ (AirPlayDevice + Remote, State, Volume, Client, Player)
+sdk (AppleTV, HomePod)
+  ├── internal/airplay-* (AirPlayManager, Remote, State, Volume, Client, Player)
   │     └── @basmilius/apple-airplay (Protocol, DataStream, ControlStream, AudioStream, EventStream)
   │           └── @basmilius/apple-common (pairing, mDNS, storage)
   │                 ├── @basmilius/apple-encoding
   │                 └── @basmilius/apple-encryption
-  ├── companion-link/ (CompanionLinkDevice)
+  ├── internal/companion-link-* (CompanionLinkManager)
   │     └── @basmilius/apple-companion-link
-  └── model/
+  └── device/
         ├── AppleTV = AirPlay + CompanionLink (remote control + media + apps + text input)
         ├── HomePod = AirPlay only (media + volume)
         └── HomePodMini = HomePod (zelfde, ander device model)
 ```
 
-## Key patterns
+## Patronen
 
 ### Message sending (MRP via AirPlay DataStream)
 Berichten worden gebouwd in `packages/airplay/src/dataStreamMessages.ts` en verstuurd via `DataStream.exchange()` (request/response) of `DataStream.send()` (fire-and-forget). Elk bericht is een `ProtocolMessage` wrapper met een protobuf extension.
 
 ### State tracking
-`packages/devices/src/airplay/state.ts` luistert naar DataStream events en houdt now-playing, volume, keyboard, en output device state bij. `NowPlayingSnapshot` vergelijking voorkomt dubbele events. Consumers luisteren naar State events.
+`packages/sdk/src/internal/airplay-state.ts` luistert naar DataStream events en houdt now-playing, volume, keyboard, en output device state bij. `NowPlayingSnapshot` vergelijking voorkomt dubbele events. Consumers luisteren naar State events.
 
 ### Now playing hierarchie
 `AirPlayState` → `Client` (per bundleIdentifier) → `Player` (per playerPath). Client proxied getters naar de actieve Player. Player extrapoleert `elapsedTime` via Cocoa-timestamp + playbackRate.
@@ -183,7 +183,7 @@ AppleProtocolError                (packages/common/src/errors.ts)
 │   ├── AuthenticationError
 │   └── CredentialsError
 ├── CommandError
-│   └── SendCommandError          (packages/devices/src/airplay/remote.ts)
+│   └── SendCommandError          (packages/sdk/src/internal/airplay-remote.ts)
 ├── SetupError
 ├── DiscoveryError
 ├── EncryptionError
@@ -206,7 +206,7 @@ Eigen twee-laags systeem in `packages/common/src/reporter.ts`:
 Alle packages delen deze instellingen:
 - `target: esnext`, `module: esnext`, `moduleResolution: bundler`
 - `strict: false`, `isolatedModules: true`, `skipLibCheck: true`
-- `isolatedDeclarations: true` (behalve `common` en `devices`)
+- `isolatedDeclarations: true` (behalve `common` en `sdk`)
 - Path alias: `@basmilius/apple-*` → `../*/src` (dev-tijd cross-package imports)
 - Output: ESM (`.mjs` + `.d.mts`), single entry point `./dist/index.mjs` per package
 
@@ -220,10 +220,10 @@ Alle packages delen deze instellingen:
 - Bound event handlers als `readonly #bound*` class fields
 - Alle exports via `packages/*/src/index.ts`
 
-## Pitfalls & niet-triviale design decisions
+## Protocolvalkuilen
 
 ### EventStream key swap is bewust
-`eventStream.ts` roept `enableEncryption(writeKey, readKey)` aan — de argumenten lijken omgedraaid, maar dit is correct. De HKDF info-strings zijn benoemd vanuit het perspectief van de Apple TV:
+`eventStream.ts` roept `enableEncryption(writeKey, readKey)` aan. De argumenten zijn bewust omgedraaid. De HKDF info-strings zijn benoemd vanuit het perspectief van de Apple TV:
 - `Events-Write-Encryption-Key` = wat de Apple TV naar ons **schrijft** → wij gebruiken dit als **read** (decrypt) key
 - `Events-Read-Encryption-Key` = wat de Apple TV van ons **leest** → wij gebruiken dit als **write** (encrypt) key
 
@@ -236,7 +236,7 @@ Bevestigd via pyatv (`ap2_session.py`: *"Read/Write info reversed here as connec
 Beide formaten zijn bevestigd correct via pyatv's `Chacha20Cipher` (12-byte nonce_length) en `Chacha20Cipher8byteNonce` (4-byte pad + 8-byte counter).
 
 ### Encrypted/plaintext buffer scheiding
-DataStream, EventStream en RtspClient gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Deze scheiding is essentieel: zonder dit wordt bij gedeeltelijke frames (partial TCP delivery) plaintext gemixed met nieuwe encrypted data, waardoor de ChaCha20 decoder de plaintext als frame-header interpreteert → corrupt gedrag of deadlock.
+DataStream, EventStream en RtspClient gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Bij gedeeltelijke TCP-frames voorkomt dit dat nieuwe ciphertext bij plaintext terechtkomt. De ChaCha20-decoder zou die plaintext anders als frame-header lezen, met corruptie of een deadlock als gevolg.
 
 ### NTP timestamps moeten wall-clock zijn
 `NTP.now()` in `encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.
@@ -245,9 +245,9 @@ DataStream, EventStream en RtspClient gebruiken een aparte `#encryptedBuffer` vo
 
 Enige workflow: `.github/workflows/released.yml` (trigger: GitHub Release). Vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt alles, publiceert naar npm. Geen PR/push CI.
 
-## Tooling afwezig
+## Tests en tooling
 
-- Geen unit tests of test framework (alleen handmatige test scripts in diagnostics en per package)
-- Geen linter (ESLint/Biome) of formatter (Prettier) — alleen `.editorconfig`
-- Geen Docker
-- Geen `.env` bestanden (alleen `process.env.HOME` / `USERPROFILE` voor storage pad)
+- `bash test.sh` bouwt de library-packages en draait de tests in `packages/*/test/*.test.ts` op Bun en Node.
+- Handmatige device-tests lopen via diagnostics; per package staan ook testscripts.
+- Geen linter of formatter; stijlregels staan in `.editorconfig`.
+- Geen Docker of `.env`-bestanden.

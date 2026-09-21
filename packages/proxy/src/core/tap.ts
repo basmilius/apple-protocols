@@ -4,14 +4,8 @@ import { createWriteStream, type WriteStream } from 'node:fs';
 export type TapDirection = 'controller->device' | 'device->controller';
 
 /**
- * Records the plaintext messages that flow through the proxy. Each captured message is printed to the
- * console (colour-coded by direction) and, optionally, appended as a line of JSON to a capture file for
- * later analysis against the `.proto`/message definitions.
- *
- * Decoded OPack values are normalized before logging: multi-byte integers come back from the decoder as
- * `SizedInteger` wrappers (to preserve byte width for faithful re-encoding) which would otherwise serialize
- * to `{}`, so they are unwrapped to their numeric value here. The raw decrypted bytes are also recorded as
- * hex so the capture always carries ground truth.
+ * Logs plaintext proxy messages by direction and optionally appends JSON capture records.
+ * Unwraps OPack numeric wrappers so they do not serialize as `{}`. Retains raw decrypted bytes as hex for comparison.
  */
 export class ProxyTap {
     /** ANSI colour for controller→device traffic (cyan). */

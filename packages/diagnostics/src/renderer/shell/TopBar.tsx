@@ -17,8 +17,6 @@ const THEME_ITEMS: { value: ThemePreference; label: string; icon: LucideIcon }[]
     {value: 'system', label: 'System', icon: Monitor}
 ];
 
-/* One button for the whole theme setting. The glyph is what the window looks like right now, which
-   is the system's answer while the preference follows it. */
 function ThemeMenu() {
     const preference = useTheme(state => state.preference);
     const resolved = useTheme(state => state.resolved);
@@ -45,8 +43,6 @@ function ThemeMenu() {
     );
 }
 
-/* The button opens and shuts the console; which edge it hangs from is a right click away, since
-   that is a setting rather than the thing the button is for. */
 function ConsoleButton() {
     const consoleOpen = useLayout(state => state.consoleOpen);
     const consoleDock = useLayout(state => state.consoleDock);
@@ -75,9 +71,7 @@ function ConsoleButton() {
     );
 }
 
-/* The band over the grid: which device and panel have the keyboard, what that device's connection
-   is doing, and the two columns that slide in beside the grid. It drags the window, so everything
-   in it that answers the pointer opts out of the drag region on its own. */
+/* Interactive controls must opt out of this toolbar's window drag region. */
 export function TopBar() {
     const layout = useLayout(state => state.layout);
     const sidebarOpen = useLayout(state => state.sidebarOpen);
@@ -95,8 +89,6 @@ export function TopBar() {
                 <button
                     type="button"
                     aria-label={sidebarOpen ? 'Hide the sidebar' : 'Show the sidebar'}
-                    /* Expanded rather than pressed: the icon already says which way it goes, and a
-                       pressed toggle would sit filled for as long as the sidebar is open. */
                     aria-expanded={sidebarOpen}
                     className="icon-btn cursor-default"
                     onClick={toggleSidebar}

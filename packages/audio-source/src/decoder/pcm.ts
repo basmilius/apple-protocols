@@ -1,15 +1,6 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 
-/**
- * Converts PCM audio data from one format to signed 16-bit big-endian
- * stereo at the default sample rate (44100 Hz). Uses linear interpolation
- * for sample rate conversion and channel mapping (mono to stereo or
- * channel clamping).
- *
- * @param input - Source PCM audio data.
- * @param options - Description of the input PCM format.
- * @returns A buffer containing the converted signed 16-bit big-endian stereo PCM.
- */
+/** Converts to 44100 Hz signed 16-bit big-endian stereo PCM using linear interpolation and channel mapping. */
 export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
     const {inputChannels, inputSampleRate, inputBitsPerSample, inputEndian} = options;
     const bytesPerSample = inputBitsPerSample / 8;

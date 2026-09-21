@@ -17,8 +17,6 @@ type TabsProps = {
     readonly children: ReactNode;
 };
 
-/* A panel that holds more than one view of the same thing. The active tab is marked with a line
-   under it rather than a filled chip, so a row of tabs stays quieter than a segmented control. */
 export function Tabs({value, onValueChange, items, label, className, children}: TabsProps) {
     return (
         <BaseTabs.Root value={value} onValueChange={next => onValueChange(String(next))} className={clsx('flex min-h-0 flex-col', className)}>

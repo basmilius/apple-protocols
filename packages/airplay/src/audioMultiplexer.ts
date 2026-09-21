@@ -3,34 +3,19 @@ import { AudioStream, type AudioStreamOptions } from './audioStream';
 import type { Protocol } from './protocol';
 import { streamWithTiming } from './streamTiming';
 
-/**
- * A target device in the multiplexer, pairing a protocol instance with its audio stream.
- */
 type Target = {
     protocol: Protocol;
     stream: AudioStream;
 };
 
 /**
- * Streams audio from a single source to multiple AirPlay devices simultaneously.
- *
- * Each device gets its own {@link AudioStream} with independent encryption and
- * RTP state, but they all receive the same audio data with shared timing. The
- * multiplexer reads audio frames once from the source and fans them out to all
- * targets in parallel.
- *
- * Timing is maintained by comparing wall-clock elapsed time against the expected
- * time based on the number of frames sent. When falling behind, extra packets
- * are sent to catch up. Timing logic is shared with {@link AudioStream} via
- * {@link streamWithTiming}.
+ * Streams one source to multiple devices with shared timing. Each target has independent encryption and RTP state.
+ * Pacing and catch-up use {@link streamWithTiming}, as in single-device streaming.
  */
 export class AudioMultiplexer {
     readonly #context: Context;
     readonly #targets: Target[] = [];
 
-    /**
-     * @param context - Shared context with logger and device identity.
-     */
     constructor(context: Context) {
         this.#context = context;
     }
@@ -77,12 +62,10 @@ export class AudioMultiplexer {
 
         this.#context.logger.info('[multiplexer]', `Streaming to ${this.#targets.length} device(s)...`);
 
-        // Setup all streams in parallel.
         await Promise.all(this.#targets.map(async (target) => {
             await target.stream.setup();
         }));
 
-        // Prepare all streams in parallel (connect UDP, FLUSH, start sync).
         const contexts = await Promise.all(this.#targets.map(async (target) => {
             return target.stream.prepare(target.protocol.discoveryResult.address);
         }));
@@ -107,7 +90,6 @@ export class AudioMultiplexer {
                     frames = padded;
                 }
 
-                // Send the same frames to all targets in parallel.
                 await Promise.all(this.#targets.map(async (target) => {
                     await target.stream.sendFrameData(frames!, firstPacket);
                 }));
@@ -123,13 +105,11 @@ export class AudioMultiplexer {
 
             this.#context.logger.info('[multiplexer]', `Multi-room stream finished, sent ${packetCount} packets to ${this.#targets.length} device(s)`);
 
-            // Finish all streams in parallel (padding + TEARDOWN) and close UDP sockets.
             await Promise.all(this.#targets.map(async (target) => {
                 await target.stream.finish();
                 target.stream.close();
             }));
         } catch (err) {
-            // Clean up all streams on error.
             for (const target of this.#targets) {
                 target.stream.close();
             }

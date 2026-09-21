@@ -18,17 +18,8 @@ export type EventStreamEventMap = {
 };
 
 /**
- * Reverse HTTP event stream from the Apple TV.
- *
- * Unlike the other streams where we send requests, the event stream is a TCP
- * connection where the Apple TV acts as the HTTP client, sending reverse-RTSP
- * requests to us (e.g. `POST /command`). We parse these as RTSP requests and
- * respond with RTSP responses.
- *
- * The stream is encrypted with ChaCha20-Poly1305 after setup. Note that the
- * HKDF info strings are swapped compared to what you might expect: the key
- * derived from 'Events-Write-Encryption-Key' becomes our read key, because
- * these names are from the Apple TV's perspective.
+ * The Apple TV acts as HTTP client on this encrypted reverse-RTSP stream. Parse its requests and send responses.
+ * HKDF names use the Apple TV's perspective: `Events-Write-Encryption-Key` is our read key.
  */
 export class EventStream extends BaseStream<EventStreamEventMap> {
     /** Accumulated plaintext buffer for partial RTSP request reassembly. */
@@ -37,7 +28,6 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
     #encryptedBuffer: Buffer = Buffer.alloc(0);
 
     /**
-     * @param context - Shared context with logger and device identity.
      * @param address - IP address of the AirPlay receiver.
      * @param port - TCP port for the event stream (received from SETUP response).
      */
@@ -166,8 +156,6 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
 
     /**
      * Handles stream errors by logging them.
-     *
-     * @param err - The error that occurred.
      */
     onStreamError(err: Error): void {
         this.context.logger.error('[event]', 'onStreamError()', err);

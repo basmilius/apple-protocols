@@ -29,13 +29,8 @@ type Model = {
 
 const NO_DEVICE = '';
 
-/** The features TXT value a discovered device advertises, under either of the two keys. */
 const featuresOf = (txt: Readonly<Record<string, string>> | undefined): string => txt?.features ?? txt?.ft ?? '';
 
-/**
- * A features string in, the flags it sets out. The value can be typed, or taken from the AirPlay
- * TXT record of a device in the last scan.
- */
 export function FeaturesPanel(_props: PanelProps) {
     const devices = useDevices(state => state.devices);
     const [features, setFeatures] = useState('');

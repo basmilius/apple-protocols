@@ -9,7 +9,6 @@ export const HOLD_MS = 500;
 /** The window a second tap has to land in to become a double press. */
 export const DOUBLE_MS = 250;
 
-/** Which path a face button takes to the device. Comparing the two is the point of the switch. */
 export type Transport = 'airplay' | 'companionLink';
 
 export type Gesture = 'tap' | 'double' | 'hold';
@@ -29,12 +28,11 @@ export type FaceCommand = {
     readonly path: string;
     /** Replaces `remote.longPress` where the SDK names the held variant, as suspend does under power. */
     readonly holdPath?: string;
-    /** A tap is already two presses, which is what the app switcher is. */
+    /** A tap sends two presses to open the app switcher. */
     readonly doubleTap?: boolean;
     /** Whether a quick second tap promotes this command to its double press. */
     readonly promotesToDouble?: boolean;
     readonly companion: CompanionHidCommand;
-    /** Keys a HomePod has nothing to do with. */
     readonly appleTvOnly?: boolean;
 };
 
@@ -57,10 +55,6 @@ export const DPAD_SELECT: FaceCommand = {
     appleTvOnly: true
 };
 
-/*
- * The nine keys of the Homey widget's grid, in its order: system, then transport, then volume.
- * Power sits in the header instead of the grid, which is where the widget puts its own odd one out.
- */
 export const FACE_COMMANDS: readonly FaceCommand[] = [
     {id: 'menu', label: 'Menu', tooltip: 'Menu, hold for the home screen', icon: CornerUpLeft, kbd: 'Esc', page: 1, usage: 0x86, path: 'remote.menu', companion: 'Menu', appleTvOnly: true},
     {id: 'home', label: 'Home', tooltip: 'Home, twice for the app switcher', icon: Tv, kbd: 'H', page: 12, usage: 0x40, path: 'remote.home', promotesToDouble: true, companion: 'Home', appleTvOnly: true},
@@ -113,12 +107,9 @@ export type CallSpec = {
 };
 
 /**
- * The call one gesture on one face button makes over the chosen transport.
+ * Maps a gesture to a protocol call.
  *
- * @param command - The face button.
- * @param gesture - What the pointer or the keyboard did.
- * @param transport - Which of the two routes the button is wired to.
- * @param heldMs - How long the button was actually held, in milliseconds.
+ * @param heldMs - Actual hold duration in milliseconds.
  */
 export function callFor(command: FaceCommand, gesture: Gesture, transport: Transport, heldMs: number): CallSpec {
     if (transport === 'companionLink') {

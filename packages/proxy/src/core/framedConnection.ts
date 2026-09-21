@@ -28,19 +28,11 @@ type FramedConnectionEvents = {
 };
 
 /**
- * A bidirectional, length-prefixed frame transport with optional ChaCha20-Poly1305 encryption, matching
- * the Companion Link wire format `[type:1][payloadLength:3 BE][payload][authTag:16?]`.
+ * Companion Link framing over an existing socket: `[type:1][payloadLength:3 BE][payload][authTag:16?]`.
+ * The caller assigns read/write key roles. `plaintextTypes` bypass encryption for NoOp and pairing frames.
+ * Nonces use an 8-byte LE per-direction counter at offset 0 in a 12-byte buffer.
  *
- * Unlike {@link Connection} (outbound/client only), this wraps an already-open socket — either accepted by
- * a server (the controller side of a proxy) or connected as a client (the device side). The same
- * {@link EncryptionState} model is reused, with read/write key roles assigned per direction by the caller.
- * Frames whose type is in `plaintextTypes` are never encrypted/decrypted (NoOp and pairing frames).
- *
- * Frames are delivered to the handler **serially**: the next frame is not processed until the current
- * handler (which may be async, e.g. a pairing step that enables encryption) resolves. Decryption is
- * deferred to processing time so a frame received in the same TCP segment as the pairing step that enables
- * encryption is still decrypted with the correct keys. Nonce format: a 12-byte buffer with the
- * per-direction counter as an 8-byte LE integer at offset 0.
+ * Await each handler before decrypting the next frame: a pairing handler may enable encryption for a frame in the same TCP segment.
  */
 export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
     /** Whether encryption has been enabled for this connection. */
@@ -58,7 +50,6 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
     #handler?: (type: number, payload: Buffer) => void | Promise<void>;
 
     /**
-     * @param context - Shared context for logging.
      * @param socket - The already-open TCP socket to frame over.
      * @param plaintextTypes - Frame types that are always sent/received unencrypted.
      */

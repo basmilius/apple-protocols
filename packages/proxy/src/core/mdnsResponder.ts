@@ -40,13 +40,8 @@ export type AdvertisedService = {
 };
 
 /**
- * A minimal mDNS responder that advertises a single service so a real controller can discover the proxy
- * as if it were an Apple receiver. It periodically multicasts the full record set (PTR + SRV + TXT + A)
- * and re-announces whenever it observes a query mentioning the service type.
- *
- * This is intentionally simple: it does not parse the question section precisely, which is sufficient for
- * a quiet test network. Getting a specific controller to list and select the proxy may require tuning the
- * instance name and TXT records to match a genuine device — that is expected device-validation work.
+ * Advertises one proxy service through periodic PTR/SRV/TXT/A multicasts and replies to queries mentioning its type.
+ * Does not fully parse DNS questions; intended for quiet test networks. Controller discovery may require device-specific instance names and TXT records.
  */
 export class MdnsResponder {
     readonly #context: Context;
@@ -56,7 +51,6 @@ export class MdnsResponder {
     #timer?: NodeJS.Timeout;
 
     /**
-     * @param context - Shared context for logging.
      * @param service - The service to advertise.
      * @param address - The local IPv4 address to publish in the A record.
      */

@@ -6,8 +6,7 @@ import type { VolumeSnapshot } from '@shared/contract';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 
-/* The slider follows the pointer on its own and only tells the device where it landed: a set on
-   every frame would flood a connection that answers one command at a time. */
+/* Send volume on release; per-frame commands would flood the serial device connection. */
 function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnapshot | null; readonly connected: boolean; readonly call: DeviceCall }) {
     const [dragging, setDragging] = useState<number | null>(null);
     const level = dragging ?? volume?.level ?? 0;
@@ -29,10 +28,6 @@ function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnaps
     );
 }
 
-/*
- * The panel every other one is written against: it reads the snapshot for what it shows and goes
- * through `device:call` for everything it does.
- */
 export function OverviewPanel({deviceId}: PanelProps) {
     const {device, snapshot, connected, busy, connect, disconnect} = useDevice(deviceId);
     const call = useDeviceCall(deviceId);

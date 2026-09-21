@@ -53,12 +53,9 @@ const pointOf = (event: ReactPointerEvent<HTMLDivElement>): Point => {
 const percent = (value: number): string => `${(value / TOUCH_RANGE) * 100}%`;
 
 /*
- * A trackpad, in the two gestures the Apple TV knows. A drag is a touch stream, phase by phase over
- * Companion Link as `_hidT`, so it arrives as the swipe that was drawn rather than as one of the
- * SDK's four fixed sweeps; the SDK keeps its touch phases private, hence the raw builder. A press
- * that never moved is the Select button, because the HID touch device carries position and contact
- * but no click. Which one it is only shows on release, so nothing goes out until the pointer has
- * moved past the tap distance.
+ * Send drags through raw `_hidT` because the SDK keeps touch phases private.
+ * The HID touch device has no click, so stationary presses send Select.
+ * Wait for movement beyond the tap threshold before starting a touch stream.
  */
 export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
     const [trail, setTrail] = useState<readonly Point[]>([]);

@@ -98,7 +98,6 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
     };
 
     /**
-     * @param context - Shared context with device identity and logger.
      * @param address - The remote IP address to connect to.
      * @param port - The remote port to connect to.
      */
@@ -160,8 +159,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             return;
         }
 
-        // If socket is already destroyed/closed, just cleanup directly
-        // to avoid hanging on a 'close' event that will never fire.
+        /* A closed socket will not emit another close event. */
         if (this.#socket.destroyed || this.#socket.readyState === 'closed') {
             this.#cleanup();
             return;
@@ -179,9 +177,6 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
     /**
      * Enables or disables debug logging for incoming data (hex + ASCII dumps).
-     *
-     * @param enabled - Whether to enable debug output.
-     * @returns This connection instance for chaining.
      */
     debug(enabled: boolean): this {
         this.#debug = enabled;
@@ -194,7 +189,6 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
      *
      * @param attempts - Maximum number of retry attempts.
      * @param interval - Delay in milliseconds between retry attempts.
-     * @returns This connection instance for chaining.
      */
     retry(attempts: number, interval: number = 3000): this {
         this.#retryAttempts = attempts;
@@ -206,8 +200,6 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
     /**
      * Writes data to the underlying TCP socket.
      * Emits an error event if the socket is not writable.
-     *
-     * @param data - The data to send.
      */
     write(data: Buffer | Uint8Array): void {
         if (!this.#socket || this.state !== 'connected' || !this.#socket.writable) {
@@ -304,15 +296,12 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             this.#retryTimeout = undefined;
 
             try {
-                // Re-assign the stored handlers so that when retries
-                // are exhausted, the original promise gets rejected.
+                /* Restore handlers so exhausted retries reject the original connect promise. */
                 this.#connectPromise = {resolve, reject};
                 await this.#attemptConnect();
                 resolve();
             } catch (retryErr) {
-                // Propagate to the original connect() promise.
-                // Without this, the caller's await connect() hangs
-                // forever when all retry attempts are exhausted.
+                /* Forward rejection to the original connect() call so it cannot hang after retries. */
                 reject(retryErr instanceof Error ? retryErr : new ConnectionError(String(retryErr)));
             }
         }, this.#retryInterval);
@@ -395,9 +384,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);
         }
-        // Don't set 'failed' here for connected state — let onClose handle retry.
-        // Setting 'failed' before onClose fires would cause onClose to see
-        // wasConnected=false, preventing the retry logic from triggering.
+        /* Let onClose change connected state; it uses wasConnected to decide whether to retry. */
     }
 
     /**

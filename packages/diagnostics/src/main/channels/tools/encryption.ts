@@ -3,10 +3,7 @@ import type { ToolInputOption } from '@shared/contract';
 import { parseBytes, readBoolean, readNumber, readString, toHex } from './bytes';
 import { keyInput, type ToolDefinition } from './registry';
 
-/**
- * The two nonce layouts in this stack. Both are 12 bytes with an 8-byte little-endian counter; they
- * disagree on where that counter sits, and reading a stream with the wrong one fails the auth tag.
- */
+/** Both protocols use 12-byte nonces with an 8-byte LE counter, but place the counter at different offsets. */
 type NonceLayout = 'companionLink' | 'airplay' | 'raw';
 
 const NONCE_OPTIONS: readonly ToolInputOption[] = [
@@ -34,7 +31,6 @@ type HkdfPreset = {
     readonly length: number;
 };
 
-/** Every info and salt string this repo derives a key with, in the order the flows use them. */
 const HKDF_PRESETS: readonly HkdfPreset[] = [
     {value: 'pair-setup-controller-sign', label: 'Pair-Setup controller sign', salt: 'Pair-Setup-Controller-Sign-Salt', info: 'Pair-Setup-Controller-Sign-Info', length: 32},
     {value: 'pair-setup-accessory-sign', label: 'Pair-Setup accessory sign', salt: 'Pair-Setup-Accessory-Sign-Salt', info: 'Pair-Setup-Accessory-Sign-Info', length: 32},

@@ -34,7 +34,6 @@ protocol.controlStream.enableEncryption(
 
 console.log('\n🔧 Setting up streams...');
 await protocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
-// await protocol.setupDataStream(keys.sharedSecret);
 console.log('✅ Streams ready');
 
 const feedbackInterval = setInterval(() => protocol.feedback(), 2000);
@@ -45,8 +44,7 @@ const {dataPort} = await audioStream.setup();
 console.log(`✅ Audio stream ready, dataPort=${dataPort}`);
 
 console.log('\n🔊 Setting volume...');
-await protocol.controlStream.setParameter('volume', '50');  // -20 dB is a reasonable volume
-// OR if you have a setVolume method somewhere
+await protocol.controlStream.setParameter('volume', '50');
 console.log('✅ Volume set');
 
 console.log('\n🎶 Loading audio file with ffmpeg...');
@@ -56,11 +54,6 @@ const audioSource = new AudioSource.Ffmpeg(
 );
 await audioSource.start();
 
-// const pcmBuffer = readFileSync(new URL('../../.audio/doorbell.pcm', import.meta.url).pathname);
-// const audioSource = new AirPlay.AudioSource.Pcm(pcmBuffer);
-// await audioSource.start();
-
-// const audioSource = new AirPlay.AudioSource.SineWave(5, 440);
 console.log('✅ Audio file loaded');
 
 console.log('\n🔊 Streaming audio...');

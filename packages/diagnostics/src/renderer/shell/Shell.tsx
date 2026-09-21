@@ -5,8 +5,6 @@ import { Sidebar, SIDEBAR_WIDTH } from './Sidebar';
 import { SplitGrid } from './SplitGrid';
 import { TopBar } from './TopBar';
 
-/* The window: a sidebar, a top bar over the grid, and the log console on whichever edge it is
-   docked to. */
 export function Shell() {
     const sidebarOpen = useLayout(state => state.sidebarOpen);
     const consoleDock = useLayout(state => state.consoleDock);

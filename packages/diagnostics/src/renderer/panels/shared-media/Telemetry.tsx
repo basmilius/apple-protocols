@@ -9,10 +9,7 @@ type SparklineProps = {
     readonly format?: (value: number) => string;
 };
 
-/**
- * A running value with its recent history behind it. The history is kept per mounted sparkline, so
- * a panel that remounts starts over rather than showing a gap.
- */
+/** History belongs to the mounted sparkline and resets on remount. */
 export function Sparkline({label, value, format}: SparklineProps) {
     const [history, setHistory] = useState<readonly number[]>([]);
     const latest = useRef(value);
@@ -42,7 +39,6 @@ export function Sparkline({label, value, format}: SparklineProps) {
     );
 }
 
-/** A dense grid of numbers that do not need a history behind them. */
 export function StatGrid({entries}: { readonly entries: readonly [string, string][] }) {
     return (
         <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">

@@ -5,13 +5,9 @@ import type { ThemeRequest } from '@shared/contract';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 
-/* The dark ground. A window that opens on a light theme is told the real color before it paints. */
+/* Initial dark background, replaced with the resolved theme before the window paints. */
 const DEFAULT_BACKGROUND = '#0d0d10';
 
-/**
- * The window every panel is drawn in. The title bar is hidden and the traffic lights sit where the
- * sidebar's first row does, so the band above the grid is the app's own and can be dragged.
- */
 export function createWindow(): BrowserWindow {
     const window = new BrowserWindow({
         width: 1440,
@@ -46,10 +42,7 @@ export function createWindow(): BrowserWindow {
     return window;
 }
 
-/**
- * Keeps the native side in step with the theme the renderer resolved: the window's own background
- * decides what a resize and a reload flash, and `themeSource` decides the color of native menus.
- */
+/** Match the renderer theme for resize/reload backgrounds and native menus. */
 export function applyTheme(window: BrowserWindow | null, theme: ThemeRequest): void {
     nativeTheme.themeSource = theme.followsSystem ? 'system' : theme.resolved;
     window?.setBackgroundColor(theme.background);

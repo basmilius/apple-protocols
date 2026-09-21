@@ -10,21 +10,13 @@
     --surface: #ffffff;
     --surface-raised: #ffffff;
     --surface-sunken: #ececef;
-    /* A bar that is not the one in focus: between the sunken page behind it and a focused bar, so it
-       still reads as a bar. The toolbar of a cell in the grid that does not have the keyboard. */
+    /* Unfocused cell toolbar, between the normal and sunken backgrounds. */
     --surface-idle: color-mix(in srgb, var(--surface) 50%, var(--surface-sunken));
-    /* The step under the pointer: one shade off the ground a row or a button sits on, and lighter
-       than the pressed step, so hover reads as a lift and pressed as the heavier state. */
     --surface-hover: #f3f3f5;
-    /* The pressed step of a toggle. It has to sit a shade past `--surface-hover` so pressed outranks hover. */
     --surface-active: #dcdce2;
-    /* Borders carry an alpha rather than a gray of their own, so a line takes the color of whatever
-       it is drawn over instead of fighting it. Everything with a surface of its own clips its
-       background to the padding box (see `@layer base`), or the border would blend with that
-       surface and never with the ground behind it. */
+    /* Alpha borders blend with the parent background. See `background-clip` in the base layer. */
     --border: rgb(0 0 0 / 0.11);
     --border-strong: rgb(0 0 0 / 0.2);
-    /* A hairline that stays out of the way: on a sunken field a full `--border` draws a box. */
     --border-soft: rgb(0 0 0 / 0.06);
     --text: #18181b;
     --text-muted: #6f6f78;
@@ -34,7 +26,6 @@
     --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--surface));
     --accent-text: #ffffff;
     --selection: rgb(var(--accent-rgb) / 0.55);
-    /* Stacked blurs with the widest one the faintest, so the shadow fades out instead of stopping. */
     --float-shadow:
         0 1px 2px rgb(0 0 0 / 0.06),
         0 3px 6px rgb(0 0 0 / 0.05),
@@ -47,7 +38,6 @@
     --status-error: #dc2626;
     --positive: #15803d;
     --positive-text: #ffffff;
-    /* The surface code, hex dumps and serialized payloads are drawn on. */
     --code-bg: #fbfbfc;
     --code-fg: #27272a;
     --code-dim: #8e8e96;
@@ -56,7 +46,6 @@
     --code-number: #a16207;
     --code-bool: #a21caf;
     --code-null: #8e8e96;
-    /* One color per log group, so a row in the console says which one it is before it is read. */
     --group-debug: #0e7490;
     --group-error: #dc2626;
     --group-info: #15803d;
@@ -65,9 +54,7 @@
     --group-warn: #b45309;
 }
 
-/* The theme attribute sits on `<html>`, the element the light rule above lands on too, so a token
-   derived there with `var()` resolves against these values, and a value that does not change
-   between themes is not repeated here. */
+/* Derived tokens resolve on `<html>` against the active theme's values. */
 [data-theme="dark"] {
     color-scheme: dark;
     --bg: #0d0d10;
@@ -76,7 +63,6 @@
     --surface-sunken: #08080a;
     --surface-hover: #202024;
     --surface-active: #28282e;
-    /* White at a low alpha, which is what gives a dark surface its lifted edge. */
     --border: rgb(255 255 255 / 0.07);
     --border-strong: rgb(255 255 255 / 0.13);
     --border-soft: rgb(255 255 255 / 0.03);
@@ -84,8 +70,7 @@
     --text-muted: #9a9aa6;
     --text-faint: #5f5f6b;
     --selection: rgb(var(--accent-rgb) / 0.6);
-    /* Tighter than in the light theme: the compositor rounds the faint tail of a shadow on a layer
-       of its own a gray level darker, so a wide blur ends in a flat ring that reads as a band. */
+    /* Keep dark shadows narrow to avoid compositor rounding producing a visible band. */
     --float-shadow:
         0 1px 2px rgb(0 0 0 / 0.3),
         0 2px 4px rgb(0 0 0 / 0.24),
@@ -96,8 +81,6 @@
     --status-idle: #4ade80;
     --status-error: #ef4444;
     --positive: #4ade80;
-    /* Dark on light green: the dark theme's positive is a foreground color, so text sits on it the
-       other way round from the light theme, where the same token is a fill deep enough for white. */
     --positive-text: #052e16;
     --code-bg: #08080a;
     --code-fg: #d6d6de;
@@ -115,7 +98,6 @@
     --group-warn: #fb923c;
 }
 
-/* Who floats over whom. Whole numbers in one place, so a new popup cannot guess. */
 :root {
     --z-dialog-backdrop: 80;
     --z-dialog: 90;
@@ -123,14 +105,11 @@
     --z-tooltip: 110;
 }
 
-/* One type scale for the whole app, in rem against the interface font size, so text and the
-   rem-based layout scale together. Code keeps its own absolute size so it never scales twice.
-   Every rem is rounded to a whole pixel. */
+/* Scale text and layout in rem, rounded to whole pixels. Code uses an absolute size to avoid scaling twice. */
 @theme {
     /* No default palette: a component reaches only the semantic colors below. */
     --color-*: initial;
     --spacing: round(0.25rem, 1px);
-    /* The step under `xs`, for the secondary line of a row: an address, an identifier, a count. */
     --text-2xs: round(0.75rem, 1px);
     --text-2xs--line-height: round(1rem, 1px);
     --text-xs: round(0.875rem, 1px);
@@ -198,11 +177,7 @@
 }
 
 @layer base {
-    /*
-     * A border with an alpha has to mix with what is behind the element, not with the element's own
-     * background: by default a background runs on under the border and a surface would wash its line
-     * out. Utilities sit in a later layer, so `bg-clip-text` still wins.
-     */
+    /* Clip backgrounds so alpha borders blend with the parent. Later utilities such as `bg-clip-text` can override this. */
     *, ::before, ::after {
         background-clip: padding-box;
     }
@@ -231,43 +206,28 @@
     }
 }
 
-/*
- * What is left when every bundle of utilities has moved to the component that uses it: the rules a
- * utility cannot write. Base UI state selectors shared by many items, a `:not()` chain, a
- * pseudo-element, a keyframe.
- * Inside Tailwind's `components` layer on purpose: an unlayered rule beats every utility of the
- * same specificity, so `icon-btn h-7 w-7` would silently stay 32 pixels.
- */
+/* Use the components layer so utilities can override shared rules, including control sizes. */
 @layer components {
-    /* ---------------------------------------------------------------- Controls */
 
-    /* Every icon button in the app, with the pressed state a `data-` or `aria-` attribute puts on it. */
     .icon-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 32px;
         height: 32px;
-        /* An icon button is a square in every row it stands in: a bar that runs out of room truncates
-           its text or folds its actions away, it never squeezes a button into a sliver. */
         flex-shrink: 0;
         border-radius: 8px;
         color: var(--text-muted);
-        /* Only the press animates. A fade on hover lags behind the pointer, which reads as the
-           button answering late. */
+        /* Animate presses only; hover fades lag behind the pointer. */
         transition: scale 120ms ease;
     }
     .icon-btn:hover { background: var(--surface-hover); color: var(--text); }
     .icon-btn:active { scale: 0.96; }
-    /* Pressed, not important: a toggle that is on reads as a filled gray key. The accent stays for
-       the focus ring and the primary button. */
     .icon-btn[data-active="true"], .icon-btn[aria-pressed="true"] { background: var(--surface-active); color: var(--text); }
     .icon-btn:disabled { color: var(--text-faint); cursor: default; }
     .icon-btn:disabled:hover { background: transparent; color: var(--text-faint); }
     .icon-btn:disabled:active { scale: 1; }
 
-    /* Every text input in the app. One height, one border and one focus ring, so a field in a
-       dialog, in a panel and in a toolbar cannot drift apart. */
     .field {
         height: 32px;
         width: 100%;
@@ -283,19 +243,12 @@
     .field:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
     .field:disabled { opacity: .5; cursor: default; }
 
-    /* Keyboard focus is visible on every control; pointer focus stays quiet. */
     .icon-btn:focus-visible, .menu-item:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     .menu-item:focus-visible { outline-offset: -2px; }
-    /* Base UI moves DOM focus to the item the pointer hovers, and a browser keeps `:focus-visible`
-       on for scripted focus as long as its own keyboard flag is up, so after any keystroke the ring
-       would follow the mouse through every menu. The last real input event decides instead
-       (`startInputModality`); hover keeps the background it already has. */
+    /* Base UI moves focus on hover, which can retain `:focus-visible` after keyboard input. Use the last input modality. */
     :root[data-modality='pointer'] .menu-item:focus-visible { outline: none; }
 
-    /* ---------------------------------------------------------------- Popups */
-
-    /* Base UI's open and close transitions are `data-` states on the popup itself, and every menu,
-       picker, dialog and tooltip in the app shares them, along with the surface they float on. */
+    /* Base UI sets open/close data states on each popup. */
     .menu-popup, .dialog-popup, .tooltip-popup {
         background: var(--surface-raised);
         border: 1px solid var(--border);
@@ -307,8 +260,7 @@
         padding: 4px;
         border-radius: 10px;
         outline: none;
-        /* The positioner says how much room is left before the viewport edge; a long menu scrolls
-           inside that, with some air so it never sits against the window's edge. */
+        /* Keep 16px clear of the viewport edge and scroll longer menus. */
         max-height: calc(var(--available-height) - 16px);
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -316,8 +268,6 @@
     }
     .menu-popup[data-starting-style], .menu-popup[data-ending-style] { opacity: 0; scale: 0.96; }
 
-    /* A menu row, with the states Base UI puts on it while it is highlighted, disabled or the
-       trigger of a submenu that is open. */
     .menu-item {
         display: flex;
         align-items: center;
@@ -325,30 +275,24 @@
         padding: 6px 10px;
         border-radius: 6px;
         font-size: var(--text-sm);
-        /* The type scale, not the 1.5 the reset inherits, so a row is a whole number of pixels tall. */
+        /* Use the type scale to keep row heights on whole pixels. */
         line-height: var(--text-sm--line-height);
         color: var(--text);
         cursor: default;
         outline: none;
     }
-    /* Base UI highlights a row for the pointer and for the arrow keys alike. The keyboard row is a
-       mark that has to be findable, the pointer's is the lift under the cursor. */
+    /* Base UI highlights for both keyboard and pointer input; pointer styling is overridden below. */
     .menu-item[data-highlighted] { background: var(--surface-active); }
     :root[data-modality='pointer'] .menu-item[data-highlighted] { background: var(--surface-hover); }
     .menu-item[data-disabled] { opacity: .45; }
     .menu-item[data-popup-open] { background: var(--surface-active); }
-    /* Two lines against each other divide nothing, and so does a line at the top or the bottom of a
-       menu. A menu is composed out of rows that each decide whether they are there, so the last word
-       on this is here rather than in every list that draws one. */
+    /* Hide adjacent and edge separators here because menu rows render conditionally. */
     .menu-popup > [role='separator'] + [role='separator'],
     .menu-popup > [role='separator']:first-child,
     .menu-popup > [role='separator']:last-child { display: none; }
-    /* A shortcut in a row: pushed to the right, in the interface font, wherever a row carries one. */
     .menu-item kbd { margin-left: auto; font-family: var(--font-sans); font-size: var(--text-xs); color: var(--text-faint); }
 
-    /* One stack for everything that floats: a dialog, then the menus and selects a dialog can host,
-       then the tooltips over those. A popup under its own dialog is the bug this ordering prevents;
-       a component reaches the middle step with `z-(--z-popup)`. */
+    /* Layer menus above dialogs and tooltips above menus. */
     .dialog-backdrop { position: fixed; inset: 0; z-index: var(--z-dialog-backdrop); background: color-mix(in srgb, var(--bg) 55%, transparent); }
     .dialog-backdrop[data-starting-style], .dialog-backdrop[data-ending-style] { opacity: 0; }
     .dialog-popup {
@@ -356,9 +300,7 @@
         left: 50%;
         top: 50%;
         z-index: var(--z-dialog);
-        /* The individual `translate` property, not `transform`, because the spec applies translate
-           before scale: a `-50%` inside `transform` would be scaled along with the popup and leave
-           it drifting sideways while it grows. */
+        /* The individual translate property runs before scale, keeping the centered popup fixed while it grows. */
         translate: -50% -50%;
         max-width: calc(100vw - 32px);
         border-radius: 14px;
@@ -367,9 +309,7 @@
     }
     .dialog-popup[data-starting-style], .dialog-popup[data-ending-style] { opacity: 0; scale: 0.97; }
 
-    /* Tooltips. The positioner animates its position, so a tooltip slides to the next button
-       instead of blinking; the popup fades and scales from its anchor side. Both drop the motion
-       while Base UI says the tooltip is instant. */
+    /* Animate movement between triggers, but disable motion when Base UI marks a tooltip instant. */
     .tooltip-positioner {
         z-index: var(--z-tooltip);
         pointer-events: none;
@@ -387,17 +327,11 @@
     .tooltip-popup[data-starting-style], .tooltip-popup[data-ending-style] { opacity: 0; scale: 0.98; }
     .tooltip-popup[data-instant] { transition: none; }
 
-    /* ---------------------------------------------------------------- Shell */
-
-    /* The column slides open and shut, and so does the console docked under the grid. The transition
-       lives here and not in a `transition-[width]` utility, because a utility would sit in a later
-       layer than the rules that turn it off. */
+    /* Keep transitions in this layer so the resizing and reduced-motion rules can disable them. */
     .panel-shell { transition: width 200ms cubic-bezier(0, 0, 0.2, 1), height 200ms cubic-bezier(0, 0, 0.2, 1); }
     .panel-shell[data-resizing],
     .panel-shell[data-instant] { transition: none; }
 
-    /* A 2px line that says "something is on its way" without knowing how far along it is: a bar of
-       a third of the width sweeping across, which is a pseudo-element and a keyframe. */
     .progress-line { position: relative; height: 2px; overflow: hidden; background: color-mix(in srgb, var(--accent) 16%, transparent); }
     .progress-line::after {
         content: "";
@@ -409,32 +343,23 @@
     }
     @keyframes progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(400%); } }
 
-    /* In the desktop app the top band drags the window. Electron lets children inherit the region,
-       so they go back to `initial` (an explicit `none` counts as no-drag and breaks the drag), and
-       the controls inside opt out on purpose. */
+    /* Children inherit Electron's drag region. Reset to `initial`; explicit `none` breaks dragging. Controls opt out. */
     .app-drag { -webkit-app-region: drag; }
     .app-drag > * { -webkit-app-region: initial; }
     .app-drag button, .app-drag input { -webkit-app-region: no-drag; }
-    /* Anything else in the band that answers the pointer: a status dot with a tooltip is not a
-       button, and inside a drag region it would be dragged instead of hovered. */
+    /* Opt tooltip triggers and other interactive elements out of window dragging. */
     .app-no-drag { -webkit-app-region: no-drag; }
 
-    /* Windows and Linux draw the native window controls over the top right of the toolbar, so the
-       region under them keeps their width free. macOS answers no query and keeps its controls at the left, so the fallback is no inset. */
+    /* Reserve space for Windows/Linux titlebar controls. macOS uses left-side controls and the zero-inset fallback. */
     .toolbar-overlay-inset { padding-right: calc(100vw - env(titlebar-area-x, 100vw) - env(titlebar-area-width, 0px)); }
 
-    /* ---------------------------------------------------------------- Diagnostics */
-
-    /* A dense value: a hex dump, a bundle identifier, a serialized payload. It selects even though
-       the app does not, because the point of showing it is to copy it somewhere else. */
+    /* Allow selecting diagnostic values even though the rest of the app is not selectable. */
     .mono {
         font-family: var(--font-mono);
         font-size: var(--text-code);
         line-height: var(--text-code--line-height);
         user-select: text;
     }
-
-    /* ---------------------------------------------------------------- Motion */
 
     @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after { transition: none !important; animation: none !important; }

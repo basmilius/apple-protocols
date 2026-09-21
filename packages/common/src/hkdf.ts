@@ -1,18 +1,12 @@
 import { hkdf } from '@basmilius/apple-encryption';
 
 /**
- * Derives a pair of ChaCha20 encryption keys (read + write) from a shared secret
- * using HKDF-SHA512 with direction-specific info strings.
+ * Derives 32-byte read and write keys with HKDF-SHA512. Salt and info strings depend on the protocol and stream.
  *
- * This is a shared helper used across AirPlay, Companion Link, and RAOP pairing
- * flows to eliminate repeated HKDF boilerplate. The salt and info strings vary
- * per protocol and stream type.
- *
- * @param sharedSecret - The shared secret from a pair-verify or pair-setup flow.
- * @param salt - HKDF salt string (protocol-specific, e.g. 'Control-Salt').
- * @param readInfo - HKDF info string for the read (decrypt) key.
- * @param writeInfo - HKDF info string for the write (encrypt) key.
- * @returns An object with `readKey` and `writeKey` as 32-byte Buffers.
+ * @param sharedSecret - Pair-verify or pair-setup shared secret.
+ * @param salt - Protocol-specific salt, such as `Control-Salt`.
+ * @param readInfo - Info string for the decrypt key.
+ * @param writeInfo - Info string for the encrypt key.
  */
 export function deriveEncryptionKeys(sharedSecret: Buffer, salt: string, readInfo: string, writeInfo: string): { readKey: Buffer; writeKey: Buffer } {
     const saltBuffer = Buffer.from(salt);

@@ -21,7 +21,6 @@ abstract class ChannelServer {
     #server?: Server;
 
     /**
-     * @param context - Shared context for logging.
      * @param deviceAddress - The real device's IP address.
      * @param devicePort - The real device's channel port (from the SETUP response).
      * @param tap - The tap that records relayed messages.
@@ -80,7 +79,6 @@ export class EventChannelServer extends ChannelServer {
     readonly #deviceSharedSecret: Buffer;
 
     /**
-     * @param context - Shared context for logging.
      * @param deviceAddress - The real device's IP address.
      * @param devicePort - The device's event port (from the SETUP response).
      * @param controllerSharedSecret - The controller↔proxy pair-verify shared secret.
@@ -142,7 +140,6 @@ export class DataChannelServer extends ChannelServer {
     readonly #seed: unknown;
 
     /**
-     * @param context - Shared context for logging.
      * @param deviceAddress - The real device's IP address.
      * @param devicePort - The device's data port (from the SETUP response).
      * @param controllerSharedSecret - The controller↔proxy pair-verify shared secret.

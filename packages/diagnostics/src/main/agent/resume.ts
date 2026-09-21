@@ -4,11 +4,7 @@ import { dirname, join } from 'node:path';
 
 const PATH = join(homedir(), '.config', 'apple-protocols', 'diagnostics-agent-resume.json');
 
-/**
- * Remembers which devices were connected on purpose. A source change restarts main under
- * `electron-vite dev --watch`, and an agent in the middle of a test should find its devices
- * connected again instead of having to notice and redo it.
- */
+/** Restores explicitly connected devices after `electron-vite dev --watch` restarts main. */
 export class ResumeList {
     #deviceIds = new Set<string>();
 

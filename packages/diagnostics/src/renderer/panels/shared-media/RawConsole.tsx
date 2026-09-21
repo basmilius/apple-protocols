@@ -8,7 +8,6 @@ import { useDevice } from '@/panels/hooks';
 import { defaultArgs, RawForm } from '@/panels/shared-media/RawForm';
 import { Badge, Button, EmptyState, Icon, IconButton, JsonView, Section, Select } from '@/ui';
 
-/** Enough to compare a reply with the one before it without holding a session's worth of replies. */
 const MAX_HISTORY = 50;
 
 type HistoryEntry = {
@@ -29,10 +28,7 @@ type RawConsoleProps = {
 
 let nextId = 0;
 
-/**
- * Builder picker, generated form, send or exchange, reply. The catalog comes from main so the form
- * never has to know what a message looks like.
- */
+/** Builds the form from main's catalog so the renderer needs no message-format definitions. */
 export function RawConsole({deviceId, transport, emptyText}: RawConsoleProps) {
     const {connected} = useDevice(deviceId);
     const [catalog, setCatalog] = useState<readonly RawBuilderInfo[]>([]);

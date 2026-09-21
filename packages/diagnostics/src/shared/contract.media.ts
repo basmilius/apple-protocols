@@ -21,10 +21,7 @@ export type PairStatus = {
 
 // --- Audio sources ---
 
-/**
- * One entry per `@basmilius/apple-audio-source` class. The renderer cannot construct them, so it
- * describes which one it wants and main builds it.
- */
+/** Serializable source specifications; main constructs the Node-only audio source classes. */
 export type AudioSourceSpec =
     | { readonly kind: 'url'; readonly url: string }
     | { readonly kind: 'file'; readonly path: string }
@@ -56,10 +53,7 @@ export type StreamRequest = {
     readonly source: AudioSourceSpec;
     /** -144 mutes, 0 is the loudest the receiver accepts. */
     readonly volumeDb?: number;
-    /**
-     * Runs the stream over a low-level protocol with a PTP grandmaster instead of the shared NTP
-     * timing server. Known to produce silent playback on PTP-capable receivers.
-     */
+    /** Uses a separate PTP grandmaster instead of shared NTP. Known to produce silent playback on PTP-capable receivers. */
     readonly ptpExperiment?: boolean;
 };
 
@@ -92,7 +86,6 @@ export type AudioStatus = {
     readonly deviceId: string;
     readonly mode: AudioMode;
     readonly playing: boolean;
-    /** A one-line description of what was handed to the device. */
     readonly source: string | null;
     readonly volumeDb: number | null;
     readonly ptpExperiment: boolean;
@@ -174,7 +167,6 @@ export type RawBuilderInfo = {
     /** Groups the picker, for example `Playback` or `Volume`. */
     readonly category: string;
     readonly description: string;
-    /** Whether this one has a reply worth waiting for. */
     readonly supportsExchange: boolean;
     readonly params: readonly RawParam[];
 };

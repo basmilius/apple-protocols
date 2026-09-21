@@ -1,6 +1,5 @@
 import type { ToolInfo } from '@shared/contract';
 
-/** A tool is its descriptor plus the function `tool:run` resolves to. */
 export type ToolDefinition = ToolInfo & {
     run(args: Readonly<Record<string, unknown>>): unknown | Promise<unknown>;
 };

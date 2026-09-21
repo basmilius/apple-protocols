@@ -25,10 +25,7 @@ const roundTrip = (input: Buffer, output: Buffer): RoundTripResult => {
 
 const TLV8_NAMES = new Map<number, string>(Object.entries(TLV8.Value).map(([name, type]) => [type as number, name]));
 
-/**
- * A decoded TLV8 map as rows rather than a `Map`, so the tree shows the name behind a type byte
- * and the value as hex next to its printable form.
- */
+/** Represent TLV8 entries as rows with type names and hex/text values for the renderer. */
 const tlv8Rows = (entries: Map<number, Buffer>): unknown[] =>
     Array.from(entries.entries()).map(([type, value]) => ({
         type: `0x${type.toString(16).padStart(2, '0')}`,

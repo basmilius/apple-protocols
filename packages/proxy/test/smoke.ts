@@ -1,7 +1,7 @@
-// Lightweight runtime smoke test: imports and constructs the proxy building blocks (without binding
-// sockets) to catch module-resolution, circular-import, and obvious wiring errors.
-//
-// Run: bun run packages/proxy/test/smoke.ts
+/*
+ * Constructs proxy components without binding sockets to catch import and initialization failures.
+ * Run: bun run packages/proxy/test/smoke.ts
+ */
 
 import { Context, generateAccessoryIdentity } from '@basmilius/apple-common';
 import { FramedConnection } from '../src/core/framedConnection';

@@ -4,11 +4,7 @@ import { EmptyState, Select, type SelectGroup, type SelectItem } from '@/ui';
 import { ToolRunner } from './ToolRunner';
 import { useTools } from './useTools';
 
-/**
- * The frame the encoding and the encryption playground share: pick a tool, fill in the form main
- * declared for it, read the result. A picker rather than a sidebar, so the panel survives a narrow
- * cell.
- */
+/** Use a picker to keep the tool form usable in narrow cells. */
 export function ToolboxPanel({category, deviceId}: { readonly category: ToolCategory; readonly deviceId: string | null }) {
     const {tools, loading, error} = useTools(category);
     const [toolId, setToolId] = useState<string | null>(null);

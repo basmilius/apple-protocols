@@ -48,47 +48,6 @@ async function verify(): Promise<void> {
     await protocol.subscribe('SystemStatus', evt => console.debug('SystemStatus', evt));
     await protocol.subscribe('TVSystemStatus', evt => console.debug('TVSystemStatus', evt));
 
-    // await protocol.subscribe('NowPlayingInfo', evt => console.debug(evt));
-    // await protocol.fetchNowPlayingInfo();
-
-    // await protocol.subscribe('SupportedActions', evt => console.debug(evt));
-    // await protocol.fetchSupportedActions();
-
-    // await protocol.subscribe('PushSiriRemoteInfo', evt => console.debug(evt));
-    // const data = await protocol.getSiriRemoteInfo();
-    // console.debug(data);
-
-    // await protocol.subscribe('MediaControlStatus', evt => console.debug(evt));
-    // const data = await protocol.fetchMediaControlStatus();
-    // console.debug(data);
-
-    // console.debug('Attention state', await protocol.getAttentionState());
-    // console.debug('Launchable apps', await protocol.getLaunchableApps());
-    // console.debug('Available user accounts', await protocol.getUserAccounts());
-
-    // await protocol.launchApp('com.apple.TVMusic');
-    // await protocol.launchUrl('nflx://www.netflix.com/title/70291117');
-    // await protocol.switchUserAccount('71A6CA15-5268-4820-9DD8-1C53F980C149');
-
-    // await protocol.pressButton('Select');
-    // await protocol.pressButton('VolumeDown');
-
-    // await protocol.mediaControlCommand('Pause');
-    // await waitFor(2000);
-    // await protocol.mediaControlCommand('Play');
-
-    // await protocol.pressButton('PageUp');
-
-    // await protocol.pressButton('Sleep');
-    // await protocol.pressButton('Wake');
-
-    // await protocol.mediaControlCommand('GetVolume');
-
-    // await protocol.pressButton('Menu');
-    // await protocol.pressButton('Screensaver');
-
-    // await protocol.launchUrl('https://play.hbomax.com/video/watch/330677a5-aff2-4270-b19e-d67b021adfaf/be45824d-2c34-4d7f-9fac-2380c8e46123');
 }
 
-// await pair();
 await verify();

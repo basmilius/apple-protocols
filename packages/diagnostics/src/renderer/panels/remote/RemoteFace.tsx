@@ -31,11 +31,6 @@ type RemoteFaceProps = {
     readonly companionConnected: boolean;
 };
 
-/*
- * The remote as a remote. Every key here also exists as a named command in the sections below; what
- * this adds is the shape a hand knows, the gestures a key really has (tap, hold, double) and one
- * switch between the two transports, so the same press can be compared over both.
- */
 export function RemoteFace({snapshot, call, connected, companionConnected}: RemoteFaceProps) {
     const rootRef = useRef<HTMLDivElement | null>(null);
     const triggers = useRef(new Map<string, (gesture: Gesture) => void>());
@@ -67,8 +62,7 @@ export function RemoteFace({snapshot, call, connected, companionConnected}: Remo
         };
     }, []);
 
-    // Only what the face itself received: an event that bubbled up came from a key or a field that
-    // handles its own activation, and these shortcuts carry no modifier to tell them apart with.
+    /* Ignore bubbled events from keys and fields that handle their own activation. */
     const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
         if (event.target !== event.currentTarget || event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
             return;

@@ -12,8 +12,7 @@ const TYPE_ICON: Record<DeviceType, typeof Monitor> = {
     unknown: MonitorSpeaker
 };
 
-/* What an empty cell shows: everything that can fill it, one press away. A press anywhere in a cell
-   moves the focus to it first, so `show` without a cell lands here. */
+/* Pointer capture focuses this cell before `show` chooses its target. */
 export function WelcomePanel() {
     const devices = useDevices(state => state.devices);
     const scanning = useDevices(state => state.scanning);

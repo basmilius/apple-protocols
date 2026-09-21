@@ -6,8 +6,7 @@ import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents, usePlayhead
 import type { PanelProps } from '@/panels/registry';
 import { NotConnected, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
 
-/* The `StateController` getters worth reading in one go; the ones that answer with a protocol
-   object get their own button, because their payload is a tree rather than a line. */
+/* Read scalar getters together; protocol objects need separate tree views. */
 const SCALAR_GETTERS: readonly string[] = [
     'title',
     'artist',
@@ -106,8 +105,7 @@ function ClientBlock({client, updatedAt}: { readonly client: ClientSnapshot; rea
     );
 }
 
-/* One button that walks the scalar getters, so reading the controller does not mean pressing
-   eighteen buttons. A getter that throws shows its reason in place of a value. */
+/* Display getter failures in the value column. */
 function GetterTable({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
     const [values, setValues] = useState<readonly { readonly name: string; readonly text: string }[]>([]);
 

@@ -8,14 +8,9 @@ import type { PanelProps } from '@/panels/registry';
 import { useStatus } from '@/panels/shared-media/hooks';
 import { Badge, Button, EmptyState, Field, Icon, KeyValue, KeyValueList, PanelBody, Section, Toggle } from '@/ui';
 
-/** The device events that say something about the connection itself. */
 const CONNECTION_EVENTS: readonly string[] = ['connected', 'disconnected', 'recovering', 'recovered', 'recoveryFailed'];
 
-/**
- * Connection recovery, which the SDK never wires up on its own. The toggle arms a
- * `ConnectionRecovery` in main, and "simulate drop" destroys the data stream socket so the
- * recovery path can be walked without unplugging anything.
- */
+/** Arms `ConnectionRecovery` in main; simulate-drop destroys the DataStream socket to test recovery. */
 export function ConnectionPanel({deviceId}: PanelProps) {
     const {device, snapshot, connected, busy, connect, disconnect} = useDevice(deviceId);
     const [status] = useStatus('recovery:status', 'recovery:status', deviceId);

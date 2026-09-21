@@ -24,7 +24,6 @@ export class Ogg extends BufferAudioSource {
      * decoding it to signed 16-bit big-endian PCM.
      *
      * @param oggBuffer - Raw OGG Vorbis data to decode.
-     * @returns A new Ogg audio source with the decoded PCM data.
      * @throws Error if the buffer does not contain valid OGG data.
      */
     static async fromBuffer(oggBuffer: Buffer): Promise<Ogg> {
@@ -42,7 +41,6 @@ export class Ogg extends BufferAudioSource {
      * Fetches an OGG file from a URL and decodes it to PCM.
      *
      * @param url - URL pointing to an OGG Vorbis file.
-     * @returns A new Ogg audio source with the decoded PCM data.
      * @throws Error if the fetched data is not valid OGG.
      */
     static async fromUrl(url: string): Promise<Ogg> {

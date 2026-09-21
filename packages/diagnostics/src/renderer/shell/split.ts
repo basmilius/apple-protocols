@@ -1,8 +1,4 @@
-/*
- * The whole limit of the model. Columns of cells instead of a free tree means "at most three by
- * three" is these two numbers, not a counter laid over a shape that could hold more, so every
- * layout the model can express is a layout that is allowed.
- */
+/* Bounded columns and rows enforce the grid limit without counting leaves in a tree. */
 export const MAX_COLUMNS = 3;
 export const MAX_CELLS = 3;
 
@@ -48,7 +44,7 @@ export const isSameRef = (one: CellRef, other: CellRef): boolean => cellKey(one)
 
 const isColumnZone = (zone: SplitZone): boolean => zone === 'left' || zone === 'right';
 
-/* Sizes are shares of an axis, so whatever a hand-edited file leaves behind falls back to an even split. */
+/* Invalid stored shares fall back to an even split. */
 const normalize = <T extends { size: number }>(items: readonly T[]): T[] => {
     if (items.length === 0) {
         return [];
@@ -69,7 +65,7 @@ const clampFocus = (columns: readonly SplitColumn[], focus: CellAt): CellAt => {
     return {column, cell: Math.min(Math.max(focus.cell, 0), cells - 1)};
 };
 
-/* Every operation ends here: shares add up again and the focus lands on a cell that still exists. */
+/* Normalize shares and keep focus on an existing cell after each operation. */
 const settled = (columns: readonly SplitColumn[], focus: CellAt): SplitLayout => {
     const settledColumns = normalize(columns).map(column => ({...column, cells: normalize(column.cells)}));
     return {columns: settledColumns, focus: clampFocus(settledColumns, focus)};
@@ -86,10 +82,7 @@ export const cellAt = (layout: SplitLayout, at: CellAt): SplitCell | null => lay
 
 export const isSameCell = (one: CellAt, other: CellAt): boolean => one.column === other.column && one.cell === other.cell;
 
-/**
- * A pair without a device is a blank cell waiting to be filled, and there may be several of those.
- * Everything else stands in at most one cell.
- */
+/** Device-less cells may repeat. A device/panel pair may appear only once. */
 export const isUnique = (ref: CellRef): boolean => ref.deviceId !== null;
 
 /** The cell the pair stands in, or null when it is not on screen or may stand in several. */
@@ -109,11 +102,7 @@ export const locate = (layout: SplitLayout, ref: CellRef): CellAt | null => {
     return null;
 };
 
-/**
- * Whether a drop on this zone would land. `moving` is the pair being dragged when it already stands
- * in a cell: it leaves that cell, so a column or a cell comes free and a layout that looks full is
- * not. Dropping a pair on the cell it already sits in is nothing, which is why it answers false.
- */
+/** Account for the source cell freed by a move when checking capacity. Reject drops onto the source itself. */
 export const canSplit = (layout: SplitLayout, at: CellAt, zone: SplitZone, moving: CellRef | null = null): boolean => {
     if (cellAt(layout, at) === null) {
         return false;
@@ -154,11 +143,7 @@ const withoutCell = (columns: readonly SplitColumn[], source: CellAt, target: Ce
     };
 };
 
-/**
- * The one mutation behind both a drag and a split shortcut: a pair lands in a cell's zone. A pair
- * that was already on screen moves rather than appearing twice, and a drop on the middle swaps with
- * the pair that stood there instead of closing it, so nothing falls off the grid by accident.
- */
+/** Moves existing device/panel pairs instead of duplicating them. Center drops swap contents to preserve both panels. */
 export const drop = (layout: SplitLayout, ref: CellRef, at: CellAt, zone: SplitZone): SplitLayout => {
     if (!canSplit(layout, at, zone, ref)) {
         return layout;
@@ -222,7 +207,6 @@ export const closeCell = (layout: SplitLayout, at: CellAt): SplitLayout | null =
 
 export const focusCell = (layout: SplitLayout, at: CellAt): SplitLayout => (cellAt(layout, at) === null ? layout : {...layout, focus: at});
 
-/** Replaces what the cell in focus shows, which is what clicking a device in the sidebar does. */
 export const showIn = (layout: SplitLayout, ref: CellRef, at: CellAt = layout.focus): SplitLayout => {
     const standing = locate(layout, ref);
 
@@ -298,11 +282,7 @@ const cellAcross = (cells: readonly SplitCell[], span: { start: number; end: num
     return best;
 };
 
-/**
- * The focus one step in a direction, or the layout untouched at the edge of the grid. Sideways it
- * meets the neighboring column where the cell it left was standing, because two columns divide
- * themselves and an index would jump past a cell that is right there.
- */
+/** Horizontal focus follows the overlapping cell in the next column because columns can have different splits. */
 export const focusDirection = (layout: SplitLayout, direction: SplitDirection): SplitLayout => {
     if (cellAt(layout, layout.focus) === null) {
         return layout;
@@ -325,10 +305,7 @@ export const focusDirection = (layout: SplitLayout, direction: SplitDirection): 
     return cell < 0 || cell >= layout.columns[layout.focus.column].cells.length ? layout : focusCell(layout, {column: layout.focus.column, cell});
 };
 
-/**
- * A stored layout can name a panel that no longer exists, hold the same pair twice, or come from a
- * version with wider limits. Everything the model cannot mean is cut here on the way in.
- */
+/** Remove unknown panels, duplicate pairs and excess cells from stored layouts. */
 export const cleanLayout = (layout: SplitLayout, panelIds: readonly string[]): SplitLayout | null => {
     const known = new Set(panelIds);
     const seen = new Set<string>();
@@ -358,12 +335,7 @@ export const cleanLayout = (layout: SplitLayout, panelIds: readonly string[]): S
     return settled(columns, layout.focus);
 };
 
-/**
- * Where a dragged splitter lands. Two neighbors of the same size is the one split people aim for,
- * and nobody hits it by hand to the pixel, so the middle pulls the line in when it comes close. The
- * distance is measured in pixels rather than in shares: a share of a wide window is a long way, and
- * the pull should feel the same in a cell of any size.
- */
+/** Snap near an even split. Measure the threshold in pixels so it stays consistent across cell sizes. */
 export const snapToEven = (before: number, total: number, span: number, threshold = EVEN_SNAP_PX): number => {
     const middle = total / 2;
     return Math.abs(before - middle) * span <= threshold ? middle : before;
@@ -389,7 +361,6 @@ export const shapeOf = (zone: SplitZone): { x: number; y: number; width: number;
     }
 };
 
-/** Which of the five zones a point inside a cell's box falls in. */
 export const zoneAt = (box: { width: number; height: number }, point: { x: number; y: number }): SplitZone => {
     const edge = 0.28;
     const x = point.x / Math.max(box.width, 1);

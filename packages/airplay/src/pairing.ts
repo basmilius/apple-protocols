@@ -151,17 +151,11 @@ export class Verify {
     }
 
     /**
-     * Performs pair-verify and derives control stream encryption keys.
+     * Runs Curve25519 pair-verify and derives RTSP keys with HKDF-SHA512 and `Control-Salt`.
+     * `Control-Read-Encryption-Key` names what the Apple TV reads, so it is our write key.
      *
-     * Executes the Curve25519 key exchange using stored credentials, then derives
-     * separate read and write keys for the RTSP control stream using HKDF-SHA512
-     * with 'Control-Salt' and direction-specific info strings.
-     *
-     * Note: the HKDF info strings are named from the Apple TV's perspective:
-     * 'Control-Read-Encryption-Key' is what the Apple TV reads = what we write.
-     *
-     * @param credentials - Long-term credentials from a previous pair-setup.
-     * @returns Session keys including derived control stream encryption keys.
+     * @param credentials - Long-term credentials from pair-setup.
+     * @returns Session keys, including control stream keys.
      */
     async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
         const keys = await this.#internal.start(credentials);

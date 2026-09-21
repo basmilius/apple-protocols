@@ -40,7 +40,6 @@ function DeviceRow({device, onForget, onRemove}: { readonly device: StoredDevice
     );
 }
 
-/** What the credential store holds, and the only place in the app that can empty it. */
 export function StoragePanel(_props: PanelProps) {
     const [devices, setDevices] = useState<readonly StoredDeviceInfo[]>([]);
     const [dump, setDump] = useState<StorageDump | null>(null);

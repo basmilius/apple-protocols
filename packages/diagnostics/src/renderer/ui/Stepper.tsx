@@ -12,7 +12,6 @@ type StepperProps = {
     readonly disabled?: boolean;
 };
 
-/* A number moved one step at a time, with the value between the two keys. */
 export function Stepper({value, onValueChange, label, min = 0, max = 100, step = 1, format, disabled}: StepperProps) {
     const clamp = (next: number): number => Math.min(max, Math.max(min, next));
 

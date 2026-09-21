@@ -1,13 +1,6 @@
 import { hkdfSync } from 'node:crypto';
 
-/**
- * Derives a cryptographic key using HKDF (HMAC-based Key Derivation Function)
- * as defined in RFC 5869. Used throughout the protocol stack to derive
- * encryption and authentication keys from shared secrets.
- *
- * @param options - The HKDF parameters including hash algorithm, input key material, salt, info, and desired output length.
- * @returns The derived key material as a Buffer.
- */
+/** HKDF key derivation as defined in RFC 5869. */
 export function hkdf(options: HKDFOptions): Buffer {
     return Buffer.from(hkdfSync(options.hash, options.key, options.salt, options.info, options.length));
 }

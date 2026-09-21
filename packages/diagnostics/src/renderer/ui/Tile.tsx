@@ -4,15 +4,11 @@ import clsx from 'clsx';
 type TileProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'title'> & {
     readonly icon: ReactNode;
     readonly title: string;
-    /* One short line under the title: what it holds, or why it waits. */
     readonly description?: ReactNode;
-    /* The one tile a screen leads with. */
     readonly primary?: boolean;
-    /* `sm` for a narrow column or a dense grid of many. */
     readonly size?: 'md' | 'sm';
 };
 
-/* One thing to start with, as a card that is a button: the welcome cell is built out of these. */
 export function Tile({icon, title, description, primary = false, size = 'md', className, type = 'button', ...rest}: TileProps) {
     return (
         <button

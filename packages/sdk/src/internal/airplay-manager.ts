@@ -188,8 +188,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * If credentials are set, uses pair-verify; otherwise uses transient pairing.
      */
     async connect(): Promise<void> {
-        // Clean up old protocol before creating a new one.
-        // Prevents stale close events and resource leaks (open sockets, timers).
+        /* Close the previous protocol to prevent stale close events and leaked sockets or timers. */
         if (this.#protocol) {
             this.#protocol.controlStream.off('close', this.onClose);
             this.#protocol.controlStream.off('error', this.onError);
@@ -265,7 +264,6 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     /**
      * Enables or disables conversation detection on the output device (HomePod feature).
      *
-     * @param enabled - Whether to enable conversation detection.
      * @throws Error when no output device is active.
      */
     async setConversationDetectionEnabled(enabled: boolean): Promise<void> {
@@ -319,9 +317,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             throw new Error('Not connected. Call connect() first.');
         }
 
-        // Create a separate protocol instance for URL playback,
-        // just like pyatv does. This avoids conflicting with the
-        // existing remote control session.
+        /* Use a separate URL-playback session, as pyatv does, to avoid interfering with remote control. */
         this.#playUrlProtocol?.disconnect();
 
         const playProtocol = new Protocol(this.#discoveryResult, this.#identity);
@@ -585,8 +581,6 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * Handles control stream error events by logging them.
      * Control stream errors are non-fatal by themselves; the 'close' event
      * that follows will trigger disconnect.
-     *
-     * @param err - The error that occurred.
      */
     onError(err: Error): void {
         this.#protocol.context.logger.error('AirPlay error', err);
@@ -596,8 +590,6 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * Handles data/event stream error events by tearing down the connection.
      * These streams are critical for state tracking; if they fail, the device
      * is effectively unreachable and a full reconnect is needed.
-     *
-     * @param err - The error that occurred.
      */
     onStreamError(err: Error): void {
         this.#protocol.context.logger.error('AirPlay stream error', err);
@@ -691,8 +683,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             // The device answers with unidentified SET_STATE pushes, never with a reply to this identifier.
             this.#protocol.dataStream.send(DataStreamMessage.getState());
 
-            // Auto-fetch playback queue (with artwork) on track changes.
-            // Only fetch when artwork might have changed (different artworkId or no artwork yet).
+            /* Fetch the playback queue when the artwork ID changes or artwork is missing. */
             this.#lastArtworkId = null;
             this.#state.on('nowPlayingChanged', this.onNowPlayingChanged);
 

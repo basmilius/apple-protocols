@@ -16,10 +16,7 @@ import {
 import { readString } from './bytes';
 import type { ToolDefinition } from './registry';
 
-/**
- * The TXT record the flag readers work on. Given only a features string the record is synthesized
- * from it, so the pairing requirement still answers for a value pasted out of a packet dump.
- */
+/** Synthesize a TXT record when only a features string is supplied, so pairing checks can still run. */
 const readTxt = (args: Readonly<Record<string, unknown>>, features: string): Record<string, string> => {
     const text = readString(args, 'txt').trim();
     const parsed = text.length === 0 ? {} : (JSON.parse(text) as Record<string, string>);

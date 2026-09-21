@@ -46,9 +46,6 @@ export class CompanionLinkProxy implements ProtocolProxy {
     #responder?: MdnsResponder;
     #server?: Server;
 
-    /**
-     * @param options - The proxy configuration.
-     */
     constructor(options: CompanionLinkProxyOptions) {
         this.#context = new Context(`proxy:${options.device.id}`);
         this.#options = options;
@@ -103,8 +100,6 @@ class ProxySession {
     #pending: [type: number, payload: Buffer][] = [];
 
     /**
-     * @param context - Shared context for logging.
-     * @param options - The proxy configuration.
      * @param identity - The accessory identity the proxy presents to the controller.
      */
     constructor(context: Context, options: CompanionLinkProxyOptions, identity: ReturnType<ProxyStore['accessoryIdentity']>) {
@@ -134,7 +129,6 @@ class ProxySession {
     /**
      * Handles a frame received from the controller: pairing termination, or relay to the device.
      *
-     * @param type - The frame type.
      * @param payload - The decrypted frame payload.
      */
     async #onControllerFrame(type: number, payload: Buffer): Promise<void> {
@@ -214,7 +208,6 @@ class ProxySession {
     /**
      * Handles a frame received from the device: pairing responses (during verify) or relay to controller.
      *
-     * @param type - The frame type.
      * @param payload - The decrypted frame payload.
      */
     #onDeviceFrame(type: number, payload: Buffer): void {
@@ -253,7 +246,6 @@ class ProxySession {
     /**
      * Forwards a frame to the device, buffering it until the device session is ready.
      *
-     * @param type - The frame type.
      * @param payload - The decrypted payload.
      */
     #forwardToDevice(type: number, payload: Buffer): void {
@@ -268,7 +260,6 @@ class ProxySession {
      * Decodes and records an OPack frame via the tap. Non-OPack frames (e.g. NoOp) are skipped.
      *
      * @param direction - The relay direction.
-     * @param type - The frame type.
      * @param payload - The decrypted payload.
      */
     #logFrame(direction: 'controller->device' | 'device->controller', type: number, payload: Buffer): void {
@@ -293,15 +284,9 @@ class ProxySession {
 }
 
 /**
- * Builds the TXT record for the advertised proxy service. It keeps the real device's non-identity
- * properties (e.g. rpVr, rpMd, rpFl) but replaces the identity-bearing fields with proxy-specific values
- * derived stably from the proxy's own accessory identity. This makes a controller treat the proxy as a
- * distinct device and perform a fresh pair-setup, instead of attempting pair-verify against the real
- * device's key. Mirrors pyatv's atvproxy, which overrides rpHA/rpHN/rpAD/rpHI/rpBA/rpMRtID.
- *
- * @param identity - The proxy's accessory identity.
- * @param base - The real device's TXT properties.
- * @returns The TXT record to advertise.
+ * Preserves the real device's non-identity TXT fields and replaces identity fields with stable proxy values.
+ * This forces fresh pair-setup rather than pair-verify against the real device's key.
+ * Matches pyatv atvproxy overrides for rpHA/rpHN/rpAD/rpHI/rpBA/rpMRtID.
  */
 function proxyTxt(identity: AccessoryIdentity, base: Record<string, string>): Record<string, string> {
     const hash = createHash('sha256').update(identity.publicKey).digest('hex');

@@ -6,7 +6,7 @@ export type ResolvedTheme = 'light' | 'dark';
 
 const KEY = 'diagnostics.theme';
 
-/** The ground the window flashes during a resize, which is `--bg` of the theme that is on. */
+/** Match the current `--bg` to prevent a different color flashing during resize. */
 const BACKGROUND: Record<ResolvedTheme, string> = {
     light: '#f4f4f5',
     dark: '#0d0d10'

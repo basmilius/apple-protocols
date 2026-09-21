@@ -1,18 +1,18 @@
 # Apple Protocols
 
-[![🚀 Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)
- 
-TypeScript monorepo with implementations of proprietary Apple network protocols: **AirPlay 2**, **RAOP**, **Companion Link**, and supporting layers.
- 
-Apple doesn't document these protocols, so most of this was reverse-engineered by studying network traffic and similar projects. The TypeScript rewrite started because I needed something lightweight enough to run on a [Homey Pro](https://github.com/basmilius/homey-apple) without the overhead of a Python runtime. AI tooling (Claude Code) helped speed up the more tedious parts, like iterating through protocol handshakes and generating the 117 protobuf definitions.
- 
+[![Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)
+
+TypeScript implementations of AirPlay 2, RAOP and Companion Link, with shared encoding, encryption and discovery packages.
+
+Most of this code comes from studying network traffic and other implementations of Apple's undocumented protocols. I started the TypeScript rewrite to run it on a [Homey Pro](https://github.com/basmilius/homey-apple) without a Python runtime. Claude Code helped with handshake debugging and the 117 protobuf definitions.
+
 ## What you can do with this
- 
+
 - Discover, pair, and control Apple TV and HomePod devices from TypeScript/Node/Bun.
 - Stream audio (MP3, FLAC, OGG, WAV) to AirPlay 2 devices, including multi-room.
 - Read now-playing state, control playback, manage apps and accounts.
 - Use the diagnostics tool for interactive testing and debugging.
- 
+
 ## Requirements
 
 - [Bun](https://bun.sh/)
@@ -26,7 +26,7 @@ bun install
 bash build.sh
 ```
 
-`build.sh` builds all packages in dependency order. Each package runs `tsgo --noEmit && tsdown` (type-check + bundle).
+`build.sh` builds the libraries and diagnostics in dependency order. Library packages run `tsgo --noEmit && tsdown`. Diagnostics runs its typechecks and an Electron Vite build.
 
 ## Packages
 
@@ -41,7 +41,8 @@ bash build.sh
 | `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing             |
 | `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                         |
 | `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing     |
-| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Interactive test/debug tools (standalone binaries)                    |
+| `@basmilius/apple-proxy`          | `packages/proxy`          | Pairing proxy for inspecting and relaying protocol traffic          |
+| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Electron app for protocol testing and debugging                    |
 
 ### Dependency graph
 
@@ -79,14 +80,12 @@ The `@basmilius/apple-sdk` package provides the high-level API. The examples bel
 ```ts
 import { Discovery } from '@basmilius/apple-common';
 
-// Find all AirPlay devices on the network.
 const discovery = Discovery.airplay();
 const devices = await discovery.find();
 
-// Wait for a specific device by hostname.
 const result = await discovery.findUntil('Living-Room.local');
 
-// Discover all protocols at once (AirPlay + Companion Link + RAOP).
+// Scan AirPlay, Companion Link and RAOP together.
 const all = await Discovery.discoverAll();
 ```
 
@@ -112,7 +111,7 @@ protocol.disconnect();
 
 ### Connecting to a HomePod
 
-HomePods use transient pairing — no stored credentials needed.
+HomePods connect with transient pairing.
 
 ```ts
 import { HomePod } from '@basmilius/apple-sdk';
@@ -135,6 +134,8 @@ await device.connect(credentials);
 ### Remote control
 
 ```ts
+import { Proto } from '@basmilius/apple-airplay';
+
 // HID-based navigation
 await device.remote.up();
 await device.remote.down();
@@ -154,15 +155,17 @@ await device.volume.up();
 await device.volume.down();
 
 // Seek and shuffle
-await device.remote.commandSkipForward(15);
-await device.remote.commandSeekToPosition(60);
-await device.remote.commandSetShuffleMode(Proto.ShuffleMode_Enum.Songs);
+await device.playback.skipForward(15);
+await device.playback.seekTo(60);
+await device.playback.setShuffleMode(Proto.ShuffleMode_Enum.Songs);
 ```
 
 ### Now playing state
 
 ```ts
 device.state.on('nowPlayingChanged', (client, player) => {
+    if (!client) return;
+
     console.log(client.bundleIdentifier); // 'com.apple.Music'
     console.log(client.title);
     console.log(client.artist);
@@ -170,10 +173,9 @@ device.state.on('nowPlayingChanged', (client, player) => {
 });
 
 device.state.on('volumeChanged', (volume) => {
-    console.log(volume); // 0.0 – 1.0
+    console.log(volume); // 0.0 to 1.0
 });
 
-// Or read directly
 const {title, artist, album, duration, elapsedTime, isPlaying} = device.state;
 ```
 
@@ -184,11 +186,11 @@ import { Url } from '@basmilius/apple-audio-source';
 
 // Client-side streaming: decode locally and send PCM via RTP.
 const source = await Url.fromUrl('https://example.com/song.mp3');
-await device.streamAudio(source);
+await device.media.streamAudio(source);
 
 // URL playback: device fetches and plays the URL itself.
-await device.playUrl('https://example.com/video.mp4');
-await device.playUrl('https://example.com/stream.m3u8', 30); // start at 30s
+await device.media.playUrl('https://example.com/video.mp4');
+await device.media.playUrl('https://example.com/stream.m3u8', 30); // start at 30s
 ```
 
 ### Apple TV specific (Companion Link)
@@ -216,6 +218,8 @@ bun --cwd packages/airplay build
 bun --cwd packages/airplay dev
 ```
 
+The proxy has a separate build: `bun --cwd packages/proxy build`.
+
 ### Regenerating protobuf definitions
 
 ```bash
@@ -226,35 +230,37 @@ This runs [Buf](https://buf.build/) over the 117 `.proto` files in `packages/air
 
 ### Diagnostics
 
-The `diagnostics` package builds standalone binaries for interactive testing and debugging:
+The diagnostics package is an Electron app for pairing, remote control, streaming, mDNS scans and inspecting protocol traffic.
 
 ```bash
-bun --cwd packages/diagnostics build
+bun --cwd packages/diagnostics dev
 ```
 
-This produces cross-platform binaries in `packages/diagnostics/dist/`:
+Build the app with `bun --cwd packages/diagnostics build`. Create installers with `bun --cwd packages/diagnostics pack`; electron-builder writes them to `packages/diagnostics/release/`.
 
-| Binary                           | Platform            |
-|----------------------------------|---------------------|
-| `ap-diagnostics-macos-arm64`     | macOS Apple Silicon |
-| `ap-diagnostics-macos-x64`       | macOS Intel         |
-| `ap-diagnostics-linux-arm64`     | Linux ARM64         |
-| `ap-diagnostics-linux-x64`       | Linux x64           |
-| `ap-diagnostics-windows-x64.exe` | Windows x64         |
+### Testing
 
-The tool provides an interactive menu for pairing, remote control, audio streaming, URL playback, mDNS scanning, and more.
-
-### Testing against devices
-
-Use the diagnostics tool for interactive testing:
+Run the automated tests on Bun and Node:
 
 ```bash
-# Build and run diagnostics
-bun --cwd packages/diagnostics build
-./packages/diagnostics/dist/ap-diagnostics-macos-arm64
+bash test.sh
 ```
 
-The diagnostics tool provides an interactive menu for pairing, remote control, audio streaming, URL playback, mDNS scanning, and more.
+For device tests, start diagnostics with its agent bridge:
+
+```bash
+bun --cwd packages/diagnostics dev:agent
+```
+
+Then use the CLI from another terminal:
+
+```bash
+bun run diag wait-ready
+bun run diag devices --scan
+bun run diag --help
+```
+
+The user starts the app. See [CLAUDE.md](CLAUDE.md#debuggen-tegen-een-echt-device-agent-loop) for the device-testing workflow and confirmation rules.
 
 ## License
 

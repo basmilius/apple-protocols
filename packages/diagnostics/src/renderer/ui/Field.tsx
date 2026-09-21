@@ -7,7 +7,6 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
     readonly mono?: boolean;
 };
 
-/* Every single-line text input in the app. */
 export function Field({label, mono = false, className, ...rest}: FieldProps) {
     return <input aria-label={label} className={clsx('field', mono && 'mono', className)} {...rest} />;
 }

@@ -8,10 +8,7 @@ import { useStatus } from '@/panels/shared-media/hooks';
 import { DEFAULT_SOURCE, SourcePicker } from '@/panels/shared-media/SourcePicker';
 import { Badge, Button, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, PanelBody, Section, Select, Slider } from '@/ui';
 
-/**
- * RAOP runs on its own RTSP connection to a `_raop._tcp` service, next to whatever the AirPlay
- * session is doing. A device without that service cannot be reached here.
- */
+/** Requires an advertised `_raop._tcp` service and uses its own RTSP connection. */
 export function RaopPanel({deviceId}: PanelProps) {
     const {device} = useDevice(deviceId);
     const [status] = useStatus('raop:status', 'raop:status', deviceId);

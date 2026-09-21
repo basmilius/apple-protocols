@@ -59,9 +59,7 @@ export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | 
 
         return Buffer.concat(result);
     } catch (err) {
-        // Update counter on error so we stay in sync with the sender.
-        // The caller must discard the encrypted buffer to prevent retrying
-        // already-counted frames.
+        /* Advance the counter even on error. The caller must discard ciphertext to avoid counting a frame twice. */
         state.readCount = readCount;
         throw err;
     }

@@ -38,7 +38,6 @@ export class ControlStream extends RtspClient {
     #encryptionState?: EncryptionState;
 
     /**
-     * @param context - Shared context with logger and device identity.
      * @param address - IP address of the AirPlay receiver.
      * @param port - TCP port of the AirPlay RTSP server.
      */
@@ -111,7 +110,6 @@ export class ControlStream extends RtspClient {
      *
      * @param uri - RTSP resource URI (typically `/{sessionId}`).
      * @param headers - Additional headers, usually including Range and RTP-Info.
-     * @returns The RTSP response.
      */
     async flush(uri: string, headers: Record<string, string>): Promise<Response> {
         return await this.exchange('FLUSH', uri, {headers, allowError: true});
@@ -123,7 +121,6 @@ export class ControlStream extends RtspClient {
      * @param path - Request path (e.g. `/info`, `/playback-info`).
      * @param headers - Additional request headers.
      * @param timeout - Request timeout in milliseconds.
-     * @returns The response.
      */
     async get(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('GET', path, {headers, timeout, allowError: true});
@@ -136,7 +133,6 @@ export class ControlStream extends RtspClient {
      * @param body - Optional request body (Buffer, string, or plist-serializable object).
      * @param headers - Additional request headers.
      * @param timeout - Request timeout in milliseconds.
-     * @returns The response.
      */
     async post(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('POST', path, {headers, body, timeout, allowError: true});
@@ -146,10 +142,8 @@ export class ControlStream extends RtspClient {
      * Sends an HTTP-style PUT request over the RTSP connection.
      *
      * @param path - Request path (e.g. `/setProperty?...`).
-     * @param body - Optional request body.
      * @param headers - Additional request headers.
      * @param timeout - Request timeout in milliseconds.
-     * @returns The response.
      */
     async put(path: string, body?: Buffer | string | Record<string, unknown>, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('PUT', path, {headers, body, timeout, allowError: true});
@@ -161,7 +155,6 @@ export class ControlStream extends RtspClient {
      * @param path - RTSP resource URI (typically `/{sessionId}`).
      * @param headers - Additional request headers.
      * @param timeout - Request timeout in milliseconds.
-     * @returns The response.
      */
     async record(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('RECORD', path, {headers, timeout, allowError: true});
@@ -185,7 +178,6 @@ export class ControlStream extends RtspClient {
      *
      * @param parameter - Parameter name (e.g. 'volume').
      * @param value - Parameter value as a string.
-     * @returns The response.
      */
     async setParameter(parameter: string, value: string): Promise<Response> {
         return await this.exchange('SET_PARAMETER', `/${this.sessionId}`, {
@@ -199,7 +191,6 @@ export class ControlStream extends RtspClient {
      * Sets the playback volume via a POST request.
      *
      * @param volume - Volume level (typically -144 to 0 dB, or 0 to 1 normalized).
-     * @returns The response.
      */
     async setVolume(volume: number): Promise<Response> {
         return await this.exchange('POST', `/volume?volume=${volume.toFixed(6)}`, {
@@ -211,7 +202,6 @@ export class ControlStream extends RtspClient {
      * Sets the audio routing mode on the receiver.
      *
      * @param mode - The audio mode to set (e.g. 'default', 'moviePlayback', 'spoken').
-     * @returns The response.
      */
     async setAudioMode(mode: string): Promise<Response> {
         const body = Plist.serialize({audioMode: mode});
@@ -225,8 +215,6 @@ export class ControlStream extends RtspClient {
 
     /**
      * Stops the current URL playback session.
-     *
-     * @returns The response.
      */
     async stop(): Promise<Response> {
         return await this.exchange('POST', '/stop', {allowError: true});
@@ -236,7 +224,6 @@ export class ControlStream extends RtspClient {
      * Seeks to a specific position during URL playback.
      *
      * @param position - The position in seconds to seek to.
-     * @returns The response.
      */
     async scrub(position: number): Promise<Response> {
         return await this.exchange('POST', `/scrub?position=${position.toFixed(6)}`, {allowError: true});
@@ -250,7 +237,6 @@ export class ControlStream extends RtspClient {
      *
      * @param uri - RTSP resource URI (typically `/{sessionId}`).
      * @param headers - Additional headers (e.g. flush range parameters).
-     * @returns The RTSP response.
      */
     async flushBuffered(uri: string, headers: Record<string, string> = {}): Promise<Response> {
         return await this.exchange('FLUSHBUFFERED', uri, {headers, allowError: true});
@@ -320,7 +306,6 @@ export class ControlStream extends RtspClient {
      *
      * @param property - The property key=value to set (e.g. `Volume=0.5`).
      * @param body - Optional request body for complex property values (plist).
-     * @returns The response.
      */
     async setProperty(property: string, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
         return await this.put(`/setProperty?${property}`, body);
@@ -332,7 +317,6 @@ export class ControlStream extends RtspClient {
      * @param path - RTSP resource URI (typically `/{sessionId}`).
      * @param headers - Additional request headers.
      * @param timeout - Request timeout in milliseconds.
-     * @returns The response.
      */
     async teardown(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
         return await this.exchange('TEARDOWN', path, {headers, timeout, allowError: true});

@@ -272,8 +272,6 @@ export class PtpMaster {
     /**
      * Logs event-socket errors. Errors are informational only — the socket
      * lifecycle is owned by {@link stop}.
-     *
-     * @param err - The error that occurred.
      */
     onEventError(err: Error): void {
         this.#logger.warn('Event socket error', err);
@@ -282,8 +280,6 @@ export class PtpMaster {
     /**
      * Logs general-socket errors. Errors are informational only — the socket
      * lifecycle is owned by {@link stop}.
-     *
-     * @param err - The error that occurred.
      */
     onGeneralError(err: Error): void {
         this.#logger.warn('General socket error', err);

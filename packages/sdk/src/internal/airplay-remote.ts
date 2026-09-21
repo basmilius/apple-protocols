@@ -47,9 +47,6 @@ export class AirPlayRemote {
         return this.#protocol.dataStream;
     }
 
-    /**
-     * @returns The underlying AirPlay Protocol instance.
-     */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }
@@ -447,9 +444,7 @@ export class AirPlayRemote {
         await this.#dataStream.send(DataStreamMessage.getKeyboardSession());
     }
 
-    // HID primitives
-    // The Apple TV never answers a HID event, so these go out fire-and-forget; waiting for a reply
-    // times out on the key-down and the release never reaches the device.
+    /* Apple TV never replies to HID events. Waiting would time out on key-down and prevent key-up from being sent. */
 
     /**
      * Sends a double press of a HID key (two press-and-release cycles with a 150ms gap).
@@ -487,8 +482,6 @@ export class AirPlayRemote {
         await waitFor(25);
         this.#dataStream.send(DataStreamMessage.sendHIDEvent(usePage, usage, false));
     }
-
-    // Private helpers
 
     /**
      * Sends a SendCommand request and checks the result.

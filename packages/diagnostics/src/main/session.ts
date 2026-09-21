@@ -35,10 +35,7 @@ export type SessionHost = {
     emitDiscovery(): void;
 };
 
-/**
- * One connected device, its event forwarding and the roots `device:call` may reach. A session
- * outlives a disconnect so the renderer keeps a snapshot to look at.
- */
+/** Keeps a device snapshot after disconnect and exposes the allowed `device:call` roots. */
 export class DeviceSession {
     readonly #host: SessionHost;
     readonly #timingServer: TimingServer;
@@ -70,7 +67,6 @@ export class DeviceSession {
         return this.#discovered;
     }
 
-    /** The connected SDK device, or null while disconnected. */
     get device(): Device | null {
         return this.#device;
     }
@@ -79,12 +75,7 @@ export class DeviceSession {
         this.#discovered = discovered;
     }
 
-    /**
-     * Connects over AirPlay, and over Companion Link when credentials for it are stored. An Apple
-     * TV needs credentials; a HomePod pairs transiently and needs none.
-     *
-     * @param storage - Where the credentials per service id live.
-     */
+    /** Connects AirPlay and, when credentials exist, Companion Link. Apple TV needs credentials; HomePod pairs transiently. */
     async connect(storage: Storage): Promise<StateSnapshot> {
         if (this.#device !== null) {
             await this.disconnect();
@@ -149,7 +140,7 @@ export class DeviceSession {
             try {
                 device.disconnect();
             } catch {
-                // A socket that is already gone is exactly what disconnecting wanted.
+                /* An already-closed socket needs no further cleanup. */
             }
         }
 
@@ -196,10 +187,7 @@ export class DeviceSession {
         };
     }
 
-    /**
-     * Resolves the artwork of the active item and caches it as a data URL, so a snapshot stays
-     * synchronous. A second call while one is in flight is dropped.
-     */
+    /** Caches artwork as a data URL to keep snapshots synchronous. Ignores calls while a fetch is in flight. */
     async refreshArtwork(): Promise<void> {
         const device = this.#device;
 
@@ -284,10 +272,7 @@ export class DeviceSession {
         }
     }
 
-    /*
-     * A snapshot walks every client and player, and a burst of protocol messages would rebuild it
-     * once per message. One per tick is as often as the renderer can paint anyway.
-     */
+    /* Coalesce protocol bursts into one snapshot per tick; each snapshot walks all clients and players. */
     #scheduleSnapshot(): void {
         if (this.#snapshotQueued) {
             return;
@@ -308,10 +293,7 @@ export class DeviceSession {
     }
 }
 
-/**
- * Every connected device at once. The timing server is one per process: it is a UDP listener the
- * devices synchronize against, and closing it because one device went away would break the rest.
- */
+/** Shares one timing server across sessions so disconnecting one device does not interrupt the others. */
 export class SessionManager {
     readonly #sessions = new Map<string, DeviceSession>();
     readonly #host: SessionHost;

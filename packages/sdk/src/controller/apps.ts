@@ -30,8 +30,6 @@ export class AppsController {
 
     /**
      * Opens a URL on the device (universal link or app-specific URL scheme).
-     *
-     * @param url - The URL to open.
      */
     async openUrl(url: string): Promise<void> {
         await this.#companionLink.launchUrl(url);

@@ -12,7 +12,6 @@ export type DeviceHandle = {
     disconnect(): Promise<void>;
 };
 
-/** Everything a panel needs to know about the device in its cell. */
 export function useDevice(deviceId: string | null): DeviceHandle {
     const devices = useDevices(state => state.devices);
     const snapshots = useDevices(state => state.snapshots);
@@ -20,8 +19,7 @@ export function useDevice(deviceId: string | null): DeviceHandle {
     const connect = useDevices(state => state.connect);
     const disconnect = useDevices(state => state.disconnect);
 
-    // A selector that builds this object per call would loop; the pieces come from the store and
-    // the object is derived here.
+    /* Building the object inside a store selector would cause a render loop. */
     return useMemo(() => {
         const device = deviceId === null ? null : (devices.find(candidate => candidate.id === deviceId) ?? null);
         const snapshot = deviceId === null ? null : (snapshots[deviceId] ?? null);
@@ -47,10 +45,7 @@ export function useDevice(deviceId: string | null): DeviceHandle {
 
 export type DeviceCall = (root: CallRoot, path: string, args?: readonly unknown[]) => Promise<unknown>;
 
-/**
- * The typed way into `device:call`. It rejects with the error main reported, so a `CommandButton`
- * shows the reason without every caller unpacking a result.
- */
+/** Rejects failed `device:call` results so command buttons can display the error directly. */
 export function useDeviceCall(deviceId: string | null): DeviceCall {
     return useCallback(
         async (root, path, args) => {
@@ -70,7 +65,6 @@ export function useDeviceCall(deviceId: string | null): DeviceCall {
     );
 }
 
-/** How often a running position is redrawn. Fast enough that the seconds never skip. */
 const TICK_MS = 500;
 
 export type Playhead = {
@@ -80,12 +74,10 @@ export type Playhead = {
 };
 
 /**
- * The position of a playhead right now. A snapshot only arrives when the device sends something,
- * which on a long track is minutes apart, so the position is carried forward from the one in hand.
+ * Extrapolates playback between snapshots, which can be minutes apart.
  *
- * @param playhead - The position as the snapshot reported it.
- * @param updatedAt - When that snapshot was built, in milliseconds.
- * @returns The elapsed time in seconds, moving while the player plays.
+ * @param updatedAt - Snapshot timestamp in milliseconds.
+ * @returns Elapsed playback time in seconds.
  */
 export function usePlayhead(playhead: Playhead | null, updatedAt: number | undefined): number {
     const playing = playhead !== null && playhead.playbackState === 'Playing' && playhead.playbackRate !== 0;
@@ -117,7 +109,6 @@ export function usePlayhead(playhead: Playhead | null, updatedAt: number | undef
 export type EventFilter = {
     readonly sources?: readonly DeviceEventSource[];
     readonly names?: readonly string[];
-    /* The newest N, which is what a table shows. */
     readonly limit?: number;
 };
 
@@ -150,7 +141,6 @@ export type LogFilter = {
     readonly limit?: number;
 };
 
-/** The log ring buffer, filtered. */
 export function useLogs(filter: LogFilter = {}): readonly LogEntry[] {
     const logs = useDevices(state => state.logs);
     const {groups, deviceIds, search, limit = 5000} = filter;

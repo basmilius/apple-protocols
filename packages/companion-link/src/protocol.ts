@@ -10,20 +10,10 @@ import { Stream } from './stream';
 import * as Message from './messages';
 
 /**
- * High-level Companion Link protocol client for Apple TV.
+ * Apple TV Companion Link client over an encrypted OPack stream.
  *
- * Provides methods for all Companion Link operations: system handshake, session
- * management, HID remote control, touch input, text input (RTI), media control,
- * app launching, system settings, Up Next queue management, Siri PTT, and
- * presence publishing. All communication flows through an encrypted OPack stream.
- *
- * Typical lifecycle:
- * 1. `connect()` - establish TCP connection
- * 2. `verify.start(credentials)` - pair-verify and enable encryption
- * 3. `systemInfo(pairingId)` - exchange system information
- * 4. `sessionStart()` / `tvrcSessionStart()` - open service sessions
- * 5. Use HID, touch, text input, media control, etc.
- * 6. `disconnect()` - gracefully tear down
+ * Call `connect()`, `verify.start(credentials)`, `systemInfo(pairingId)`,
+ * then `sessionStart()` / `tvrcSessionStart()` before commands. End with `disconnect()`.
  */
 export class Protocol {
     /** The device context providing logger, storage, and identity. */
@@ -435,8 +425,6 @@ export class Protocol {
 
     /**
      * Enables or disables captions/subtitles.
-     *
-     * @param enabled - Whether captions should be enabled.
      */
     async setCaptionSetting(enabled: boolean): Promise<object> {
         const [, payload] = await this.#exchange(Message.mediaCaptionSettingSet(enabled));
@@ -447,8 +435,6 @@ export class Protocol {
 
     /**
      * Launches an app on the Apple TV by its bundle identifier.
-     *
-     * @param bundleId - The bundle identifier of the app to launch.
      */
     async launchApp(bundleId: string): Promise<void> {
         await this.#exchange(Message.launchApp(bundleId));
@@ -456,8 +442,6 @@ export class Protocol {
 
     /**
      * Opens a URL on the Apple TV via universal links.
-     *
-     * @param url - The URL to open.
      */
     async launchUrl(url: string): Promise<void> {
         await this.#exchange(Message.launchUrl(url));
@@ -550,8 +534,6 @@ export class Protocol {
 
     /**
      * Switches the active user account on the Apple TV.
-     *
-     * @param accountId - The identifier of the account to switch to.
      */
     async switchUserAccount(accountId: string): Promise<void> {
         await this.#exchange(Message.switchUserAccount(accountId));
@@ -773,7 +755,6 @@ export class Protocol {
      *
      * @param x - X coordinate (-1.0 to 1.0).
      * @param y - Y coordinate (-1.0 to 1.0).
-     * @param isDown - Whether the button is pressed.
      */
     sendGameControllerEvent(x: number, y: number, isDown: boolean): void {
         this.#stream.sendOPack(FrameType.OPackEncrypted, Message.gameControllerEvent(x, y, isDown));
@@ -785,7 +766,6 @@ export class Protocol {
      * Initiates an app sign-in proxy flow, allowing the Apple TV app
      * to authenticate via the paired companion device.
      *
-     * @param bundleId - The bundle identifier of the app requesting sign-in.
      * @param requestType - The sign-in method ('appleID', 'password', or 'custom').
      * @returns The sign-in response from the Apple TV.
      */
@@ -797,8 +777,6 @@ export class Protocol {
     /**
      * Initiates a TV provider (MVPD) authentication flow on the Apple TV.
      *
-     * @param providerUrl - The provider's authentication URL.
-     * @param providerName - The provider's display name.
      * @returns The provider auth response.
      */
     async requestTVProvider(providerUrl: string, providerName: string): Promise<object> {
@@ -809,7 +787,6 @@ export class Protocol {
     /**
      * Sends a restricted access (parental controls) approval request.
      *
-     * @param restrictionType - The type of restriction being requested.
      * @returns The approval response.
      */
     async requestRestrictedAccess(restrictionType: string): Promise<object> {

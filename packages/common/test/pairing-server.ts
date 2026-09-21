@@ -1,10 +1,7 @@
-// In-process verification of the HAP server-side pairing classes.
-//
-// Drives the existing client AccessoryPair/AccessoryVerify against the new AccessoryPairServer/
-// AccessoryVerifyServer entirely in memory (no device, no network). Proves the M1-M6 pair-setup and
-// M1-M4 pair-verify handshakes interoperate and derive a matching shared secret.
-//
-// Run: bun run packages/common/test/pairing-server.ts
+/*
+ * Tests HAP M1-M6 pair-setup and M1-M4 pair-verify in memory, including shared-secret agreement.
+ * Run: bun run packages/common/test/pairing-server.ts
+ */
 
 import { Context } from '../src/context';
 import { AccessoryPair, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer, generateAccessoryIdentity } from '../src/pairing';
@@ -20,7 +17,6 @@ async function main(): Promise<void> {
     const identity = generateAccessoryIdentity();
     const pin = '1234';
 
-    // --- Pair-Setup: client (controller) <-> server (accessory) ---
     const pairServer = new AccessoryPairServer(context, identity, pin);
     const pairClient = new AccessoryPair(context, (_step, data) => pairServer.handle(data));
 
@@ -35,7 +31,6 @@ async function main(): Promise<void> {
 
     console.log('pair-setup ok: controller', pairServer.controller!.identifier, '<-> accessory', identity.identifier);
 
-    // --- Pair-Verify: reuse the credentials from pair-setup ---
     const resolveController = (pairingId: string) =>
         pairServer.controller && pairServer.controller.identifier === pairingId
             ? pairServer.controller.longTermPublicKey

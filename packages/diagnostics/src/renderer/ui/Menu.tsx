@@ -5,7 +5,6 @@ import clsx from 'clsx';
 import { MENU_SEPARATOR } from './classes';
 
 type PopupProps = {
-    /* Which way the popup opens from its trigger. A menu hangs under it unless there is no room. */
     readonly side?: 'top' | 'bottom' | 'left' | 'right';
     readonly align?: 'start' | 'center' | 'end';
     readonly sideOffset?: number;
@@ -13,10 +12,6 @@ type PopupProps = {
     readonly children: ReactNode;
 };
 
-/*
- * The shell every menu is drawn in, so the gap to its trigger and the layer it sits on are decided
- * once.
- */
 export function Menu({trigger, ...popup}: PopupProps & { readonly trigger: ReactElement<Record<string, unknown>> }) {
     return (
         <BaseMenu.Root>
@@ -30,7 +25,6 @@ export function Menu({trigger, ...popup}: PopupProps & { readonly trigger: React
     );
 }
 
-/* A right-click menu drawn in the same shell. The trigger is whatever the caller renders. */
 export function ContextMenu({trigger, children, className}: { readonly trigger: ReactElement<Record<string, unknown>>; readonly children: ReactNode; readonly className?: string }) {
     return (
         <BaseContextMenu.Root>

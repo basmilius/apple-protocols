@@ -24,7 +24,6 @@ export class Wav extends BufferAudioSource {
      * it to signed 16-bit big-endian PCM.
      *
      * @param wavBuffer - Raw WAV data to decode.
-     * @returns A new Wav audio source with the decoded PCM data.
      * @throws Error if the buffer does not contain valid WAV data.
      */
     static async fromBuffer(wavBuffer: Buffer): Promise<Wav> {
@@ -42,7 +41,6 @@ export class Wav extends BufferAudioSource {
      * Fetches a WAV file from a URL and decodes it to PCM.
      *
      * @param url - URL pointing to a WAV file.
-     * @returns A new Wav audio source with the decoded PCM data.
      */
     static async fromUrl(url: string): Promise<Wav> {
         const response = await fetch(url);

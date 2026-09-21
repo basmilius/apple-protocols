@@ -21,10 +21,8 @@ const KEY = 'diagnostics.layout';
 
 const WELCOME: CellRef = {deviceId: null, panelId: 'welcome'};
 
-/** Where the log console hangs: beside the grid or under it. */
 export type ConsoleDock = 'right' | 'bottom';
 
-/** How wide the console is beside the grid, and how tall it is under it. */
 export const CONSOLE_SIZE: Record<ConsoleDock, { initial: number; min: number; max(): number }> = {
     right: {initial: 420, min: 320, max: () => Math.max(320, window.innerWidth - 480)},
     bottom: {initial: 280, min: 160, max: () => Math.max(160, window.innerHeight - 240)}
@@ -36,8 +34,7 @@ type LayoutState = {
     consoleOpen: boolean;
     consoleDock: ConsoleDock;
     consoleSize: Record<ConsoleDock, number>;
-    /* The devices whose panels are unfolded in the sidebar. The device in the focused cell is
-       always unfolded on top of these, which is why it is not written here. */
+    /* User-expanded devices. The focused device is expanded separately. */
     expanded: readonly string[];
     focusAt(at: CellAt): void;
     focusStep(direction: SplitDirection): void;

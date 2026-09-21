@@ -2,10 +2,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { JsonStorage } from '@basmilius/apple-sdk';
 
-/**
- * The credential store, with its writes serialized. `JsonStorage.save()` reads the whole file,
- * rewrites it and has no lock of its own, so two pairings finishing at once would lose one of them.
- */
+/** Queues credential saves in call order. */
 export class StorageQueue {
     readonly #storage: JsonStorage;
     readonly #path: string;

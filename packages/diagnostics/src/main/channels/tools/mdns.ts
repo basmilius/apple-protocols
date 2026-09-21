@@ -16,7 +16,6 @@ import {
 } from '@basmilius/apple-common';
 import type { DiscoveryService, MdnsCombinedRecord, MdnsFeatures, MdnsQuery, MdnsRecord } from '@shared/contract';
 
-/** The scan timeout, in the seconds the protocol package counts in. */
 const DEFAULT_TIMEOUT_MS = 4000;
 
 const SERVICES: Record<DiscoveryService, string> = {
@@ -40,7 +39,6 @@ const decodeFeatures = (raw: string | undefined): MdnsFeatures | null => {
     }
 };
 
-/** Both a raw mDNS hit and a discovery result end up here, so one table renders either. */
 const toRecord = (name: string, service: string, address: string, port: number, txt: Record<string, string>): MdnsRecord => {
     const model = txt.model ?? txt.am ?? '';
     const hostname = name.replace(/\s+/g, '-');

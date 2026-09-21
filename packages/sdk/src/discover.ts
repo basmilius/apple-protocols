@@ -38,7 +38,6 @@ export async function discover(options: DiscoverOptions = {}): Promise<Discovere
     const airplayResults = await Discovery.airplay().find(useCache);
     const companionLinkResults = await Discovery.companionLink().find(useCache);
 
-    // Group results by address.
     const byAddress = new Map<string, DiscoveredDevice>();
 
     for (const result of airplayResults) {

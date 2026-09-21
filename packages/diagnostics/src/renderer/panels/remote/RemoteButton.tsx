@@ -5,15 +5,12 @@ import type { DeviceCall } from '@/panels/hooks';
 import type { FaceCommand, Transport } from './commands';
 import { type PressState, type RegisterTrigger, useCommandPress } from './press';
 
-/* A key on the face, whatever shape it is cut into: the same size of glyph, the same press. */
 export const KEY_MOTION = 'cursor-default transition-[scale] duration-[120ms] active:scale-[0.96]';
 
 export const KEY_SURFACE = 'bg-surface-sunken text-text-muted hover:bg-surface-hover hover:text-text active:bg-surface-active disabled:text-text-faint disabled:hover:bg-surface-sunken disabled:hover:text-text-faint';
 
-/** Held down past the hold threshold, with the key still on the way down. */
 export const KEY_HELD = 'bg-surface-active text-text ring-2 ring-accent';
 
-/** How a key that carries no word says what came of the last press. */
 export function toneOf(state: PressState): string | undefined {
     if (state === 'failed') {
         return 'text-status-error';

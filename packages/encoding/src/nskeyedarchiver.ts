@@ -26,12 +26,10 @@ export function decode(archive: any): unknown {
         if (ref && typeof ref === 'object') {
             const obj = ref as Record<string, unknown>;
 
-            // NSArray
             if (obj['NS.objects'] && Array.isArray(obj['NS.objects'])) {
                 return (obj['NS.objects'] as unknown[]).map(resolve);
             }
 
-            // NSDictionary
             if (obj['NS.keys'] && Array.isArray(obj['NS.keys'])) {
                 const keys = (obj['NS.keys'] as unknown[]).map(resolve) as string[];
                 const values = (obj['NS.objects'] as unknown[]).map(resolve);
@@ -44,7 +42,7 @@ export function decode(archive: any): unknown {
                 return result;
             }
 
-            // Plain object — resolve all values, skip $class metadata
+            /* Resolve plain-object values, excluding archive class metadata. */
             const result: Record<string, unknown> = {};
 
             for (const [key, value] of Object.entries(obj)) {

@@ -1,8 +1,4 @@
-/**
- * The event names each source emits. `EventEmitter` cannot be asked what it can emit, so the
- * forwarder walks these lists; a name added to a protocol package has to be added here too before
- * the renderer sees it.
- */
+/** EventEmitter cannot enumerate possible events. Add new protocol events here to forward them to the renderer. */
 
 export const DEVICE_EVENTS = ['connected', 'disconnected', 'recovering', 'recoveryFailed', 'power', 'textInput'] as const;
 
@@ -135,5 +131,4 @@ export const COMPANION_LINK_EVENTS = [
     'volumeAvailabilityChanged'
 ] as const;
 
-/** The events after which the artwork is worth resolving again. */
 export const ARTWORK_EVENTS: readonly string[] = ['artworkChanged', 'nowPlayingChanged', 'setArtwork', 'updateContentItemArtwork'];

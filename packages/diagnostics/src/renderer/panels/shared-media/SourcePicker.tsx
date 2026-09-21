@@ -39,7 +39,6 @@ type SourcePickerProps = {
 
 export const DEFAULT_SOURCE: AudioSourceSpec = {kind: 'sineWave', frequency: 440, duration: 5};
 
-/** Builds the spec for one of the audio source classes, with only the fields that class takes. */
 export function SourcePicker({value, onValueChange, disabled}: SourcePickerProps) {
     const [picking, setPicking] = useState(false);
 

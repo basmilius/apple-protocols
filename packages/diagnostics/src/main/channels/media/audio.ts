@@ -8,7 +8,7 @@ import type { DeviceSession } from '../../session';
 import type { ChannelContext } from '../context';
 import { buildSource, type BuiltSource } from './sources';
 
-/** Four status pushes a second is enough to watch a counter move without flooding the renderer. */
+/** Limit status pushes to four per second to avoid flooding the renderer. */
 const TELEMETRY_INTERVAL = 250;
 
 /** The receiver drops an idle audio session, the same cadence the SDK keeps for its own streams. */
@@ -23,7 +23,6 @@ const FILE_FILTERS: Partial<Record<AudioSourceKind, Electron.FileFilter[]>> = {
     pcm: [{name: 'Raw PCM', extensions: ['pcm', 'raw']}]
 };
 
-/** What one device is doing with audio, and the handles needed to stop it again. */
 type AudioState = {
     mode: AudioStatus['mode'];
     playing: boolean;
@@ -40,10 +39,7 @@ type AudioState = {
     telemetry: NodeJS.Timeout | null;
 };
 
-/**
- * Registers `audio:*`. Playing a URL (the device fetches it) and streaming (we push PCM over RTP)
- * are kept apart on purpose: they are different sessions with different failure modes.
- */
+/** URL playback uses a receiver-owned session; PCM streaming uses a separate RTP session. */
 export function registerAudioChannels(context: ChannelContext): void {
     const states = new Map<string, AudioState>();
 
@@ -193,10 +189,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         finish(request.deviceId, null);
     });
 
-    /*
-     * A stream runs for as long as the source has frames, so the channel returns once it is on its
-     * way and everything after that arrives as an `audio:status` push.
-     */
+    /* Return when streaming starts; completion and failures arrive through `audio:status`. */
     handle('audio:stream', async request => {
         const session = sessionOf(request.deviceId);
         const state = stateOf(request.deviceId);
@@ -256,9 +249,8 @@ export function registerAudioChannels(context: ChannelContext): void {
 }
 
 /**
- * The experimental path: a private {@link Protocol} with a PTP grandmaster instead of the shared
- * NTP timing server. The SDK keeps PTP off because it yields silent playback on PTP-capable
- * receivers, so this exists to measure that, not to be used.
+ * Tests a separate {@link Protocol} with a PTP grandmaster.
+ * The SDK disables PTP because it produces silent playback on PTP-capable receivers.
  */
 async function streamOverPtp(session: DeviceSession, state: AudioState, built: BuiltSource, volumeDb: number, credentials: Parameters<Protocol['verify']['start']>[0] | undefined): Promise<void> {
     const service = session.discovered.services.airplay;

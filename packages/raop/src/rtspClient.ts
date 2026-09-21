@@ -240,10 +240,8 @@ export class RaopRtspClient extends RtspClient {
      * is provided, retries with HTTP Digest authentication.
      *
      * @param bytesPerChannel - Bytes per audio channel sample (e.g. 2 for 16-bit).
-     * @param channels - Number of audio channels.
      * @param sampleRate - Audio sample rate in Hz.
      * @param password - Optional password for digest authentication.
-     * @returns The RTSP response.
      */
     async announce(bytesPerChannel: number, channels: number, sampleRate: number, password?: string): Promise<Response> {
         const body = buildAnnouncePayload({
@@ -291,7 +289,6 @@ export class RaopRtspClient extends RtspClient {
      * (ports, protocol) with the receiver.
      *
      * @param headers - Optional additional headers (e.g. Transport).
-     * @param body - Optional request body.
      * @returns The RTSP response containing server-assigned ports in the Transport header.
      */
     async setup(headers?: Record<string, string>, body?: Buffer | string | Record<string, unknown>): Promise<Response> {

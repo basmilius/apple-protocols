@@ -17,7 +17,6 @@ export type PanelProps = {
     readonly deviceId: string | null;
 };
 
-/** What a panel is asked about before it is offered for a device. */
 export type PanelContext = {
     readonly device: DiscoveredDeviceInfo | null;
     readonly snapshot: StateSnapshot | null;
@@ -28,7 +27,6 @@ export type PanelDefinition = {
     readonly title: string;
     readonly icon: LucideIcon;
     readonly group: PanelGroup;
-    /** Whether this panel is worth offering for the device in the cell. */
     appliesTo(context: PanelContext): boolean;
     readonly component: ComponentType<PanelProps>;
 };
@@ -40,10 +38,7 @@ export const PANEL_GROUP_LABELS: Record<PanelGroup, string> = {
     tools: 'Tools'
 };
 
-/**
- * Every panel the grid can show. A new panel is a folder under `panels/<id>/` and one entry here;
- * nothing else in the shell knows panels by name.
- */
+/** Register new panel folders through the SDK, media or tools registries. */
 export const PANELS: readonly PanelDefinition[] = [
     {
         id: 'welcome',

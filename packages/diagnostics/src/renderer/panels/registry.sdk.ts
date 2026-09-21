@@ -8,7 +8,6 @@ import { StatePanel } from './state/StatePanel';
 import { AppleTVPanel } from './appletv/AppleTVPanel';
 import { ArtworkPanel } from './artwork/ArtworkPanel';
 
-/** The panels that drive the SDK controllers rather than a protocol or a tool. */
 export const SDK_PANELS: readonly PanelDefinition[] = [
     {
         id: 'remote',

@@ -13,7 +13,6 @@ export class SineWave extends BufferAudioSource {
      * @param durationSeconds - Duration of the tone in seconds.
      * @param frequency - Frequency of the sine wave in Hz (default 440 Hz / A4).
      * @param sampleRate - Sample rate in Hz.
-     * @param channels - Number of audio channels.
      * @param bytesPerChannel - Number of bytes per sample per channel.
      */
     constructor(durationSeconds: number, frequency: number = 440, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
@@ -27,7 +26,6 @@ export class SineWave extends BufferAudioSource {
      * sine wave with a fade-in/fade-out envelope to prevent clicks.
      *
      * @param sampleRate - Sample rate in Hz.
-     * @param channels - Number of audio channels.
      * @param bytesPerChannel - Number of bytes per sample per channel.
      * @param durationSeconds - Duration of the tone in seconds.
      * @param frequency - Frequency of the sine wave in Hz.

@@ -8,7 +8,6 @@ import { Icon } from './Icon';
 export type SelectItem<T extends string> = {
     readonly value: T;
     readonly label: string;
-    /* A second line under the label, for what the choice does. */
     readonly description?: string;
     readonly icon?: ReactNode;
     readonly disabled?: boolean;
@@ -45,11 +44,9 @@ const TRIGGER_VARIANT = {
     ghost: 'rounded-md text-text-muted hover:bg-surface-hover hover:text-text data-[popup-open]:bg-surface-active data-[popup-open]:text-text data-disabled:hover:bg-transparent data-disabled:hover:text-text-muted'
 } as const;
 
-/* The dimmed look a disabled button wears, so a select that cannot open reads as such. */
 const TRIGGER_DISABLED = 'data-disabled:cursor-default data-disabled:opacity-50';
 
-/* A description makes the row two lines high; the check and the icon then belong on the label's
-   line box, which the 20 pixel boxes around them give them. */
+/* Align icons with the label line when a description makes the row taller. */
 function Row<T extends string>({item}: { readonly item: SelectItem<T> }) {
     return (
         <BaseSelect.Item className={clsx('menu-item', item.description && 'items-start')} value={item.value} disabled={item.disabled}>
@@ -67,8 +64,7 @@ function Row<T extends string>({item}: { readonly item: SelectItem<T> }) {
     );
 }
 
-/* The one select in the app, in the popup style the menus use. Base UI brings the keyboard along
-   (arrows, Home and End, typeahead, Enter, Escape), which a hand-rolled listbox would have to repeat. */
+/* Base UI supplies listbox keyboard navigation and typeahead. */
 export function Select<T extends string>({
     value,
     onValueChange,

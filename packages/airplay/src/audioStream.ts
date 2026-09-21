@@ -19,11 +19,8 @@ const SYNC_INTERVAL = 1000;
 /** Default number of previous frames to include as RFC 2198 redundancy (0 = disabled). */
 const DEFAULT_REDUNDANCY_COUNT = 0;
 
-/**
- * Options for configuring an AudioStream instance.
- */
 export type AudioStreamOptions = {
-    /** Number of previous frames to include as RFC 2198 redundancy (0 = disabled, default: 2). */
+    /** Previous frames to include as RFC 2198 redundancy. Defaults to 0, which disables redundancy. */
     readonly redundancyCount?: number;
 };
 
@@ -39,12 +36,7 @@ export type AudioStreamStats = {
     readonly totalBytesSent: number;
 };
 
-/**
- * Audio compression type values for the `ct` field in the SETUP request body.
- *
- * Derived from `APAudioFormatIDToAPCompressionType` in AirPlaySupport framework.
- * Each value selects a different codec for audio transmission.
- */
+/** Compression types for SETUP `ct`, derived from `APAudioFormatIDToAPCompressionType` in AirPlaySupport. */
 export const CompressionType = {
     PCM: 1,
     ALAC: 2,
@@ -53,12 +45,7 @@ export const CompressionType = {
     Opus: 32
 } as const;
 
-/**
- * Audio format bitmask values for the `audioFormat` field in the SETUP request body.
- *
- * Each bit represents a specific sample rate / bit depth / channel count combination.
- * The naming convention is `{codec}_{sampleRate}_{bitDepth}_{channels}`.
- */
+/** SETUP `audioFormat` bits, named `{codec}_{sampleRate}_{bitDepth}_{channels}`. */
 export const AudioFormat = {
     PCM_8000_16_1: 0x1,
     PCM_8000_16_2: 0x2,
@@ -90,16 +77,10 @@ export const AudioFormat = {
     AAC_LC_48000_2: 0x20000000
 } as const;
 
-/**
- * Mutable state tracked during an active audio stream.
- *
- * Created by {@link AudioStream.prepare} and updated with each sent packet.
- * Used by both single-device streaming and multi-room multiplexing.
- */
+/** Created by {@link AudioStream.prepare} and updated per packet, including during multi-room streaming. */
 export type AudioStreamContext = {
     /** Negotiated sample rate in Hz. */
     sampleRate: number;
-    /** Number of audio channels. */
     channels: number;
     /** Bytes per sample per channel. */
     bytesPerChannel: number;
@@ -117,22 +98,12 @@ export type AudioStreamContext = {
     latency: number;
     /** Number of padding (silence) frames sent so far. */
     paddingSent: number;
-    /** Total number of audio frames sent. */
     totalFrames: number;
 };
 
-/** Whether to encrypt audio packets with ChaCha20-Poly1305. */
 const USE_ENCRYPTION = true;
 
-/**
- * Convert an RTP timestamp to a wall-clock NTP timestamp.
- *
- * Uses a fixed anchor point established when the stream starts: at that moment
- * we record both the RTP timestamp and the wall-clock NTP time. For further
- * packets we compute the elapsed time from the RTP delta and add it to the
- * anchor NTP time. This gives the receiver a real NTP timestamp it can use for
- * multi-room synchronization.
- */
+/** Converts RTP timestamps using the wall-clock NTP anchor recorded at stream start for multi-room synchronization. */
 const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint => {
     let elapsedSamples: number;
     if (rtpTimestamp >= anchorRtp) {
@@ -150,20 +121,8 @@ const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, a
 };
 
 /**
- * Real-time RTP audio streaming over UDP with ChaCha20-Poly1305 encryption.
- *
- * Handles the full audio streaming lifecycle:
- * 1. {@link setup} - RTSP SETUP to negotiate format and get port assignments
- * 2. {@link prepare} - Connect UDP socket, initialize RTP state, FLUSH, start RTCP sync
- * 3. {@link sendFrameData} / {@link stream} - Send PCM frames as encrypted RTP packets
- * 4. {@link finish} / TEARDOWN - Send silence padding and tear down the stream
- *
- * Features:
- * - ChaCha20-Poly1305 audio encryption with per-packet nonces
- * - RTCP sync packets for receiver clock synchronization
- * - Packet retransmission backlog for handling receiver NACK requests
- * - RFC 2198 audio redundancy support (configurable via AudioStreamOptions)
- * - Wall-clock-based timing to maintain real-time audio pace
+ * Encrypted RTP audio over UDP with RTCP synchronization, NACK retransmission and optional RFC 2198 redundancy.
+ * Call {@link setup}, then {@link prepare}, send frames and call {@link finish}, or use {@link stream} after setup.
  */
 export class AudioStream {
     readonly #protocol: Protocol;
@@ -171,7 +130,6 @@ export class AudioStream {
     /** Configurable RFC 2198 redundancy count (0 = disabled). */
     #redundancyCount: number;
 
-    /** Local RTCP control port. */
     #controlPort: number = 0;
     /** UDP socket for RTCP control messages (sync, retransmit requests). */
     #controlSocket?: UdpSocket;
@@ -179,11 +137,8 @@ export class AudioStream {
     #sharedKey?: Buffer;
     /** Remote data port assigned by the receiver in SETUP response. */
     #dataPort: number = 0;
-    /** Connected UDP socket for sending RTP audio packets. */
     #dataSocket?: UdpSocket;
-    /** Negotiated bytes per channel from format negotiation. */
     #negotiatedBytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL;
-    /** Negotiated sample rate from format negotiation. */
     #negotiatedSampleRate: number = AUDIO_SAMPLE_RATE;
     /** RTP timestamp at the anchor point for NTP conversion. */
     #anchorRtp: number = 0;
@@ -197,15 +152,11 @@ export class AudioStream {
     #packetBacklog: Map<number, Buffer> = new Map();
     /** Random Synchronization Source identifier for this RTP stream. */
     #ssrc: number = 0;
-    /** Timer for periodic RTCP sync packet transmission. */
     #syncInterval?: NodeJS.Timeout;
-    /** Mutable stream state (RTP counters, timing, etc.). */
     #streamContext?: AudioStreamContext;
-    /** Dynamic latency manager for adaptive latency control. */
     #latencyManager?: LatencyManager;
     /** Monotonic encryption counter for ChaCha20 nonce (independent of RTP sequence). */
     #encryptionCounter: number = 0;
-    /** Streaming statistics for feedback and adaptive redundancy. */
     #packetsSent: number = 0;
     #retransmitRequests: number = 0;
     #retransmitsFulfilled: number = 0;
@@ -235,23 +186,16 @@ export class AudioStream {
     }
 
     /**
-     * Performs RTSP SETUP to negotiate audio format and get port assignments.
+     * Negotiates PCM 44100/16/stereo and UDP ports via SETUP, then sends RECORD.
      *
-     * Generates a random shared encryption key and SSRC, creates a local UDP
-     * socket for RTCP control, then sends the SETUP request with format
-     * preferences (PCM 44100/16/stereo). On success, stores the
-     * assigned data and control ports and sends RECORD.
-     *
-     * @returns The assigned data and control port numbers.
-     * @throws SetupError if the SETUP request fails or returns no stream info.
+     * @returns The assigned data and control ports.
+     * @throws SetupError if SETUP fails or returns no stream info.
      */
     async setup(): Promise<{ dataPort: number; controlPort: number }> {
         this.#sharedKey = Buffer.from(randomBytes(32));
 
-        // Generate random SSRC
         this.#ssrc = randomInt32() >>> 0;
 
-        // Create local UDP socket for control (RTCP)
         this.#controlSocket = createSocket('udp4');
         this.#controlSocket.on('message', (data, rinfo) => this.#onControlMessage(data, rinfo));
 
@@ -272,9 +216,7 @@ export class AudioStream {
         // Generate a random 64-bit stream connection ID like iOS does
         const streamConnectionID = randomInt64();
 
-        // Select the best supported audio format.
-        // ct = compression type (1=PCM, 2=ALAC, 4=AAC-LC, 8=AAC-ELD)
-        // audioFormat = bitmask for specific variant within that compression type
+        /* SETUP uses `ct` for the codec and `audioFormat` for its sample rate, bit depth and channel count. */
         const supportedFormats = this.#protocol.receiverInfo?.supportedAudioFormats as number | undefined;
         const ct = CompressionType.PCM;
         const audioFormat: number = AudioFormat.PCM_44100_16_2;
@@ -373,8 +315,7 @@ export class AudioStream {
 
         const initialRtpTime = 0;
 
-        // Establish anchor point: link this RTP timestamp to real wall-clock time.
-        // The receiver uses this to synchronize playback across multiple speakers.
+        /* Anchor RTP to wall-clock NTP so receivers can synchronize playback. */
         this.#anchorRtp = initialRtpTime;
         this.#anchorNtp = NTP.now();
 
@@ -427,13 +368,7 @@ export class AudioStream {
         return this.#sendFrameBuffer(frames, firstPacket, this.#streamContext);
     }
 
-    /**
-     * Finishes the audio stream by sending silence padding and tearing down.
-     *
-     * Sends silence frames equal to the latency amount so the receiver has
-     * enough buffered audio for a clean ending, then stops sync and sends
-     * RTSP TEARDOWN.
-     */
+    /** Pads with silence for the negotiated latency before TEARDOWN so the receiver can finish buffered audio. */
     async finish(): Promise<void> {
         if (!this.#streamContext) {
             return;
@@ -443,7 +378,6 @@ export class AudioStream {
         const startFrames = ctx.totalFrames;
         const startTime = performance.now();
 
-        // Send padding (latency worth of silence).
         while (ctx.paddingSent < ctx.latency) {
             const silence = Buffer.alloc(ctx.packetSize, 0);
             const sent = await this.#sendFrameBuffer(silence, false, ctx);
@@ -471,15 +405,10 @@ export class AudioStream {
     }
 
     /**
-     * Streams audio from a source to the receiver.
+     * Prepares, paces and finishes the stream, then closes it. Sends extra packets when behind schedule.
      *
-     * Convenience method that orchestrates the full streaming lifecycle:
-     * prepare, send packets with real-time pacing and catch-up logic,
-     * pad with silence, TEARDOWN, and close. Automatically compensates
-     * when falling behind schedule by sending extra packets.
-     *
-     * @param source - Audio source to read PCM frames from.
-     * @param remoteAddress - IP address of the AirPlay receiver for UDP connection.
+     * @param source - PCM source.
+     * @param remoteAddress - Receiver address for the UDP connection.
      */
     async stream(source: AudioSource, remoteAddress: string): Promise<void> {
         const ctx = await this.prepare(remoteAddress);
@@ -523,12 +452,10 @@ export class AudioStream {
      * @returns Number of frames sent, or 0 when all padding has been sent.
      */
     async #sendPacket(source: AudioSource, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
-        // Check if we've sent all padding (latency frames after audio ends)
         if (ctx.paddingSent >= ctx.latency) {
             return 0;
         }
 
-        // Read frames from source
         let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
 
         if (!frames || frames.length === 0) {
@@ -536,7 +463,6 @@ export class AudioStream {
             frames = Buffer.alloc(ctx.packetSize, 0);
             ctx.paddingSent += Math.floor(frames.length / ctx.frameSize);
         } else if (frames.length < ctx.packetSize) {
-            // Pad last packet with zeros
             const padded = Buffer.alloc(ctx.packetSize, 0);
             frames.copy(padded);
             frames = padded;
@@ -546,16 +472,11 @@ export class AudioStream {
     }
 
     /**
-     * Builds and sends an RTP audio packet from raw PCM frame data.
+     * Builds encrypted RTP packets with optional RFC 2198 redundancy and retains them for retransmission.
      *
-     * Constructs a 12-byte RTP header, optionally prepends RFC 2198 redundancy
-     * headers and previous frames, encrypts the audio payload with ChaCha20-Poly1305,
-     * stores the packet in the retransmission backlog, and sends via UDP.
-     *
-     * @param frames - Raw PCM frame data (packetSize bytes).
-     * @param firstPacket - Whether this is the first packet (sets RTP marker bit).
-     * @param ctx - Mutable stream context with RTP state.
-     * @returns Promise resolving to the number of frames sent.
+     * @param frames - PCM data, `packetSize` bytes.
+     * @param firstPacket - Sets the RTP marker bit.
+     * @returns Number of frames sent.
      */
     #sendFrameBuffer(frames: Buffer, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
         // Build RTP header (12 bytes)
@@ -584,8 +505,7 @@ export class AudioStream {
                 const blockLen = redundantFrames[i].length;
                 const header = Buffer.allocUnsafe(4);
 
-                // F(1) | PT(7) | timestamp offset(14) | block length(10)
-                // F(1) | PT(7) | timestamp offset(14) | block length(10)
+                /* F(1) | PT(7) | timestamp offset(14) | block length(10) */
                 header[0] = 0x80 | 96;                            // F=1, PT=96
                 header[1] = ((tsOffset >> 6) & 0xFF);             // timestamp offset high 8 bits
                 header[2] = ((tsOffset & 0x3F) << 2) | ((blockLen >> 8) & 0x03); // ts low 6 + len high 2
@@ -602,7 +522,6 @@ export class AudioStream {
             audioPayload = frames;
         }
 
-        // Store current frames for next packet's redundancy
         this.#previousFrames.push(Buffer.from(frames));
         if (this.#previousFrames.length > this.#redundancyCount) {
             this.#previousFrames.shift();
@@ -617,10 +536,8 @@ export class AudioStream {
 
         const packet = Buffer.concat([rtpHeader, payload]);
 
-        // Store for potential retransmission
         this.#storePacket(ctx.rtpSeq, packet);
 
-        // Update context
         const framesSent = Math.floor(frames.length / ctx.frameSize);
         ctx.rtpSeq = (ctx.rtpSeq + 1) & 0xFFFF;
         ctx.headTs = (ctx.headTs + framesSent) >>> 0;
@@ -656,7 +573,6 @@ export class AudioStream {
     #storePacket(seqno: number, packet: Buffer): void {
         this.#packetBacklog.set(seqno, packet);
 
-        // Limit backlog size by removing oldest entries
         if (this.#packetBacklog.size > PACKET_BACKLOG_SIZE) {
             const oldestKey = this.#packetBacklog.keys().next().value;
             if (oldestKey !== undefined) {
@@ -693,9 +609,7 @@ export class AudioStream {
             throw new EncryptionError('Encryption not setup.');
         }
 
-        // Build 12-byte nonce with sequence number in little-endian at the end
         const nonceBytes = Buffer.alloc(12, 0);
-        // Write the sequence number as little-endian 64-bit at offset 4
         nonceBytes.writeUInt32LE(seqNumber, 4);
 
         const result = Chacha20.encrypt(
@@ -708,7 +622,6 @@ export class AudioStream {
         // Nonce trailer is just the 8 bytes containing the counter (little-endian)
         const nonceTrailer = nonceBytes.subarray(4, 12);
 
-        // Return: encrypted audio + auth tag + nonce trailer
         return Buffer.concat([result.ciphertext, result.authTag, nonceTrailer]);
     }
 
@@ -837,8 +750,7 @@ export class AudioStream {
                 this.#controlSocket?.send(resp, addr.port, addr.address);
                 this.#retransmitsFulfilled++;
             } else {
-                // Futile retransmit response — packet is no longer in our backlog.
-                // Tell the receiver so it can skip waiting for a timeout.
+                /* Send a futile retransmit response for missing packets so the receiver need not wait for a timeout. */
                 const seqBuf = Buffer.alloc(2);
                 seqBuf.writeUInt16BE(seqno);
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), seqBuf, Buffer.alloc(4)]);

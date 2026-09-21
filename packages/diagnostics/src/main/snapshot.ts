@@ -39,7 +39,6 @@ export type SnapshotInput = {
     readonly artworkUrl: string | null;
 };
 
-/** The empty snapshot a device that was never connected reports. */
 export function emptySnapshot(deviceId: string, status: DeviceSessionStatus = 'disconnected', error: string | null = null): StateSnapshot {
     return {
         deviceId,
@@ -63,11 +62,7 @@ export function emptySnapshot(deviceId: string, status: DeviceSessionStatus = 'd
     };
 }
 
-/**
- * Everything a panel reads about one device, in one object. Built after every forwarded event, so
- * the shape has to stay cheap: the artwork is resolved by the session and handed in rather than
- * fetched here.
- */
+/** Builds a snapshot from cached state. Artwork is supplied by the session to avoid fetching here. */
 export function buildSnapshot(input: SnapshotInput): StateSnapshot {
     const {device} = input;
 

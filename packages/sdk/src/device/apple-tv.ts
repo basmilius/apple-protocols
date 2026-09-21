@@ -54,7 +54,6 @@ export class AppleTV extends AbstractDevice {
             this.power = new PowerController(this.airplay, this.#companionLink);
             this.system = new SystemController(this.#companionLink);
 
-            // Forward Companion Link events.
             this.#companionLink.on('attentionStateChanged', (state) => {
                 this.emit('power', state);
             });
@@ -94,7 +93,7 @@ export class AppleTV extends AbstractDevice {
                 await this.#companionLink.setCredentials(credentials);
                 await this.#companionLink.connect();
             } catch {
-                // Companion Link is optional — the device is still usable via AirPlay.
+                /* Companion Link is optional; AirPlay remains usable if it fails. */
             }
         }
     }

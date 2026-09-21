@@ -6,8 +6,6 @@ type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
     readonly mono?: boolean;
 };
 
-/* The multiline field: a raw message body, a JSON argument list. It carries the field's border and
-   focus ring without its fixed height. */
 export function TextArea({label, mono = true, className, rows = 5, ...rest}: TextAreaProps) {
     return (
         <textarea

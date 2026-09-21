@@ -14,7 +14,6 @@ type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
     readonly iconSize?: number;
 };
 
-/* The square button the toolbars, the sidebar footer and every cell bar are built out of. */
 export function IconButton({icon, label, tooltip = true, size = 'md', active, iconSize, className, ...rest}: IconButtonProps) {
     const button = (
         <button

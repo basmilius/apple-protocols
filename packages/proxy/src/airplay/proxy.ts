@@ -41,9 +41,6 @@ export class AirPlayProxy implements ProtocolProxy {
     #responder?: MdnsResponder;
     #server?: Server;
 
-    /**
-     * @param options - The proxy configuration.
-     */
     constructor(options: AirPlayProxyOptions) {
         this.#context = new Context(`proxy:${options.device.id}`);
         this.#options = options;
@@ -99,8 +96,6 @@ class AirPlaySession {
     #channels: (EventChannelServer | DataChannelServer)[] = [];
 
     /**
-     * @param context - Shared context for logging.
-     * @param options - The proxy configuration.
      * @param identity - The accessory identity the proxy presents to the controller.
      */
     constructor(context: Context, options: AirPlayProxyOptions, identity: AccessoryIdentity) {

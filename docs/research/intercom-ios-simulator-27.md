@@ -1,6 +1,6 @@
 # Intercom from the iOS 27 simulator
 
-The installed iOS 27.0 simulator runtime, build **24A434**, contains the Announce client and daemon binaries missing from the native macOS investigation. They expose a concrete Intercom transport path through Rapport/Companion Link, plus an IDS path. This is enough to identify a request name and payload structure, but not to establish that our existing HomePod pairing can authorize it.
+The installed iOS 27.0 simulator runtime, build **24A434**, contains the Announce client and daemon binaries missing from the native macOS investigation. They identify an Intercom request and payload structure for Rapport/Companion Link, plus an IDS path. Whether existing HomePod pairing can authorize the request remains unknown.
 
 ## Extracted files
 
@@ -25,7 +25,7 @@ Copies are in `.research/ios-simulator-intercom/files/` in this repository:
 
 The frameworks include their resources and Info.plists. `manifest.json` records source paths and SHA-256 hashes for the five primary framework binaries, daemon and two plist files. No simulator was booted, no daemon invoked and no message sent. CoreSimulator was queried only to list installed runtimes.
 
-## A concrete send path
+## Send path
 
 The inspected entry points establish these layers:
 
@@ -38,7 +38,7 @@ ANAnnounce sendRequest:completion:
     or ANIDSConnection / IDSService
 ```
 
-Evidence is stronger than a framework or method name alone:
+The inspected call sites and configuration show the following:
 
 - The launch plist registers Rapport service `com.apple.announce` and Mach service `com.apple.announced.server`.
 - `ANRapportConnection::_sendMessage:linkClient:handler:` at **0x32420** uses `sendRequestID:request:options:responseHandler:` with **`com.apple.announce.announcement.message`**. Direct ARM64 disassembly confirms the string at 0x32540 and selector call at 0x32554.
@@ -60,7 +60,7 @@ Location, AudioTranscription, CreationTimestamp, LastPlayedDate, Source
 
 It archives the data-item collection through NSKeyedArchiver. `messageForCompanion` at **0x4ee8** starts with that dictionary and substitutes the Companion representation of the announcer. This requires nested model serialization; sending arbitrary audio bytes under the request name is not an implementation.
 
-The next focused targets are `ANAnnouncementDataItem`, `ANParticipant`, `ANLocation`, the audio encoding, and how the sender builds recipient/home identities. The existing Companion Link framing and encoding code may be reusable, but service routing, authentication and payload compatibility still need validation.
+The next targets are `ANAnnouncementDataItem`, `ANParticipant`, `ANLocation`, the audio encoding, and how the sender builds recipient/home identities. The existing Companion Link framing and encoding code may be reusable, but service routing, authentication and payload compatibility still need validation.
 
 ## Access checks and simulator limits
 

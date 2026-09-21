@@ -22,10 +22,7 @@ type Outcome = {
     readonly value: unknown;
 };
 
-/*
- * One command against a device. The button says what happened where it stands, and what came back
- * sits in a popover next to it, so a panel full of these does not need a result area of its own.
- */
+/* Shows returned values and errors in a popover beside the command. */
 export function CommandButton({label, run, variant = 'secondary', size = 'sm', icon, disabled, className}: CommandButtonProps) {
     const [busy, setBusy] = useState(false);
     const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -37,7 +34,6 @@ export function CommandButton({label, run, variant = 'secondary', size = 'sm', i
 
         try {
             const value = await run();
-            // A run that went through says nothing; only a value worth reading leaves a mark.
             setOutcome(value === undefined || value === null ? null : {ok: true, value});
         } catch (error) {
             setOutcome({ok: false, value: messageOf(error)});

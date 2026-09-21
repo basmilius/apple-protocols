@@ -30,40 +30,8 @@ async function homepod(): Promise<void> {
 
         await waitFor(3000);
 
-        // await waitFor(1000);
-        //
-        // const response = await protocol.rtsp.post('/play', Buffer.from(serializeBinaryPlist({
-        //     'Content-Location': 'https://bmcdn.nl/doorbell.ogg',
-        //     'Start-Position-Seconds': 0,
-        //     'uuid': uuid().toUpperCase(),
-        //     'streamType': 1,
-        //     'mediaType': 'file',
-        //     'mightSupportStorePastisKeyRequests': true,
-        //     'playbackRestrictions': 0,
-        //     'secureConnectionMs': 22,
-        //     'volume': 0.5,
-        //     'infoMs': 122,
-        //     'connectMs': 18,
-        //     'authMs': 0,
-        //     'bonjourMs': 0,
-        //     'referenceRestrictions': 3,
-        //     'SenderMACAddress': getMacAddress().toUpperCase(),
-        //     'model': 'iPhone16,2',
-        //     'postAuthMs': 0,
-        //     'clientBundleID': 'com.basmilius.airplay',
-        //     'clientProcName': 'com.basmilius.airplay',
-        //     'osBuildVersion': '23C5027f',
-        //     'rate': 1.0
-        // })), {
-        //     'Content-Type': 'application/x-apple-binary-plist',
-        //     'X-Apple-Session-ID': protocol.sessionUUID,
-        //     'X-Apple-Stream-ID': '1'
-        // });
-        //
-        // console.log(response);
     });
 
-    // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.configureConnection(``));
     await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId, protocol.context.identity));
 }
 
@@ -108,27 +76,6 @@ async function tv(): Promise<void> {
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setConnectionState());
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.clientUpdatesConfig());
         await protocol.dataStream.exchange(AirPlay.DataStreamMessage.getVolume(outputUID));
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendCommand(AirPlay.Proto.Command.Rewind15Seconds));
-        //
-        // await waitFor(1000);
-        //
-        // await waitFor(3000);
-        //
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.getVolumeMuted(outputUID));
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setVolumeMuted(outputUID, true));
-        //
-        // await waitFor(1000);
-        //
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.setVolumeMuted(outputUID, false));
-        //
-        // const options = create(AirPlay.Proto.CommandOptionsSchema, {
-        //     stationURL: 'https://bmcdn.nl/doorbell.ogg'
-        // });
-        //
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendCommand(AirPlay.Proto.Command.Play, options));
-        //
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, true));
-        // await protocol.dataStream.exchange(AirPlay.DataStreamMessage.sendButtonEvent(12, 0x40, false));
     });
 
     await protocol.dataStream.exchange(AirPlay.DataStreamMessage.deviceInfo(keys.pairingId, protocol.context.identity));

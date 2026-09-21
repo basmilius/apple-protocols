@@ -13,10 +13,7 @@ const TOOLS: readonly ToolDefinition[] = [...ENCODING_TOOLS, ...ENCRYPTION_TOOLS
 
 const descriptors: readonly ToolInfo[] = TOOLS.map(({id, title, description, category, section, inputs}) => ({id, title, description, category, section, inputs}));
 
-/**
- * A tool answers with the same result shape `device:call` does, so the renderer renders a failed
- * decode the way it renders a refused command instead of growing a second error path.
- */
+/** Use the device-call result shape so tools share the renderer's error handling. */
 async function run(tool: ToolDefinition | undefined, toolId: string, args: Readonly<Record<string, unknown>>): Promise<CallResult> {
     const started = Date.now();
 

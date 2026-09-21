@@ -95,8 +95,7 @@ const encodeQName = (name: string): Buffer => {
  * @returns An array of DNS labels.
  */
 const splitServiceName = (name: string): string[] => {
-    // Handle service instance names like "Living Room._airplay._tcp.local"
-    // The instance name can contain dots, so we need to find the service type part
+    /* Service instance names can contain dots. Split at the service type. */
     const servicePattern = /\._[a-z]+\._(?:tcp|udp)\.local$/;
     const match = name.match(servicePattern);
 
@@ -393,13 +392,11 @@ export function decodeDnsResponse(buf: Buffer): { header: DnsHeader; answers: Dn
     const header = decodeDnsHeader(buf);
     let offset = 12;
 
-    // Skip questions
     for (let i = 0; i < header.qdcount; i++) {
         const [, newOffset] = decodeQuestion(buf, offset);
         offset = newOffset;
     }
 
-    // Parse answers
     const answers: DnsResource[] = [];
 
     for (let i = 0; i < header.ancount; i++) {
@@ -414,7 +411,6 @@ export function decodeDnsResponse(buf: Buffer): { header: DnsHeader; answers: Dn
         offset = newOffset;
     }
 
-    // Skip authorities
     for (let i = 0; i < header.nscount; i++) {
         const result = decodeResource(buf, offset);
 
@@ -425,7 +421,6 @@ export function decodeDnsResponse(buf: Buffer): { header: DnsHeader; answers: Dn
         offset = result[1];
     }
 
-    // Parse additional resources
     const resources: DnsResource[] = [];
 
     for (let i = 0; i < header.arcount; i++) {
@@ -602,7 +597,6 @@ export function unicast(hosts: string[], services: string[], timeout: number = 4
 
         socket.on('error', () => {});
 
-        // Wake devices (fire-and-forget) and start querying immediately.
         for (const host of hosts) {
             knock(host);
         }
@@ -624,17 +618,11 @@ export function unicast(hosts: string[], services: string[], timeout: number = 4
 }
 
 /**
- * Performs multicast DNS-SD discovery on the local network. Creates UDP sockets
- * on all network interfaces, joins the mDNS multicast group (224.0.0.251),
- * and sends periodic queries for the specified duration.
+ * Discovers services via multicast DNS-SD on all local interfaces.
+ * Uses a port-5353 socket when available and one random-port socket per interface.
  *
- * Creates two types of sockets:
- * - One on 0.0.0.0:5353 to receive multicast responses (may fail on some platforms)
- * - One per local network interface on a random port with multicast membership
- *
- * @param services - mDNS service types to discover.
- * @param timeout - Discovery duration in seconds. Defaults to 4.
- * @returns An array of resolved mDNS services found on the network.
+ * @param timeout - Discovery duration in seconds, default 4.
+ * @returns Resolved services.
  */
 export function multicast(services: string[], timeout: number = 4): Promise<MdnsService[]> {
     return new Promise((resolve) => {

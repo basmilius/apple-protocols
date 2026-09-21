@@ -66,7 +66,6 @@ export type StoredDeviceInfo = {
 
 export type StorageDump = {
     readonly path: string;
-    /** Whether the secret fields are the stored ones or a mask. */
     readonly revealed: boolean;
     readonly data: unknown;
 };

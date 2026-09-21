@@ -8,26 +8,19 @@ import { BTN_GROUP, ContextMenu, ContextMenuItem, Icon, IconButton, MenuSeparato
 import { setDragging, writeCell } from './cell-drag';
 import type { CellAt, SplitCell } from './split';
 
-/* What the bar holds that is not the bar: a press on one of these is not the start of a drag. */
+/* Do not start a cell drag from interactive controls. */
 const CONTROLS = 'input, textarea, select, button, a, [role="button"], [role="combobox"]';
 
 /** The value the device picker uses for "no device", since a `Select` needs a string. */
 const NO_DEVICE = '';
 
-/*
- * The bar over one cell of the grid. With the panels side by side the window's top bar goes back to
- * being the application's, and every cell says for itself which device and which panel it holds.
- * The bar is the handle as well: drag it anywhere to move the cell.
- */
 export function CellToolbar({at, cell, focused, children}: { readonly at: CellAt; readonly cell: SplitCell; readonly focused: boolean; readonly children: ReactElement }) {
     const devices = useDevices(state => state.devices);
     const snapshots = useDevices(state => state.snapshots);
     const setCell = useLayout(state => state.setCell);
     const close = useLayout(state => state.close);
     const split = useLayout(state => state.split);
-    /* Whether the pointer came down on the bar itself. A drag starts on the nearest draggable
-       ancestor, so `draggable` on a child does not hold it back: the attribute itself has to go
-       while the pointer is in a control, or opening the panel picker would drag the cell away. */
+    /* Remove `draggable` while a control is pressed; otherwise the nearest draggable ancestor starts a cell drag. */
     const [grabbable, setGrabbable] = useState(true);
 
     const deviceItems = useMemo<SelectItem<string>[]>(

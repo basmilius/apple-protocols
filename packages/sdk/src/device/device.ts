@@ -51,7 +51,6 @@ export abstract class AbstractDevice extends EventEmitter {
             this.#airplay.timingServer = timingServer;
         }
 
-        // Create shared controllers.
         this.remote = new RemoteController(this.#airplay);
         this.playback = new PlaybackController(this.#airplay);
         this.state = new StateController(this.#airplay);
@@ -60,7 +59,6 @@ export abstract class AbstractDevice extends EventEmitter {
         this.media = new MediaController(this.#airplay);
         this.multiroom = new MultiroomController(this.#airplay);
 
-        // Wire up AirPlay events.
         this.#airplay.on('connected', () => this.onAirPlayConnected());
         this.#airplay.on('disconnected', (unexpected) => this.onAirPlayDisconnected(unexpected));
     }

@@ -1,6 +1,6 @@
-# Intercom: what the macOS implementation actually contains
+# Intercom in macOS 27.2
 
-Examined on macOS 27.2, build 26B5086k, on 21 September 2026. The additional inspection supports looking beyond AirPlay, but it also exposes a platform boundary: the Home announcement entry points examined here are disabled or inert on macOS. We still do not have a standalone Intercom send command for Homey.
+Examined on macOS 27.2, build 26B5086k, on 21 September 2026. The inspected Home announcement entry points are disabled or inert on macOS. We still do not have a standalone Intercom send command for Homey.
 
 The [iOS simulator follow-up](intercom-ios-simulator-27.md) now contains the Announce client/daemon binaries and a concrete Rapport request ID. The macOS findings below remain specific to that platform.
 
@@ -28,18 +28,18 @@ The first two were checked directly against the shared cache, in addition to Ghi
 
 There is also an explicit diagnostic string: `Announce settings should be hidden since containsHomePod = %{BOOL}d isAMac = %{BOOL}d`.
 
-The more promising-looking AssistantServices observer is similarly limited in this build:
+The AssistantServices observer is also inactive in this build:
 
 - `-[AFHomeAnnouncementObserver _setUp]`, `0x1a3d1a53c`, only logs.
 - `-[AFHomeAnnouncementObserver _fetchStateAndLastPlayedAnnouncementForReason:completion:]`, `0x1a3d1a7c0`, logs and calls the completion block with `(0, 0)`. It does not fetch state from a service in this implementation. The two zero callback arguments were also verified in ARM64 assembly at `0x1a3d1a864` and `0x1a3d1a868`.
 
-This changes the earlier assessment: class and selector names alone made AssistantServices look like an active path to follow on the Mac. Inspecting the implementation shows why that path stops here. Apple's [HomePod guide](https://support.apple.com/en-gb/guide/homepod/apdc2e0b5480/homepod) also lists iPhone, iPad and Apple Watch as Intercom clients, rather than Mac.
+The class and selector names suggested an AssistantServices send path, but the implementations above do not provide one. Apple's [HomePod guide](https://support.apple.com/en-gb/guide/homepod/apdc2e0b5480/homepod) also lists iPhone, iPad and Apple Watch as Intercom clients, rather than Mac.
 
 ## Useful leads that remain
 
 `Home` still contains `HFUserItem setEnableAnnounce:`, `HFMediaAccessoryItem setEnableAnnounce:`, `HFUserNotificationServiceTopic _announceTopic`, `HFUtilities sharedAnnouncementsDirectoryURL`, `root.announce.enabled` and `com.apple.announce`. Those identify user permissions, accessory settings, a notification topic and a local storage helper. They do not establish a network send API; `com.apple.announce` has not been verified as a Mach/XPC service name.
 
-The separate `HomeKitDaemonLegacy` binary contains announce access levels, notification settings and current-user checks. Its other “announce” matches include Matter OTA announcements and doorbell announcements; those should not be treated as Intercom transport evidence.
+The separate `HomeKitDaemonLegacy` binary contains announce access levels, notification settings and current-user checks. Its other "announce" matches include Matter OTA announcements and doorbell announcements; those should not be treated as Intercom transport evidence.
 
 For the next extraction, prioritize an iOS or HomePod firmware cache:
 

@@ -20,9 +20,6 @@ const FADE_STEP_INTERVAL = 50;
  * relative volume (HID volume up/down keys) based on the device's reported capabilities.
  */
 export class AirPlayVolume {
-    /**
-     * @returns The underlying AirPlay Protocol instance.
-     */
     get #protocol(): Protocol {
         return this.#device[PROTOCOL];
     }

@@ -1,14 +1,10 @@
 import type { Bytes } from './contract';
 
-/** Whether a serialized value is the hex form of a `Uint8Array` or a `Buffer`. */
 export function isBytes(value: unknown): value is Bytes {
     return typeof value === 'object' && value !== null && typeof (value as Bytes).$bytes === 'string';
 }
 
-/**
- * Formats seconds as `m:ss` or `h:mm:ss`. Anything that is not a finite number reads as `--:--`,
- * which is what a device without a duration reports.
- */
+/** Formats seconds as `m:ss` or `h:mm:ss`; non-finite values produce `--:--`. */
 export function formatDuration(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds <= 0) {
         return '--:--';

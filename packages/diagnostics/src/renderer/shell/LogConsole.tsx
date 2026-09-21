@@ -34,12 +34,7 @@ const asText = (entries: readonly LogEntry[]): string =>
 const isTyping = (target: EventTarget | null): boolean =>
     target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
-/*
- * Everything the protocol packages logged, with the device each line came from. The list is
- * virtualized: a raw hex dump fills the buffer in seconds and 5000 rendered rows would stall the
- * window. A row is one truncated line, so the entry that is picked is unpacked beside it or under
- * it, depending on which edge the console hangs from.
- */
+/* Virtualize the log buffer because rendering thousands of hex-dump rows would stall the window. */
 export function LogConsole() {
     const toggleConsole = useLayout(state => state.toggleConsole);
     const dock = useLayout(state => state.consoleDock);
@@ -49,8 +44,7 @@ export function LogConsole() {
     const [groups, setGroups] = useState<readonly DebugGroup[]>(DEBUG_GROUPS);
     const [deviceId, setDeviceId] = useState<string>(ALL);
     const [search, setSearch] = useState('');
-    /* The store keeps collecting while the console is paused; only the view stands still, so the
-       lines that came in are there to scroll back to the moment it resumes. */
+    /* Pausing freezes the view; the store continues collecting logs. */
     const [paused, setPaused] = useState(false);
     const [frozen, setFrozen] = useState<readonly LogEntry[] | null>(null);
     const [selected, setSelected] = useState<readonly number[]>([]);
@@ -128,8 +122,7 @@ export function LogConsole() {
     const pick = (entry: LogEntry): void => {
         setSelected([entry.id]);
         setDetailId(entry.id);
-        /* Picking pins the view: a line that arrives while an entry is open would otherwise scroll
-           it out from under the pointer. */
+        /* Stop autoscrolling so new entries do not move the selected line under the pointer. */
         setStuck(false);
     };
 

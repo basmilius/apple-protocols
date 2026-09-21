@@ -125,7 +125,6 @@ export function getDeviceType(model: DeviceModel): DeviceType {
 /**
  * Checks whether the given model is an Apple TV.
  *
- * @param model - The device model to check.
  * @returns True if the model is any Apple TV generation.
  */
 export function isAppleTV(model: DeviceModel): boolean {
@@ -135,7 +134,6 @@ export function isAppleTV(model: DeviceModel): boolean {
 /**
  * Checks whether the given model is a HomePod.
  *
- * @param model - The device model to check.
  * @returns True if the model is any HomePod variant.
  */
 export function isHomePod(model: DeviceModel): boolean {
@@ -145,7 +143,6 @@ export function isHomePod(model: DeviceModel): boolean {
 /**
  * Checks whether the given model is an AirPort Express.
  *
- * @param model - The device model to check.
  * @returns True if the model is any AirPort Express generation.
  */
 export function isAirPort(model: DeviceModel): boolean {

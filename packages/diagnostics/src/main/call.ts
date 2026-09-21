@@ -6,14 +6,7 @@ const FORBIDDEN = ['__proto__', 'constructor', 'prototype'];
 
 export type CallRoots = Partial<Record<CallRequest['root'], unknown>>;
 
-/**
- * Resolves a dotted path against one of the allowlisted roots and either invokes what it lands on
- * or reads it. Nothing is thrown at the renderer: a refusal and a failure both come back as a
- * result with `ok: false`.
- *
- * @param roots - The objects the request may name, by root key.
- * @param request - The root, the path and the arguments.
- */
+/** Reads or invokes a dotted path under an allowlisted root. Refusals and errors return `ok: false`. */
 export async function runCall(roots: CallRoots, request: CallRequest): Promise<CallResult> {
     const started = Date.now();
 

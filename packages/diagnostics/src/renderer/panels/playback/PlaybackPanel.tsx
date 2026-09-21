@@ -32,10 +32,7 @@ type CommandProps = {
     readonly variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'positive';
 };
 
-/*
- * A command the active player may or may not advertise. An unsupported one stays pressable: what a
- * device does with a command it did not list is exactly what this tool is for.
- */
+/* Keep unsupported commands enabled so their actual device behavior can be tested. */
 function PlaybackCommand({label, command, path, args, call, supported, connected, variant}: CommandProps) {
     const unknown = command !== null && !supported.includes(command);
 
@@ -47,8 +44,7 @@ function PlaybackCommand({label, command, path, args, call, supported, connected
     );
 }
 
-/* The scrubber follows the pointer while it is down and seeks once, the way the overview volume
-   slider does; the snapshot keeps moving underneath otherwise. */
+/* Track the drag locally and seek once on release. */
 function Scrubber({elapsed, duration, connected, call}: { readonly elapsed: number; readonly duration: number; readonly connected: boolean; readonly call: DeviceCall }) {
     const [dragging, setDragging] = useState<number | null>(null);
     const position = dragging ?? elapsed;

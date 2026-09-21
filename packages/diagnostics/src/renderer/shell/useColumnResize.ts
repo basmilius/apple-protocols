@@ -1,18 +1,16 @@
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 
-/* Which edge the column hangs from, and with it the axis the drag runs along. A column pinned to
-   the window's right edge grows as the pointer moves left; the same holds for a row pinned to the
-   bottom. */
+/* The pinned edge determines which direction increases the size. */
 type ColumnEdge = 'left' | 'right' | 'top' | 'bottom';
 
 type ColumnResizeOptions = {
-    /* What the column is wide, or the row is tall, right now, in whole pixels. */
+    /* Width or height in whole pixels. */
     readonly size: number;
     readonly min: number;
     readonly from: ColumnEdge;
     /* Read at drag time, so a window resize between two drags is taken into account. */
     max?(): number;
-    /* Where the dragged size goes; called on every move, so the column follows the pointer. */
+    /* Called on each pointer move. */
     onSize(size: number): void;
 };
 
@@ -37,18 +35,13 @@ const anchorOf = (from: ColumnEdge, rect: DOMRect | undefined): number => {
     }
 };
 
-/*
- * One resizable column or row: a handle that drags the size its owner keeps. The handle takes the
- * pointer capture, so the drag survives leaving the few pixels it is wide, and `[data-resizing]` on
- * the column turns off the transition on that size for as long as it lasts.
- */
+/* Capture the pointer so resizing continues outside the handle. Set `data-resizing` to disable size transitions. */
 export function useColumnResize(ref: RefObject<HTMLElement | null>, options: ColumnResizeOptions): { startResize(event: ReactPointerEvent<HTMLElement>): void } {
     const startResize = (event: ReactPointerEvent<HTMLElement>): void => {
         event.preventDefault();
         const handle = event.currentTarget;
         const column = ref.current;
         const anchor = anchorOf(options.from, column?.getBoundingClientRect());
-        /* The far edge grows as the pointer comes towards it; the near edge grows as it goes away. */
         const growsTowardsAnchor = options.from === 'right' || options.from === 'bottom';
         column?.setAttribute('data-resizing', 'true');
 

@@ -16,18 +16,11 @@ export const SIDEBAR_WIDTH = 248;
 /* The traffic lights sit over the left of the title strip, so the wordmark starts past them. */
 const TRAFFIC_LIGHT_INSET = 80;
 
-/* Every row in the list: one height, one radius, one indent. A child row adds `pl-8`, which puts
-   its icon under the first letter of the device name. */
 const ROW = 'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm';
-/* Every row opens with the same 16px column, so a device and a panel under it line up one indent
-   apart. The height comes from the row, which is one line on a panel and two on a device. */
 const ICON_SLOT = 'grid w-4 shrink-0 place-items-center';
-/* The line height of `text-sm`: what keeps the icon of a two-line row on the name rather than
-   between the two lines. */
+/* Match `text-sm` line height to align the icon with the first line. */
 const NAME_LINE = 'h-5.5';
 const ROW_SELECTED = 'bg-surface-active text-text';
-/* Standing in a cell beside the focused one: the name at full strength, the background left empty,
-   so it reads as open without claiming to be the row the keyboard is on. */
 const ROW_BESIDE = 'text-text hover:bg-surface-hover';
 const ROW_PLAIN = 'text-text-muted hover:bg-surface-hover hover:text-text';
 
@@ -38,8 +31,7 @@ const TYPE_ICON: Record<DeviceType, typeof Monitor> = {
     unknown: MonitorSpeaker
 };
 
-/* What the session is doing, drawn on the device's own mark rather than on a dot beside it: the row
-   already carries a name, a pair of tags and an address, and a fourth thing to read is one too many. */
+/* Use the device icon for session status to avoid a separate status indicator. */
 const SESSION_COLOR: Record<DeviceSessionStatus, string | undefined> = {
     disconnected: undefined,
     connecting: 'text-status-needs-you',
@@ -48,12 +40,9 @@ const SESSION_COLOR: Record<DeviceSessionStatus, string | undefined> = {
     failed: 'text-status-error'
 };
 
-/* The protocols a device is paired over. They say what is stored, not what is happening, so they
-   stay gray: the color in a row belongs to the session. */
+/* Pairing tags show stored credentials. Session color shows connection status. */
 const PAIRED_TAG = 'inline-flex shrink-0 items-center rounded-sm bg-surface-sunken px-1 text-2xs font-medium text-text-muted';
 
-/* A tool works on what is pasted into it rather than on a device, so it gets a section of its own
-   instead of repeating under every device. */
 type RowState = 'active' | 'beside' | 'plain';
 
 const ROW_STATE: Record<RowState, string> = {
@@ -71,8 +60,6 @@ function SectionLabel({title, actions, className}: { readonly title: string; rea
     );
 }
 
-/* The label over one run of a device's panels. Smaller and shorter than the labels over the two
-   top-level sections, so it divides without reading as a section of its own. */
 function GroupLabel({title, className}: { readonly title: string; readonly className?: string }) {
     return (
         <div className={clsx('flex h-5 shrink-0 items-center pl-8', className)}>
@@ -160,8 +147,6 @@ function DeviceRow({device, expanded, state, onToggle}: {
     );
 }
 
-/* The panels that apply to one device, in the order the registry lists them, under the label of the
-   group each run belongs to. */
 function DevicePanels({device, focusedKey, openKeys}: {
     readonly device: DiscoveredDeviceInfo;
     readonly focusedKey: string | null;
@@ -204,8 +189,6 @@ function DevicePanels({device, focusedKey, openKeys}: {
     );
 }
 
-/* The device list, the tools beside it, and the controls that belong to the app rather than to a
-   panel. */
 export function Sidebar() {
     const devices = useDevices(store => store.devices);
     const scanning = useDevices(store => store.scanning);
@@ -217,8 +200,6 @@ export function Sidebar() {
     const openKeys = useMemo(() => new Set(layout.columns.flatMap(column => column.cells.map(cell => cellKey(cell)))), [layout]);
     const focused = layout.columns[layout.focus.column]?.cells[layout.focus.cell] ?? null;
     const focusedKey = focused === null ? null : cellKey(focused);
-    /* The device in the focused cell is unfolded whatever the stored set says, so the panels of what
-       is on screen are never a click away. */
     const expandedIds = useMemo(() => new Set(focused?.deviceId === undefined || focused.deviceId === null ? expanded : [...expanded, focused.deviceId]), [expanded, focused]);
 
     return (
@@ -240,8 +221,6 @@ export function Sidebar() {
                             const open = expandedIds.has(device.id);
 
                             return (
-                                /* An unfolded device ends in a gap, so its last panel does not read
-                                   as the row of the device under it. */
                                 <div key={device.id} className={clsx('flex flex-col gap-px', open && 'pb-3')}>
                                     <DeviceRow
                                         device={device}

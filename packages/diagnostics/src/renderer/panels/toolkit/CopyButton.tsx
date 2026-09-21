@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Copy } from 'lucide-react';
 import { IconButton } from '@/ui';
 
-/* `ui` has no copy control of its own, so the tool panels carry one. */
 export function CopyButton({text, label = 'Copy', size = 'sm'}: { readonly text: string; readonly label?: string; readonly size?: 'sm' | 'md' }) {
     const [copied, setCopied] = useState(false);
 

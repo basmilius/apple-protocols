@@ -20,9 +20,6 @@ abstract class BasePairing {
 
     readonly #context: Context;
 
-    /**
-     * @param context - Shared context for logging and device identity.
-     */
     constructor(context: Context) {
         this.#context = context;
     }
@@ -76,11 +73,9 @@ export class AccessoryPair extends BasePairing {
     #srp: SrpClient;
 
     /**
-     * @param context - Shared context for logging and device identity.
      * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
      */
     /**
-     * @param context - Shared context for logging and device identity.
      * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
      * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for M5/M6 encryption (legacy devices).
      */
@@ -377,7 +372,6 @@ export class AccessoryVerify extends BasePairing {
     readonly #useAes: boolean;
 
     /**
-     * @param context - Shared context for logging and device identity.
      * @param requestHandler - Callback that sends TLV8-encoded data and returns the response.
      * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for encryption (legacy devices).
      */
@@ -547,15 +541,9 @@ export class AccessoryVerify extends BasePairing {
 }
 
 /**
- * Server (accessory) side of the HAP Pair-Setup flow — the mirror image of {@link AccessoryPair}.
- *
- * The controller drives the exchange; this class consumes the incoming M1/M3/M5 requests, produces the
- * M2/M4/M6 responses, verifies the controller's Ed25519 identity, and presents the accessory's own
- * long-term identity. Used by the proxy to terminate a controller's pairing so the subsequent encrypted
- * session can be read.
- *
- * Flow: M1 (salt + SRP public key) → M3 (verify controller proof, send server proof) →
- *       M5 (decrypt + verify controller identity, return the encrypted accessory identity as M6).
+ * Accessory side of HAP pair-setup, used by the proxy to terminate controller pairing.
+ * Handles M1/M3/M5 and returns M2/M4/M6, verifying the controller's Ed25519 identity and presenting its own.
+ * M1 exchanges salt and SRP public keys, M3 verifies proofs, and M5 exchanges encrypted identities.
  */
 export class AccessoryPairServer extends BasePairing {
     /** The controller's verified identity, available after M5 completes. */
@@ -584,7 +572,6 @@ export class AccessoryPairServer extends BasePairing {
     #srp: SrpServer;
 
     /**
-     * @param context - Shared context for logging and device identity.
      * @param identity - The accessory's persistent long-term identity.
      * @param pin - The setup PIN the controller must enter.
      * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for M5/M6 encryption (legacy devices).
@@ -798,7 +785,6 @@ export class AccessoryVerifyServer extends BasePairing {
     #sharedSecret: Buffer | undefined;
 
     /**
-     * @param context - Shared context for logging and device identity.
      * @param identity - The accessory's persistent long-term identity.
      * @param resolveController - Looks up a controller's long-term public key by pairing identifier.
      * @param useAes - Use AES-128-CTR instead of ChaCha20-Poly1305 for encryption (legacy devices).

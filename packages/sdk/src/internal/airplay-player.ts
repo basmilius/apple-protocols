@@ -207,14 +207,9 @@ export class AirPlayPlayer {
     }
 
     /**
-     * Extrapolated elapsed time in seconds, read from whichever of NowPlayingInfo and the content
-     * item metadata carries the newer timestamp.
-     *
-     * Two quirks of the Apple TV shape this. A metadata update that only announces a track carries
-     * an elapsed time of 0 and a rate of 0 while the player keeps going, so the rate falls back to
-     * the one the player reports and the position is counted from that timestamp; taking those
-     * zeroes at face value would freeze the position at the start of every track. And a paused
-     * player keeps reporting a rate of 1, so it reports the position it stopped at instead.
+     * Elapsed seconds extrapolated from the newer NowPlayingInfo or content-item timestamp.
+     * Track-change metadata can report zero rate and position during playback; use the player's rate in that case.
+     * Paused players can still report rate 1, so keep their last position fixed.
      */
     get elapsedTime(): number {
         const npi = this.#nowPlayingInfo;
@@ -295,19 +290,16 @@ export class AirPlayPlayer {
     artworkUrl(width: number = 600, height: number = -1): string | null {
         const metadata = this.currentItemMetadata;
 
-        // Priority 1: artworkURL — direct URL from metadata (known-good).
         if (metadata?.artworkURL) {
             return convertArtworkUrl(metadata.artworkURL);
         }
 
-        // Priority 2: remoteArtworks — URL from remote artwork entries.
         const item = this.currentItem;
 
         if (item?.remoteArtworks.length > 0 && item.remoteArtworks[0].artworkURLString) {
             return convertArtworkUrl(item.remoteArtworks[0].artworkURLString);
         }
 
-        // Priority 3: artworkIdentifier — iTunes template URL with {w}x{h} placeholders.
         if (metadata?.artworkIdentifier) {
             try {
                 const url = metadata.artworkIdentifier

@@ -21,21 +21,7 @@ export function protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.Erro
     });
 }
 
-/**
- * Builds a CLIENT_UPDATES_CONFIG message to subscribe to state change notifications.
- *
- * Tells the Apple TV which categories of updates we want to receive on the
- * DataStream. Should be sent early in the session to start receiving
- * now-playing, volume, and artwork updates.
- *
- * @param artworkUpdates - Subscribe to artwork change events.
- * @param nowPlayingUpdates - Subscribe to now-playing metadata changes.
- * @param volumeUpdates - Subscribe to volume change events.
- * @param keyboardUpdates - Subscribe to keyboard/text input session events.
- * @param outputDeviceUpdates - Subscribe to output device (speaker) changes.
- * @param systemEndpointUpdates - Subscribe to system endpoint changes.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
- */
+/** Subscribes to state changes. Send early in the session to receive now-playing, volume and artwork updates. */
 export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUpdates: boolean = true, volumeUpdates: boolean = true, keyboardUpdates: boolean = false, outputDeviceUpdates: boolean = false, systemEndpointUpdates: boolean = true, subscribedPlayerPaths: Proto.PlayerPath[] = []): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.CLIENT_UPDATES_CONFIG_MESSAGE);
     const message = create(Proto.ClientUpdatesConfigMessageSchema, {
@@ -60,7 +46,6 @@ export function clientUpdatesConfig(artworkUpdates: boolean = true, nowPlayingUp
  * Builds a CONFIGURE_CONNECTION message to set the group ID for this connection.
  *
  * @param groupId - The group identifier for this connection.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function configureConnection(groupId: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE);
@@ -84,7 +69,6 @@ export function configureConnection(groupId: string): [Proto.ProtocolMessage, De
  *
  * @param pairingId - Pairing identifier from pair-verify.
  * @param identity - Device identity with name, model, and version info.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE);
@@ -132,7 +116,6 @@ export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.
  * @param addingDevices - Device UIDs to add to the output context.
  * @param removingDevices - Device UIDs to remove from the output context.
  * @param settingDevices - Device UIDs to set as the complete output context.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function modifyOutputContext(addingDevices: string[] = [], removingDevices: string[] = [], settingDevices: string[] = []): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.MODIFY_OUTPUT_CONTEXT_REQUEST_MESSAGE);
@@ -156,8 +139,6 @@ export function modifyOutputContext(addingDevices: string[] = [], removingDevice
 
 /**
  * Builds a GET_STATE message to request the current playback state.
- *
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function getState(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_STATE_MESSAGE);
@@ -175,7 +156,6 @@ export function getState(): [Proto.ProtocolMessage, DescExtension] {
  * Builds a GET_VOLUME message to query the current volume of an output device.
  *
  * @param outputDeviceUID - UID of the output device to query.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function getVolume(outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_VOLUME_MESSAGE);
@@ -195,7 +175,6 @@ export function getVolume(outputDeviceUID: string): [Proto.ProtocolMessage, Desc
  * Builds a GET_VOLUME_MUTED message to query the mute state of an output device.
  *
  * @param outputDeviceUID - UID of the output device to query.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function getVolumeMuted(outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_VOLUME_MUTED_MESSAGE);
@@ -215,7 +194,6 @@ export function getVolumeMuted(outputDeviceUID: string): [Proto.ProtocolMessage,
  * Builds a NOTIFICATION message to send a named notification to the device.
  *
  * @param notification - Notification name string.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function notification(notification: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.NOTIFICATION_MESSAGE);
@@ -241,7 +219,6 @@ export function notification(notification: string): [Proto.ProtocolMessage, Desc
  * @param length - Number of items to retrieve.
  * @param artworkWidth - Desired artwork width in pixels.
  * @param artworkHeight - Desired artwork height in pixels (-1 for proportional).
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function playbackQueueRequest(location: number, length: number, artworkWidth: number = 600, artworkHeight: number = -1): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_QUEUE_REQUEST_MESSAGE);
@@ -259,12 +236,7 @@ export function playbackQueueRequest(location: number, length: number, artworkWi
         includeAlignments: true,
         includeParticipants: true,
         isLegacyNowPlayingInfoRequest: false,
-        // uncommenting this code will disable artworkData.
-        // includeAvailableArtworkFormats: true,
-        // requestedArtworkFormats: ['MRContentItemArtworkFormatStandard'],
-        // requestedRemoteArtworkFormats: ['MRContentItemArtworkFormatStandard'],
-        // requestedAnimatedArtworkPreviewFrameFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall'],
-        // requestedAnimatedArtworkAssetURLFormats: ['MRContentItemAnimatedArtworkFormatSquare', 'MRContentItemAnimatedArtworkFormatTall']
+        /* Requesting available artwork formats disables inline artworkData. */
     });
 
     setExtension(protocolMessage, Proto.playbackQueueRequestMessage, message);
@@ -279,8 +251,6 @@ export function playbackQueueRequest(location: number, length: number, artworkWi
  * Builds a GET_KEYBOARD_SESSION message to request the current keyboard session state.
  *
  * Used to check if a text input field is active on the Apple TV.
- *
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function getKeyboardSession(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.GET_KEYBOARD_SESSION_MESSAGE);
@@ -298,7 +268,6 @@ export function getKeyboardSession(): [Proto.ProtocolMessage, DescExtension] {
  *
  * @param text - The text string to input.
  * @param actionType - The action type (e.g. done, search, send).
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function textInput(text: string, actionType: Proto.ActionType_Enum): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.TEXT_INPUT_MESSAGE);
@@ -322,7 +291,6 @@ export function textInput(text: string, actionType: Proto.ActionType_Enum): [Pro
  * @param usagePage - HID usage page (e.g. 0x01 for Generic Desktop, 0x0c for Consumer).
  * @param usage - HID usage code within the page.
  * @param buttonDown - `true` for key down, `false` for key up.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendButtonEvent(usagePage: number, usage: number, buttonDown: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_BUTTON_EVENT_MESSAGE);
@@ -345,7 +313,6 @@ export function sendButtonEvent(usagePage: number, usage: number, buttonDown: bo
  *
  * @param command - The playback command to send.
  * @param skipInterval - Number of seconds to skip forward or backward.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommandWithSkipInterval(command: Proto.Command, skipInterval: number): [Proto.ProtocolMessage, DescExtension] {
     return sendCommand(command, create(Proto.CommandOptionsSchema, { skipInterval }));
@@ -356,7 +323,6 @@ export function sendCommandWithSkipInterval(command: Proto.Command, skipInterval
  *
  * @param command - The playback command to send.
  * @param playbackPosition - Target playback position in seconds.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommandWithPlaybackPosition(command: Proto.Command, playbackPosition: number): [Proto.ProtocolMessage, DescExtension] {
     return sendCommand(command, create(Proto.CommandOptionsSchema, { playbackPosition }));
@@ -367,7 +333,6 @@ export function sendCommandWithPlaybackPosition(command: Proto.Command, playback
  *
  * @param command - The playback command to send.
  * @param playbackRate - Target playback rate (e.g. 1.0 for normal, 2.0 for double speed).
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommandWithPlaybackRate(command: Proto.Command, playbackRate: number): [Proto.ProtocolMessage, DescExtension] {
     return sendCommand(command, create(Proto.CommandOptionsSchema, { playbackRate }));
@@ -378,7 +343,6 @@ export function sendCommandWithPlaybackRate(command: Proto.Command, playbackRate
  *
  * @param command - The playback command to send.
  * @param shuffleMode - The shuffle mode to set.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommandWithShuffleMode(command: Proto.Command, shuffleMode: Proto.ShuffleMode_Enum): [Proto.ProtocolMessage, DescExtension] {
     return sendCommand(command, create(Proto.CommandOptionsSchema, { shuffleMode }));
@@ -389,7 +353,6 @@ export function sendCommandWithShuffleMode(command: Proto.Command, shuffleMode: 
  *
  * @param command - The playback command to send.
  * @param repeatMode - The repeat mode to set.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommandWithRepeatMode(command: Proto.Command, repeatMode: Proto.RepeatMode_Enum): [Proto.ProtocolMessage, DescExtension] {
     return sendCommand(command, create(Proto.CommandOptionsSchema, { repeatMode }));
@@ -402,7 +365,6 @@ export function sendCommandWithRepeatMode(command: Proto.Command, repeatMode: Pr
  *
  * @param command - The playback command to send (play, pause, next track, etc.).
  * @param options - Optional command options (skip interval, position, rate, etc.).
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommand(command: Proto.Command, options?: Proto.CommandOptions): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_COMMAND_MESSAGE);
@@ -424,7 +386,6 @@ export function sendCommand(command: Proto.Command, options?: Proto.CommandOptio
  *
  * @param seconds - Timer duration in seconds. Use 0 to cancel.
  * @param stopMode - Stop mode: 0 = stop, 1 = pause, 2 = end of track, 3 = end of queue.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendCommandWithSleepTimer(seconds: number, stopMode: number = 0): [Proto.ProtocolMessage, DescExtension] {
     return sendCommand(Proto.Command.Pause, create(Proto.CommandOptionsSchema, {
@@ -443,7 +404,6 @@ export function sendCommandWithSleepTimer(seconds: number, stopMode: number = 0)
  * @param screenHeight - Height of the virtual touch surface.
  * @param absolute - Whether coordinates are absolute positions instead of relative movement.
  * @param integratedDisplay - Whether the surface sits on top of a display, as on a phone.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function registerHIDDevice(screenWidth: number = 1000, screenHeight: number = 1000, absolute: boolean = true, integratedDisplay: boolean = false): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.REGISTER_HID_DEVICE_MESSAGE);
@@ -475,7 +435,6 @@ export function registerHIDDevice(screenWidth: number = 1000, screenHeight: numb
  * @param phase - Touch phase (1=began, 2=moved, 3=stationary, 4=ended, 5=cancelled).
  * @param deviceId - Identifier handed out by {@link registerHIDDevice}.
  * @param finger - Finger index for multi-touch.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendPackedVirtualTouchEvent(x: number, y: number, phase: number, deviceId: number, finger: number): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_PACKED_VIRTUAL_TOUCH_EVENT_MESSAGE);
@@ -508,7 +467,6 @@ export function sendPackedVirtualTouchEvent(x: number, y: number, phase: number,
  * @param phase - Touch phase (1=began, 2=moved, 3=stationary, 4=ended, 5=cancelled).
  * @param finger - Finger index for multi-touch.
  * @param deviceId - Identifier handed out by {@link registerHIDDevice}.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendVirtualTouchEvent(x: number, y: number, phase: number, finger: number, deviceId: number = 1): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_VIRTUAL_TOUCH_EVENT_MESSAGE);
@@ -539,7 +497,6 @@ export function sendVirtualTouchEvent(x: number, y: number, phase: number, finge
  * @param usePage - HID usage page (e.g. 0x01 for Generic Desktop, 0x0c for Consumer).
  * @param usage - HID usage code within the page.
  * @param down - `true` for key down, `false` for key up.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function sendHIDEvent(usePage: number, usage: number, down: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SEND_HID_EVENT_MESSAGE);
@@ -568,7 +525,6 @@ export function sendHIDEvent(usePage: number, usage: number, down: boolean): [Pr
  * Builds a SET_CONNECTION_STATE message to notify the device of our connection state.
  *
  * @param state - Connection state to report (defaults to Connected).
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setConnectionState(state: Proto.SetConnectionStateMessage_ConnectionState = Proto.SetConnectionStateMessage_ConnectionState.Connected): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_CONNECTION_STATE_MESSAGE);
@@ -586,8 +542,6 @@ export function setConnectionState(state: Proto.SetConnectionStateMessage_Connec
 
 /**
  * Builds a SET_READY_STATE message to indicate this controller is ready.
- *
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setReadyState(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_READY_STATE_MESSAGE);
@@ -606,7 +560,6 @@ export function setReadyState(): [Proto.ProtocolMessage, DescExtension] {
  *
  * @param outputDeviceUID - UID of the target output device.
  * @param volume - Volume level to set (typically 0.0 to 1.0).
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setVolume(outputDeviceUID: string, volume: number): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MESSAGE);
@@ -628,7 +581,6 @@ export function setVolume(outputDeviceUID: string, volume: number): [Proto.Proto
  *
  * @param outputDeviceUID - UID of the target output device.
  * @param isMuted - `true` to mute, `false` to unmute.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_VOLUME_MUTED_MESSAGE);
@@ -651,9 +603,7 @@ export function setVolumeMuted(outputDeviceUID: string, isMuted: boolean): [Prot
  * Enables or disables conversation detection (volume ducking when people
  * are talking) on a HomePod.
  *
- * @param enabled - Whether to enable conversation detection.
  * @param outputDeviceUID - UID of the target output device.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setConversationDetectionEnabled(enabled: boolean, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_CONVERSATION_DETECTION_ENABLED_MESSAGE);
@@ -678,7 +628,6 @@ export function setConversationDetectionEnabled(enabled: boolean, outputDeviceUI
  *
  * @param adjustment - The volume adjustment type (e.g. IncrementSmall, DecrementSmall).
  * @param outputDeviceUID - UID of the target output device.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function adjustVolume(adjustment: Proto.AdjustVolumeMessage_Adjustment, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.ADJUST_VOLUME_MESSAGE);
@@ -700,7 +649,6 @@ export function adjustVolume(adjustment: Proto.AdjustVolumeMessage_Adjustment, o
  *
  * @param fadeType - The type of audio fade to perform.
  * @param playerPath - Optional player path to target a specific player.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function audioFade(fadeType: number, playerPath?: Proto.PlayerPath): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.AUDIO_FADE_MESSAGE);
@@ -722,7 +670,6 @@ export function audioFade(fadeType: number, playerPath?: Proto.PlayerPath): [Pro
  *
  * @param listeningMode - The listening mode string (e.g. 'Default', 'Vivid', 'LateNight').
  * @param outputDeviceUID - The output device UID to target.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setListeningMode(listeningMode: string, outputDeviceUID: string): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_LISTENING_MODE_MESSAGE);
@@ -743,7 +690,6 @@ export function setListeningMode(listeningMode: string, outputDeviceUID: string)
  * Builds a SET_DISCOVERY_MODE message to enable or disable device discovery.
  *
  * @param mode - The discovery mode to set.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function setDiscoveryMode(mode: number): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.SET_DISCOVERY_MODE_MESSAGE);
@@ -761,8 +707,6 @@ export function setDiscoveryMode(mode: number): [Proto.ProtocolMessage, DescExte
 
 /**
  * Builds a REQUEST_GROUP_SESSION message to initiate a SharePlay/group listening session.
- *
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function requestGroupSession(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.REQUEST_GROUP_SESSION_MESSAGE);
@@ -780,7 +724,6 @@ export function requestGroupSession(): [Proto.ProtocolMessage, DescExtension] {
  * Builds a PLAYBACK_SESSION_MIGRATE_BEGIN message to start migrating playback to another device.
  *
  * @param playerPath - The player path of the session to migrate.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function playbackSessionMigrateBegin(playerPath?: Proto.PlayerPath): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_BEGIN_MESSAGE);
@@ -800,7 +743,6 @@ export function playbackSessionMigrateBegin(playerPath?: Proto.PlayerPath): [Pro
  * Builds a PLAYBACK_SESSION_MIGRATE_END message to complete a playback migration.
  *
  * @param playerPath - The player path of the migrated session.
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function playbackSessionMigrateEnd(playerPath?: Proto.PlayerPath): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.PLAYBACK_SESSION_MIGRATE_END_MESSAGE);
@@ -818,8 +760,6 @@ export function playbackSessionMigrateEnd(playerPath?: Proto.PlayerPath): [Proto
 
 /**
  * Builds a WAKE_DEVICE message to wake a sleeping Apple TV or HomePod.
- *
- * @returns Tuple of [ProtocolMessage, extension descriptor] for sending via DataStream.
  */
 export function wakeDevice(): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.WAKE_DEVICE_MESSAGE);

@@ -9,10 +9,7 @@ import { DEFAULT_SOURCE, SourcePicker } from '@/panels/shared-media/SourcePicker
 import { Sparkline, StatGrid } from '@/panels/shared-media/Telemetry';
 import { Badge, Button, EmptyState, Field, Icon, KeyValue, KeyValueList, Section, Slider, Tabs, TabPanel, Toggle } from '@/ui';
 
-/**
- * Playing a URL and streaming PCM are two different things and get two tabs. The device fetches a
- * URL itself; a stream is RTP packets we send, which is the only mode with telemetry.
- */
+/** The device fetches URLs itself. PCM streaming sends RTP packets and supplies telemetry. */
 export function AudioPanel({deviceId}: PanelProps) {
     const {device, connected} = useDevice(deviceId);
     const [status] = useStatus('audio:status', 'audio:status', deviceId);
@@ -137,7 +134,6 @@ export function AudioPanel({deviceId}: PanelProps) {
     );
 }
 
-/** Live counters off the audio stream, pushed four times a second while a stream runs. */
 function Telemetry({status}: { readonly status: AudioStatus | null }) {
     const telemetry = status?.telemetry ?? null;
 

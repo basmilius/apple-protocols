@@ -9,8 +9,6 @@ import { TouchPad } from './TouchPad';
 
 const DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
 
-/* The line between the remote and the raw controls underneath it. A `Section` header would read as
-   one more block of buttons, and this one says that everything after it is of another kind. */
 function AdvancedHeading() {
     return (
         <div className="flex items-center gap-2 pt-1">

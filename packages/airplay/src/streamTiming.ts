@@ -29,16 +29,10 @@ export type StreamTimingOptions = {
 export type SendPacketFn = (firstPacket: boolean) => Promise<number>;
 
 /**
- * Runs a real-time audio streaming loop with wall-clock timing compensation.
+ * Paces audio packets against wall-clock time, sending up to {@link MAX_PACKETS_COMPENSATE} extra packets per cycle when behind.
  *
- * Reads and sends packets via the provided {@link sendPacket} callback, pacing
- * them to match real-time playback. When the loop falls behind schedule, it
- * sends up to {@link MAX_PACKETS_COMPENSATE} extra packets per cycle to catch
- * up. Logs progress every 100 packets and warns when consistently behind.
- *
- * @param sendPacket - Callback that sends one packet and returns frames sent (0 = done).
- * @param options - Timing configuration (sample rate, logger, log prefix).
- * @returns Total number of packets sent.
+ * @param sendPacket - Returns frames sent, or 0 when done.
+ * @returns Total packets sent.
  */
 export async function streamWithTiming(sendPacket: SendPacketFn, options: StreamTimingOptions): Promise<number> {
     const {sampleRate, logger, logPrefix} = options;

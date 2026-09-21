@@ -87,12 +87,10 @@ export class AirPlayArtwork {
 
         const identifier = player.artworkId;
 
-        // Return cached result if the artwork hasn't changed.
         if (identifier && identifier === this.#lastIdentifier && this.#cached) {
             return this.#cached;
         }
 
-        // Priority 1: URL from player metadata.
         const url = player.artworkUrl(width, height);
 
         if (url) {
@@ -106,7 +104,6 @@ export class AirPlayArtwork {
             });
         }
 
-        // Priority 2: Inline binary data from playback queue content item.
         const inlineData = player.currentItemArtwork;
 
         if (inlineData && inlineData.byteLength > 0) {
@@ -122,7 +119,6 @@ export class AirPlayArtwork {
             });
         }
 
-        // Priority 3: JPEG data from SET_ARTWORK_MESSAGE.
         const setArtworkData = this.#state.artworkJpegData;
 
         if (setArtworkData && setArtworkData.byteLength > 0) {
@@ -136,14 +132,13 @@ export class AirPlayArtwork {
             });
         }
 
-        // Priority 4: Artwork should exist but isn't available yet — request playback queue.
+        /* Fetch the queue when metadata indicates artwork exists but no bytes or URL are available. */
         if (identifier) {
             try {
                 await this.#protocol.dataStream.exchange(
                     DataStreamMessage.playbackQueueRequest(0, 1, width, height < 0 ? 400 : height)
                 );
 
-                // Retry inline data after queue fetch.
                 const fetchedData = player.currentItemArtwork;
 
                 if (fetchedData && fetchedData.byteLength > 0) {
@@ -159,7 +154,6 @@ export class AirPlayArtwork {
                     });
                 }
 
-                // Retry URL after queue fetch (remoteArtworks might now be populated).
                 const retryUrl = player.artworkUrl(width, height);
 
                 if (retryUrl) {
@@ -173,7 +167,7 @@ export class AirPlayArtwork {
                     });
                 }
             } catch {
-                // Queue fetch failed — no artwork available.
+                /* Artwork is unavailable when the queue fetch fails. */
             }
         }
 

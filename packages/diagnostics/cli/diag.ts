@@ -138,10 +138,7 @@ async function bufferQuery(): Promise<URLSearchParams> {
     return query;
 }
 
-/**
- * The cursor a read starts after. A mark taken before main restarted points into buffers that no
- * longer exist, so it falls back to the start instead of hiding everything since the restart.
- */
+/** A mark from before a main-process restart refers to discarded buffers. Read from the start in that case. */
 async function cursorFor(kind: AgentKind): Promise<number> {
     if (flags.after !== undefined) {
         return Number(flags.after);

@@ -4,7 +4,6 @@ import type { DiscoveredDeviceInfo } from './contract';
 export const AGENT_STATE_FILE = 'diagnostics-agent.json';
 export const AGENT_MARK_FILE = 'diagnostics-agent-mark.json';
 
-/** What main writes once the bridge listens, and what the CLI reads to find it. */
 export type AgentState = {
     readonly port: number;
     readonly token: string;

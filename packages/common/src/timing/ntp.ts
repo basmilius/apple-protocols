@@ -72,8 +72,6 @@ export class TimingServer {
 
     /**
      * Handles socket errors by logging them.
-     *
-     * @param err - The error that occurred.
      */
     onError(err: Error): void {
         this.#logger.error('Timing server error', err);

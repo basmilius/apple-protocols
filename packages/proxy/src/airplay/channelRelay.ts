@@ -120,7 +120,6 @@ export class ChannelRelay {
     readonly #logger: RelayLogger;
 
     /**
-     * @param context - Shared context for logging.
      * @param controllerSocket - The socket facing the controller.
      * @param controllerCipher - The cipher for the controller side.
      * @param deviceSocket - The socket facing the real device.

@@ -3,12 +3,10 @@ import { messageOf } from '@/client';
 import type { DeviceCall } from '@/panels/hooks';
 import { callFor, DOUBLE_MS, type FaceCommand, type Gesture, HOLD_MS, type Transport } from './commands';
 
-/** How long the glyph keeps the color of the outcome. */
 const FLASH_MS = 400;
 
 export type PressState = 'idle' | 'holding' | 'busy' | 'ok' | 'failed';
 
-/** Whatever a key on the face needs from its pointer, whichever shape the key is drawn in. */
 export type CommandPress = {
     readonly state: PressState;
     /** The reason the last run failed, which the tooltip shows in place of the label. */
@@ -33,12 +31,7 @@ type Options = {
     readonly register?: RegisterTrigger;
 };
 
-/*
- * A face key answers three gestures against one command, and says how the call went without room
- * for a word about it. The pointer decides the gesture: released under half a second is a tap,
- * longer is a hold with the duration it was actually held, and on Home a quick second tap is the
- * double press the app switcher listens for.
- */
+/* Maps pointer input to tap, hold or double press and tracks command feedback. */
 export function useCommandPress({command, transport, call, disabled, register}: Options): CommandPress {
     const [state, setState] = useState<PressState>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -130,8 +123,7 @@ export function useCommandPress({command, transport, call, disabled, register}: 
                 return;
             }
 
-            // The face keeps the keyboard focus while its keys are clicked, so the shortcuts stay
-            // live; the face itself takes focus on the capture phase of this same event.
+            /* Keep focus on the remote so keyboard shortcuts continue to work after a click. */
             event.preventDefault();
 
             downAt.current = performance.now();
@@ -174,8 +166,7 @@ export function useCommandPress({command, transport, call, disabled, register}: 
                 return;
             }
 
-            // The single press waits out the window rather than firing first, or a double click
-            // would put three presses on the wire instead of two.
+            /* Wait for a second tap; sending the single press now would produce three presses on a double click. */
             doubleTimer.current = window.setTimeout(() => {
                 doubleTimer.current = null;
                 void send('tap', 0);
@@ -186,8 +177,7 @@ export function useCommandPress({command, transport, call, disabled, register}: 
 
     const onClick = useCallback(
         (event: ReactMouseEvent<HTMLButtonElement>): void => {
-            // A click with no coordinates came from the keyboard activating a focused key; the
-            // pointer path has already run by the time a real click arrives.
+            /* A zero-detail click is keyboard activation; pointer activation was already handled. */
             if (!disabled && event.detail === 0) {
                 void send('tap', 0);
             }

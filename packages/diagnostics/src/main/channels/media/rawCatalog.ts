@@ -2,7 +2,6 @@ import { DataStreamMessage, Proto } from '@basmilius/apple-airplay';
 import { FrameType } from '@basmilius/apple-companion-link';
 import type { RawBuilderInfo, RawParam, RawParamOption, RawTransport } from '@shared/contract';
 
-/** A builder as the catalog holds it: what the form renders, plus how to run what the form filled in. */
 export type RawEntry = RawBuilderInfo & {
     run(targets: RawTargets, args: Args, exchange: boolean): Promise<unknown> | unknown;
 };

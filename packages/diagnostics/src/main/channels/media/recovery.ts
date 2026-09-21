@@ -20,17 +20,12 @@ type RecoveryEntry = {
     recovering: boolean;
     lastEvent: string | null;
     error: string | null;
-    /** Removes the `disconnected` listener again when recovery is switched off. */
     detach: (() => void) | null;
 };
 
 let sequence = 0;
 
-/**
- * Registers `recovery:*`. `ConnectionRecovery` is never constructed by the SDK, so the device's
- * `recovering` and `recoveryFailed` events stay silent; this wires one per device and forwards its
- * events as device events so they land in the same table as everything else.
- */
+/** The SDK does not instantiate `ConnectionRecovery`. Register one per device and forward its events. */
 export function registerRecoveryChannels(context: ChannelContext): void {
     const entries = new Map<string, RecoveryEntry>();
 
@@ -76,10 +71,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
         context.send('recovery:status', statusOf(deviceId));
     };
 
-    /*
-     * The events land under source `device` because that is where they would have come from. The
-     * sequence counts down so it never collides with the one the session hands out.
-     */
+    /* Use decreasing sequence numbers to avoid collisions with session events. */
     const forward = (deviceId: string, name: string, payload: readonly unknown[]): void => {
         sequence += 1;
 

@@ -160,8 +160,7 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
         this.#state?.unsubscribe();
 
-        // Snapshot the protocol reference to avoid a race condition where a
-        // concurrent connect() replaces this.#protocol before the await resumes.
+        /* Keep the protocol reference across await; concurrent connect() may replace it. */
         const protocol = this.#protocol;
         await protocol.disconnect();
     }
@@ -245,8 +244,6 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
     /**
      * Launches an app on the device by its bundle identifier.
-     *
-     * @param bundleId - The bundle identifier of the app to launch.
      */
     async launchApp(bundleId: string): Promise<void> {
         await this.#protocol.launchApp(bundleId);
@@ -254,8 +251,6 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
     /**
      * Opens a URL on the device (universal link or app-specific URL scheme).
-     *
-     * @param url - The URL to open.
      */
     async launchUrl(url: string): Promise<void> {
         await this.#protocol.launchUrl(url);
@@ -544,7 +539,6 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
                 this.#state.off('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
             }
 
-            // Create state and wire up event forwarding.
             this.#state = new CompanionLinkState(this.#protocol);
             this.#state.on('attentionStateChanged', this.onAttentionStateChanged);
             this.#state.on('mediaControlFlagsChanged', this.onMediaControlFlagsChanged);
@@ -608,8 +602,6 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
     /**
      * Handles stream error events by logging them.
-     *
-     * @param err - The error that occurred.
      */
     onError(err: Error): void {
         this.#protocol.context.logger.error('Companion Link error', err);

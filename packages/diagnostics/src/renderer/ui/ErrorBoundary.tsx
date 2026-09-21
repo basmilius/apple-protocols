@@ -21,10 +21,7 @@ type ErrorBoundaryState = {
 
 const CLEAR: ErrorBoundaryState = {error: null, failed: false};
 
-/*
- * Keeps a render failure to the cell it happened in. Without one React unmounts the whole tree, and
- * one broken panel would take the grid, the sidebar and the log console with it.
- */
+/* Contain render failures to one panel so the rest of the window stays usable. */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     state: ErrorBoundaryState = CLEAR;
 

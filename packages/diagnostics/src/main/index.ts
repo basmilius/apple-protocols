@@ -86,8 +86,7 @@ const registerChannels = (): void => {
 };
 
 const start = async (): Promise<void> => {
-    // The sink sees every group whether or not it prints, so no group is enabled: the app's own
-    // console stays quiet and the log console still gets everything.
+    /* The sink receives every group without enabling console output. */
     logs.install();
     logs.onListener(entry => send('log:entry', entry));
 

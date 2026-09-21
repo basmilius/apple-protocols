@@ -6,9 +6,7 @@ import { DPAD_DIRECTIONS, DPAD_SELECT, type FaceCommand, type Transport } from '
 import { KEY_HELD, KEY_MOTION, KEY_SURFACE, toneOf } from './RemoteButton';
 import { type RegisterTrigger, useCommandPress } from './press';
 
-/* The clickpad is one ring, not four buttons in a row: each direction is the whole circle cut down
-   to its quarter, with the middle masked out for the select key. The 2px in every path is the seam
-   between two quarters. */
+/* Each direction clips a quarter of the ring, with a 2px seam between quarters. */
 const SEGMENTS: Readonly<Record<string, { readonly clip: string; readonly place: string }>> = {
     up: {clip: 'polygon(50% calc(50% - 2px), 2px 0%, calc(100% - 2px) 0%)', place: 'items-start justify-center pt-[18px]'},
     right: {clip: 'polygon(calc(50% + 2px) 50%, 100% 2px, 100% calc(100% - 2px))', place: 'items-center justify-end pr-[18px]'},

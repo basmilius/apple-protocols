@@ -9,7 +9,6 @@ type ToggleProps = {
     readonly className?: string;
 };
 
-/* An on/off switch. The accent is the meaning of "on", the same way a primary button carries it. */
 export function Toggle({checked, onCheckedChange, label, disabled, className}: ToggleProps) {
     return (
         <Switch.Root

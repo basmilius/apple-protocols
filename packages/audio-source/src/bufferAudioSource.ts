@@ -1,11 +1,6 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, type AudioSource } from '@basmilius/apple-common';
 
-/**
- * Abstract base class for audio sources backed by an in-memory PCM buffer.
- * Provides shared implementations of {@link readFrames}, {@link reset},
- * {@link start}, and {@link stop} so that subclasses only need to supply
- * the buffer, duration, and (optionally) the frame size.
- */
+/** PCM-buffer source with shared reading and lifecycle methods. Subclasses supply the buffer, duration and optional frame size. */
 export abstract class BufferAudioSource implements AudioSource {
     /** Total duration of the audio in seconds. */
     readonly duration: number;

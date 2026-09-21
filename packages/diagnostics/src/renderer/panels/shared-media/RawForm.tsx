@@ -8,7 +8,6 @@ type RawFormProps = {
     readonly disabled?: boolean;
 };
 
-/** The starting arguments of a builder, which is what its parameter defaults say. */
 export function defaultArgs(builder: RawBuilderInfo): Record<string, unknown> {
     const args: Record<string, unknown> = {};
 
@@ -19,7 +18,6 @@ export function defaultArgs(builder: RawBuilderInfo): Record<string, unknown> {
     return args;
 }
 
-/** Renders one input per parameter of the picked builder. */
 export function RawForm({builder, args, onArgsChange, disabled}: RawFormProps) {
     if (builder.params.length === 0) {
         return <p className="text-xs text-text-muted">This message takes no arguments.</p>;

@@ -66,7 +66,6 @@ function RoundTripSummary({value}: { readonly value: RoundTripResult }) {
     );
 }
 
-/** One tool as a form: the inputs main declared, the run button, and whatever came back. */
 export function ToolRunner({tool, deviceId}: { readonly tool: ToolInfo; readonly deviceId: string | null }) {
     const [values, setValues] = useState<Values>(() => initialValues(tool.inputs));
     const [result, setResult] = useState<CallResult | null>(null);

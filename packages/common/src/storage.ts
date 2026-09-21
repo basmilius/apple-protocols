@@ -31,8 +31,6 @@ type SerializedCredentials = {
 /**
  * Builds the composite key for credential storage lookup.
  *
- * @param deviceId - The device identifier.
- * @param protocol - The protocol type.
  * @returns A composite key in the format "deviceId:protocol".
  */
 const credentialKey = (deviceId: string, protocol: ProtocolType): string =>
@@ -111,7 +109,6 @@ export abstract class Storage {
     /**
      * Retrieves a stored device by its identifier.
      *
-     * @param identifier - The device identifier.
      * @returns The stored device, or undefined if not found.
      */
     getDevice(identifier: string): StoredDevice | undefined {
@@ -121,7 +118,6 @@ export abstract class Storage {
     /**
      * Stores or updates a device registration.
      *
-     * @param identifier - The device identifier.
      * @param device - The device data to store.
      */
     setDevice(identifier: string, device: StoredDevice): void {
@@ -155,8 +151,6 @@ export abstract class Storage {
     /**
      * Retrieves pairing credentials for a device and protocol combination.
      *
-     * @param deviceId - The device identifier.
-     * @param protocol - The protocol type.
      * @returns The deserialized credentials, or undefined if not found.
      */
     getCredentials(deviceId: string, protocol: ProtocolType): AccessoryCredentials | undefined {
@@ -172,8 +166,6 @@ export abstract class Storage {
     /**
      * Stores pairing credentials for a device and protocol combination.
      *
-     * @param deviceId - The device identifier.
-     * @param protocol - The protocol type.
      * @param credentials - The credentials to store.
      */
     setCredentials(deviceId: string, protocol: ProtocolType, credentials: AccessoryCredentials): void {
@@ -182,9 +174,6 @@ export abstract class Storage {
 
     /**
      * Removes pairing credentials for a device and protocol combination.
-     *
-     * @param deviceId - The device identifier.
-     * @param protocol - The protocol type.
      */
     removeCredentials(deviceId: string, protocol: ProtocolType): void {
         delete this.#data.credentials[credentialKey(deviceId, protocol)];

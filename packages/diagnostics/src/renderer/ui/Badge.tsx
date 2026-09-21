@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
 
-/* A status reads from its dot, so the label stays neutral and sits quietly beside other chrome. */
 const DOTS = {
     idle: 'bg-status-idle',
     running: 'bg-status-running',
@@ -27,7 +26,6 @@ type BadgeProps = {
     readonly className?: string;
 };
 
-/* The small label in a panel header or a section line: a count, a protocol, a status. */
 export function Badge({icon, children, tone = 'muted', mono = false, className}: BadgeProps) {
     return (
         <span className={clsx('inline-flex h-5 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-2xs font-medium', TONES[tone], mono && 'font-mono', className)}>

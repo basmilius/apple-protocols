@@ -34,15 +34,9 @@ export type ExchangeOptions = {
 const MAX_BUFFER_SIZE = 2 * 1024 * 1024; // 2MB
 
 /**
- * RTSP client for Apple protocol communication over TCP.
- *
- * Extends {@link Connection} with RTSP-specific request/response handling, including
- * CSeq-based request tracking, automatic body serialization (binary plist for objects),
- * and support for encryption via overridable transform hooks. Maintains separate buffers
- * for encrypted and decrypted data to prevent corruption during partial TCP delivery.
- *
- * Subclasses should override {@link transformIncoming} and {@link transformOutgoing} to
- * add encryption/decryption, and {@link getDefaultHeaders} to inject per-request headers.
+ * RTSP over TCP with CSeq-based response tracking and binary-plist serialization of object bodies.
+ * Keeps ciphertext and plaintext separate to handle partial TCP delivery.
+ * Override {@link transformIncoming}, {@link transformOutgoing} and {@link getDefaultHeaders} for encryption and protocol headers.
  */
 export class RtspClient extends Connection<{}> {
     /** Accumulates decrypted plaintext data waiting to be parsed as RTSP responses. */
@@ -116,18 +110,10 @@ export class RtspClient extends Connection<{}> {
     }
 
     /**
-     * Sends an RTSP/HTTP request and waits for the matching response.
+     * Sends a request with CSeq tracking and a response timeout. Object bodies become binary plists.
      *
-     * Automatically assigns a CSeq header, serializes the body (plain objects become
-     * binary plist), applies outgoing transformation (e.g. encryption), and tracks
-     * the pending response via a timeout-guarded promise.
-     *
-     * @param method - The RTSP/HTTP method verb.
-     * @param path - The request target path.
-     * @param options - Additional request configuration.
-     * @returns The response from the remote device.
-     * @throws TimeoutError if no response is received within the configured timeout.
-     * @throws InvalidResponseError if the response has a non-OK status and `allowError` is not set.
+     * @throws TimeoutError if no response arrives in time.
+     * @throws InvalidResponseError for non-OK status unless `allowError` is set.
      */
     protected async exchange(method: Method, path: string, options: ExchangeOptions = {}): Promise<Response> {
         const {

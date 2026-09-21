@@ -6,11 +6,7 @@ type PanelBodyProps = {
     readonly className?: string;
 };
 
-/*
- * The scrolling body of a panel. A panel lives in a split cell, so it is the cell's width that
- * decides the layout, never the window's: sections sit two abreast once the cell has the room.
- * Anything that is not a `Section`, and a `Section` marked `wide`, keeps the full width.
- */
+/* Use cell width for responsive columns. Non-Section children and wide sections span both columns. */
 export function PanelBody({children, className}: PanelBodyProps) {
     return (
         <div className="@container h-full overflow-auto">

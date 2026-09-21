@@ -95,8 +95,6 @@ export class Logger {
 
     /**
      * Logs a debug-level message (cyan). Only printed when the 'debug' group is enabled.
-     *
-     * @param data - Values to log.
      */
     debug(...data: any[]): void {
         write('debug', this.#id, this.#label, data);
@@ -104,8 +102,6 @@ export class Logger {
 
     /**
      * Logs an error-level message (red). Only printed when the 'error' group is enabled.
-     *
-     * @param data - Values to log.
      */
     error(...data: any[]): void {
         write('error', this.#id, this.#label, data);
@@ -113,8 +109,6 @@ export class Logger {
 
     /**
      * Logs an info-level message (green). Only printed when the 'info' group is enabled.
-     *
-     * @param data - Values to log.
      */
     info(...data: any[]): void {
         write('info', this.#id, this.#label, data);
@@ -122,8 +116,6 @@ export class Logger {
 
     /**
      * Logs a network-level message (yellow). Only printed when the 'net' group is enabled.
-     *
-     * @param data - Values to log.
      */
     net(...data: any[]): void {
         write('net', this.#id, this.#label, data);
@@ -132,8 +124,6 @@ export class Logger {
     /**
      * Logs a raw data message (blue). Only printed when the 'raw' group is enabled.
      * Typically used for hex dumps and binary protocol data.
-     *
-     * @param data - Values to log.
      */
     raw(...data: any[]): void {
         write('raw', this.#id, this.#label, data);
@@ -141,8 +131,6 @@ export class Logger {
 
     /**
      * Logs a warning-level message (yellow). Only printed when the 'warn' group is enabled.
-     *
-     * @param data - Values to log.
      */
     warn(...data: any[]): void {
         write('warn', this.#id, this.#label, data);
@@ -181,7 +169,6 @@ export class Reporter {
 
     /** Enables all debug groups (except 'raw' which is very verbose). */
     all(): void {
-        // this.#enabled = ['debug', 'error', 'info', 'net', 'raw', 'warn'] as DebugGroup[];
         this.#enabled = ['debug', 'error', 'info', 'net', 'warn'] as DebugGroup[];
     }
 
@@ -270,7 +257,7 @@ export class Reporter {
         try {
             this.#trafficSink(entry);
         } catch {
-            // A broken sink is the sink's problem, not the caller's.
+            /* Sink errors must not interrupt protocol operations. */
         }
     }
 
@@ -300,7 +287,7 @@ export class Reporter {
         try {
             this.#sink({group, deviceId, args, timestamp: Date.now()});
         } catch {
-            // A broken sink is the sink's problem, not the caller's.
+            /* Sink errors must not interrupt protocol operations. */
         }
     }
 }

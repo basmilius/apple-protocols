@@ -1,7 +1,4 @@
-/**
- * A capped list read by cursor: a reader remembers the last cursor it saw and asks for what came
- * after it, which is what lets an agent mark a point in time, act, and read only what followed.
- */
+/** Bounded buffer with cursors so readers can request only entries since their last read. */
 export class Ring<T> {
     readonly #capacity: number;
     readonly #cursorOf: (entry: T) => number;

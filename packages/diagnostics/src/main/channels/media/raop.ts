@@ -17,10 +17,7 @@ type RaopState = {
     error: string | null;
 };
 
-/**
- * Registers `raop:*`. RAOP is its own RTSP connection to a `_raop._tcp` service, so a device only
- * shows up here when it advertises one, whether or not an AirPlay session is open.
- */
+/** RAOP requires a separate RTSP connection to an advertised `_raop._tcp` service. */
 export function registerRaopChannels(context: ChannelContext): void {
     const states = new Map<string, RaopState>();
 

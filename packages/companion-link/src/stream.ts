@@ -295,9 +295,7 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
         this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
         this.context.logger.traffic('companionLink', 'in', summarizeOPack(type, payload as unknown as Record<string, unknown>), payload);
 
-        // Match responses to pending exchanges by _x.
-        // Only match if this is actually a Response (_t: 3), not a server Event (_t: 1)
-        // that happens to share the same _x value.
+        /* Match `_x` only for Response frames. Server events can reuse an outstanding request's `_x`. */
         if ('_x' in payload && payload['_t'] === MessageType.Response) {
             const _x = Number(payload['_x']);
 
@@ -317,7 +315,6 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
             return;
         }
 
-        // Everything else is an unsolicited message (event).
         if ('_i' in payload) {
             this.emit(payload['_i'] as string, payload['_c']);
         } else {

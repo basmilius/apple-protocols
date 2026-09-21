@@ -1,11 +1,7 @@
-/** Hex and base64 in, hex out: the currency every playground tool trades in. */
 
 const HEX = /^[0-9a-f]*$/i;
 
-/**
- * Reads a byte string the way a user pasted it. Hex may carry spaces, colons, newlines and an `0x`
- * prefix; anything that is not hex is read as base64, which is how `storage.json` prints a key.
- */
+/** Accepts hex with whitespace, colons or an `0x` prefix. Other strings are decoded as base64. */
 export function parseBytes(value: unknown, field: string): Buffer {
     const text = String(value ?? '').trim();
 
@@ -76,10 +72,7 @@ export function readBoolean(args: Readonly<Record<string, unknown>>, field: stri
     return value === true || value === 'true';
 }
 
-/**
- * Reads a JSON argument. The tools that encode take their value this way, so `1` and `"1"` stay
- * apart, which is exactly the distinction OPack and plist encode differently.
- */
+/** Parse JSON to preserve type distinctions such as `1` versus `"1"` for OPack and plist. */
 export function readJson(args: Readonly<Record<string, unknown>>, field: string): unknown {
     const text = readString(args, field).trim();
 

@@ -5,7 +5,6 @@ import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { Labeled, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, valueOf } from '@/panels/sdk-shared';
 
-/* The device takes 0 to 1; a panel that shows percentages converts at the call, not in the state. */
 const toDevice = (percent: number): number => percent / 100;
 
 function DeviceVolume({uid, name, volume, call}: { readonly uid: string; readonly name: string; readonly volume: number; readonly call: DeviceCall }) {

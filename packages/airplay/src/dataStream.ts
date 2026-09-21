@@ -19,7 +19,6 @@ const DATA_HEADER_LENGTH = 32;
 type EventMap = {
     readonly rawMessage: [Proto.ProtocolMessage];
 
-    // State tracking events (handled by devices/airplay/state.ts)
     readonly configureConnection: [Proto.ConfigureConnectionMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
@@ -46,7 +45,6 @@ type EventMap = {
     readonly volumeDidChange: [Proto.VolumeDidChangeMessage];
     readonly volumeMutedDidChange: [Proto.VolumeMutedDidChangeMessage];
 
-    // Additional protocol events (decoded but not tracked in state)
     readonly audioFade: [Proto.AudioFadeMessage];
     readonly audioFadeResponse: [Proto.AudioFadeResponseMessage];
     readonly adjustVolume: [Proto.AdjustVolumeMessage];
@@ -90,17 +88,8 @@ type EventMap = {
 };
 
 /**
- * Protobuf-based MRP (Media Remote Protocol) data stream for AirPlay.
- *
- * The DataStream carries bidirectional protobuf messages over an encrypted TCP
- * connection. Messages are wrapped in a 32-byte header (sync/comm/rply tags)
- * with plist-encoded payloads containing varint-length-prefixed ProtocolMessage
- * protobuf bytes.
- *
- * Supports request/response exchanges via {@link exchange} (with timeout) and
- * fire-and-forget via {@link send}. Incoming messages are dispatched to registered
- * type handlers that emit typed events for now-playing updates, volume changes,
- * keyboard input, device info, and more.
+ * Carries MRP protobuf messages over encrypted TCP. A 32-byte header wraps a plist payload with varint-prefixed ProtocolMessage bytes.
+ * Use {@link exchange} for replies and {@link send} for messages without replies; incoming messages emit typed events.
  */
 export class DataStream extends BaseStream<EventMap> {
     /** Accumulated plaintext buffer for partial frame reassembly. */
@@ -115,7 +104,6 @@ export class DataStream extends BaseStream<EventMap> {
     #handlers: Record<number, [DescExtension, Function]> = {};
 
     /**
-     * @param context - Shared context with logger and device identity.
      * @param address - IP address of the AirPlay receiver.
      * @param port - TCP port for the data stream (received from SETUP response).
      */
@@ -158,7 +146,6 @@ export class DataStream extends BaseStream<EventMap> {
         this.#handlers[Proto.ProtocolMessage_Type.CONFIGURE_CONNECTION_MESSAGE] = [Proto.configureConnectionMessage, this.#onConfigureConnectionMessage.bind(this)];
         this.#handlers[Proto.ProtocolMessage_Type.PLAYER_CLIENT_PARTICIPANTS_UPDATE_MESSAGE] = [Proto.playerClientParticipantsUpdateMessage, this.#onPlayerClientParticipantsUpdateMessage.bind(this)];
 
-        // Register all remaining known message types for automatic decode + emit.
         const auto: [number, DescExtension, string][] = [
             [Proto.ProtocolMessage_Type.AUDIO_FADE_MESSAGE, Proto.audioFadeMessage, 'audioFade'],
             [Proto.ProtocolMessage_Type.AUDIO_FADE_RESPONSE_MESSAGE, Proto.audioFadeResponseMessage, 'audioFadeResponse'],
@@ -375,18 +362,8 @@ export class DataStream extends BaseStream<EventMap> {
     }
 
     /**
-     * Processes incoming TCP data from the data stream.
-     *
-     * Handles the two-buffer pattern for encrypted connections: encrypted data
-     * accumulates in `#encryptedBuffer` until a complete ChaCha20 frame can be
-     * decrypted, then plaintext is appended to `#buffer` for frame parsing.
-     *
-     * Each frame consists of a 32-byte header followed by a plist payload.
-     * The header's command tag determines handling:
-     * - 'sync': parse protobuf messages from payload, then send a reply
-     * - 'rply': transport acknowledgement, independent of protobuf exchanges
-     *
-     * @param data - Raw data from the TCP socket.
+     * Accumulate ciphertext separately from plaintext so partial TCP delivery cannot mix the two.
+     * Frames have a 32-byte header and plist payload. Reply to `sync` frames; `rply` frames acknowledge transport only.
      */
     async onStreamData(data: Buffer): Promise<void> {
         try {
@@ -469,7 +446,6 @@ export class DataStream extends BaseStream<EventMap> {
     #handleMessage(message: Proto.ProtocolMessage): void {
         this.emit('rawMessage', message);
 
-        // Check if this is a response to an outstanding exchange
         const identifier = message.identifier || `type_${message.type}`;
         const outstanding = this.#outstanding.get(identifier);
 
@@ -479,7 +455,6 @@ export class DataStream extends BaseStream<EventMap> {
             outstanding.resolve(message);
         }
 
-        // Always dispatch to type handlers (state tracking, events, etc.)
         if (message.type in this.#handlers) {
             const [extension, handler] = this.#handlers[message.type];
 

@@ -30,7 +30,6 @@ function request(identifier: string, content: Record<string, unknown> = {}): OPa
  * Creates a Companion Link request message with Bluetooth high-priority disabled.
  * Used for messages that should not trigger Bluetooth wake behavior.
  *
- * @param identifier - The message identifier.
  * @param content - Optional content payload for the `_c` field.
  * @returns The constructed OPack message with `_btHP: false`.
  */
@@ -41,7 +40,6 @@ function requestBtHP(identifier: string, content: Record<string, unknown> = {}):
 /**
  * Creates a Companion Link event message (fire-and-forget, no response expected).
  *
- * @param identifier - The message identifier.
  * @param content - Optional content payload for the `_c` field.
  * @returns The constructed OPack event message.
  */
@@ -359,7 +357,6 @@ export function mediaCaptionSettingGet(): OPackMessage {
 /**
  * Builds a message to enable or disable captions/subtitles.
  *
- * @param enabled - Whether captions should be enabled.
  * @returns The set caption settings request message.
  */
 export function mediaCaptionSettingSet(enabled: boolean): OPackMessage {
@@ -382,7 +379,6 @@ export function launchApp(bundleId: string): OPackMessage {
  * Builds a message to open a URL on the Apple TV, which will launch the
  * appropriate app via universal links.
  *
- * @param url - The URL to open.
  * @returns The URL launch request message.
  */
 export function launchUrl(url: string): OPackMessage {
@@ -477,7 +473,6 @@ export function fetchUserAccounts(): OPackMessage {
 /**
  * Builds a request to switch the active user account on the Apple TV.
  *
- * @param accountId - The identifier of the account to switch to.
  * @returns The switch user account request message.
  */
 export function switchUserAccount(accountId: string): OPackMessage {
@@ -545,8 +540,7 @@ export function toggleSystemAppearance(light: boolean): OPackMessage {
  * @returns The toggle reduce loud sounds request message.
  */
 export function toggleReduceLoudSounds(enabled: boolean): OPackMessage {
-    // NOTE: The key 'ReduceLoundSoundsEnabled' contains a typo ('Lound' instead of 'Loud'),
-    // but this is the actual protocol key used by Apple's implementation. Do not correct it.
+    /* Apple's protocol key is misspelled `ReduceLoundSoundsEnabled`; keep that spelling. */
     return request('ToggleReduceLoudSounds', { ReduceLoundSoundsEnabled: enabled });
 }
 
@@ -655,7 +649,6 @@ export function publishPresence(): OPackMessage {
  *
  * @param x - X coordinate of the analog stick (-1.0 to 1.0).
  * @param y - Y coordinate of the analog stick (-1.0 to 1.0).
- * @param isDown - Whether the button is pressed.
  * @returns The game controller event message.
  */
 export function gameControllerEvent(x: number, y: number, isDown: boolean): OPackMessage {
@@ -686,7 +679,6 @@ export function gameControllerStop(): OPackMessage {
  * Builds a request to proxy an app sign-in flow through the companion device.
  * Used when an Apple TV app requests authentication via a paired iPhone/iPad.
  *
- * @param bundleId - The bundle identifier of the app requesting sign-in.
  * @param requestType - The type of sign-in request ('appleID', 'password', or 'custom').
  * @returns The app sign-in request message.
  */
@@ -700,8 +692,6 @@ export function appSignInRequest(bundleId: string, requestType: string = 'appleI
  * Builds a TV provider authentication request.
  * Used for MVPD (Multichannel Video Programming Distributor) sign-in on Apple TV.
  *
- * @param providerUrl - The provider's authentication URL.
- * @param providerName - The provider's display name.
  * @returns The TV provider request message.
  */
 export function tvProviderRequest(providerUrl: string, providerName: string): OPackMessage {
@@ -713,7 +703,6 @@ export function tvProviderRequest(providerUrl: string, providerName: string): OP
 /**
  * Builds a restricted access (parental controls) approval request.
  *
- * @param restrictionType - The type of restriction being requested.
  * @returns The restricted access request message.
  */
 export function restrictedAccessRequest(restrictionType: string): OPackMessage {

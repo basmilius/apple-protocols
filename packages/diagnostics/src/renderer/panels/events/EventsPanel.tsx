@@ -17,10 +17,6 @@ const SOURCE_TONE: Record<DeviceEventSource, 'muted' | 'accent' | 'idle' | 'runn
     companionLink: 'accent'
 };
 
-/*
- * Everything main forwards for this device, newest first, with the payload of the selected row
- * beside it. The second reference panel: it reads the event buffer and nothing else.
- */
 export function EventsPanel({deviceId}: PanelProps) {
     const [source, setSource] = useState<DeviceEventSource | 'all'>('all');
     const [search, setSearch] = useState('');

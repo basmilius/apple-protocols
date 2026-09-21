@@ -101,7 +101,6 @@ export class LatencyManager {
         const now = Date.now();
         this.#glitchTimestamps.push(now);
 
-        // Remove old glitches outside the window.
         const windowStart = now - GLITCH_WINDOW_MS;
         this.#glitchTimestamps = this.#glitchTimestamps.filter(ts => ts >= windowStart);
 

@@ -3,12 +3,9 @@ import type { EventMap, InvokeChannel, InvokeMap } from '@shared/contract';
 import { invoke, on } from '@/client';
 
 /**
- * Keeps one `*:status` payload for a device in sync: it reads the channel once and then follows
- * the pushes main sends on the matching event channel.
+ * Reads the initial device status, then follows pushes on the matching event channel.
  *
- * @param channel - The invoke channel that reads the current status.
- * @param event - The event channel main pushes the same shape on.
- * @param deviceId - Null while the cell has no device, which leaves the status null.
+ * @param deviceId - Null leaves the status null.
  */
 export function useStatus<C extends InvokeChannel & keyof EventMap>(channel: C, event: C, deviceId: string | null): [InvokeMap[C][1] | null, () => void] {
     const [status, setStatus] = useState<InvokeMap[C][1] | null>(null);

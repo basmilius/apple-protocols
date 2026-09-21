@@ -3,10 +3,7 @@ import clsx from 'clsx';
 import { CommandButton, EmptyState, Field, JsonView } from '@/ui';
 import type { SelectItem } from '@/ui';
 
-/*
- * The pieces every SDK panel repeats. They stay here instead of in `ui/` because they carry
- * knowledge of the SDK surface (enum values, HID usages) rather than of the design system.
- */
+/* Shared SDK enum and HID values stay here because `ui/` must not depend on protocol details. */
 
 /** A protobuf enum member the renderer needs without importing the Node-only proto package. */
 export type NamedValue = {
@@ -150,7 +147,6 @@ export const COMPANION_HID_COMMANDS = [
     'Power'
 ] as const;
 
-/** So a panel that wires a button to one of these names has it checked rather than spelled. */
 export type CompanionHidCommand = (typeof COMPANION_HID_COMMANDS)[number];
 
 export const BUTTON_PRESS_TYPES: readonly string[] = ['SingleTap', 'DoubleTap', 'Hold'];
@@ -197,14 +193,12 @@ export function hex(value: number): string {
     return `0x${value.toString(16).padStart(2, '0')}`;
 }
 
-/** The scroll container every SDK panel is wrapped in, so their paddings line up. */
 export { PanelBody } from '@/ui';
 
 export function Row({children, className}: { readonly children: ReactNode; readonly className?: string }) {
     return <div className={clsx('flex flex-wrap items-center gap-2', className)}>{children}</div>;
 }
 
-/** An inline caption in front of a control, which a section header is too far away to give. */
 export function Labeled({label, children}: { readonly label: string; readonly children: ReactNode }) {
     return (
         <span className="inline-flex items-center gap-1.5">
@@ -222,8 +216,7 @@ type NumberInputProps = {
     readonly className?: string;
 };
 
-/* The value stays a string while it is being typed: a field that reparses on every key cannot hold
-   an empty box or a half-written `0x`. */
+/* Keep raw input text so empty values and partially typed `0x` prefixes survive editing. */
 export function NumberInput({label, value, onValueChange, placeholder, className}: NumberInputProps) {
     return (
         <Field
@@ -272,7 +265,6 @@ export function ResultBlock({label, run, disabled, defaultDepth = 2, actions}: R
     );
 }
 
-/** What every SDK panel shows before its device is reachable. */
 export function NotConnected({children}: { readonly children?: ReactNode }) {
     return <EmptyState className="py-6">{children ?? 'Connect the device to use these commands.'}</EmptyState>;
 }

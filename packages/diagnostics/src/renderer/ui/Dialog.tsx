@@ -9,13 +9,11 @@ type DialogProps = {
     readonly onOpenChange: (open: boolean) => void;
     readonly title: string;
     readonly description?: string;
-    /* The buttons along the bottom, right aligned. */
     readonly footer?: ReactNode;
     readonly width?: number;
     readonly children: ReactNode;
 };
 
-/* The one dialog in the app: a backdrop, a titled header with a close button, a body and a footer. */
 export function Dialog({open, onOpenChange, title, description, footer, width = 520, children}: DialogProps) {
     return (
         <BaseDialog.Root open={open} onOpenChange={onOpenChange}>

@@ -39,17 +39,11 @@ function nonce(counter: number): Buffer {
 }
 
 /**
- * One side of an AirPlay RTSP control channel over a single TCP socket.
+ * AirPlay RTSP over an existing TCP socket, plaintext until {@link enableEncryption}.
+ * Encrypted frames use `[2-byte LE length][ciphertext][16-byte tag]`, with the length as AAD and per-direction counters.
+ * Delivers parsed messages with their raw bytes for verbatim relaying.
  *
- * Before pairing completes the bytes are plaintext RTSP; after {@link enableEncryption} they are wrapped
- * in AirPlay's ChaCha20-Poly1305 frame format (`[2-byte LE length][ciphertext][16-byte tag]`, the length
- * doubling as the AAD, with an incrementing per-direction counter). This class handles that framing and
- * the directional encryption, then incrementally parses complete RTSP messages from the plaintext and
- * delivers them — together with their exact raw bytes, so the proxy can re-encrypt and relay verbatim.
- *
- * Messages are delivered serially: the next message is not parsed until the (possibly async) handler for
- * the current one resolves. This matters because the handler for a pairing message enables encryption,
- * and any following message must be decrypted with the new keys.
+ * Await each handler before parsing the next message: pairing handlers can enable encryption for subsequent bytes.
  */
 export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     /** Whether encryption has been enabled for this connection. */
@@ -71,7 +65,6 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     #handler?: (message: ControlMessage) => void | Promise<void>;
 
     /**
-     * @param context - Shared context for logging.
      * @param socket - The already-open TCP socket.
      * @param mode - Whether to parse incoming bytes as requests (server) or responses (client).
      */

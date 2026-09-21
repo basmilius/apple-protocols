@@ -6,7 +6,6 @@ import type { DeviceSession } from '../../session';
 import type { ChannelContext } from '../context';
 import { RAW_CATALOG, rawEntry, type RawTargets } from './rawCatalog';
 
-/** Registers `raw:*`: the catalog the form is generated from, and the call that runs one entry. */
 export function registerRawChannels(context: ChannelContext): void {
     handle('raw:builders', () => RAW_CATALOG);
 

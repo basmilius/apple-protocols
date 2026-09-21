@@ -8,11 +8,7 @@ const CAPACITY = 5000;
 /** The ANSI a `Logger` label carries; the renderer paints its own colors. */
 const ANSI = /\u001b\[\d+m/g;
 
-/**
- * The reporter sink and the buffer behind it. Every `Logger` call in the protocol packages lands
- * here with the device it came from, which is what lets the console filter by device without any
- * console patching.
- */
+/** Collects protocol logs through the reporter sink, retaining device IDs for filtering. */
 export class LogBuffer {
     readonly #entries: LogEntry[] = [];
     readonly #listeners = new Set<(entry: LogEntry) => void>();

@@ -49,22 +49,11 @@ export type PlaybackInfo = {
 };
 
 /**
- * Main AirPlay 2 protocol orchestrator.
+ * Manages AirPlay pairing and control, event, MRP and audio streams.
  *
- * Manages the full lifecycle of an AirPlay session: RTSP control stream,
- * pair-setup/pair-verify, event stream, data stream (MRP), audio stream,
- * and URL playback. Each session gets a unique UUID and maintains its own
- * pairing and verification instances.
- *
- * Typical remote control flow:
- * 1. `connect()` - TCP connection to RTSP server
- * 2. `fetchInfo()` - GET /info for receiver capabilities
- * 3. `verify.start()` - Pair-verify with stored credentials
- * 4. `setupEventStream()` - SETUP + event stream connection
- * 5. `setupDataStream()` - SETUP + data stream (MRP) connection
- * 6. Send commands via `dataStream.send()` / `dataStream.exchange()`
- *
- * For audio streaming, use `setupAudioStream()` or `playUrl()` instead of steps 5-6.
+ * For remote control, call `connect()`, `fetchInfo()`, `verify.start()`,
+ * `setupEventStream()` and `setupDataStream()`, then send MRP commands.
+ * For audio, use `setupAudioStream()` or `playUrl()`.
  */
 export class Protocol {
     /** Shared context with logger, device identity, and storage. */
@@ -322,7 +311,6 @@ export class Protocol {
      *
      * @param property - The property key=value string (e.g. 'dmcp.device-volume=0.5').
      * @param body - Optional body for complex property values.
-     * @returns The RTSP response.
      */
     async setProperty(property: string, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
         return await this.#controlStream.setProperty(property, body);
@@ -531,22 +519,14 @@ export class Protocol {
     }
 
     /**
-     * Plays a URL on the AirPlay receiver (device-side playback).
+     * Asks the receiver to fetch and play a URL. Sets up the session and feedback loop, retries HTTP 500 responses, then configures playback.
      *
-     * Performs the full setup flow: SETUP, event stream, RECORD, then POST /play
-     * with the URL. Starts a feedback keepalive loop and retries on 500 errors.
-     * After successful play, configures playback properties (action at end,
-     * rate, end times).
-     *
-     * The receiver fetches and plays the URL itself -- this is different from
-     * audio streaming where we send PCM data via RTP.
-     *
-     * @param url - The URL to play (must be accessible from the receiver).
-     * @param sharedSecret - Shared secret from pair-verify.
-     * @param pairingId - Pairing identifier from pair-verify.
-     * @param position - Start position in seconds (defaults to 0).
-     * @throws SetupError if the initial SETUP fails.
-     * @throws PlaybackError if the play request fails after all retries.
+     * @param url - Must be accessible from the receiver.
+     * @param sharedSecret - Pair-verify shared secret.
+     * @param pairingId - Pair-verify identifier.
+     * @param position - Start position in seconds, default 0.
+     * @throws SetupError if SETUP fails.
+     * @throws PlaybackError if playback fails after retries.
      */
     async playUrl(url: string, sharedSecret: Buffer, pairingId: Buffer, position: number = 0): Promise<void> {
         const setupBody: Record<string, any> = {

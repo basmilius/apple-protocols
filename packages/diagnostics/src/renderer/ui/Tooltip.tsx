@@ -5,7 +5,7 @@ import { TOOLTIP_KBD } from './classes';
 
 type Side = 'top' | 'bottom' | 'left' | 'right';
 
-/* One provider per app. Tooltips share a delay, so moving along a row of buttons feels instant. */
+/* Share one provider so adjacent tooltips share a delay. */
 export function TooltipProvider({children}: { readonly children: ReactNode }) {
     return (
         <BaseTooltip.Provider delay={150} closeDelay={0}>
@@ -20,7 +20,7 @@ type TooltipProps = {
     readonly kbd?: string;
     readonly side?: Side;
     readonly sideOffset?: number;
-    /* The trigger element. Its own children and handlers are kept; Base UI merges the tooltip props in. */
+    /* Base UI merges tooltip props into the trigger, preserving its children and handlers. */
     readonly children: ReactElement<Record<string, unknown>>;
 };
 

@@ -111,7 +111,6 @@ export function encodeTag(tag: string, value: Buffer | string | number | bigint)
         valueBuffer = Buffer.alloc(8);
         valueBuffer.writeBigUInt64BE(value, 0);
     } else if (typeof value === 'number') {
-        // Determine the smallest buffer size needed
         if (value <= 0xFF && value >= 0) {
             valueBuffer = Buffer.alloc(1);
             valueBuffer.writeUInt8(value, 0);
@@ -365,22 +364,16 @@ export function decodeToObject(buffer: Buffer): Record<string, unknown> {
             // Unknown tag type - keep as buffer
             result[tag] = value;
         } else if (tagType === 12) {
-            // Container - recurse
             result[tag] = decodeToObject(value);
         } else if (tagType === 9) {
-            // String
             result[tag] = value.toString('utf8');
         } else if (tagType === 1 || tagType === 2) {
-            // Byte
             result[tag] = value.readUInt8(0);
         } else if (tagType === 3 || tagType === 4) {
-            // Short
             result[tag] = value.readUInt16BE(0);
         } else if (tagType === 5 || tagType === 6) {
-            // Int
             result[tag] = value.readUInt32BE(0);
         } else if (tagType === 7 || tagType === 8) {
-            // Long
             result[tag] = value.readBigUInt64BE(0);
         } else {
             // Unknown type - keep as buffer

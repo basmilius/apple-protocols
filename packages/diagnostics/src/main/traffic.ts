@@ -8,7 +8,6 @@ const CAPACITY = 5000;
 /** A frame past this is cut in the buffer; `size` keeps the real length. Artwork alone can be megabytes. */
 const MAX_FRAME_BYTES = 16 * 1024;
 
-/** The traffic sink and the buffer behind it, the structured counterpart of `LogBuffer`. */
 export class TrafficBuffer {
     readonly #ring = new Ring<TrafficRecord>(CAPACITY, record => record.id);
     readonly #listeners = new Set<(record: TrafficRecord) => void>();

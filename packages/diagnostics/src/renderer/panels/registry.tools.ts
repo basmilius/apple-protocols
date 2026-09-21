@@ -6,7 +6,7 @@ import { FeaturesPanel } from './features/FeaturesPanel';
 import { MdnsPanel } from './mdns/MdnsPanel';
 import { StoragePanel } from './storage/StoragePanel';
 
-/* A tool works on what you paste into it, so every one of these is offered in an empty cell too. */
+/* Tools also work in cells without a device. */
 export const TOOLS_PANELS: readonly PanelDefinition[] = [
     {
         id: 'encoding',

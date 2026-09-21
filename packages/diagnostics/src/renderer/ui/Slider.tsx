@@ -4,7 +4,7 @@ import clsx from 'clsx';
 type SliderProps = {
     readonly value: number;
     readonly onValueChange: (value: number) => void;
-    /* Fired once, when the drag ends. A device that is set on every frame would be flooded. */
+    /* Fires on release to avoid sending device commands on every pointer move. */
     readonly onValueCommitted?: (value: number) => void;
     readonly label: string;
     readonly min?: number;
@@ -14,7 +14,6 @@ type SliderProps = {
     readonly className?: string;
 };
 
-/* One value along a track: a volume, a position, a fade. */
 export function Slider({value, onValueChange, onValueCommitted, label, min = 0, max = 100, step = 1, disabled, className}: SliderProps) {
     return (
         <BaseSlider.Root

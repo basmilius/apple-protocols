@@ -239,7 +239,6 @@ function DiscoveryTab() {
     );
 }
 
-/** The mDNS bench: raw scans on one tab, the `Discovery` class on the other. */
 export function MdnsPanel(_props: PanelProps) {
     const [tab, setTab] = useState('scan');
 

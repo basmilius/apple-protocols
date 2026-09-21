@@ -12,7 +12,6 @@ const PROTOCOLS: readonly TrafficProtocol[] = ['dataStream', 'eventStream', 'com
 /** Main keeps 5000; a panel that renders every row does not need to hold more than it can show. */
 const CAPACITY = 1000;
 
-/* The plaintext messages tapped inside the protocol packages, which is also what `diag traffic` reads. */
 export function TrafficPanel({deviceId}: PanelProps) {
     const [records, setRecords] = useState<readonly TrafficRecord[]>([]);
     const [protocol, setProtocol] = useState<TrafficProtocol | 'all'>('all');

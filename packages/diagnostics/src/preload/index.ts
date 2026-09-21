@@ -1,10 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { EVENT_CHANNELS, INVOKE_CHANNELS, type DiagnosticsBridge, type EventChannel, type EventMap, type InvokeChannel, type InvokeRequest } from '@shared/contract';
 
-/*
- * The only thing the renderer may reach. Both channel names are checked against the contract here,
- * so a typo in a panel fails in the panel rather than opening an unknown channel.
- */
+/* Renderer access is restricted to the contract's invoke and event channels. */
 const bridge: DiagnosticsBridge = {
     invoke(channel, request) {
         if (!INVOKE_CHANNELS.includes(channel as InvokeChannel)) {

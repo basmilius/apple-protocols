@@ -10,7 +10,6 @@ type EmptyStateProps = {
     readonly className?: string;
 };
 
-/* What a list, a grid cell or a table shows before it holds anything. */
 export function EmptyState({icon, children, action, className}: EmptyStateProps) {
     return (
         <div className={clsx('flex flex-col items-center justify-center gap-2 px-6 py-8 text-center', className)}>

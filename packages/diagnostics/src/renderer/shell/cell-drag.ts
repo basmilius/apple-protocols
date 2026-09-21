@@ -3,10 +3,7 @@ import type { CellRef } from './split';
 /** The MIME the grid marks its own drags with, so a file dropped on a cell is not one of them. */
 export const CELL_DRAG_TYPE = 'application/x-diagnostics-cell';
 
-/*
- * What is being dragged, kept outside the `DataTransfer`: a browser hides the payload of a drag
- * from `dragover`, and the grid has to know which pair is moving to decide whether a drop fits.
- */
+/* Keep drag state outside DataTransfer because browsers hide its payload during dragover. */
 let dragging: CellRef | null = null;
 
 export function setDragging(ref: CellRef | null): void {

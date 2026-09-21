@@ -196,8 +196,7 @@ export class ConnectionRecovery extends EventEmitter<EventMap> {
             try {
                 await this.#options.onReconnect();
             } catch (_) {
-                // Scheduled reconnect failures are silent; unexpected
-                // disconnects will trigger recovery via handleDisconnect.
+                /* Scheduled failures are silent; unexpected disconnects trigger handleDisconnect recovery. */
             } finally {
                 this.#isScheduledReconnecting = false;
             }

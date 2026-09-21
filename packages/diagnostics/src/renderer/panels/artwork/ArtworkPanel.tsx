@@ -14,8 +14,7 @@ type Artwork = {
     readonly height: number;
 };
 
-/* The bytes arrive as hex, which an `img` cannot read; base64 is the one form both a data URL and
-   the transport agree on. */
+/* Convert IPC hex bytes to base64 for an image data URL. */
 function dataUrlOf(mimeType: string, hex: string): string {
     let binary = '';
 

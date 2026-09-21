@@ -3,12 +3,7 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioS
 /** Default ring buffer duration in seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;
 
-/**
- * Audio source for live/real-time PCM audio input using a ring buffer.
- * Producers write PCM data via {@link write}, and consumers read it
- * via {@link readFrames}. When the buffer is full, the oldest data
- * is silently dropped to make room for new data.
- */
+/** Live PCM ring buffer. Drops the oldest data when producers outpace the consumer. */
 export class Live implements AudioSource {
     /** Duration is always Infinity for live sources. */
     readonly duration: number = Infinity;
@@ -89,12 +84,10 @@ export class Live implements AudioSource {
 
         const length = Math.min(data.length, this.#capacity);
 
-        // If data exceeds capacity, only keep the most recent part.
         const source = length < data.length
             ? data.subarray(data.length - length)
             : data;
 
-        // Drop oldest data if needed.
         const free = this.#capacity - this.#available;
 
         if (length > free) {
@@ -103,7 +96,6 @@ export class Live implements AudioSource {
             this.#available -= drop;
         }
 
-        // Write into ring buffer (may need to wrap).
         const firstChunk = Math.min(length, this.#capacity - this.#writePos);
 
         source.copy(this.#buffer, this.#writePos, 0, firstChunk);
@@ -115,7 +107,6 @@ export class Live implements AudioSource {
         this.#writePos = (this.#writePos + length) % this.#capacity;
         this.#available += length;
 
-        // Wake up pending consumer.
         this.#tryFulfillPending();
 
         return length;
@@ -127,7 +118,6 @@ export class Live implements AudioSource {
     end(): void {
         this.#ended = true;
 
-        // Wake up pending consumer with whatever is left (or null).
         if (this.#pendingResolve) {
             if (this.#available > 0) {
                 const bytes = Math.min(this.#pendingBytes, this.#available);
@@ -164,7 +154,7 @@ export class Live implements AudioSource {
             return null;
         }
 
-        // Wait for data from producer. Only one consumer can wait at a time.
+        /* Only one consumer may wait for producer data at a time. */
         if (this.#pendingResolve) {
             throw new Error('Only one concurrent readFrames() call is supported on Live sources.');
         }

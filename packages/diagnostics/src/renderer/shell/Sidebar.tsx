@@ -200,7 +200,7 @@ export function Sidebar() {
     const openKeys = useMemo(() => new Set(layout.columns.flatMap(column => column.cells.map(cell => cellKey(cell)))), [layout]);
     const focused = layout.columns[layout.focus.column]?.cells[layout.focus.cell] ?? null;
     const focusedKey = focused === null ? null : cellKey(focused);
-    const expandedIds = useMemo(() => new Set(focused?.deviceId === undefined || focused.deviceId === null ? expanded : [...expanded, focused.deviceId]), [expanded, focused]);
+    const expandedIds = useMemo(() => new Set(expanded), [expanded]);
 
     return (
         <aside className="flex h-full shrink-0 flex-col border-r border-border bg-surface" style={{width: SIDEBAR_WIDTH}}>

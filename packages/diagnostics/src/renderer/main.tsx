@@ -1,19 +1,21 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { UIProvider } from '@basmilius/desktop-ui';
 import { App } from '@/App';
+import { formatSource, i18n } from '@/i18n';
 import { startShortcuts } from '@/shell/shortcuts';
 import { startDevices } from '@/state/devices';
 import { startTheme } from '@/state/theme';
-import { startInputModality } from '@/ui';
 import '@/styles.css';
 
 startTheme();
-startInputModality();
 startShortcuts();
 void startDevices();
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>
-        <App/>
+        <UIProvider i18n={i18n} formatSource={formatSource}>
+            <App/>
+        </UIProvider>
     </StrictMode>
 );

@@ -1,12 +1,10 @@
-import type { InputHTMLAttributes } from 'react';
-import clsx from 'clsx';
+import { Input, type InputProps } from '@basmilius/desktop-ui';
 
-type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
+type FieldProps = InputProps & {
     /* The accessible name; the row above it usually carries the visible one. */
     readonly label: string;
-    readonly mono?: boolean;
 };
 
-export function Field({label, mono = false, className, ...rest}: FieldProps) {
-    return <input aria-label={label} className={clsx('field', mono && 'mono', className)} {...rest} />;
+export function Field({label, ...rest}: FieldProps) {
+    return <Input aria-label={label} {...rest}/>;
 }

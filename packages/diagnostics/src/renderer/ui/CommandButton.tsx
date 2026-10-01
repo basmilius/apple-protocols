@@ -1,10 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import { Popover } from '@base-ui-components/react/popover';
+import { Button, Icon, Popover } from '@basmilius/desktop-ui';
 import clsx from 'clsx';
 import { Braces, TriangleAlert } from 'lucide-react';
 import { messageOf } from '@/client';
-import { Button } from './Button';
-import { Icon } from './Icon';
 import { JsonView } from './JsonView';
 
 type CommandButtonProps = {
@@ -57,13 +55,9 @@ export function CommandButton({label, run, variant = 'secondary', size = 'sm', i
                     >
                         <Icon icon={outcome.ok ? Braces : TriangleAlert} size={14}/>
                     </Popover.Trigger>
-                    <Popover.Portal>
-                        <Popover.Positioner side="bottom" align="end" sideOffset={6} className="z-(--z-popup)">
-                            <Popover.Popup className="menu-popup max-h-80 max-w-[480px] overflow-auto p-2 text-xs">
-                                {outcome.ok ? <JsonView value={outcome.value} defaultDepth={2}/> : <p className="text-status-error">{String(outcome.value)}</p>}
-                            </Popover.Popup>
-                        </Popover.Positioner>
-                    </Popover.Portal>
+                    <Popover.Popup side="bottom" align="end" sideOffset={6} className="max-h-80 max-w-[480px] overflow-auto p-2 text-xs">
+                        {outcome.ok ? <JsonView value={outcome.value} defaultDepth={2}/> : <p className="text-status-error">{String(outcome.value)}</p>}
+                    </Popover.Popup>
                 </Popover.Root>
             )}
         </span>

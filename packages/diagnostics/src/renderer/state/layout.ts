@@ -34,7 +34,6 @@ type LayoutState = {
     consoleOpen: boolean;
     consoleDock: ConsoleDock;
     consoleSize: Record<ConsoleDock, number>;
-    /* User-expanded devices. The focused device is expanded separately. */
     expanded: readonly string[];
     focusAt(at: CellAt): void;
     focusStep(direction: SplitDirection): void;

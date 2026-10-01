@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import type { InvokeChannel, InvokeRequest, InvokeResponse } from '@shared/contract';
+import { isDiagnosticsSender } from './window';
 
 export type InvokeHandler<C extends InvokeChannel> = (request: InvokeRequest<C>) => InvokeResponse<C> | Promise<InvokeResponse<C>>;
 
@@ -9,7 +10,11 @@ const handlers = new Map<InvokeChannel, InvokeHandler<InvokeChannel>>();
 export function handle<C extends InvokeChannel>(channel: C, handler: InvokeHandler<C>): void {
     handlers.set(channel, handler as unknown as InvokeHandler<InvokeChannel>);
 
-    ipcMain.handle(channel, async (_event, request: InvokeRequest<C>) => {
+    ipcMain.handle(channel, async (event, request: InvokeRequest<C>) => {
+        if (!isDiagnosticsSender(event)) {
+            throw new Error('Diagnostics commands are only available to the app window.');
+        }
+
         try {
             return await handler(request);
         } catch (error) {

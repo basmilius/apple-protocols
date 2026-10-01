@@ -1,22 +1,9 @@
-import type { TextareaHTMLAttributes } from 'react';
-import clsx from 'clsx';
+import { TextArea as DesktopTextArea, type TextAreaProps as DesktopTextAreaProps } from '@basmilius/desktop-ui';
 
-type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+type TextAreaProps = DesktopTextAreaProps & {
     readonly label: string;
-    readonly mono?: boolean;
 };
 
-export function TextArea({label, mono = true, className, rows = 5, ...rest}: TextAreaProps) {
-    return (
-        <textarea
-            aria-label={label}
-            rows={rows}
-            className={clsx(
-                'w-full resize-y rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-text outline-none placeholder:text-text-faint focus-visible:-outline-offset-1 focus-visible:outline-2 focus-visible:outline-accent',
-                mono && 'mono',
-                className
-            )}
-            {...rest}
-        />
-    );
+export function TextArea({label, mono = true, rows = 5, resize = 'vertical', ...rest}: TextAreaProps) {
+    return <DesktopTextArea aria-label={label} mono={mono} rows={rows} resize={resize} {...rest}/>;
 }

@@ -52,7 +52,7 @@ const registerChannels = (): void => {
     }));
 
     handle('app:theme', theme => {
-        applyTheme(window, theme);
+        applyTheme(theme);
     });
 
     handle('discovery:scan', async request => await sessions.discover(request?.rescan === true));
@@ -132,6 +132,9 @@ app.whenReady().then(start);
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
         window = createWindow();
+        window.on('closed', () => {
+            window = null;
+        });
     }
 });
 

@@ -3,13 +3,14 @@ import { AbstractDevice } from './device';
 
 /**
  * High-level HomePod device using AirPlay only (transient pairing).
- * Provides media playback, URL playback, audio streaming, and volume control.
- * No credentials needed — transient pairing is handled transparently.
+ * Provides media playback, audio streaming, and volume control. A HomePod cannot fetch a URL
+ * itself, so `media.playUrl()` throws; stream the URL as audio instead.
+ * No credentials needed, transient pairing is handled transparently.
  *
  * ```ts
  * const pod = new HomePod({ airplay: result });
  * await pod.connect();
- * await pod.media.playUrl('https://example.com/song.mp3');
+ * await pod.media.streamAudio(await Url.fromUrl('https://example.com/song.mp3'));
  * ```
  */
 export class HomePod extends AbstractDevice {

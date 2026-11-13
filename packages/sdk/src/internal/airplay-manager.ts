@@ -67,6 +67,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         supportsTransientPairing: boolean;
         supportsSystemPairing: boolean;
         supportsCoreUtilsPairing: boolean;
+        supportsUrlPlayback: boolean;
     } {
         const has = (f: bigint) => this.#protocol?.hasReceiverFeature(f) ?? false;
 
@@ -79,7 +80,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             supportsUnifiedMediaControl: has(AirPlayFeatureFlags.SupportsUnifiedMediaControl),
             supportsTransientPairing: has(AirPlayFeatureFlags.SupportsHKPairingAndAccessControl),
             supportsSystemPairing: has(AirPlayFeatureFlags.SupportsSystemPairing),
-            supportsCoreUtilsPairing: has(AirPlayFeatureFlags.SupportsCoreUtilsPairingAndEncryption)
+            supportsCoreUtilsPairing: has(AirPlayFeatureFlags.SupportsCoreUtilsPairingAndEncryption),
+            supportsUrlPlayback: this.#protocol?.supportsUrlPlayback ?? false
         };
     }
 

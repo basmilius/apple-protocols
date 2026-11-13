@@ -24,9 +24,12 @@ export class MediaController {
     /**
      * Plays a URL on the device. The device fetches and plays the content.
      * Creates a separate protocol session to avoid conflicting with remote control.
+     * Only for receivers with `capabilities.supportsUrlPlayback` (Apple TV); a HomePod needs
+     * {@link streamAudio}.
      *
      * @param url - The media URL to play.
      * @param position - Start position in seconds (default: 0).
+     * @throws PlaybackError when the receiver does not support URL playback.
      */
     async playUrl(url: string, position: number = 0): Promise<void> {
         await this.#airplay.playUrl(url, position);

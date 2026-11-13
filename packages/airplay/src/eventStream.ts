@@ -2,6 +2,7 @@ import { type Context, deriveEncryptionKeys, reporter } from '@basmilius/apple-c
 import { Plist } from '@basmilius/apple-encoding';
 import { buildResponse, type Method, parseRequest } from '@basmilius/apple-rtsp';
 import { BaseStream } from './baseStream';
+import { decodeNestedCommand, type PlayQueueCommand } from './playQueue';
 
 /**
  * Event map for commands received from the Apple TV via the event stream.
@@ -9,6 +10,8 @@ import { BaseStream } from './baseStream';
 export type EventStreamEventMap = {
     /** Generic command received via POST /command. */
     command: [data: Record<string, unknown>];
+    /** Play queue command (playback state, notification, unhandledURL) decoded from `params.data` of a POST /command. */
+    playQueue: [event: PlayQueueCommand];
     /** Apple TV requests audio ducking (e.g. Siri activation). */
     duckAudio: [data: Record<string, unknown>];
     /** Apple TV requests audio unducking. */
@@ -137,6 +140,14 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
                     'Audio-Latency': 0,
                     'CSeq': headers['CSeq'] ?? 0
                 });
+
+                const playQueueCommand = decodeNestedCommand(data);
+
+                if (playQueueCommand) {
+                    this.context.logger.info('[event]', 'Received play queue command:', playQueueCommand.type ?? 'unknown', playQueueCommand);
+                    this.emit('playQueue', playQueueCommand);
+                }
+
                 break;
             }
 
@@ -199,7 +210,7 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
                 }
 
                 if (reporter.tapsTraffic) {
-                    this.context.logger.traffic('eventStream', 'in', `${result.method} ${result.path}`, {headers: result.headers, body: decodePlist(result.body)}, Buffer.from(this.#buffer.subarray(0, result.requestLength)));
+                    this.context.logger.traffic('eventStream', 'in', `${result.method} ${result.path}`, {headers: result.headers, body: withNestedCommand(decodePlist(result.body))}, Buffer.from(this.#buffer.subarray(0, result.requestLength)));
                 }
 
                 this.#buffer = this.#buffer.subarray(result.requestLength);
@@ -225,4 +236,17 @@ function decodePlist(body: Buffer): unknown {
     } catch {
         return undefined;
     }
+}
+
+/** Replaces the binary plist in `params.data` by its decoded command, for the traffic sink. */
+function withNestedCommand(body: unknown): unknown {
+    const command = decodeNestedCommand(body);
+
+    if (!command) {
+        return body;
+    }
+
+    const outer = body as {params: Record<string, unknown>};
+
+    return {...outer, params: {...outer.params, data: command}};
 }

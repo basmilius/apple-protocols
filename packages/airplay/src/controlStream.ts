@@ -3,6 +3,9 @@ import { Plist } from '@basmilius/apple-encoding';
 import { RtspClient } from '@basmilius/apple-rtsp';
 import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
+/** Request line protocol of play queue commands. pyatv #2948 sends them as HTTP/1.1 on the RTSP connection. */
+const COMMAND_PROTOCOL: 'HTTP/1.1' | 'RTSP/1.0' = 'HTTP/1.1';
+
 /**
  * RTSP-based control stream for AirPlay protocol communication.
  *
@@ -113,6 +116,29 @@ export class ControlStream extends RtspClient {
      */
     async flush(uri: string, headers: Record<string, string>): Promise<Response> {
         return await this.exchange('FLUSH', uri, {headers, allowError: true});
+    }
+
+    /**
+     * Sends a play queue command to a remote control stream as `POST /command`. The command
+     * travels as a binary plist in `params.data`.
+     *
+     * @param streamId - Stream ID from the SETUP of the remote control stream.
+     * @param payload - The command, or its binary plist when already serialized.
+     * @param sessionUUID - Session UUID from the first SETUP, sent as `X-Apple-Session-ID`.
+     */
+    async command(streamId: number, payload: Record<string, unknown> | ArrayBuffer, sessionUUID: string): Promise<Response> {
+        // The serializer only writes plist data for an ArrayBuffer, not for a Buffer.
+        const data = payload instanceof ArrayBuffer ? payload : Plist.serialize(payload as {}) as ArrayBuffer;
+
+        return await this.exchange('POST', '/command', {
+            headers: {
+                'X-Apple-Session-ID': sessionUUID,
+                'X-Apple-StreamID': String(streamId)
+            },
+            body: {params: {data}},
+            protocol: COMMAND_PROTOCOL,
+            allowError: true
+        });
     }
 
     /**

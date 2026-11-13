@@ -1,4 +1,4 @@
-import { type AudioSource, AudioSourceSession, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, type PtpMaster, randomInt64, selectTimingStrategy, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
+import { AirPlayFeatureFlags, type AudioSource, AudioSourceSession, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, type PtpMaster, randomInt64, selectTimingStrategy, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import { AudioStream } from './audioStream';
@@ -6,6 +6,7 @@ import { ControlStream } from './controlStream';
 import { DataStream } from './dataStream';
 import { EventStream } from './eventStream';
 import { encodeFeatures, parseReceiverFeatures } from './features';
+import { PlayQueueSession, type PlayQueueState } from './playQueue';
 
 import { describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from '@basmilius/apple-common';
 
@@ -37,8 +38,11 @@ const PLAYBACK_POLL_INTERVAL = 1000;
 /** Number of consecutive empty playback info responses before considering playback ended. */
 const PLAYBACK_IDLE_THRESHOLD = 5;
 
+/** Fetches `/info` a second time, encrypted, between SETUP and RECORD of a URL session, as pyatv #2948 does. */
+const PLAY_URL_SECOND_INFO = true;
+
 /**
- * Playback information returned by GET /playback-info.
+ * Playback information from GET /playback-info, or from the play queue events in a play queue session.
  */
 export type PlaybackInfo = {
     duration?: number;
@@ -46,6 +50,9 @@ export type PlaybackInfo = {
     rate?: number;
     readyToPlay?: boolean;
     error?: { code: number; domain: string };
+
+    /** Playback state of a play queue session; GET /playback-info does not report it. */
+    state?: PlayQueueState;
 };
 
 /**
@@ -122,6 +129,7 @@ export class Protocol {
     #effectiveSourceVersion?: string;
     #eventStream?: EventStream;
     #keepAlivePort?: number;
+    #playQueue?: PlayQueueSession;
     #playUrlFeedbackInterval?: NodeJS.Timeout;
     #ptpMaster?: PtpMaster;
     #receiverFeatures: bigint = 0n;
@@ -159,6 +167,16 @@ export class Protocol {
      */
     hasReceiverFeature(feature: bigint): boolean {
         return hasFeatureFlag(this.#receiverFeatures, feature);
+    }
+
+    /**
+     * Whether the receiver can fetch and play a URL itself. Audio-only receivers such as the
+     * HomePod advertise no video feature and need an audio stream instead.
+     */
+    get supportsUrlPlayback(): boolean {
+        return this.hasReceiverFeature(AirPlayFeatureFlags.SupportsAirPlayVideoV1)
+            || this.hasReceiverFeature(AirPlayFeatureFlags.SupportsAirPlayVideoV2)
+            || this.hasReceiverFeature(AirPlayFeatureFlags.SupportsAirPlayVideoPlayQueue);
     }
 
     /**
@@ -223,6 +241,7 @@ export class Protocol {
         void this.#audioSource?.stop().catch(error => this.context.logger.error('Audio source cleanup failed', error));
         this.#audioSource = undefined;
         this.#audioStream?.close();
+        this.#playQueue?.close();
         this.#controlStream.destroy();
         this.#dataStream?.destroy();
         this.#eventStream?.destroy();
@@ -238,6 +257,8 @@ export class Protocol {
     disconnect(): void {
         void this.#audioSource?.stop().catch(error => this.context.logger.error('Audio source cleanup failed', error));
         this.#audioSource = undefined;
+        this.#playQueue?.close();
+
         try {
             this.#audioStream?.close();
         } catch (err) {
@@ -524,16 +545,25 @@ export class Protocol {
     }
 
     /**
-     * Asks the receiver to fetch and play a URL. Sets up the session and feedback loop, retries HTTP 500 responses, then configures playback.
+     * Asks the receiver to fetch and play a URL. Sets up the session and feedback loop, then
+     * queues the URL through the play queue when the receiver supports it, or sends `/play`
+     * (retrying HTTP 500 responses) and configures playback.
      *
      * @param url - Must be accessible from the receiver.
      * @param sharedSecret - Pair-verify shared secret.
      * @param pairingId - Pair-verify identifier.
      * @param position - Start position in seconds, default 0.
      * @throws SetupError if SETUP fails.
-     * @throws PlaybackError if playback fails after retries.
+     * @throws PlaybackError if playback fails after retries, or the play queue fails on a receiver without `/play`.
      */
     async playUrl(url: string, sharedSecret: Buffer, pairingId: Buffer, position: number = 0): Promise<void> {
+        if (!this.supportsUrlPlayback) {
+            throw new PlaybackError('This receiver does not support URL playback. Stream the URL as audio instead.');
+        }
+
+        this.#playQueue?.close();
+        this.#playQueue = undefined;
+
         const setupBody: Record<string, any> = {
             ...this.#setupBody(pairingId, SENDER_FEATURES_AUDIO),
             groupContainsGroupLeader: false,
@@ -564,58 +594,24 @@ export class Protocol {
         // Start feedback loop before RECORD/play (keeps session alive).
         this.#startPlayUrlFeedback();
 
+        if (PLAY_URL_SECOND_INFO) {
+            try {
+                await this.fetchInfo();
+            } catch (err) {
+                this.#context.logger.warn('[protocol]', 'Second GET /info failed', err);
+            }
+        }
+
         await this.#controlStream.record(`/${this.#controlStream.sessionId}`);
 
         try {
-            // Retry POST /play on 500 errors (device may need time to prepare).
-            let lastStatus = 0;
-
-            for (let retry = 0; retry < PLAY_RETRIES; retry++) {
-                const response = await this.#controlStream.post('/play', {
-                    'Content-Location': url,
-                    'Start-Position-Seconds': position,
-                    uuid: this.#sessionUUID.toUpperCase(),
-                    streamType: 1,
-                    mediaType: 'file',
-                    volume: 1.0,
-                    rate: 1.0,
-                    clientBundleID: 'com.basmilius.apple-protocols',
-                    clientProcName: this.#context.identity.name,
-                    osBuildVersion: this.#context.identity.osBuildVersion,
-                    model: this.#context.identity.model,
-                    SenderMACAddress: getMacAddress().toUpperCase()
-                });
-
-                lastStatus = response.status;
-                this.context.logger.info('[protocol]', `play_url response: ${lastStatus} (attempt ${retry + 1}/${PLAY_RETRIES})`);
-
-                if (lastStatus === 200) {
-                    break;
-                }
-
-                if (lastStatus === 500) {
-                    this.context.logger.warn('[protocol]', 'play_url returned 500, retrying...');
-                    await waitFor(1000);
-                    continue;
-                }
-
-                if (lastStatus >= 400) {
-                    this.#stopPlayUrlFeedback();
-                    throw new PlaybackError(`Failed to play URL: ${lastStatus}`);
-                }
+            if (await this.#playUrlQueue(url, position, setupBody.macAddress)) {
+                return;
             }
 
-            if (lastStatus !== 200) {
-                this.#stopPlayUrlFeedback();
-                throw new PlaybackError(`Failed to play URL after ${PLAY_RETRIES} retries: ${lastStatus}`);
-            }
-
-            await this.#putProperty('isInterestedInDateRange', {value: true});
-            await this.#putProperty('actionAtItemEnd', {value: 0});
-            await this.#controlStream.post('/rate?value=1.000000');
-            await this.#putProperty('forwardEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
-            await this.#putProperty('reverseEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+            await this.#playUrlLegacy(url, position);
         } catch (err) {
+            this.#playQueue?.close();
             this.#stopPlayUrlFeedback();
 
             try {
@@ -629,11 +625,111 @@ export class Protocol {
     }
 
     /**
-     * Retrieves current playback information via GET /playback-info.
+     * Queues the URL through the play queue when the receiver advertises it.
+     *
+     * @returns `false` when the legacy `/play` path should be used instead.
+     * @throws PlaybackError when the play queue fails on a receiver that has no `/play`.
+     */
+    async #playUrlQueue(url: string, position: number, senderMac: string): Promise<boolean> {
+        const playQueue = this.hasReceiverFeature(AirPlayFeatureFlags.SupportsAirPlayVideoPlayQueue);
+        const videoV2 = this.hasReceiverFeature(AirPlayFeatureFlags.SupportsAirPlayVideoV2);
+        const videoV1 = this.hasReceiverFeature(AirPlayFeatureFlags.SupportsAirPlayVideoV1);
+        const bits = `VideoPlayQueue=${playQueue}, VideoV2=${videoV2}, VideoV1=${videoV1}`;
+
+        if ((!playQueue && !videoV2) || !this.#eventStream) {
+            this.#context.logger.info('[protocol]', `playUrl via /play (${bits})`);
+            return false;
+        }
+
+        this.#context.logger.info('[protocol]', `playUrl via play queue (${bits})`);
+
+        const session = new PlayQueueSession(this.#context, this.#controlStream, this.#eventStream, this.#sessionUUID, senderMac);
+        this.#playQueue = session;
+
+        if (await session.setup() && await session.start(url, position)) {
+            return true;
+        }
+
+        session.close();
+        this.#playQueue = undefined;
+
+        // LG and Samsung answer /play with 404.
+        if (videoV2 && !videoV1) {
+            throw new PlaybackError('The play queue failed and this receiver does not support /play.');
+        }
+
+        this.#context.logger.warn('[protocol]', `Play queue failed, falling back to /play (${bits})`);
+
+        return false;
+    }
+
+    /**
+     * Starts playback with POST /play, retrying HTTP 500 responses, then configures it with PUT /setProperty and /rate.
+     *
+     * @throws PlaybackError if playback fails after retries.
+     */
+    async #playUrlLegacy(url: string, position: number): Promise<void> {
+        // Retry POST /play on 500 errors (device may need time to prepare).
+        let lastStatus = 0;
+
+        for (let retry = 0; retry < PLAY_RETRIES; retry++) {
+            const response = await this.#controlStream.post('/play', {
+                'Content-Location': url,
+                'Start-Position-Seconds': position,
+                uuid: this.#sessionUUID.toUpperCase(),
+                streamType: 1,
+                mediaType: 'file',
+                volume: 1.0,
+                rate: 1.0,
+                clientBundleID: 'com.basmilius.apple-protocols',
+                clientProcName: this.#context.identity.name,
+                osBuildVersion: this.#context.identity.osBuildVersion,
+                model: this.#context.identity.model,
+                SenderMACAddress: getMacAddress().toUpperCase()
+            });
+
+            lastStatus = response.status;
+            this.context.logger.info('[protocol]', `play_url response: ${lastStatus} (attempt ${retry + 1}/${PLAY_RETRIES})`);
+
+            if (lastStatus === 200) {
+                break;
+            }
+
+            if (lastStatus === 500) {
+                this.context.logger.warn('[protocol]', 'play_url returned 500, retrying...');
+                await waitFor(1000);
+                continue;
+            }
+
+            if (lastStatus >= 400) {
+                this.#stopPlayUrlFeedback();
+                throw new PlaybackError(`Failed to play URL: ${lastStatus}`);
+            }
+        }
+
+        if (lastStatus !== 200) {
+            this.#stopPlayUrlFeedback();
+            throw new PlaybackError(`Failed to play URL after ${PLAY_RETRIES} retries: ${lastStatus}`);
+        }
+
+        await this.#putProperty('isInterestedInDateRange', {value: true});
+        await this.#putProperty('actionAtItemEnd', {value: 0});
+        await this.#controlStream.post('/rate?value=1.000000');
+        await this.#putProperty('forwardEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+        await this.#putProperty('reverseEndTime', {value: {flags: 0, value: 0, epoch: 0, timescale: 0}});
+    }
+
+    /**
+     * Retrieves current playback information. A play queue session answers from its last
+     * `playing` event, because GET /playback-info fails there (500 on tvOS 26, 403 on tvOS 27).
      *
      * @returns Playback info with duration, position, rate, and error state; null on failure; empty object if no content is playing.
      */
     async getPlaybackInfo(): Promise<PlaybackInfo | null> {
+        if (this.#playQueue) {
+            return this.#playQueue.lastInfo;
+        }
+
         try {
             const response = await this.#controlStream.get('/playback-info');
 
@@ -654,16 +750,27 @@ export class Protocol {
     }
 
     /**
-     * Polls playback info until playback ends, then stops the feedback loop.
+     * Waits until playback ends, then stops the feedback loop.
      *
-     * Waits for the first response with a duration (playback started), then
-     * counts consecutive responses without a duration. After
+     * A play queue session follows the playback events. Otherwise this polls
+     * playback info: it waits for the first response with a duration (playback
+     * started), then counts consecutive responses without a duration. After
      * {@link PLAYBACK_IDLE_THRESHOLD} consecutive idle responses, assumes
      * playback has ended.
      *
      * @throws PlaybackError if the receiver reports a playback error.
      */
     async waitForPlaybackEnd(): Promise<void> {
+        if (this.#playQueue) {
+            try {
+                await this.#playQueue.waitForEnd();
+            } finally {
+                this.#stopPlayUrlFeedback();
+            }
+
+            return;
+        }
+
         let playbackStarted = false;
         let idleCount = 0;
 
@@ -705,6 +812,7 @@ export class Protocol {
      * finish naturally.
      */
     stopPlayUrl(): void {
+        this.#playQueue?.close();
         this.#stopPlayUrlFeedback();
     }
 

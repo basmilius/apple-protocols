@@ -356,7 +356,7 @@ function decodeBody(contentType: string, body: Buffer | undefined): unknown {
 
     try {
         if (contentType.includes('plist')) {
-            return Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any);
+            return decodeNestedPlist(Plist.parse(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as any));
         }
 
         if (contentType.startsWith('text/') || contentType.includes('sdp') || contentType.includes('parameters')) {
@@ -367,4 +367,20 @@ function decodeBody(contentType: string, body: Buffer | undefined): unknown {
     }
 
     return undefined;
+}
+
+/** Decodes a binary plist in `params.data`, as AirPlay play queue commands carry one. */
+function decodeNestedPlist(value: unknown): unknown {
+    const params = (value as {params?: unknown} | null)?.params as {data?: unknown} | undefined;
+    const data = params?.data;
+
+    if (!(data instanceof ArrayBuffer) || data.byteLength < 8 || Buffer.from(data, 0, 8).toString('latin1') !== 'bplist00') {
+        return value;
+    }
+
+    try {
+        return {...(value as object), params: {...params, data: Plist.parse(data)}};
+    } catch {
+        return value;
+    }
 }

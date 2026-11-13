@@ -157,6 +157,8 @@ Het recept: `mark`, actie uitvoeren, `traffic`/`events`/`logs --since-mark` leze
 
 - Uitvoer is compact. `--decoded` toont de gedecodeerde berichten, `--json` het hele record, `--grep`, `--limit` en `--protocol`/`--direction`/`--source`/`--name`/`--group` filteren. Binaire waarden zijn afgekapt op 64 bytes, `--bytes <n>` of `--full` haalt dat weg. Filter altijd eerst, artwork alleen al is honderden kilobytes.
 - Traffic is plaintext (na decryptie, voor encryptie) en komt van `logger.traffic()` in `DataStream`, `EventStream`, Companion Link `stream.ts` en `RtspClient` (dus ook de AirPlay control stream en RAOP). RTP-audiopakketten zitten er niet in. Een nieuw tap-punt is een `logger.traffic()`-aanroep; zonder sink (Homey) doet die niets.
+- Agent calls gebruiken de expliciete actielijst in `src/main/agent/actions.ts`. Directe protocolmethoden zijn alleen via de app beschikbaar. `raw:send` valideert de catalogusargumenten en vereist `--confirm`. SDK-volume is 0–1, RAOP is 0–100 procent, audio streaming gebruikt -144–0 dB. Ongeldige argumenten worden ook met confirm geweigerd.
+- Het Performance-paneel en `diag invoke performance:status` tonen eventloop p95/p99/max, piek sinds reset, RSS/heap/external en de retentie per capturebuffer. `performance:reset` wist de meetpiek. Audio toont de FFmpeg-buffer en pauzestatus; de pauzedrempel is één seconde PCM, met maximaal één extra stdout-chunk.
 - Grenzen (`src/main/agent/guard.ts`): volume boven 0.5 en kanalen die credentials weggooien (`pair:forget`, `storage:remove*`) worden geweigerd tot de gebruiker akkoord is, daarna met `--confirm`. `storage:read` met `reveal` en `audio:pickFile` kunnen nooit. PIN-pairing vraagt de gebruiker: die leest de code van het scherm.
 - Het device staat bij iemand thuis. Geen acties in een lus zonder reden, en zet terug wat je veranderde (volume, power, afspelen).
 
@@ -208,7 +210,7 @@ Alle packages delen deze instellingen:
 - `strict: false`, `isolatedModules: true`, `skipLibCheck: true`
 - `isolatedDeclarations: true` (behalve `common` en `sdk`)
 - Path alias: `@basmilius/apple-*` → `../*/src` (dev-tijd cross-package imports)
-- Output: ESM (`.mjs` + `.d.mts`), single entry point `./dist/index.mjs` per package
+- Output: ESM (`.mjs` + `.d.mts`), `./dist/index.mjs` per library; audio-source bundelt ook `decode-worker.mjs` en de gedeelde decoderchunks (kopieer de hele dist)
 
 ## Code conventions
 
@@ -238,12 +240,15 @@ Beide formaten zijn bevestigd correct via pyatv's `Chacha20Cipher` (12-byte nonc
 ### Encrypted/plaintext buffer scheiding
 DataStream, EventStream en RtspClient gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Bij gedeeltelijke TCP-frames voorkomt dit dat nieuwe ciphertext bij plaintext terechtkomt. De ChaCha20-decoder zou die plaintext anders als frame-header lezen, met corruptie of een deadlock als gevolg.
 
+### AirPlay receive-frames zijn niet begrensd op 1024 bytes
+De encoder verstuurt chunks van 1024 bytes, maar receivers sturen ook grotere ChaCha20-blokken. Gebruik bij ontvangst de 2-byte LE lengte en de buffergrens van de stream; een 1024-byte parsergrens verbreekt de verbinding met Apple TV en HomePod. De lengte is AAD en de auth tag blijft verplicht.
+
 ### NTP timestamps moeten wall-clock zijn
 `NTP.now()` in `encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.
 
 ## CI/CD
 
-Enige workflow: `.github/workflows/released.yml` (trigger: GitHub Release). Vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt alles, publiceert naar npm. Geen PR/push CI.
+`.github/workflows/checks.yml` draait `bash build.sh` op pull requests en pushes naar main, inclusief proxycontrole en diagnostics. `.github/workflows/released.yml` (trigger: GitHub Release) Vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt alles, publiceert naar npm. De proxy is een private CLI; `bun --cwd packages/proxy check` controleert types en bundeling, `build` maakt de native binaries in dist.
 
 ## Tests en tooling
 

@@ -13,4 +13,6 @@ bun --cwd packages/raop build
 
 bun --cwd packages/sdk build
 
+bun --cwd packages/proxy check
+
 bun --cwd packages/diagnostics build

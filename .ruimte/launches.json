@@ -1,0 +1,11 @@
+{
+    "version": 1,
+    "launches": [
+        {
+            "id": "diagnostics",
+            "name": "Diagnostics",
+            "kind": "task",
+            "command": "bun --cwd packages/diagnostics dev:agent"
+        }
+    ]
+}

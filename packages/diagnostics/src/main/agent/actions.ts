@@ -37,9 +37,11 @@ for (const name of ['apps', 'accounts']) register('device', `${name}.list`, {arg
 for (const name of ['launch', 'openUrl']) register('device', `apps.${name}`, {args: [string]});
 for (const name of ['switch', 'switchActive']) register('device', `accounts.${name}`, {args: [string]});
 for (const name of ['getLyrics', 'waitForPlaybackEnd', 'stopPlayUrl', 'stopStreamAudio']) register('device', `media.${name}`, {args: []});
+register('companionLink', 'swipe', {args: [value => ['up', 'down', 'left', 'right'].includes(value as string), number(50, 2000)], optional: 1});
+register('companionLink', 'tap', {args: [number(0, 2000)], optional: 1});
 
 const reads = new Map<string, readonly string[]>([
-    ['device', ['id', 'name', 'address', 'isConnected', 'state.nowPlaying', 'state.volume', 'state.volumeMuted', 'multiroom.clusterId', 'multiroom.isLeader', 'multiroom.isClusterAware']],
+    ['device', ['id', 'name', 'address', 'isConnected', 'state.title', 'state.seriesName', 'state.seasonNumber', 'state.episodeNumber', 'state.episodeTitle', 'state.genre', 'state.contentRating', 'state.duration', 'state.elapsedTime', 'state.isPlaying', 'state.activeApp', 'state.volume', 'state.volumeMuted', 'multiroom.clusterId', 'multiroom.isLeader', 'multiroom.isClusterAware']],
     ['airplayState', ['volume', 'volumeAvailable', 'volumeCapabilities', 'outputDeviceUID', 'outputDevices', 'nowPlayingClient', 'keyboardInfo', 'clusterID', 'isClusterLeader']],
     ['companionLink', ['isConnected', 'state', 'textInputState']]
 ]);

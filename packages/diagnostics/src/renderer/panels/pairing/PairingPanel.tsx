@@ -1,142 +1,197 @@
 import { useState } from 'react';
-import { KeyRound, Trash2 } from 'lucide-react';
-import type { PairStage, PairStatus, ProtocolName } from '@shared/contract';
-import { invoke, messageOf } from '@/client';
+import { CircleCheck, CircleDashed, type LucideIcon } from 'lucide-react';
+import type { DiscoveredDeviceInfo, PairStage, PairStatus, ProtocolName } from '@shared/contract';
+import { invoke } from '@/client';
 import { useDevice } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
+import { MissingDevice } from '@/panels/sdk-shared';
 import { useStatus } from '@/panels/shared-media/hooks';
-import { Badge, Button, EmptyState, TextInput, Icon, KeyValue, KeyValueList, PanelBody, Section, Segmented } from '@/ui';
+import { Button, ConfirmDialog, FormError, Icon, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Section, Spinner, StatusPill, TextInput, useAsyncAction } from '@/ui';
 
-const STAGE_TONE: Record<PairStage, 'muted' | 'accent' | 'running' | 'idle' | 'error'> = {
-    idle: 'muted',
-    started: 'running',
-    awaitingPin: 'accent',
-    verifying: 'running',
-    done: 'idle',
-    failed: 'error'
+const PROTOCOLS: readonly { readonly id: ProtocolName; readonly label: string; readonly icon: LucideIcon }[] = [
+    {id: 'airplay', label: 'AirPlay', icon: ICONS.airplay},
+    {id: 'companionLink', label: 'Companion Link', icon: ICONS.companionLink}
+];
+
+const STEPS: readonly { readonly stage: PairStage; readonly label: string }[] = [
+    {stage: 'started', label: 'Connecting and asking the device to show its PIN'},
+    {stage: 'awaitingPin', label: 'Type the four-digit PIN the device shows'},
+    {stage: 'verifying', label: 'Running the key exchange'},
+    {stage: 'done', label: 'Credentials stored'}
+];
+
+const ORDER: readonly PairStage[] = ['idle', 'started', 'awaitingPin', 'verifying', 'done'];
+
+type CardProps = {
+    readonly device: DiscoveredDeviceInfo;
+    readonly protocol: (typeof PROTOCOLS)[number];
+    readonly busy: boolean;
+    readonly running: boolean;
+    onPair(): void;
+    onForget(): void;
 };
 
-const STAGE_TEXT: Record<PairStage, string> = {
-    idle: 'Nothing is running.',
-    started: 'Connecting and asking the device to show its PIN.',
-    awaitingPin: 'The device is showing a four-digit PIN. Type it below.',
-    verifying: 'Running the key exchange.',
-    done: 'Credentials stored.',
-    failed: 'Pairing did not finish.'
-};
+function ProtocolCard({device, protocol, busy, running, onPair, onForget}: CardProps) {
+    const service = protocol.id === 'airplay' ? device.services.airplay : device.services.companionLink;
+    const paired = device.paired.includes(protocol.id);
+
+    return (
+        <Section
+            title={protocol.label}
+            icon={protocol.icon}
+            actions={<StatusPill status={paired ? 'ok' : 'off'} icon={paired ? ICONS.credentials : undefined}>{paired ? 'paired' : 'not paired'}</StatusPill>}
+        >
+            <KeyValueList>
+                <KeyValue label="Service" icon={ICONS.mdns}>
+                    {service ? <MiddleTruncate text={service.fqdn}/> : 'not advertised'}
+                </KeyValue>
+                <KeyValue label="Stored under" icon={ICONS.identifier}>
+                    <MiddleTruncate text={service?.id ?? device.id}/>
+                </KeyValue>
+            </KeyValueList>
+            <div className="flex flex-wrap items-center gap-2">
+                <Button variant={paired ? 'secondary' : 'primary'} size="sm" disabled={busy || running || service === null} onClick={onPair}>
+                    <Icon icon={ICONS.pairing} size={14}/>
+                    {paired ? 'Pair again' : 'Pair'}
+                </Button>
+                <Button variant="ghost" size="sm" disabled={busy || !paired} onClick={onForget}>
+                    <Icon icon={ICONS.forget} size={14}/>
+                    Forget
+                </Button>
+            </div>
+        </Section>
+    );
+}
+
+function StepIcon({step, current}: { readonly step: PairStage; readonly current: PairStage }) {
+    const index = ORDER.indexOf(step);
+    const reached = ORDER.indexOf(current);
+
+    if (index < reached || current === 'done') {
+        return <Icon icon={CircleCheck} size={14} className="text-status-idle"/>;
+    }
+
+    if (index === reached) {
+        return <Spinner size={14}/>;
+    }
+
+    return <Icon icon={CircleDashed} size={14} className="text-text-faint"/>;
+}
 
 /** Pairing must work before the device has a connected session. */
 export function PairingPanel({deviceId}: PanelProps) {
     const {device} = useDevice(deviceId);
     const [status] = useStatus('pair:status', 'pair:status', deviceId);
-    const [protocol, setProtocol] = useState<ProtocolName>('airplay');
     const [pin, setPin] = useState('');
-    const [error, setError] = useState<string | null>(null);
-    const [busy, setBusy] = useState(false);
+    const [forgetting, setForgetting] = useState<ProtocolName | null>(null);
+    const action = useAsyncAction();
 
     if (device === null || deviceId === null) {
-        return (
-            <div className="grid h-full place-items-center">
-                <EmptyState>This device is not in the last scan. Rescan to bring it back.</EmptyState>
-            </div>
-        );
+        return <MissingDevice/>;
     }
 
     const current: PairStatus | null = status;
     const stage = current?.stage ?? 'idle';
+    const failed = stage === 'failed';
+    const running = stage !== 'idle' && stage !== 'done' && !failed;
     const awaitingPin = stage === 'awaitingPin';
-    const service = protocol === 'airplay' ? device.services.airplay : device.services.companionLink;
 
-    const run = async (action: () => Promise<unknown>): Promise<void> => {
-        setBusy(true);
-        setError(null);
+    const protocolLabel = PROTOCOLS.find(entry => entry.id === current?.protocol)?.label ?? '';
 
-        try {
-            await action();
-        } catch (failure) {
-            setError(messageOf(failure));
-        } finally {
-            setBusy(false);
+    const submit = (): void => {
+        if (pin.length === 4) {
+            void action.run(() => invoke('pair:pin', {deviceId, pin}));
         }
     };
 
     return (
         <PanelBody>
-            <Section title="Protocol" actions={<Badge tone={STAGE_TONE[stage]}>{stage}</Badge>}>
-                <Segmented<ProtocolName>
-                    label="Protocol"
-                    value={protocol}
-                    onValueChange={setProtocol}
-                    items={[
-                        {value: 'airplay', label: 'AirPlay'},
-                        {value: 'companionLink', label: 'Companion Link'}
-                    ]}
+            {PROTOCOLS.map(protocol => (
+                <ProtocolCard
+                    key={protocol.id}
+                    device={device}
+                    protocol={protocol}
+                    busy={action.busy}
+                    running={running}
+                    onPair={() =>
+                        void action.run(async () => {
+                            setPin('');
+                            await invoke('pair:start', {deviceId, protocol: protocol.id});
+                        })
+                    }
+                    onForget={() => setForgetting(protocol.id)}
                 />
-                <KeyValueList>
-                    <KeyValue label="Service">{service?.fqdn ?? 'not advertised'}</KeyValue>
-                    <KeyValue label="Stored under">{service?.id ?? device.id}</KeyValue>
-                    <KeyValue label="Paired">{device.paired.includes(protocol) ? 'yes' : 'no'}</KeyValue>
-                </KeyValueList>
-                <p className="text-xs text-text-muted">{STAGE_TEXT[stage]}</p>
-                {current?.error && <p className="text-xs text-status-error">{current.error}</p>}
-                {error && <p className="text-xs text-status-error">{error}</p>}
-            </Section>
+            ))}
 
-            <Section title="Pair">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={busy || service === null || awaitingPin}
-                        onClick={() =>
-                            void run(async () => {
-                                setPin('');
-                                await invoke('pair:start', {deviceId, protocol});
-                            })
-                        }
-                    >
-                        <Icon icon={KeyRound} size={14}/>
-                        Start pairing
-                    </Button>
-                    <Button variant="secondary" size="sm" disabled={busy || stage === 'idle'} onClick={() => void run(() => invoke('pair:cancel', {deviceId}))}>
-                        Cancel
-                    </Button>
-                </div>
+            {stage !== 'idle' && (
+                <Section
+                    wide
+                    title={`Pairing ${protocolLabel}`}
+                    icon={ICONS.pin}
+                    actions={
+                        running && (
+                            <Button variant="ghost" size="sm" disabled={action.busy} onClick={() => void action.run(() => invoke('pair:cancel', {deviceId}))}>
+                                Cancel
+                            </Button>
+                        )
+                    }
+                >
+                    {failed ? (
+                        <StatusPill status="error">Pairing did not finish</StatusPill>
+                    ) : (
+                        <ol className="flex flex-col gap-1.5">
+                            {STEPS.map(step => (
+                                <li key={step.stage} className="flex items-center gap-2 text-xs">
+                                    <StepIcon step={step.stage} current={stage}/>
+                                    <span className={step.stage === stage ? 'text-text' : 'text-text-muted'}>{step.label}</span>
+                                </li>
+                            ))}
+                        </ol>
+                    )}
+                    {awaitingPin && (
+                        <div className="flex items-center gap-2">
+                            <TextInput
+                                label="PIN"
+                                placeholder="0000"
+                                value={pin}
+                                maxLength={4}
+                                inputMode="numeric"
+                                autoFocus
+                                disabled={action.busy}
+                                className="max-w-28 text-center text-lg tracking-[0.4em]"
+                                mono
+                                onChange={event => setPin(event.target.value.replace(/\D/g, ''))}
+                                onKeyDown={event => {
+                                    if (event.key === 'Enter') {
+                                        submit();
+                                    }
+                                }}
+                            />
+                            <Button variant="primary" size="sm" disabled={action.busy || pin.length !== 4} onClick={submit}>
+                                Submit PIN
+                            </Button>
+                        </div>
+                    )}
+                    {current?.error && <FormError>{current.error}</FormError>}
+                </Section>
+            )}
 
-                <div className="flex items-center gap-2">
-                    <TextInput
-                        label="PIN"
-                        placeholder="0000"
-                        value={pin}
-                        maxLength={4}
-                        inputMode="numeric"
-                        disabled={!awaitingPin || busy}
-                        className="max-w-28"
-                        mono
-                        onChange={event => setPin(event.target.value.replace(/\D/g, ''))}
-                        onKeyDown={event => {
-                            if (event.key === 'Enter' && pin.length === 4) {
-                                void run(() => invoke('pair:pin', {deviceId, pin}));
-                            }
-                        }}
-                    />
-                    <Button variant="primary" size="sm" disabled={!awaitingPin || busy || pin.length !== 4} onClick={() => void run(() => invoke('pair:pin', {deviceId, pin}))}>
-                        Submit PIN
-                    </Button>
-                </div>
-            </Section>
+            {action.failure && <FormError className="col-span-full">{action.failure}</FormError>}
 
-            <Section title="Stored credentials">
-                <div className="flex flex-wrap items-center gap-1.5">
-                    {device.paired.length === 0 ? <span className="text-xs text-text-muted">Nothing stored for this device.</span> : device.paired.map(name => <Badge key={name} tone="accent">{name}</Badge>)}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="danger" size="sm" disabled={busy || !device.paired.includes(protocol)} onClick={() => void run(() => invoke('pair:forget', {deviceId, protocol}))}>
-                        <Icon icon={Trash2} size={14}/>
-                        Forget {protocol}
-                    </Button>
-                </div>
-            </Section>
+            <ConfirmDialog
+                open={forgetting !== null}
+                onOpenChange={open => setForgetting(open ? forgetting : null)}
+                title="Forget these credentials?"
+                description={`The ${PROTOCOLS.find(entry => entry.id === forgetting)?.label ?? ''} credentials of ${device.name} are deleted. Pairing again is the only way back.`}
+                confirmLabel="Forget"
+                onConfirm={async () => {
+                    if (forgetting !== null) {
+                        await invoke('pair:forget', {deviceId, protocol: forgetting});
+                    }
+
+                    setForgetting(null);
+                }}
+            />
         </PanelBody>
     );
 }

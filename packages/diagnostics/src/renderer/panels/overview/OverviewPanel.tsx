@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Music, Plug, PlugZap } from 'lucide-react';
-import { formatDuration } from '@shared/helpers';
-import { Badge, Button, CommandButton, EmptyState, Icon, KeyValue, KeyValueList, PanelBody, Section, Slider } from '@/ui';
-import type { VolumeSnapshot } from '@shared/contract';
-import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
+import { Pause, Play, SkipBack, SkipForward, VolumeX } from 'lucide-react';
+import type { StateSnapshot, VolumeSnapshot } from '@shared/contract';
+import { formatDuration, formatTime } from '@shared/helpers';
+import { DeviceIcon } from '@/shell/DeviceIcon';
+import { ButtonGroup, CopyButton, EmptyState, Icon, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, Section, Slider, StatusBar, StatusPill } from '@/ui';
+import { type DeviceCall, useDevice, useDeviceCall, useLogs, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
+import { MissingDevice, PanelLink } from '@/panels/sdk-shared';
 
 /* Send volume on release; per-frame commands would flood the serial device connection. */
 function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnapshot | null; readonly connected: boolean; readonly call: DeviceCall }) {
@@ -13,6 +15,7 @@ function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnaps
 
     return (
         <div className="flex items-center gap-3">
+            <Icon icon={volume?.muted ? VolumeX : ICONS.volume} size={14} className="shrink-0 text-text-faint"/>
             <Slider
                 label="Volume"
                 value={level}
@@ -28,111 +31,112 @@ function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnaps
     );
 }
 
-export function OverviewPanel({deviceId}: PanelProps) {
-    const {device, snapshot, connected, busy, connect, disconnect} = useDevice(deviceId);
-    const call = useDeviceCall(deviceId);
+function MiniPlayer({snapshot, connected, call}: { readonly snapshot: StateSnapshot | null; readonly connected: boolean; readonly call: DeviceCall }) {
     const nowPlaying = snapshot?.nowPlaying ?? null;
     const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
+    const playing = nowPlaying?.playbackState.toLowerCase() === 'playing';
+
+    if (nowPlaying === null || (nowPlaying.title === '' && nowPlaying.appName === null)) {
+        return <EmptyState icon={ICONS.nowPlaying}>Nothing is playing on this device.</EmptyState>;
+    }
+
+    const meta = [nowPlaying.artist, nowPlaying.album].filter(part => (part ?? '') !== '').join(' • ');
+
+    return (
+        <div className="flex items-center gap-3">
+            <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface-sunken">
+                {nowPlaying.artworkUrl ? <img src={nowPlaying.artworkUrl} alt="" className="size-full object-cover"/> : <Icon icon={ICONS.nowPlaying} size={20} className="text-text-faint"/>}
+            </div>
+            <div className="flex min-w-0 grow flex-col gap-1.5">
+                <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm">{nowPlaying.title || nowPlaying.appName}</span>
+                    <span className="truncate text-xs text-text-muted">{meta || (nowPlaying.appName ?? '-')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="w-10 shrink-0 text-2xs tabular-nums text-text-faint">{formatDuration(elapsed)}</span>
+                    <Meter label="Position" value={nowPlaying.duration > 0 ? elapsed : null} max={Math.max(1, nowPlaying.duration)} valueText={`${formatDuration(elapsed)} of ${formatDuration(nowPlaying.duration)}`} className="grow"/>
+                    <span className="w-10 shrink-0 text-2xs tabular-nums text-text-faint">{formatDuration(nowPlaying.duration)}</span>
+                </div>
+            </div>
+            <ButtonGroup className="shrink-0">
+                <IconButton icon={SkipBack} label="Previous" disabled={!connected} onClick={() => void call('device', 'playback.previous')}/>
+                <IconButton icon={playing ? Pause : Play} label={playing ? 'Pause' : 'Play'} disabled={!connected} onClick={() => void call('device', playing ? 'playback.pause' : 'playback.play')}/>
+                <IconButton icon={SkipForward} label="Next" disabled={!connected} onClick={() => void call('device', 'playback.next')}/>
+            </ButtonGroup>
+        </div>
+    );
+}
+
+export function OverviewPanel({deviceId}: PanelProps) {
+    const {device, snapshot, connected} = useDevice(deviceId);
+    const call = useDeviceCall(deviceId);
+    const problems = useLogs({groups: ['error'], deviceIds: deviceId === null ? [] : [deviceId], limit: 3});
 
     if (device === null) {
-        return (
-            <div className="grid h-full place-items-center">
-                <EmptyState>This device is not in the last scan. Rescan to bring it back.</EmptyState>
-            </div>
-        );
+        return <MissingDevice/>;
     }
 
     const connection = snapshot?.connection ?? null;
     const volume = snapshot?.volume ?? null;
+    const paired = (protocol: 'airplay' | 'companionLink'): string => (device.paired.includes(protocol) ? 'paired' : 'not paired');
 
     return (
         <PanelBody>
-            <Section
-                title="Connection"
-                actions={
-                    connected ? (
-                        <Button variant="secondary" size="sm" disabled={busy} onClick={() => void disconnect()}>
-                            <Icon icon={Plug} size={14}/>
-                            Disconnect
-                        </Button>
-                    ) : (
-                        <Button variant="primary" size="sm" disabled={busy} onClick={() => void connect()}>
-                            <Icon icon={PlugZap} size={14}/>
-                            Connect
-                        </Button>
-                    )
-                }
-            >
-                <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge tone={connected ? 'idle' : 'muted'}>{connection?.status ?? 'disconnected'}</Badge>
-                    <Badge tone={connection?.airplay.connected ? 'idle' : 'muted'}>AirPlay</Badge>
-                    {connection?.companionLink.available && <Badge tone={connection.companionLink.connected ? 'idle' : 'muted'}>Companion Link</Badge>}
-                    {device.paired.map(protocol => (
-                        <Badge key={protocol} tone="accent">
-                            paired: {protocol}
-                        </Badge>
-                    ))}
-                </div>
-                {connection?.error && <p className="text-xs text-status-error">{connection.error}</p>}
+            <StatusBar>
+                <span className="flex items-center gap-1.5 text-text">
+                    <DeviceIcon device={device} size={14}/>
+                    {device.modelName || device.deviceType}
+                </span>
+                {device.services.airplay && (
+                    <StatusPill status={connection?.airplay.connected ? 'ok' : 'off'} icon={ICONS.airplay}>
+                        {`AirPlay, ${paired('airplay')}`}
+                    </StatusPill>
+                )}
+                {device.services.companionLink && (
+                    <StatusPill status={connection?.companionLink.connected ? 'ok' : 'off'} icon={ICONS.companionLink}>
+                        {`Companion Link, ${paired('companionLink')}`}
+                    </StatusPill>
+                )}
+            </StatusBar>
+
+            <Section title="Now playing" icon={ICONS.nowPlaying} actions={<><PanelLink panel="nowplaying" label="Now playing"/><PanelLink panel="playback" label="Playback"/></>}>
+                <MiniPlayer snapshot={snapshot} connected={connected} call={call}/>
             </Section>
 
-            <Section title="Device">
+            <Section title="Volume" icon={ICONS.volume} actions={<PanelLink panel="volume" label="Volume"/>}>
+                <VolumeControl volume={volume} connected={connected} call={call}/>
+                {volume?.available === false && <p className="text-xs text-text-muted">This device reports no adjustable volume.</p>}
+            </Section>
+
+            <Section title="Device" icon={ICONS.info}>
                 <KeyValueList>
-                    <KeyValue label="Name">{device.name}</KeyValue>
-                    <KeyValue label="Identifier">{device.id}</KeyValue>
-                    <KeyValue label="Address">{device.address}</KeyValue>
-                    <KeyValue label="Model">{device.modelName || 'Unknown'}</KeyValue>
-                    <KeyValue label="Type">{device.deviceType}</KeyValue>
-                    {device.services.airplay && <KeyValue label="AirPlay port">{device.services.airplay.port}</KeyValue>}
-                    {device.services.companionLink && <KeyValue label="Companion port">{device.services.companionLink.port}</KeyValue>}
+                    <KeyValue label="Identifier" icon={ICONS.identifier}>
+                        <span className="inline-flex items-center gap-1">
+                            {device.id}
+                            <CopyButton text={device.id} label="Copy identifier" size="sm"/>
+                        </span>
+                    </KeyValue>
+                    <KeyValue label="Address" icon={ICONS.address}>{device.address}</KeyValue>
+                    <KeyValue label="Model" icon={ICONS.model}>{device.modelName || 'Unknown'}</KeyValue>
+                    <KeyValue label="Type" icon={ICONS.model}>{device.deviceType}</KeyValue>
+                    {device.services.airplay && <KeyValue label="AirPlay port" icon={ICONS.port}>{device.services.airplay.port}</KeyValue>}
+                    {device.services.companionLink && <KeyValue label="Companion port" icon={ICONS.port}>{device.services.companionLink.port}</KeyValue>}
                 </KeyValueList>
             </Section>
 
-            <Section title="Now playing">
-                {nowPlaying === null || (nowPlaying.title === '' && nowPlaying.appName === null) ? (
-                    <EmptyState icon={<Icon icon={Music} size={18}/>} className="py-4">
-                        Nothing is playing on this device.
-                    </EmptyState>
+            <Section title="Recent errors" icon={ICONS.warning}>
+                {connection?.error && <p className="text-xs text-status-error">{connection.error}</p>}
+                {problems.length === 0 && !connection?.error ? (
+                    <p className="text-xs text-text-muted">No errors logged for this device.</p>
                 ) : (
-                    <div className="flex gap-4">
-                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-sunken">
-                            {nowPlaying.artworkUrl && <img src={nowPlaying.artworkUrl} alt="" className="h-full w-full object-cover"/>}
-                        </div>
-                        <div className="min-w-0 grow">
-                            <KeyValueList>
-                                <KeyValue label="Title" mono={false}>
-                                    {nowPlaying.title || '-'}
-                                </KeyValue>
-                                <KeyValue label="Artist" mono={false}>
-                                    {nowPlaying.artist || '-'}
-                                </KeyValue>
-                                <KeyValue label="Album" mono={false}>
-                                    {nowPlaying.album || '-'}
-                                </KeyValue>
-                                <KeyValue label="State">{nowPlaying.playbackState}</KeyValue>
-                                <KeyValue label="Position">
-                                    {formatDuration(elapsed)} / {formatDuration(nowPlaying.duration)}
-                                </KeyValue>
-                                <KeyValue label="App">{nowPlaying.bundleIdentifier ?? '-'}</KeyValue>
-                            </KeyValueList>
-                        </div>
-                    </div>
+                    <KeyValueList>
+                        {[...problems].reverse().map(entry => (
+                            <KeyValue key={entry.id} label={formatTime(entry.timestamp)} mono={false}>
+                                {entry.message}
+                            </KeyValue>
+                        ))}
+                    </KeyValueList>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
-                    <CommandButton label="Play" run={() => call('device', 'playback.play')} disabled={!connected}/>
-                    <CommandButton label="Pause" run={() => call('device', 'playback.pause')} disabled={!connected}/>
-                    <CommandButton label="Next" run={() => call('device', 'playback.next')} disabled={!connected}/>
-                    <CommandButton label="Previous" run={() => call('device', 'playback.previous')} disabled={!connected}/>
-                </div>
-            </Section>
-
-            <Section title="Volume" actions={<Badge tone={volume?.available ? 'idle' : 'muted'}>{volume?.available ? 'available' : 'unavailable'}</Badge>}>
-                <VolumeControl volume={volume} connected={connected} call={call}/>
-                <div className="flex flex-wrap items-center gap-2">
-                    <CommandButton label="Volume up" run={() => call('device', 'volume.up')} disabled={!connected}/>
-                    <CommandButton label="Volume down" run={() => call('device', 'volume.down')} disabled={!connected}/>
-                    <CommandButton label="Toggle mute" run={() => call('device', 'volume.mute')} disabled={!connected}/>
-                </div>
             </Section>
         </PanelBody>
     );

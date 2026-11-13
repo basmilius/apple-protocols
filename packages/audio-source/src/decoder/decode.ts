@@ -8,9 +8,19 @@ let active = 0;
 const idle: Slot[] = [];
 const pending: (() => void)[] = [];
 
+// An explicit execArgv rejects V8 and per-process flags such as --expose-gc, which Homey passes.
+// Inheriting skips those silently, so only --input-type, which breaks a file worker, needs an explicit list.
+function workerExecArgv(): string[] | undefined {
+    if (!process.execArgv.some(argument => argument.startsWith('--input-type'))) {
+        return undefined;
+    }
+
+    return process.execArgv.filter((argument, index, args) => !argument.startsWith('--input-type') && args[index - 1] !== '--input-type');
+}
+
 function createSlot(): Slot {
     const path = new URL(import.meta.url.endsWith('.ts') ? './worker.ts' : './decode-worker.mjs', import.meta.url);
-    const slot: Slot = {worker: new Worker(path, {execArgv: process.execArgv.filter((argument, index, args) => !argument.startsWith('--input-type') && args[index - 1] !== '--input-type')}), closed: false};
+    const slot: Slot = {worker: new Worker(path, {execArgv: workerExecArgv()}), closed: false};
     slot.worker.on('message', (message: {bytes?: Uint8Array; error?: string}) => {
         const error = message.error ? new PlaybackError(message.error) : message.bytes ? undefined : new PlaybackError('Audio decoder returned no PCM data.');
         slot.finish?.(error, message.bytes ? Buffer.from(message.bytes.buffer, message.bytes.byteOffset, message.bytes.byteLength) : undefined);

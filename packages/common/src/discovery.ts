@@ -73,6 +73,7 @@ const logger = new Logger('discovery');
 export class Discovery {
     /** Shared cache of discovery results, keyed by service type. */
     static #cache: Map<string, CacheEntry> = new Map();
+    static #scans = new Map<string, Promise<Map<string, DiscoveryResult[]>>>();
 
     readonly #service: string;
 
@@ -107,15 +108,41 @@ export class Discovery {
             }
         }
 
-        const services = await multicast([this.#service], 4);
-        const mapped = services.map(toDiscoveryResult);
+        return (await Discovery.findServices([this.#service], useCache)).get(this.#service)!;
+    }
 
-        Discovery.#cache.set(this.#service, {
-            results: mapped,
-            expiresAt: Date.now() + CACHE_TTL
-        });
-
-        return mapped;
+    /** One multicast scan and one in-flight operation for a group of service types. */
+    static async findServices(services: readonly string[], useCache = true): Promise<Map<string, DiscoveryResult[]>> {
+        const result = new Map<string, DiscoveryResult[]>();
+        const missing = [...new Set(services)].filter(service => {
+            const cached = Discovery.#cache.get(service);
+            if (useCache && cached && cached.expiresAt > Date.now()) {
+                result.set(service, cached.results);
+                return false;
+            }
+            return true;
+        }).sort();
+        if (missing.length === 0) {
+            return result;
+        }
+        const key = missing.join(',');
+        let scan = Discovery.#scans.get(key);
+        if (!scan) {
+            scan = multicast(missing, 4).then(records => {
+                const found = new Map<string, DiscoveryResult[]>();
+                for (const service of missing) {
+                    const results = records.filter(record => record.type === service || `${record.type}.local` === service).map(toDiscoveryResult);
+                    found.set(service, results);
+                    Discovery.#cache.set(service, {results, expiresAt: Date.now() + CACHE_TTL});
+                }
+                return found;
+            }).finally(() => Discovery.#scans.delete(key));
+            Discovery.#scans.set(key, scan);
+        }
+        for (const [service, records] of await scan) {
+            result.set(service, records);
+        }
+        return result;
     }
 
     /**

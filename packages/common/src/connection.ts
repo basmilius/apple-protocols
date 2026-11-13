@@ -92,6 +92,8 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
     #socket?: Socket;
     #state: ConnectionState;
 
+    readonly #disconnectResolvers = new Set<() => void>();
+
     #connectPromise?: {
         resolve: () => void;
         reject: (err: Error) => void;
@@ -128,7 +130,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             return;
         }
 
-        if (this.#state === 'connecting') {
+        if (this.#connectPromise || this.#retryTimeout || this.#state === 'connecting' || this.#state === 'closing') {
             throw new ConnectionError('A connection is already being established.');
         }
 
@@ -147,7 +149,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         }
         this.#connectPromise?.reject(new ConnectionClosedError());
         this.#connectPromise = undefined;
-        this.#socket?.destroy();
+        this.#cleanup();
     }
 
     /**
@@ -161,6 +163,8 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         }
 
         this.#retryEnabled = false;
+        this.#connectPromise?.reject(new ConnectionClosedError());
+        this.#connectPromise = undefined;
 
         if (!this.#socket || this.#state === 'disconnected') {
             return;
@@ -173,12 +177,19 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         }
 
         return new Promise(resolve => {
+            this.#disconnectResolvers.add(resolve);
             this.#state = 'closing';
-            this.#socket.once('close', () => {
-                this.#cleanup();
+            const socket = this.#socket;
+            socket.once('close', () => {
+                if (this.#socket === socket) this.#cleanup();
+                this.#disconnectResolvers.delete(resolve);
                 resolve();
             });
-            this.#socket.end();
+            if (this.#socket.connecting) {
+                this.#socket.destroy();
+            } else {
+                this.#socket.end();
+            }
         });
     }
 
@@ -241,12 +252,13 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             this.#socket.setNoDelay(true);
             this.#socket.setTimeout(SOCKET_TIMEOUT);
 
-            this.#socket.on('close', this.onClose);
-            this.#socket.on('connect', this.onConnect);
-            this.#socket.on('data', this.onData);
-            this.#socket.on('end', this.onEnd);
-            this.#socket.on('error', this.onError);
-            this.#socket.on('timeout', this.onTimeout);
+            const socket = this.#socket;
+            socket.on('close', value => {if (this.#socket === socket) this.onClose(value);});
+            socket.on('connect', () => {if (this.#socket === socket) this.onConnect();});
+            socket.on('data', (value: Buffer) => {if (this.#socket === socket) this.onData(value);});
+            socket.on('end', () => {if (this.#socket === socket) this.onEnd();});
+            socket.on('error', value => {if (this.#socket === socket) this.onError(value);});
+            socket.on('timeout', () => {if (this.#socket === socket) this.onTimeout();});
 
             this.#context.logger.net(`Connecting to ${this.#address}:${this.#port}...`);
 
@@ -259,6 +271,8 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
     /** Removes all socket listeners, destroys the socket, and resets connection state. */
     #cleanup(): void {
+        for (const resolve of this.#disconnectResolvers) resolve();
+        this.#disconnectResolvers.clear();
         if (this.#retryTimeout) {
             clearTimeout(this.#retryTimeout);
             this.#retryTimeout = undefined;
@@ -298,6 +312,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
         const {resolve, reject} = this.#connectPromise ?? NOOP_PROMISE_HANDLER;
         this.#cleanup();
+        this.#connectPromise = {resolve, reject};
 
         this.#retryTimeout = setTimeout(async () => {
             this.#retryTimeout = undefined;
@@ -321,6 +336,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
      * @param hadError - Whether the close was caused by an error.
      */
     onClose(hadError: boolean): void {
+        const socket = this.#socket;
         const wasConnected = this.#state === 'connected';
 
         if (this.#state !== 'closing') {
@@ -330,7 +346,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
         this.#emitInternal('close', hadError);
 
-        if (wasConnected && this.#retryEnabled && hadError) {
+        if (this.#socket === socket && wasConnected && this.#retryEnabled && hadError) {
             this.#scheduleRetry(new ConnectionClosedError());
         }
     }
@@ -346,9 +362,10 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         this.#socket.setKeepAlive(true, 10000);
         this.#socket.setTimeout(0);
 
+        const pending = this.#connectPromise;
         this.#emitInternal('connect');
-        this.#connectPromise?.resolve();
-        this.#connectPromise = undefined;
+        pending?.resolve();
+        if (this.#connectPromise === pending) this.#connectPromise = undefined;
     }
 
     /**
@@ -380,6 +397,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
      * @param err - The socket error.
      */
     onError(err: Error): void {
+        const socket = this.#socket;
         this.#context.logger.error(`Connection error: ${err.message}`);
 
         if (this.listenerCount('error') > 0) {
@@ -388,6 +406,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
             this.#context.logger.warn('No error handler registered. This is likely a bug.', this.constructor.name, 'onError');
         }
 
+        if (this.#socket !== socket) return;
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);
         }
@@ -399,11 +418,13 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
      * otherwise destroys the socket and marks the connection as failed.
      */
     onTimeout(): void {
+        const socket = this.#socket;
         this.#context.logger.error('Connection timed out.');
 
         const err = new ConnectionTimeoutError();
 
         this.#emitInternal('timeout');
+        if (this.#socket !== socket) return;
 
         if (this.#state === 'connecting') {
             this.#scheduleRetry(err);

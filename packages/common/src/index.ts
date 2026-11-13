@@ -163,3 +163,5 @@ export type {
     DiscoveryResult,
     EventMap
 } from './types';
+
+export { AudioSourceSession } from './audioSourceSession';

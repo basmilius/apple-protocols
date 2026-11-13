@@ -898,18 +898,18 @@ export class AccessoryVerifyServer extends BasePairing {
 
         const longTermPublicKey = this.#resolveController(controllerIdentifier.toString());
 
-        if (longTermPublicKey) {
-            const controllerInfo = Buffer.concat([
-                this.#controllerPublicKey,
-                controllerIdentifier,
-                Buffer.from(this.#ephemeralKeyPair.publicKey)
-            ]);
+        if (!longTermPublicKey) {
+            throw new AuthenticationError('Unknown controller. Pair before verifying.');
+        }
 
-            if (!Ed25519.verify(controllerInfo, controllerSignature, longTermPublicKey)) {
-                throw new AuthenticationError('Invalid controller signature.');
-            }
-        } else {
-            this.context.logger.warn(`Unknown controller ${controllerIdentifier.toString()}, skipping signature verification.`);
+        const controllerInfo = Buffer.concat([
+            this.#controllerPublicKey,
+            controllerIdentifier,
+            Buffer.from(this.#ephemeralKeyPair.publicKey)
+        ]);
+
+        if (!Ed25519.verify(controllerInfo, controllerSignature, longTermPublicKey)) {
+            throw new AuthenticationError('Invalid controller signature.');
         }
 
         this.#pairingId = controllerIdentifier;

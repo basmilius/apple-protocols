@@ -199,12 +199,11 @@ export class Reporter {
         }
     }
 
-    /**
-     * Checks whether a specific debug group is currently enabled.
-     *
-     * @param group - The debug group to check.
-     * @returns True if the group is enabled.
-     */
+    /** Checks for a consumer before callers build expensive message descriptions. */
+    accepts(group: DebugGroup): boolean {
+        return this.printsToConsole(group) || (this.#sink !== null && this.#sinkGroups.includes(group));
+    }
+
     isEnabled(group: DebugGroup): boolean {
         return this.#enabled.includes(group);
     }

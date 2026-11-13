@@ -31,6 +31,8 @@ function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnaps
 export function OverviewPanel({deviceId}: PanelProps) {
     const {device, snapshot, connected, busy, connect, disconnect} = useDevice(deviceId);
     const call = useDeviceCall(deviceId);
+    const nowPlaying = snapshot?.nowPlaying ?? null;
+    const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
 
     if (device === null) {
         return (
@@ -41,8 +43,6 @@ export function OverviewPanel({deviceId}: PanelProps) {
     }
 
     const connection = snapshot?.connection ?? null;
-    const nowPlaying = snapshot?.nowPlaying ?? null;
-    const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
     const volume = snapshot?.volume ?? null;
 
     return (

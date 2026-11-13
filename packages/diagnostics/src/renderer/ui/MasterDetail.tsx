@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ScrollArea } from '@adecore/ui';
 
 type MasterDetailProps = {
     readonly toolbar: ReactNode;
@@ -12,7 +13,7 @@ export function MasterDetail({toolbar, list, detail}: MasterDetailProps) {
         <div className="flex h-full min-h-0 flex-col">
             <header className="flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">{toolbar}</header>
             <div className="flex min-h-0 grow">
-                <div className="min-h-0 w-1/2 shrink-0 overflow-auto border-r border-border">{list}</div>
+                <ScrollArea axis="both" className="min-h-0 w-1/2 shrink-0 border-r border-border">{list}</ScrollArea>
                 <div className="flex min-h-0 min-w-0 grow flex-col">{detail}</div>
             </div>
         </div>
@@ -29,7 +30,7 @@ export function DetailPane({title, actions, children}: { readonly title?: ReactN
                     {actions}
                 </div>
             )}
-            <div className="min-h-0 grow overflow-auto bg-code-bg p-3">{children}</div>
+            <ScrollArea axis="both" className="min-h-0 grow bg-code-bg" viewportClassName="p-3">{children}</ScrollArea>
         </>
     );
 }

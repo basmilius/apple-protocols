@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import clsx from 'clsx';
 import { ArrowDown, Maximize2, Minimize2 } from 'lucide-react';
 import { isLyricActive, parseLyricsTTML, type LyricLine, type LyricSegment } from './ttml';
@@ -22,7 +23,7 @@ function wordStyle(segment: LyricSegment, elapsed: number): CSSProperties | unde
 }
 
 export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsViewProps) {
-    const container = useRef<HTMLDivElement>(null);
+    const container = useRef<HTMLElement>(null);
     const previous = useRef({index: -1, text: ''});
     const [follow, setFollow] = useState(true);
     const [expanded, setExpanded] = useState(false);
@@ -81,11 +82,12 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
                     {expanded ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
                 </button>
             </header>
-            <div className="relative">
-                <div ref={container} tabIndex={0} aria-label="Song lyrics; scroll to browse" lang={parsed.lyrics.language ?? undefined}
-                    onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)} onPointerDown={() => setFollow(false)}
+            <div className="relative" onPointerDownCapture={() => setFollow(false)}>
+                <ScrollArea viewportRef={container} tabIndex={0} aria-label="Song lyrics; scroll to browse" lang={parsed.lyrics.language ?? undefined}
+                    onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}
                     onKeyDown={event => {if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) setFollow(false);}}
-                    className={clsx('relative overflow-y-auto overscroll-contain px-6 [scrollbar-width:none] [-webkit-mask-image:linear-gradient(transparent,black_12%,black_80%,transparent)] [mask-image:linear-gradient(transparent,black_12%,black_80%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lyrics-foreground/50', expanded ? 'h-[min(65vh,680px)]' : 'h-[420px]')}>
+                    className={expanded ? 'h-[min(65vh,680px)]' : 'h-[420px]'}
+                    viewportClassName="relative overscroll-contain px-6 [-webkit-mask-image:linear-gradient(transparent,black_12%,black_80%,transparent)] [mask-image:linear-gradient(transparent,black_12%,black_80%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lyrics-foreground/50">
                     <div className={clsx('space-y-7 pb-[300px] pt-28', expanded && 'pb-[450px]')}>
                         {lines.map((line, index) => {
                             const active = isLyricActive(line, elapsed);
@@ -107,7 +109,7 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
                         })}
                         {lines.length === 0 && <p className="text-sm text-lyrics-foreground/60">No lyrics available.</p>}
                     </div>
-                </div>
+                </ScrollArea>
                 {timed && !follow && <button type="button" onClick={() => setFollow(true)} className="absolute bottom-5 left-1/2 flex min-h-10 -translate-x-1/2 items-center gap-2 rounded-full bg-lyrics-foreground px-4 text-xs font-semibold text-lyrics-shadow shadow-lg transition-transform active:scale-[.96] motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lyrics-foreground"><ArrowDown size={14}/>Follow playback</button>}
                 {timed && follow && <p className="pointer-events-none absolute right-6 bottom-6 text-[10px] font-medium text-lyrics-foreground/40">Live lyrics</p>}
             </div>

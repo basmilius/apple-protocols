@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import { Captions, Ear, Link2, MapPin, Mic, Package, Play, SunMoon, Tag } from 'lucide-react';
 import { asCard, Banner, ButtonGroup, CommandButton, ControlRow, CountPill, EmptyState, IconButton, ICONS, PanelBody, PanelGroup, Section, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
@@ -49,7 +50,7 @@ function AppsSection({call, connected}: Context) {
             {apps.length === 0 ? (
                 <EmptyState icon={ICONS.apps}>Nothing listed yet.</EmptyState>
             ) : (
-                <div className="flex max-h-72 flex-col divide-y divide-border-soft overflow-auto">
+                <ScrollArea className="max-h-72" viewportClassName="flex flex-col divide-y divide-border-soft [&>*]:shrink-0">
                     {apps.map(app => (
                         <div key={app.bundleId} className="flex items-center gap-2 py-1">
                             <span className="min-w-0 grow truncate text-xs text-text">{app.name}</span>
@@ -57,7 +58,7 @@ function AppsSection({call, connected}: Context) {
                             <IconButton icon={Play} label={`Launch ${app.name}`} size="sm" onClick={() => void call('device', 'apps.launch', [app.bundleId])}/>
                         </div>
                     ))}
-                </div>
+                </ScrollArea>
             )}
             <ControlRow label="Bundle identifier" icon={Package}>
                 <TextInput label="Bundle identifier" mono className="h-7 min-w-0 flex-1 basis-40" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>

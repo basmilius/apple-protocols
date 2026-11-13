@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import clsx from 'clsx';
 import { RefreshCw, X } from 'lucide-react';
 import { Banner, CommandButton, CopyButton, EmptyState, IconButton, ICONS, JsonView, type SelectItem, TextInput } from '@/ui';
@@ -195,13 +196,13 @@ export function ResultBlock({label, run, tooltip, disabled, defaultDepth = 2, ac
                 {actions}
             </Row>
             {value !== undefined && (
-                <div className="relative max-h-64 overflow-auto rounded-lg bg-code-bg p-2">
+                <ScrollArea axis="both" className="max-h-64 rounded-lg bg-code-bg" viewportClassName="relative p-2">
                     <span className="absolute top-1 right-1 flex items-center">
                         <CopyButton text={JSON.stringify(value, null, 4) ?? ''} label="Copy result"/>
                         <IconButton icon={X} label="Close result" size="sm" onClick={() => setValue(undefined)}/>
                     </span>
                     <JsonView value={value} defaultDepth={defaultDepth}/>
-                </div>
+                </ScrollArea>
             )}
         </div>
     );

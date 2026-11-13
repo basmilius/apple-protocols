@@ -1,7 +1,7 @@
 import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from 'react';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
-import { Icon } from '@adecore/ui';
+import { Icon, ScrollArea } from '@adecore/ui';
 import { Section } from './Section';
 
 const CARD = Symbol.for('diagnostics.card');
@@ -80,11 +80,11 @@ type PanelBodyProps = {
 /** The scrolling page of a panel; its cards form a masonry, and a {@link PanelGroup} starts a masonry of its own. */
 export function PanelBody({children, className}: PanelBodyProps) {
     return (
-        <div className="@container h-full overflow-auto">
+        <ScrollArea axis="both" className="@container h-full">
             <div className={clsx('p-3 @[520px]:p-6', className)}>
                 <Masonry>{children}</Masonry>
             </div>
-        </div>
+        </ScrollArea>
     );
 }
 

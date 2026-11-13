@@ -1,5 +1,6 @@
 import { MEDIA_EVENT_CHANNELS, MEDIA_INVOKE_CHANNELS, type MediaEventMap, type MediaInvokeMap } from './contract.media';
 import { TOOLS_EVENT_CHANNELS, TOOLS_INVOKE_CHANNELS, type ToolsEventMap, type ToolsInvokeMap } from './contract.tools';
+import type { StatisticsSnapshot } from './statistics';
 
 /**
  * The whole surface between the Electron main process and the renderer. Main registers a handler
@@ -318,6 +319,7 @@ export type CoreInvokeMap = {
     'app:info': [void, AppInfo];
     'performance:status': [void, PerformanceStatus];
     'performance:reset': [void, PerformanceStatus];
+    'statistics:history': [{ readonly deviceId: string | null }, StatisticsSnapshot];
     'app:theme': [ThemeRequest, void];
 
     'discovery:scan': [{ readonly rescan?: boolean }, readonly DiscoveredDeviceInfo[]];
@@ -366,6 +368,7 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
     'app:info',
     'performance:status',
     'performance:reset',
+    'statistics:history',
     'app:theme',
     'discovery:scan',
     'discovery:list',

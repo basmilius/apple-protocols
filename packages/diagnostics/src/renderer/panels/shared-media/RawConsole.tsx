@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import { isCallFailure, type RawBuilderInfo, type RawTransport } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { invoke, messageOf } from '@/client';
@@ -112,7 +113,7 @@ export function RawConsole({deviceId, transport, emptyText}: RawConsoleProps) {
 
     return (
         <div className="flex h-full min-h-0">
-            <div className="@container flex min-h-0 w-1/2 shrink-0 flex-col gap-4 overflow-auto border-r border-border p-4">
+            <ScrollArea axis="both" className="@container min-h-0 w-1/2 shrink-0 border-r border-border" viewportClassName="flex flex-col gap-4 p-4 [&>*]:shrink-0">
                 {catalog.length === 0 ? (
                     <EmptyState icon={ICONS.raw}>{emptyText}</EmptyState>
                 ) : (
@@ -148,7 +149,7 @@ export function RawConsole({deviceId, transport, emptyText}: RawConsoleProps) {
                         {error && <FormError>{error}</FormError>}
                     </>
                 )}
-            </div>
+            </ScrollArea>
 
             <div className="flex min-h-0 min-w-0 grow flex-col">
                 <header className="flex min-h-10 shrink-0 items-center gap-2 border-b border-border px-3">
@@ -160,7 +161,7 @@ export function RawConsole({deviceId, transport, emptyText}: RawConsoleProps) {
                     </span>
                 </header>
 
-                <div className="max-h-56 shrink-0 overflow-auto border-b border-border">
+                <ScrollArea axis="both" className="max-h-56 shrink-0 border-b border-border">
                     {history.length === 0 ? (
                         <EmptyState icon={ICONS.send}>Nothing sent yet.</EmptyState>
                     ) : (
@@ -178,11 +179,11 @@ export function RawConsole({deviceId, transport, emptyText}: RawConsoleProps) {
                             ))}
                         </Table.Root>
                     )}
-                </div>
+                </ScrollArea>
 
-                <div className="min-h-0 grow overflow-auto bg-code-bg p-3">
+                <ScrollArea axis="both" className="min-h-0 grow bg-code-bg" viewportClassName="p-3">
                     {detail === null ? <EmptyState icon={ICONS.result}>The reply of the selected call shows up here.</EmptyState> : <JsonView value={detail.value} defaultDepth={3}/>}
-                </div>
+                </ScrollArea>
             </div>
         </div>
     );

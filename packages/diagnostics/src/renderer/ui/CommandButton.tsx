@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Icon, Popover, Tooltip } from '@adecore/ui';
+import { Button, Icon, Popover, ScrollArea, Tooltip } from '@adecore/ui';
 import clsx from 'clsx';
 import { Braces, type LucideIcon, TriangleAlert } from 'lucide-react';
 import { messageOf } from '@/client';
@@ -63,8 +63,10 @@ export function CommandButton({label, run, variant = 'secondary', size = 'sm', i
                     >
                         <Icon icon={outcome.ok ? Braces : TriangleAlert} size={14}/>
                     </Popover.Trigger>
-                    <Popover.Popup side="bottom" align="end" sideOffset={6} className="max-h-80 max-w-[480px] overflow-auto p-2 text-xs">
-                        {outcome.ok ? <JsonView value={outcome.value} defaultDepth={2}/> : <p className="text-status-error">{String(outcome.value)}</p>}
+                    <Popover.Popup side="bottom" align="end" sideOffset={6} className="flex max-h-80 max-w-[480px] flex-col overflow-hidden p-0 text-xs">
+                        <ScrollArea axis="both" viewportClassName="p-2">
+                            {outcome.ok ? <JsonView value={outcome.value} defaultDepth={2}/> : <p className="text-status-error">{String(outcome.value)}</p>}
+                        </ScrollArea>
                     </Popover.Popup>
                 </Popover.Root>
             )}

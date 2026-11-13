@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
-import { ListRow } from '@adecore/ui';
+import { ListRow, ScrollArea } from '@adecore/ui';
 import type { ClientSnapshot, PlayerSnapshot, StateSnapshot } from '@shared/contract';
 import { formatDuration } from '@shared/helpers';
 import { BoolValue, CommandButton, CountPill, EmptyState, Icon, ICONS, JsonView, KeyValue, KeyValueList, Pill, Section, StatusPill, Table } from '@/ui';
@@ -215,9 +215,9 @@ export function StatePanel({deviceId}: PanelProps) {
                 {receiverInfo === null ? (
                     <p className="text-xs text-text-muted">The snapshot carries no receiver info yet.</p>
                 ) : (
-                    <div className="max-h-96 overflow-auto rounded-lg bg-code-bg p-2">
+                    <ScrollArea axis="both" className="max-h-96 rounded-lg bg-code-bg" viewportClassName="p-2">
                         <JsonView value={receiverInfo} defaultDepth={2}/>
-                    </div>
+                    </ScrollArea>
                 )}
             </Section>
 

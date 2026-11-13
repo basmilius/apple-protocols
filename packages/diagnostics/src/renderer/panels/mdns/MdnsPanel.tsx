@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Search, Trash2, Zap } from 'lucide-react';
-import { ListRow } from '@adecore/ui';
+import { ListRow, ScrollArea } from '@adecore/ui';
 import type { DiscoveryService, MdnsMode, MdnsRecord } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
@@ -223,9 +223,9 @@ function DiscoveryView() {
                 {result === null ? (
                     <EmptyState icon={ICONS.result}>Nothing run yet.</EmptyState>
                 ) : (
-                    <div className="overflow-auto rounded-lg bg-code-bg p-2">
+                    <ScrollArea axis="both" className="rounded-lg bg-code-bg" viewportClassName="p-2">
                         <JsonView value={result} defaultDepth={3}/>
-                    </div>
+                    </ScrollArea>
                 )}
             </Section>
         </>

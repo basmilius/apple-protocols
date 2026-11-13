@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import clsx from 'clsx';
 import { Copy, X } from 'lucide-react';
 import type { DebugGroup, LogEntry } from '@shared/contract';
@@ -41,13 +42,13 @@ function HexDump({hex, length}: { readonly hex: string; readonly length: number 
     return (
         <div className="flex flex-col gap-1">
             <span className={SECTION_LABEL}>{length} bytes</span>
-            <div className="mono overflow-auto rounded-md bg-code-bg p-2 whitespace-pre text-code-fg">
+            <ScrollArea axis="both" className="rounded-md bg-code-bg" viewportClassName="mono p-2 whitespace-pre text-code-fg">
                 {lines.map(line => (
                     <div key={line.offset}>
                         <span className="text-code-dim">{line.offset}</span> {line.hex} <span className="text-code-dim">{line.ascii}</span>
                     </div>
                 ))}
-            </div>
+            </ScrollArea>
         </div>
     );
 }
@@ -93,7 +94,7 @@ export function LogDetail({entry, deviceName, groupColor, onClose, className}: {
                     <IconButton icon={X} label="Close the entry" size="sm" onClick={onClose}/>
                 </span>
             </header>
-            <div className="flex min-h-0 grow flex-col gap-4 overflow-auto p-3">
+            <ScrollArea axis="both" className="min-h-0 grow" viewportClassName="flex flex-col gap-4 p-3 [&>*]:shrink-0">
                 <KeyValueList>
                     <KeyValue label="Time">{formatTime(entry.timestamp)}</KeyValue>
                     <KeyValue label="Timestamp">{new Date(entry.timestamp).toISOString()}</KeyValue>
@@ -131,7 +132,7 @@ export function LogDetail({entry, deviceName, groupColor, onClose, className}: {
                         </div>
                     </div>
                 )}
-            </div>
+            </ScrollArea>
         </div>
     );
 }

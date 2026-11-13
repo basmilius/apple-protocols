@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Chart, createChart } from '@adecore/charts';
 import { formatBytes } from '@adecore/ui/format';
 import type { TrafficProtocol } from '@shared/contract';
-import { useDevices } from '@/state/devices';
+import { formatTime } from '@shared/helpers';
+import { STATISTICS_INTERVAL_MS, STATISTICS_PROTOCOLS, STATISTICS_WINDOW_MS, type LogBucket, type MessageType, type StatisticsSnapshot, type TrafficBucket } from '@shared/statistics';
+import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
 import { CircleX, type LucideIcon } from 'lucide-react';
-import { Icon, ICONS, PanelBody, Section } from '@/ui';
-import { BUCKET_MS, logBuckets, type LogBucket, type MessageType, PROTOCOLS, topTypes, type TrafficBucket, trafficBuckets, WINDOW_MS, windowStart } from './buckets';
+import { EmptyState, FormError, Icon, ICONS, PanelBody, Section } from '@/ui';
 
 const PROTOCOL_LABELS: Record<TrafficProtocol, string> = {
     dataStream: 'Data stream',
@@ -15,23 +16,51 @@ const PROTOCOL_LABELS: Record<TrafficProtocol, string> = {
     rtsp: 'RTSP'
 };
 
-const TYPE_LIMIT = 12;
-
 const TrafficChart = createChart<TrafficBucket>();
 const LogChart = createChart<LogBucket>();
 const TypeChart = createChart<MessageType>();
 
-/* The window slides with the clock, also while the device is silent. */
-function useWindowStart(): number {
-    const [start, setStart] = useState(() => windowStart(Date.now()));
+const formatTimeOfDay = (timestamp: string | number): string => formatTime(Number(timestamp)).slice(0, 8);
+
+function useStatistics(deviceId: string | null) {
+    const [result, setResult] = useState<{deviceId: string | null; snapshot: StatisticsSnapshot} | null>(null);
+    const [failure, setFailure] = useState<{deviceId: string | null; message: string} | null>(null);
 
     useEffect(() => {
-        const timer = window.setInterval(() => setStart(windowStart(Date.now())), 1000);
+        let active = true;
+        let timer: ReturnType<typeof setTimeout>;
 
-        return () => window.clearInterval(timer);
-    }, []);
+        const poll = async (): Promise<void> => {
+            try {
+                const snapshot = await invoke('statistics:history', {deviceId});
 
-    return start;
+                if (active) {
+                    setResult({deviceId, snapshot});
+                    setFailure(null);
+                }
+            } catch (error) {
+                if (active) {
+                    setFailure({deviceId, message: messageOf(error)});
+                }
+            } finally {
+                if (active) {
+                    timer = setTimeout(() => void poll(), STATISTICS_INTERVAL_MS);
+                }
+            }
+        };
+
+        void poll();
+
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [deviceId]);
+
+    return {
+        snapshot: result?.deviceId === deviceId ? result.snapshot : null,
+        error: failure?.deviceId === deviceId ? failure.message : null
+    };
 }
 
 function Figure({icon, label, value}: { readonly icon: LucideIcon; readonly label: string; readonly value: string }) {
@@ -47,32 +76,22 @@ function Figure({icon, label, value}: { readonly icon: LucideIcon; readonly labe
 }
 
 export function StatisticsPanel({deviceId}: PanelProps) {
-    const traffic = useDevices(state => state.traffic);
-    const logs = useDevices(state => state.logs);
-    const start = useWindowStart();
-    const xOptions = {min: start, max: start + WINDOW_MS};
+    const {snapshot, error} = useStatistics(deviceId);
 
-    const records = useMemo(() => traffic.filter(record => record.deviceId === deviceId), [traffic, deviceId]);
-    const messages = useMemo(() => trafficBuckets(records, start, () => 1), [records, start]);
-    const bytes = useMemo(() => trafficBuckets(records, start, record => record.size ?? 0), [records, start]);
-    const types = useMemo(() => topTypes(records, start, TYPE_LIMIT), [records, start]);
-    const problems = useMemo(() => logBuckets(logs.filter(entry => entry.deviceId === deviceId), start), [logs, deviceId, start]);
+    if (snapshot === null) {
+        return (
+            <div className="grid h-full place-items-center p-4">
+                {error ? <FormError>{error}</FormError> : <EmptyState icon={ICONS.statistics} busy>Loading statistics.</EmptyState>}
+            </div>
+        );
+    }
 
-    const totals = useMemo(() => {
-        const recent = records.filter(record => record.timestamp >= start);
-        const recentLogs = logs.filter(entry => entry.deviceId === deviceId && entry.timestamp >= start);
-
-        return {
-            received: recent.filter(record => record.direction === 'in').length,
-            sent: recent.filter(record => record.direction === 'out').length,
-            bytes: recent.reduce((sum, record) => sum + (record.size ?? 0), 0),
-            errors: recentLogs.filter(entry => entry.group === 'error').length,
-            warnings: recentLogs.filter(entry => entry.group === 'warn').length
-        };
-    }, [records, logs, deviceId, start]);
+    const {start, messages, bytes, types, problems, totals} = snapshot;
+    const xOptions = {min: start, max: start + STATISTICS_WINDOW_MS};
 
     return (
         <PanelBody>
+            {error && <FormError>{error}</FormError>}
             <div className="grid grid-cols-2 gap-2 @[640px]:grid-cols-5">
                 <Figure icon={ICONS.received} label="Received" value={String(totals.received)}/>
                 <Figure icon={ICONS.sent} label="Sent" value={String(totals.sent)}/>
@@ -80,35 +99,35 @@ export function StatisticsPanel({deviceId}: PanelProps) {
                 <Figure icon={ICONS.warning} label="Warnings" value={String(totals.warnings)}/>
                 <Figure icon={CircleX} label="Errors" value={String(totals.errors)}/>
             </div>
-            <p className="-mt-2 text-xs text-text-faint">Totals over the last five minutes, the window the charts show.</p>
+            <p className="-mt-2 text-xs text-text-faint">Last 30 minutes, in two-second intervals. History builds while the app runs and survives clearing logs or traffic.</p>
             <Chart.Group className="flex flex-col gap-5">
-                <Section title="Messages per five seconds" icon={ICONS.traffic} wide>
-                    <TrafficChart.Root data={messages} x="at" xScale="time" step={BUCKET_MS} xOptions={xOptions} y={{integer: true}} label="Messages per five seconds, per protocol" height={180}>
+                <Section title="Messages per two seconds" icon={ICONS.traffic} wide>
+                    <TrafficChart.Root data={messages} x="at" xScale="time" step={STATISTICS_INTERVAL_MS} xOptions={xOptions} y={{integer: true}} label="Messages per two seconds, per protocol" height={180}>
                         <TrafficChart.Grid/>
-                        <TrafficChart.XAxis/>
+                        <TrafficChart.XAxis format={formatTimeOfDay}/>
                         <TrafficChart.YAxis/>
-                        {PROTOCOLS.map(protocol => (
+                        {STATISTICS_PROTOCOLS.map(protocol => (
                             <TrafficChart.Area key={protocol} value={protocol} label={PROTOCOL_LABELS[protocol]} curve="monotone" stack/>
                         ))}
                         <TrafficChart.Tooltip total/>
                         <TrafficChart.Legend/>
                     </TrafficChart.Root>
                 </Section>
-                <Section title="Bytes per five seconds" icon={ICONS.statistics} wide>
-                    <TrafficChart.Root data={bytes} x="at" xScale="time" step={BUCKET_MS} xOptions={xOptions} format={formatBytes} label="Bytes per five seconds, per protocol" height={180}>
+                <Section title="Bytes per two seconds" icon={ICONS.statistics} wide>
+                    <TrafficChart.Root data={bytes} x="at" xScale="time" step={STATISTICS_INTERVAL_MS} xOptions={xOptions} format={formatBytes} label="Bytes per two seconds, per protocol" height={180}>
                         <TrafficChart.Grid/>
-                        <TrafficChart.XAxis/>
+                        <TrafficChart.XAxis format={formatTimeOfDay}/>
                         <TrafficChart.YAxis/>
-                        {PROTOCOLS.map(protocol => (
+                        {STATISTICS_PROTOCOLS.map(protocol => (
                             <TrafficChart.Area key={protocol} value={protocol} label={PROTOCOL_LABELS[protocol]} curve="monotone" stack/>
                         ))}
                         <TrafficChart.Tooltip total/>
                     </TrafficChart.Root>
                 </Section>
                 <Section title="Errors and warnings" icon={ICONS.warning} wide>
-                    <LogChart.Root data={problems} x="at" xScale="time" step={BUCKET_MS} xOptions={xOptions} y={{integer: true}} label="Errors and warnings per five seconds" height={120}>
+                    <LogChart.Root data={problems} x="at" xScale="time" step={STATISTICS_INTERVAL_MS} xOptions={xOptions} y={{integer: true}} label="Errors and warnings per two seconds" height={120}>
                         <LogChart.Grid/>
-                        <LogChart.XAxis/>
+                        <LogChart.XAxis format={formatTimeOfDay}/>
                         <LogChart.YAxis ticks={3}/>
                         <LogChart.Bars stack>
                             <LogChart.Bar value="error" label="Errors" tone="error"/>
@@ -120,7 +139,7 @@ export function StatisticsPanel({deviceId}: PanelProps) {
                 </Section>
             </Chart.Group>
             <Section title="Message types" icon={ICONS.raw} wide>
-                <TypeChart.Root data={types} x="type" orientation="horizontal" rowHeight={24} y={{integer: true}} label="Most frequent message types in the last five minutes">
+                <TypeChart.Root data={types} x="type" orientation="horizontal" rowHeight={24} y={{integer: true}} label="Most frequent message types in the last 30 minutes">
                     <TypeChart.Grid/>
                     <TypeChart.XAxis/>
                     <TypeChart.YAxis ticks={4}/>

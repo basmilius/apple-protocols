@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
 import { Copy, Pause, Play, Trash2 } from 'lucide-react';
@@ -48,7 +49,7 @@ export function LogConsole() {
     const [detailId, setDetailId] = useState<number | null>(null);
     const [copied, setCopied] = useState(false);
     const [stuck, setStuck] = useState(true);
-    const scroller = useRef<HTMLDivElement>(null);
+    const scroller = useRef<HTMLElement>(null);
 
     const deviceIds = useMemo(() => (deviceId === ALL ? undefined : [deviceId]), [deviceId]);
     const visible = useLogs({deviceIds, search});
@@ -188,7 +189,7 @@ export function LogConsole() {
             </div>
             <div className="flex min-h-0 grow flex-col">
                 <div className="relative min-h-0 min-w-0 grow">
-                    <div ref={scroller} onScroll={onScroll} role="region" aria-label="Log messages" tabIndex={0} className="h-full overflow-auto bg-code-bg">
+                    <ScrollArea axis="both" viewportRef={scroller} onScroll={onScroll} role="region" aria-label="Log messages" tabIndex={0} className="h-full bg-code-bg">
                         {shown.length === 0 ? (
                             <EmptyState>Nothing logged yet. Connect a device to see its protocol traffic.</EmptyState>
                         ) : (
@@ -224,7 +225,7 @@ export function LogConsole() {
                                 })}
                             </div>
                         )}
-                    </div>
+                    </ScrollArea>
                     {(waiting > 0 || !stuck) && (
                         <button
                             type="button"

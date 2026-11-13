@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import { Play } from 'lucide-react';
 import { type CallResult, isCallFailure, type RoundTripResult, type ToolInfo, type ToolInput } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
@@ -99,9 +100,9 @@ export function ToolRunner({tool, deviceId}: { readonly tool: ToolInfo; readonly
             {value !== null && (
                 <div className="flex flex-col gap-2">
                     {isRoundTrip(value) && <RoundTripSummary value={value}/>}
-                    <div className="overflow-auto rounded-lg bg-code-bg p-2">
+                    <ScrollArea axis="both" className="rounded-lg bg-code-bg" viewportClassName="p-2">
                         <JsonView value={value} defaultDepth={3}/>
-                    </div>
+                    </ScrollArea>
                 </div>
             )}
         </div>

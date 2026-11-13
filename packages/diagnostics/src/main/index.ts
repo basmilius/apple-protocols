@@ -10,6 +10,7 @@ import { LogBuffer } from './logs';
 import { Ring } from './ring';
 import { RuntimeMetrics } from './performance';
 import { SessionManager, type SessionHost } from './session';
+import { StatisticsBuffer } from './statistics';
 import { StorageQueue } from './storage';
 import { TrafficBuffer } from './traffic';
 import { applyTheme, createWindow } from './window';
@@ -20,6 +21,7 @@ const AGENT_ENABLED = !app.isPackaged || process.argv.includes('--agent') || pro
 const storage = new StorageQueue();
 const logs = new LogBuffer();
 const traffic = new TrafficBuffer();
+const statistics = new StatisticsBuffer();
 const events = new Ring<DeviceEvent>(5000, event => event.sequence);
 const resume = new ResumeList();
 const metrics = new RuntimeMetrics(() => ({logs: logs.stats, events: events.stats, traffic: traffic.ring.stats}));
@@ -58,6 +60,7 @@ const sessions = new SessionManager(host, storage.storage);
 const registerChannels = (): void => {
     handle('performance:status', () => metrics.status());
     handle('performance:reset', () => metrics.reset());
+    handle('statistics:history', request => statistics.snapshot(request.deviceId));
     handle('app:info', () => ({
         platform: process.platform,
         versions: {electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node},
@@ -101,10 +104,16 @@ const registerChannels = (): void => {
 const start = async (): Promise<void> => {
     /* The sink receives every group without enabling console output. */
     logs.install();
-    logs.onListener(entry => send('log:entry', entry));
+    logs.onListener(entry => {
+        statistics.recordLog(entry);
+        send('log:entry', entry);
+    });
 
     traffic.install();
-    traffic.onListener(record => send('traffic:entry', record));
+    traffic.onListener(record => {
+        statistics.recordTraffic(record);
+        send('traffic:entry', record);
+    });
 
     await storage.load();
     configure({storage: storage.storage});

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, SquareArrowOutUpRight } from 'lucide-react';
-import { ListRow } from '@adecore/ui';
+import { ListRow, ScrollArea } from '@adecore/ui';
 import type { DeviceEventSource } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useLayout } from '@/state/layout';
@@ -39,7 +39,7 @@ export function EventFeed({deviceId, title, empty, sources, names, limit = 20, w
             {feed.length === 0 ? (
                 <p className="text-xs text-text-muted">{empty}</p>
             ) : (
-                <div className="-mx-2 flex max-h-64 flex-col gap-px overflow-auto">
+                <ScrollArea axis="both" className="-mx-2 max-h-64" viewportClassName="flex flex-col gap-px [&>*]:shrink-0">
                     {feed.map(event => (
                         <div key={event.sequence}>
                             <ListRow
@@ -60,7 +60,7 @@ export function EventFeed({deviceId, title, empty, sources, names, limit = 20, w
                             )}
                         </div>
                     ))}
-                </div>
+                </ScrollArea>
             )}
         </Section>
     );

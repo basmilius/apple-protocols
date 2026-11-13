@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import type { ToolCategory } from '@shared/contract';
 import { EmptyState, Select, type SelectGroup, type SelectItem } from '@/ui';
 import { ToolRunner } from './ToolRunner';
@@ -44,9 +45,9 @@ export function ToolboxPanel({category, deviceId}: { readonly category: ToolCate
             <header className="shrink-0 border-b border-border p-3">
                 <Select label="Tool" value={selected.id} items={groups} onValueChange={setToolId} className="w-full"/>
             </header>
-            <div className="min-h-0 grow overflow-auto p-3">
+            <ScrollArea axis="both" className="min-h-0 grow" viewportClassName="p-3">
                 <ToolRunner tool={selected} deviceId={deviceId}/>
-            </div>
+            </ScrollArea>
         </div>
     );
 }

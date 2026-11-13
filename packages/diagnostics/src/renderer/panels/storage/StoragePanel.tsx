@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ScrollArea } from '@adecore/ui';
 import { Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { STORAGE_PROTOCOLS, type StorageDump, type StorageProtocol, type StoredDeviceInfo } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
@@ -128,9 +129,9 @@ export function StoragePanel(_props: PanelProps) {
                 {dump === null ? (
                     <EmptyState icon={ICONS.storage}>Nothing read yet.</EmptyState>
                 ) : (
-                    <div className="overflow-auto rounded-lg bg-code-bg p-2">
+                    <ScrollArea axis="both" className="rounded-lg bg-code-bg" viewportClassName="p-2">
                         <JsonView value={dump.data} defaultDepth={3}/>
-                    </div>
+                    </ScrollArea>
                 )}
                 {dump !== null && !dump.revealed && <p className="text-xs text-text-muted">Key material stays in main until you reveal it.</p>}
             </Section>

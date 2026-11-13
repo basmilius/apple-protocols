@@ -36,7 +36,7 @@ type PanelGroupProps = {
 /** A block of cards on one subject. It starts below the previous group, so cards of two groups never share a column. */
 export function PanelGroup({title, icon, children}: PanelGroupProps) {
     return (
-        <div className="panel-group flex flex-col gap-3 [.panel-group+&]:mt-2 [.panel-group+&]:border-t [.panel-group+&]:border-border-soft [.panel-group+&]:pt-6">
+        <div className="panel-group flex flex-col gap-3 [.panel-group+&]:mt-5">
             {title && (
                 <h2 className="flex items-center gap-2 text-sm font-medium text-text">
                     {icon && <Icon icon={icon} size={16} className="shrink-0 text-text-muted"/>}

@@ -1,19 +1,9 @@
-import { useMemo, useState } from 'react';
-import { formatTime } from '@shared/helpers';
-import { Badge, CommandButton, EmptyState, TextInput, JsonView, KeyValue, KeyValueList, Section, Select, TabPanel, Tabs, TextArea } from '@/ui';
-import type { TabItem } from '@/ui';
-import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents } from '@/panels/hooks';
+import { useState } from 'react';
+import { Captions, Ear, type LucideIcon, MapPin, Mic, Play, SunMoon } from 'lucide-react';
+import { Banner, ButtonGroup, CommandButton, CountPill, EmptyState, Icon, IconButton, ICONS, PanelBody, Section, TextInput } from '@/ui';
+import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { BUTTON_PRESS_ITEMS, Labeled, MEDIA_CONTROL_ITEMS, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
-
-const TABS: readonly TabItem[] = [
-    {value: 'apps', label: 'Apps'},
-    {value: 'accounts', label: 'Accounts'},
-    {value: 'keyboard', label: 'Keyboard'},
-    {value: 'power', label: 'Power'},
-    {value: 'system', label: 'System'},
-    {value: 'companion', label: 'Companion'}
-];
+import { EventFeed, Labeled, NotConnected, ResultBlock, Row } from '@/panels/sdk-shared';
 
 type LaunchableApp = {
     readonly bundleId: string;
@@ -25,29 +15,10 @@ type UserAccount = {
     readonly name: string;
 };
 
-function EventFeed({events, empty}: { readonly events: readonly { readonly sequence: number; readonly timestamp: number; readonly name: string; readonly payload: readonly unknown[] }[]; readonly empty: string }) {
-    const feed = useMemo(() => [...events].reverse(), [events]);
+const POWER_SOURCES = ['device', 'companionLink'] as const;
+const POWER_EVENTS = ['power', 'attentionStateChanged'];
 
-    return (
-        <div className="max-h-56 overflow-auto rounded-lg border border-border bg-code-bg p-2">
-            {feed.length === 0 ? (
-                <p className="text-xs text-text-muted">{empty}</p>
-            ) : (
-                feed.map(event => (
-                    <div key={event.sequence} className="border-b border-border-soft py-1 last:border-b-0">
-                        <div className="flex items-center gap-2">
-                            <span className="mono text-code-dim">{formatTime(event.timestamp)}</span>
-                            <span className="text-xs text-text">{event.name}</span>
-                        </div>
-                        <JsonView value={event.payload} defaultDepth={2}/>
-                    </div>
-                ))
-            )}
-        </div>
-    );
-}
-
-function AppsTab({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
+function AppsSection({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
     const [apps, setApps] = useState<readonly LaunchableApp[]>([]);
     const [bundleId, setBundleId] = useState('');
     const [url, setUrl] = useState('');
@@ -60,44 +31,43 @@ function AppsTab({call, connected}: { readonly call: DeviceCall; readonly connec
     };
 
     return (
-        <PanelBody>
-            <Section title="Launchable apps" actions={<Badge tone="muted">{apps.length}</Badge>}>
-                <Row>
-                    <CommandButton label="List apps" run={list} disabled={!connected}/>
-                    <Labeled label="Bundle id">
-                        <TextInput label="Bundle identifier" mono className="h-7 w-72" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>
-                    </Labeled>
-                    <CommandButton label="Launch" variant="primary" run={() => call('device', 'apps.launch', [bundleId.trim()])} disabled={!connected || bundleId.trim().length === 0}/>
-                </Row>
-                {apps.length === 0 ? (
-                    <EmptyState className="py-4">Nothing listed yet.</EmptyState>
-                ) : (
-                    <div className="flex flex-col divide-y divide-border-soft">
-                        {apps.map(app => (
-                            <div key={app.bundleId} className="flex items-center gap-2 py-1">
-                                <span className="min-w-0 grow truncate text-xs text-text">{app.name}</span>
-                                <Badge tone="muted" mono>
-                                    {app.bundleId}
-                                </Badge>
-                                <CommandButton label="Launch" run={() => call('device', 'apps.launch', [app.bundleId])}/>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Section>
-
-            <Section title="Open URL">
-                <Row>
-                    <TextInput label="URL to open" mono className="h-7 w-96" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
-                    <CommandButton label="apps.openUrl" run={() => call('device', 'apps.openUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
-                    <CommandButton label="companionLink.launchUrl" run={() => call('companionLink', 'launchUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
-                </Row>
-            </Section>
-        </PanelBody>
+        <Section
+            title="Apps"
+            icon={ICONS.apps}
+            actions={
+                <>
+                    <CountPill>{apps.length}</CountPill>
+                    <CommandButton label="List apps" tooltip="apps.list" run={list} showResult={false} disabled={!connected}/>
+                </>
+            }
+        >
+            {apps.length === 0 ? (
+                <EmptyState icon={ICONS.apps}>Nothing listed yet.</EmptyState>
+            ) : (
+                <div className="flex max-h-72 flex-col divide-y divide-border-soft overflow-auto">
+                    {apps.map(app => (
+                        <div key={app.bundleId} className="flex items-center gap-2 py-1">
+                            <span className="min-w-0 grow truncate text-xs text-text">{app.name}</span>
+                            <span className="mono truncate text-text-faint">{app.bundleId}</span>
+                            <IconButton icon={Play} label={`Launch ${app.name}`} size="sm" onClick={() => void call('device', 'apps.launch', [app.bundleId])}/>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <Row>
+                <TextInput label="Bundle identifier" mono className="h-7 w-64" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>
+                <CommandButton label="Launch" tooltip="apps.launch" run={() => call('device', 'apps.launch', [bundleId.trim()])} disabled={!connected || bundleId.trim().length === 0}/>
+            </Row>
+            <Row>
+                <TextInput label="URL to open" mono className="h-7 w-64" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
+                <CommandButton label="Open via AirPlay" tooltip="apps.openUrl" run={() => call('device', 'apps.openUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
+                <CommandButton label="Open via Companion Link" tooltip="companionLink.launchUrl" run={() => call('companionLink', 'launchUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
+            </Row>
+        </Section>
     );
 }
 
-function AccountsTab({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
+function AccountsSection({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
     const [accounts, setAccounts] = useState<readonly UserAccount[]>([]);
     const [accountId, setAccountId] = useState('');
     const [dsid, setDsid] = useState('');
@@ -110,261 +80,180 @@ function AccountsTab({call, connected}: { readonly call: DeviceCall; readonly co
     };
 
     return (
-        <PanelBody>
-            <Section title="User accounts" actions={<Badge tone="muted">{accounts.length}</Badge>}>
-                <Row>
-                    <CommandButton label="List accounts" run={list} disabled={!connected}/>
-                    <ResultBlock label="accounts.active" run={() => call('device', 'accounts.active')} disabled={!connected}/>
-                </Row>
-                {accounts.length === 0 ? (
-                    <EmptyState className="py-4">Nothing listed yet.</EmptyState>
-                ) : (
-                    <div className="flex flex-col divide-y divide-border-soft">
-                        {accounts.map(account => (
-                            <div key={account.accountId} className="flex items-center gap-2 py-1">
-                                <span className="min-w-0 grow truncate text-xs text-text">{account.name}</span>
-                                <Badge tone="muted" mono>
-                                    {account.accountId}
-                                </Badge>
-                                <CommandButton label="Switch" run={() => call('device', 'accounts.switch', [account.accountId])}/>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Section>
-
-            <Section title="Switch by identifier">
-                <Row>
-                    <Labeled label="Account id">
-                        <TextInput label="Account identifier" mono className="h-7 w-72" value={accountId} onChange={event => setAccountId(event.target.value)}/>
-                    </Labeled>
-                    <CommandButton label="accounts.switch" run={() => call('device', 'accounts.switch', [accountId.trim()])} disabled={!connected || accountId.trim().length === 0}/>
-                </Row>
-                <Row>
-                    <Labeled label="iCloud alt DSID">
-                        <TextInput label="iCloud alt DSID" mono className="h-7 w-72" value={dsid} onChange={event => setDsid(event.target.value)}/>
-                    </Labeled>
-                    <CommandButton label="accounts.switchActive" run={() => call('device', 'accounts.switchActive', [dsid.trim()])} disabled={!connected || dsid.trim().length === 0}/>
-                </Row>
-            </Section>
-        </PanelBody>
+        <Section
+            title="Accounts"
+            icon={ICONS.accounts}
+            actions={
+                <>
+                    <CountPill>{accounts.length}</CountPill>
+                    <CommandButton label="List accounts" tooltip="accounts.list" run={list} showResult={false} disabled={!connected}/>
+                </>
+            }
+        >
+            {accounts.length === 0 ? (
+                <EmptyState icon={ICONS.accounts}>Nothing listed yet.</EmptyState>
+            ) : (
+                <div className="flex flex-col divide-y divide-border-soft">
+                    {accounts.map(account => (
+                        <div key={account.accountId} className="flex items-center gap-2 py-1">
+                            <span className="min-w-0 grow truncate text-xs text-text">{account.name}</span>
+                            <span className="mono truncate text-text-faint">{account.accountId}</span>
+                            <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [account.accountId])}/>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <Row>
+                <ResultBlock label="Active account" tooltip="accounts.active" run={() => call('device', 'accounts.active')} disabled={!connected}/>
+                <ResultBlock label="Companion account" tooltip="companionLink.activeUserAccount" run={() => call('companionLink', 'activeUserAccount')} disabled={!connected}/>
+            </Row>
+            <Row>
+                <Labeled label="Account id">
+                    <TextInput label="Account identifier" mono className="h-7 w-56" value={accountId} onChange={event => setAccountId(event.target.value)}/>
+                </Labeled>
+                <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [accountId.trim()])} disabled={!connected || accountId.trim().length === 0}/>
+            </Row>
+            <Row>
+                <Labeled label="iCloud alt DSID">
+                    <TextInput label="iCloud alt DSID" mono className="h-7 w-56" value={dsid} onChange={event => setDsid(event.target.value)}/>
+                </Labeled>
+                <CommandButton label="Switch" tooltip="accounts.switchActive" run={() => call('device', 'accounts.switchActive', [dsid.trim()])} disabled={!connected || dsid.trim().length === 0}/>
+            </Row>
+        </Section>
     );
 }
 
-function KeyboardTab({deviceId, call, connected}: { readonly deviceId: string | null; readonly call: DeviceCall; readonly connected: boolean }) {
-    const {snapshot} = useDevice(deviceId);
-    const [text, setText] = useState('');
-    const events = useDeviceEvents(deviceId, {sources: ['device', 'companionLink'], names: ['textInput', 'textInputChanged'], limit: 50});
-
-    const keyboard = snapshot?.keyboard ?? null;
-
+function OnOff({label, icon, path, call, connected}: { readonly label: string; readonly icon: LucideIcon; readonly path: string; readonly call: DeviceCall; readonly connected: boolean }) {
     return (
-        <PanelBody>
-            <Section title="Text input" actions={<Badge tone={keyboard?.active ? 'accent' : 'muted'}>{keyboard?.active ? 'keyboard active' : 'idle'}</Badge>}>
-                <KeyValueList>
-                    <KeyValue label="Text" mono={false}>
-                        {keyboard?.text ?? '-'}
-                    </KeyValue>
-                    <KeyValue label="Placeholder" mono={false}>
-                        {keyboard?.placeholder ?? '-'}
-                    </KeyValue>
-                </KeyValueList>
-                <TextArea label="Text to send" rows={3} value={text} onChange={event => setText(event.target.value)} placeholder="What to type on the device"/>
-                <Row>
-                    <CommandButton label="Type" variant="primary" run={() => call('device', 'keyboard.type', [text])} disabled={!connected}/>
-                    <CommandButton label="Append" run={() => call('device', 'keyboard.append', [text])} disabled={!connected}/>
-                    <CommandButton label="Clear" variant="danger" run={() => call('device', 'keyboard.clear')} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <ResultBlock label="keyboard.getSession" run={() => call('device', 'keyboard.getSession')} disabled={!connected} defaultDepth={3}/>
-                    <ResultBlock label="airplayState.keyboardState" run={() => call('airplayState', 'keyboardState')} disabled={!connected}/>
-                    <ResultBlock label="airplayState.keyboardAttributes" run={() => call('airplayState', 'keyboardAttributes')} disabled={!connected} defaultDepth={3}/>
-                </Row>
-            </Section>
-
-            <Section title="Text input events" actions={<Badge tone="muted">{events.length}</Badge>}>
-                <EventFeed events={events} empty="No text input event has come in yet."/>
-            </Section>
-        </PanelBody>
+        <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                <IconLabel icon={icon}/>
+                {label}
+            </span>
+            <ButtonGroup>
+                <CommandButton label="On" tooltip={`${path}(true)`} run={() => call('device', path, [true])} disabled={!connected}/>
+                <CommandButton label="Off" tooltip={`${path}(false)`} run={() => call('device', path, [false])} disabled={!connected}/>
+            </ButtonGroup>
+        </div>
     );
 }
 
-function PowerTab({deviceId, call, connected}: { readonly deviceId: string | null; readonly call: DeviceCall; readonly connected: boolean }) {
-    const events = useDeviceEvents(deviceId, {sources: ['device', 'companionLink'], names: ['power', 'attentionStateChanged'], limit: 50});
+function IconLabel({icon}: { readonly icon: LucideIcon }) {
+    return <Icon icon={icon} size={14} className="shrink-0 text-text-faint"/>;
+}
 
+function SystemSection({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
     return (
-        <PanelBody>
-            <Section title="Power">
-                <Row>
-                    <CommandButton label="Power on" variant="primary" run={() => call('device', 'power.on')} disabled={!connected}/>
-                    <CommandButton label="Power off" variant="danger" run={() => call('device', 'power.off')} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <ResultBlock label="power.getState" run={() => call('device', 'power.getState')} disabled={!connected}/>
-                    <ResultBlock label="companionLink.getAttentionState" run={() => call('companionLink', 'getAttentionState')} disabled={!connected}/>
-                </Row>
-            </Section>
-
-            <Section title="Power events" actions={<Badge tone="muted">{events.length}</Badge>}>
-                <EventFeed events={events} empty="No power or attention event has come in yet."/>
-            </Section>
-        </PanelBody>
+        <Section title="System" icon={ICONS.system}>
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                        <IconLabel icon={Captions}/>
+                        Captions
+                    </span>
+                    <CommandButton label="Toggle" tooltip="system.toggleCaptions" run={() => call('device', 'system.toggleCaptions')} disabled={!connected}/>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                        <IconLabel icon={SunMoon}/>
+                        Appearance
+                    </span>
+                    <ButtonGroup>
+                        <CommandButton label="Light" tooltip="system.setAppearance" run={() => call('device', 'system.setAppearance', ['light'])} disabled={!connected}/>
+                        <CommandButton label="Dark" tooltip="system.setAppearance" run={() => call('device', 'system.setAppearance', ['dark'])} disabled={!connected}/>
+                    </ButtonGroup>
+                </div>
+                <OnOff label="Reduce loud sounds" icon={Ear} path="system.setReduceLoudSounds" call={call} connected={connected}/>
+                <OnOff label="Finding mode" icon={MapPin} path="system.setFindingMode" call={call} connected={connected}/>
+                <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs text-text-muted">
+                        <IconLabel icon={Mic}/>
+                        Siri
+                    </span>
+                    <ButtonGroup>
+                        <CommandButton label="Start" tooltip="system.siriStart" run={() => call('device', 'system.siriStart')} disabled={!connected}/>
+                        <CommandButton label="Stop" tooltip="system.siriStop" run={() => call('device', 'system.siriStop')} disabled={!connected}/>
+                    </ButtonGroup>
+                </div>
+            </div>
+        </Section>
     );
 }
 
-function SystemTab({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
+function PowerSection({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
+    return (
+        <Section title="Power" icon={ICONS.power}>
+            <Row>
+                <CommandButton label="Power on" variant="primary" tooltip="power.on" run={() => call('device', 'power.on')} disabled={!connected}/>
+                <CommandButton label="Power off" variant="danger" tooltip="power.off" run={() => call('device', 'power.off')} disabled={!connected}/>
+            </Row>
+            <Row>
+                <ResultBlock label="Power state" tooltip="power.getState" run={() => call('device', 'power.getState')} disabled={!connected}/>
+                <ResultBlock label="Attention state" tooltip="companionLink.getAttentionState" run={() => call('companionLink', 'getAttentionState')} disabled={!connected}/>
+            </Row>
+        </Section>
+    );
+}
+
+function UpNextSection({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
     const [identifier, setIdentifier] = useState('');
     const [kind, setKind] = useState('Movie');
     const [paginationToken, setPaginationToken] = useState('');
+    const ready = connected && identifier.trim().length > 0;
 
     return (
-        <PanelBody>
-            <Section title="System">
-                <Row>
-                    <CommandButton label="Toggle captions" run={() => call('device', 'system.toggleCaptions')} disabled={!connected}/>
-                    <CommandButton label="Appearance light" run={() => call('device', 'system.setAppearance', ['light'])} disabled={!connected}/>
-                    <CommandButton label="Appearance dark" run={() => call('device', 'system.setAppearance', ['dark'])} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <CommandButton label="Reduce loud sounds on" run={() => call('device', 'system.setReduceLoudSounds', [true])} disabled={!connected}/>
-                    <CommandButton label="Reduce loud sounds off" run={() => call('device', 'system.setReduceLoudSounds', [false])} disabled={!connected}/>
-                    <CommandButton label="Finding mode on" run={() => call('device', 'system.setFindingMode', [true])} disabled={!connected}/>
-                    <CommandButton label="Finding mode off" run={() => call('device', 'system.setFindingMode', [false])} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <CommandButton label="Siri start" run={() => call('device', 'system.siriStart')} disabled={!connected}/>
-                    <CommandButton label="Siri stop" run={() => call('device', 'system.siriStop')} disabled={!connected}/>
-                </Row>
-            </Section>
-
-            <Section title="Up next">
-                <Row>
-                    <Labeled label="Pagination token">
-                        <TextInput label="Pagination token" mono className="h-7 w-56" placeholder="Optional" value={paginationToken} onChange={event => setPaginationToken(event.target.value)}/>
-                    </Labeled>
-                </Row>
+        <Section wide title="Up next" icon={ICONS.upNext}>
+            <Row>
+                <Labeled label="Pagination token">
+                    <TextInput label="Pagination token" mono className="h-7 w-56" placeholder="Optional" value={paginationToken} onChange={event => setPaginationToken(event.target.value)}/>
+                </Labeled>
                 <ResultBlock
-                    label="system.fetchUpNext"
+                    label="Fetch up next"
+                    tooltip="system.fetchUpNext"
                     run={() => call('device', 'system.fetchUpNext', paginationToken.trim().length > 0 ? [paginationToken.trim()] : [])}
                     disabled={!connected}
                     defaultDepth={3}
                 />
-                <Row>
-                    <Labeled label="Identifier">
-                        <TextInput label="Up next identifier" mono className="h-7 w-56" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
-                    </Labeled>
-                    <Labeled label="Kind">
-                        <TextInput label="Up next kind" mono className="h-7 w-32" value={kind} onChange={event => setKind(event.target.value)}/>
-                    </Labeled>
-                    <CommandButton label="Add to up next" run={() => call('device', 'system.addToUpNext', [identifier.trim(), kind.trim()])} disabled={!connected || identifier.trim().length === 0}/>
-                    <CommandButton
-                        label="Remove from up next"
-                        variant="danger"
-                        run={() => call('device', 'system.removeFromUpNext', [identifier.trim(), kind.trim()])}
-                        disabled={!connected || identifier.trim().length === 0}
-                    />
-                    <CommandButton label="Mark as watched" run={() => call('companionLink', 'markAsWatched', [identifier.trim(), kind.trim()])} disabled={!connected || identifier.trim().length === 0}/>
-                </Row>
-            </Section>
-        </PanelBody>
-    );
-}
-
-function CompanionTab({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
-    const [command, setCommand] = useState('Play');
-    const [content, setContent] = useState('');
-    const [contentError, setContentError] = useState<string | null>(null);
-    const [pressType, setPressType] = useState('SingleTap');
-    const [holdDelay, setHoldDelay] = useState('500');
-
-    const send = async (): Promise<unknown> => {
-        const trimmed = content.trim();
-        setContentError(null);
-
-        if (trimmed.length === 0) {
-            return await call('companionLink', 'mediaControlCommand', [command]);
-        }
-
-        try {
-            return await call('companionLink', 'mediaControlCommand', [command, JSON.parse(trimmed)]);
-        } catch (error) {
-            setContentError(error instanceof Error ? error.message : String(error));
-            throw error;
-        }
-    };
-
-    return (
-        <PanelBody>
-            <Section title="Companion Link manager">
-                <Row>
-                    <ResultBlock label="fetchNowPlayingInfo" run={() => call('companionLink', 'fetchNowPlayingInfo')} disabled={!connected} defaultDepth={3}/>
-                    <ResultBlock label="fetchSupportedActions" run={() => call('companionLink', 'fetchSupportedActions')} disabled={!connected} defaultDepth={3}/>
-                    <ResultBlock label="fetchMediaControlStatus" run={() => call('companionLink', 'fetchMediaControlStatus')} disabled={!connected} defaultDepth={3}/>
-                </Row>
-                <Row>
-                    <ResultBlock label="textInputState" run={() => call('companionLink', 'textInputState')} disabled={!connected} defaultDepth={3}/>
-                    <ResultBlock label="activeUserAccount" run={() => call('companionLink', 'activeUserAccount')} disabled={!connected}/>
-                </Row>
-            </Section>
-
-            <Section title="Media control command">
-                <Row>
-                    <Select label="Media control command" value={command} onValueChange={setCommand} items={MEDIA_CONTROL_ITEMS} size="sm"/>
-                    <CommandButton label="Send" variant="primary" run={send} disabled={!connected}/>
-                </Row>
-                <TextInput label="Command content as JSON" mono className="h-7" placeholder='Content as JSON, for example {"volume":0.5}' value={content} onChange={event => setContent(event.target.value)}/>
-                {contentError !== null && <p className="text-xs text-status-error">{contentError}</p>}
-            </Section>
-
-            <Section title="Button press defaults">
-                <Row>
-                    <Labeled label="Press">
-                        <Select label="Press type" value={pressType} onValueChange={setPressType} items={BUTTON_PRESS_ITEMS} size="sm"/>
-                    </Labeled>
-                    <Labeled label="Hold (ms)">
-                        <NumberInput label="Hold delay" value={holdDelay} onValueChange={setHoldDelay}/>
-                    </Labeled>
-                    <CommandButton label="Siri" run={() => call('companionLink', 'pressButton', ['Siri', pressType, numberOf(holdDelay, 500)])} disabled={!connected}/>
-                    <CommandButton label="Home" run={() => call('companionLink', 'pressButton', ['Home', pressType, numberOf(holdDelay, 500)])} disabled={!connected}/>
-                </Row>
-            </Section>
-        </PanelBody>
+            </Row>
+            <Row>
+                <Labeled label="Identifier">
+                    <TextInput label="Up next identifier" mono className="h-7 w-56" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
+                </Labeled>
+                <Labeled label="Kind">
+                    <TextInput label="Up next kind" mono className="h-7 w-32" value={kind} onChange={event => setKind(event.target.value)}/>
+                </Labeled>
+                <CommandButton label="Add" tooltip="system.addToUpNext" run={() => call('device', 'system.addToUpNext', [identifier.trim(), kind.trim()])} disabled={!ready}/>
+                <CommandButton label="Remove" variant="danger" tooltip="system.removeFromUpNext" run={() => call('device', 'system.removeFromUpNext', [identifier.trim(), kind.trim()])} disabled={!ready}/>
+                <CommandButton label="Mark as watched" tooltip="companionLink.markAsWatched" run={() => call('companionLink', 'markAsWatched', [identifier.trim(), kind.trim()])} disabled={!ready}/>
+            </Row>
+        </Section>
     );
 }
 
 export function AppleTVPanel({deviceId}: PanelProps) {
     const {snapshot, connected} = useDevice(deviceId);
     const call = useDeviceCall(deviceId);
-    const [tab, setTab] = useState('apps');
-
     const companionConnected = snapshot?.connection.companionLink.connected === true;
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
+        <PanelBody>
             {!connected && <NotConnected/>}
             {connected && !companionConnected && (
-                <p className="px-4 pt-3 text-xs text-status-needs-you">Companion Link is not connected, so apps, accounts, system and the companion tab will refuse.</p>
+                <Banner
+                    placement="inline"
+                    tone="attention"
+                    icon={ICONS.companionLink}
+                    message="Companion Link is not connected, so apps, accounts, system and up next will refuse."
+                    className="col-span-full"
+                />
             )}
-            <Tabs value={tab} onValueChange={setTab} items={TABS} label="Apple TV" className="min-h-0 grow">
-                <TabPanel value="apps">
-                    <AppsTab call={call} connected={connected}/>
-                </TabPanel>
-                <TabPanel value="accounts">
-                    <AccountsTab call={call} connected={connected}/>
-                </TabPanel>
-                <TabPanel value="keyboard">
-                    <KeyboardTab deviceId={deviceId} call={call} connected={connected}/>
-                </TabPanel>
-                <TabPanel value="power">
-                    <PowerTab deviceId={deviceId} call={call} connected={connected}/>
-                </TabPanel>
-                <TabPanel value="system">
-                    <SystemTab call={call} connected={connected}/>
-                </TabPanel>
-                <TabPanel value="companion">
-                    <CompanionTab call={call} connected={connected}/>
-                </TabPanel>
-            </Tabs>
-        </div>
+
+            <AppsSection call={call} connected={connected}/>
+            <AccountsSection call={call} connected={connected}/>
+            <PowerSection call={call} connected={connected}/>
+            <SystemSection call={call} connected={connected}/>
+            <UpNextSection call={call} connected={connected}/>
+            <EventFeed wide deviceId={deviceId} title="Power events" sources={POWER_SOURCES} names={POWER_EVENTS} empty="No power or attention event has come in yet." limit={10}/>
+        </PanelBody>
     );
 }

@@ -3,7 +3,7 @@ import clsx from 'clsx';
 import { Copy, X } from 'lucide-react';
 import type { DebugGroup, LogEntry } from '@shared/contract';
 import { formatTime, isBytes } from '@shared/helpers';
-import { BTN_GROUP, IconButton, JsonView, KeyValue, KeyValueList, SECTION_LABEL } from '@/ui';
+import { BTN_GROUP, IconButton, JsonView, KeyValue, KeyValueList, Pill, SECTION_LABEL } from '@/ui';
 
 const DUMP_WIDTH = 16;
 
@@ -84,8 +84,10 @@ export function LogDetail({entry, deviceName, groupColor, onClose, className}: {
     return (
         <div className={clsx('flex min-h-0 min-w-0 flex-col bg-surface', className)}>
             <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border pr-1.5 pl-3">
-                <h2 className={clsx(SECTION_LABEL, 'uppercase tracking-wide')}>Entry</h2>
-                <span className={clsx('mono inline-flex h-5 items-center rounded-md bg-surface-active px-1.5', groupColor[entry.group])}>{entry.group}</span>
+                <h2 className={SECTION_LABEL}>Entry</h2>
+                <Pill tone="raised" mono className={groupColor[entry.group]}>
+                    {entry.group}
+                </Pill>
                 <span className={clsx(BTN_GROUP, 'ml-auto')}>
                     <IconButton icon={Copy} label="Copy the message" size="sm" onClick={() => copy(entry.message)}/>
                     <IconButton icon={X} label="Close the entry" size="sm" onClick={onClose}/>

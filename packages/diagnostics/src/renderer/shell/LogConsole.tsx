@@ -6,7 +6,7 @@ import { DEBUG_GROUPS, type DebugGroup, type LogEntry } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useDevices } from '@/state/devices';
 import { useLogs } from '@/panels/hooks';
-import { Badge, BTN_GROUP, EmptyState, TextInput, IconButton, Select, type SelectItem } from '@/ui';
+import { BTN_GROUP, CountPill, EmptyState, IconButton, Pill, Select, type SelectItem, TextInput } from '@/ui';
 import { LogDetail } from './LogDetail';
 
 /** One row, in the line height `.mono` prints at. */
@@ -155,7 +155,7 @@ export function LogConsole() {
             <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border px-2">
                 <Select label="Device" variant="ghost" size="sm" value={deviceId} items={deviceItems} onValueChange={setDeviceId}/>
                 <span className={clsx(BTN_GROUP, 'ml-auto gap-1')}>
-                    <Badge tone="muted">{shown.length}</Badge>
+                    <CountPill>{shown.length}</CountPill>
                     <IconButton
                         icon={Copy}
                         label={chosen.length > 0 ? `Copy ${chosen.length} selected` : 'Copy everything shown'}
@@ -177,19 +177,10 @@ export function LogConsole() {
             </header>
             <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-2 py-1.5">
                 {DEBUG_GROUPS.map(group => (
-                    <button
-                        key={group}
-                        type="button"
-                        aria-pressed={groups.includes(group)}
-                        onClick={() => toggleGroup(group)}
-                        className={clsx(
-                            'mono inline-flex h-6 cursor-default items-center gap-1 rounded-md px-1.5',
-                            groups.includes(group) ? clsx('bg-surface-active', GROUP_COLOR[group]) : 'text-text-faint hover:bg-surface-hover'
-                        )}
-                    >
+                    <Pill key={group} mono tone={groups.includes(group) ? 'raised' : 'muted'} pressed={groups.includes(group)} onClick={() => toggleGroup(group)} className={groups.includes(group) ? GROUP_COLOR[group] : 'text-text-faint'}>
                         {group}
-                        <span className="text-text-faint">{counts[group]}</span>
-                    </button>
+                        <span className="ml-1 text-text-faint">{counts[group]}</span>
+                    </Pill>
                 ))}
             </div>
             <div className="shrink-0 border-b border-border p-2">

@@ -24,7 +24,6 @@ export {
     useAsyncAction
 } from '@adecore/ui';
 export { ConfirmDialog } from '@adecore/ui/settings';
-export { Badge } from './Badge';
 export { CommandButton } from './CommandButton';
 export { ControlRow } from './ControlRow';
 export { Dialog } from './Dialog';

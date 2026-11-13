@@ -5,7 +5,7 @@ import { useDevice } from '@/panels/hooks';
 import { useDevices } from '@/state/devices';
 import { useLayout } from '@/state/layout';
 import type { PanelDefinition } from '@/panels/registry';
-import { Badge, Button, Icon, IconButton, MenuItem, MenuSeparator } from '@/ui';
+import { Button, Icon, IconButton, MenuItem, MenuSeparator, StatusPill } from '@/ui';
 import { DeviceIcon } from './DeviceIcon';
 
 /** Devices with a session come first in the menu, then the paired ones, then the rest. */
@@ -106,7 +106,9 @@ export function TopBar({panel}: { readonly panel: PanelDefinition | null }) {
             <span className="grow"/>
             {device && (
                 <>
-                    <Badge tone={connected ? 'idle' : 'muted'}>{snapshot?.connection.status ?? 'disconnected'}</Badge>
+                    <StatusPill status={connected ? 'ok' : snapshot?.connection.status === 'failed' ? 'error' : snapshot?.connection.status === 'connecting' || snapshot?.connection.status === 'recovering' ? 'busy' : 'off'}>
+                        {snapshot?.connection.status ?? 'disconnected'}
+                    </StatusPill>
                     <Button variant={connected ? 'secondary' : 'primary'} size="sm" disabled={busy} onClick={() => void (connected ? disconnect() : connect())}>
                         <Icon icon={connected ? Plug : PlugZap} size={14}/>
                         {connected ? 'Disconnect' : 'Connect'}

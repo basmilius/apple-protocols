@@ -2,7 +2,7 @@ import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useMe
 import clsx from 'clsx';
 import { Music } from 'lucide-react';
 import type { StateSnapshot } from '@shared/contract';
-import { Badge, Icon, Kbd, Segmented, type SegmentedItem } from '@/ui';
+import { Icon, Kbd, Segmented, type SegmentedItem, StatusPill } from '@/ui';
 import type { DeviceCall } from '@/panels/hooks';
 import { FACE_COMMANDS, type Gesture, KEY_BINDINGS, POWER_COMMAND, type Transport } from './commands';
 import { DPad } from './DPad';
@@ -102,7 +102,7 @@ export function RemoteFace({snapshot, call, connected, companionConnected}: Remo
                         <span className="truncate text-sm">{title}</span>
                         <span className="truncate text-xs text-text-muted">{meta === '' ? (nowPlaying?.appName ?? '-') : meta}</span>
                     </div>
-                    <Badge tone={playing ? 'idle' : 'muted'}>{nowPlaying?.playbackState || 'unknown'}</Badge>
+                    <StatusPill status={playing ? 'ok' : 'off'}>{nowPlaying?.playbackState || 'unknown'}</StatusPill>
                     {isAppleTv && <RemoteButton command={POWER_COMMAND} transport={transport} call={call} disabled={!connected} register={register}/>}
                 </header>
 

@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@import "@basmilius/desktop-ui/theme.css";
-@source "../../node_modules/@basmilius/desktop-ui/dist";
+@import "@adecore/ui/theme.css";
+@source "../../node_modules/@adecore/ui/dist";
 
 :root, [data-theme="light"] {
     --code-bg: #fbfbfc;

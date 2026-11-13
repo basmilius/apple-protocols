@@ -1,4 +1,4 @@
-import { Input, type InputProps } from '@basmilius/desktop-ui';
+import { Input, type InputProps } from '@adecore/ui';
 
 type FieldProps = InputProps & {
     /* The accessible name; the row above it usually carries the visible one. */

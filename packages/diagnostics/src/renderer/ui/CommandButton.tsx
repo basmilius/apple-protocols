@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Button, Icon, Popover } from '@basmilius/desktop-ui';
+import { Button, Icon, Popover } from '@adecore/ui';
 import clsx from 'clsx';
 import { Braces, TriangleAlert } from 'lucide-react';
 import { messageOf } from '@/client';

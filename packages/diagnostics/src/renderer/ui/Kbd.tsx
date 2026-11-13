@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { formatShortcut, isApplePlatform, Kbd as DesktopKbd, shortcut as parseShortcut } from '@basmilius/desktop-ui';
+import { formatShortcut, isApplePlatform, Kbd as DesktopKbd, shortcut as parseShortcut } from '@adecore/ui';
 
 export function shortcut(keys: string): string {
     return formatShortcut(parseShortcut(keys), isApplePlatform());

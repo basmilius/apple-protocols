@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Segmented as DesktopSegmented } from '@basmilius/desktop-ui';
+import { Segmented as DesktopSegmented } from '@adecore/ui';
 
 export type SegmentedItem<T extends string> = {
     readonly value: T;

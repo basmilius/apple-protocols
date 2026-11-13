@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
-import { IconButton } from '@basmilius/desktop-ui';
+import { IconButton } from '@adecore/ui';
 
 type StepperProps = {
     readonly value: number;

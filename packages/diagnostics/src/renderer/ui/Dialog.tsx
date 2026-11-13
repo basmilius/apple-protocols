@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Dialog as DesktopDialog, IconButton } from '@basmilius/desktop-ui';
+import { Dialog as DesktopDialog, IconButton } from '@adecore/ui';
 import clsx from 'clsx';
 import { X } from 'lucide-react';
 

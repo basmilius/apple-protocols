@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { app, BrowserWindow, type IpcMainInvokeEvent, nativeTheme, screen, shell } from 'electron';
-import { appWindowNavigation, createTheme, createWindowState, fileStorage, isExternalLink, type WindowState } from '@basmilius/desktop-shell';
+import { appWindowNavigation, createTheme, createWindowState, fileStorage, isExternalLink, type WindowState } from '@adecore/shell';
 import type { ThemeRequest } from '@shared/contract';
 
 const here = fileURLToPath(new URL('.', import.meta.url));

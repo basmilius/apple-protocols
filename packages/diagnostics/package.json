@@ -35,7 +35,9 @@
         "pack:dir": "bun run build && electron-builder --dir --publish never"
     },
     "devDependencies": {
-        "@base-ui-components/react": "^1.0.0-rc.0",
+        "@adecore/shell": "^0.66.8",
+        "@adecore/ui": "^0.66.8",
+        "@base-ui/react": "^1.9.0",
         "@basmilius/apple-airplay": "workspace:*",
         "@basmilius/apple-audio-source": "workspace:*",
         "@basmilius/apple-common": "workspace:*",
@@ -45,8 +47,6 @@
         "@basmilius/apple-raop": "workspace:*",
         "@basmilius/apple-rtsp": "workspace:*",
         "@basmilius/apple-sdk": "workspace:*",
-        "@basmilius/desktop-shell": "^0.9.0",
-        "@basmilius/desktop-ui": "^0.9.0",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-virtual": "^3.14.11",
         "@types/node": "^25.9.2",
@@ -60,7 +60,7 @@
         "electron-vite": "^6.0.0-beta.1",
         "hls.js": "^1.7.3",
         "i18next": "^26.4.2",
-        "lucide-react": "^1.47.0",
+        "lucide-react": "^1.65.0",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
         "react-i18next": "^17.0.15",

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Tabs as BaseTabs } from '@base-ui-components/react/tabs';
+import { Tabs as BaseTabs } from '@base-ui/react/tabs';
 import clsx from 'clsx';
 
 export type TabItem = {
@@ -25,7 +25,7 @@ export function Tabs({value, onValueChange, items, label, className, children}: 
                     <BaseTabs.Tab
                         key={item.value}
                         value={item.value}
-                        className="relative inline-flex h-8 cursor-default items-center gap-1.5 rounded-md px-2 text-xs text-text-muted outline-none hover:text-text data-[selected]:text-text"
+                        className="relative inline-flex h-8 cursor-default items-center gap-1.5 rounded-md px-2 text-xs text-text-muted outline-none hover:text-text data-[active]:text-text"
                     >
                         {item.icon}
                         {item.label}

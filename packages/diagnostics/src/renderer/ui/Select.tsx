@@ -1,4 +1,4 @@
-import { Select as DesktopSelect, type SelectItem as DesktopSelectItem, type SelectProps as DesktopSelectProps } from '@basmilius/desktop-ui';
+import { Select as DesktopSelect, type SelectItem as DesktopSelectItem, type SelectProps as DesktopSelectProps } from '@adecore/ui';
 
 export type SelectItem<T extends string> = Readonly<DesktopSelectItem<T>>;
 

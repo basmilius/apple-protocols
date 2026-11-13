@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { ContextMenu as DesktopContextMenu, Menu as DesktopMenu } from '@basmilius/desktop-ui';
+import { ContextMenu as DesktopContextMenu, Menu as DesktopMenu } from '@adecore/ui';
 
 type PopupProps = {
     readonly side?: 'top' | 'bottom' | 'left' | 'right';

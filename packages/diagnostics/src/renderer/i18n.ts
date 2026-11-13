@@ -1,5 +1,5 @@
 import { createInstance } from 'i18next';
-import type { FormatSource } from '@basmilius/desktop-ui/format';
+import type { FormatSource } from '@adecore/ui/format';
 
 export const i18n = createInstance();
 

@@ -1,4 +1,4 @@
-export { Button, EmptyState, ErrorBoundary, Icon, IconButton, Separator, Switch as Toggle, Tile, Tooltip, TooltipProvider } from '@basmilius/desktop-ui';
+export { Button, EmptyState, ErrorBoundary, Icon, IconButton, Separator, Switch as Toggle, Tile, Tooltip } from '@adecore/ui';
 export { Badge } from './Badge';
 export { CommandButton } from './CommandButton';
 export { Dialog } from './Dialog';

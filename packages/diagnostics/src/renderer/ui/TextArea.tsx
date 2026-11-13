@@ -1,4 +1,4 @@
-import { TextArea as DesktopTextArea, type TextAreaProps as DesktopTextAreaProps } from '@basmilius/desktop-ui';
+import { TextArea as DesktopTextArea, type TextAreaProps as DesktopTextAreaProps } from '@adecore/ui';
 
 type TextAreaProps = DesktopTextAreaProps & {
     readonly label: string;

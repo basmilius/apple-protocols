@@ -175,18 +175,20 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
     async onStreamData(data: Buffer): Promise<void> {
         try {
             if (this.isEncrypted) {
+                if (this.#encryptedBuffer.length + data.length > 4 * 1024 * 1024) {
+                    throw new Error('Encrypted stream buffer limit exceeded.');
+                }
                 this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
 
-                const decrypted = this.decrypt(this.#encryptedBuffer);
-
-                if (!decrypted) {
-                    return;
-                }
-
-                this.#encryptedBuffer = Buffer.alloc(0);
-                this.#buffer = Buffer.concat([this.#buffer, decrypted]);
+                const decrypted = this.decryptFrames(this.#encryptedBuffer);
+                this.#encryptedBuffer = Buffer.from(this.#encryptedBuffer.subarray(decrypted.consumed));
+                this.#buffer = Buffer.concat([this.#buffer, decrypted.data]);
             } else {
                 this.#buffer = Buffer.concat([this.#buffer, data]);
+            }
+
+            if (this.#buffer.length > 4 * 1024 * 1024) {
+                throw new Error('Plaintext stream buffer limit exceeded.');
             }
 
             while (this.#buffer.byteLength > 0) {

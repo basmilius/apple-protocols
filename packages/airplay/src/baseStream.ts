@@ -1,5 +1,5 @@
 import { EncryptionAwareConnection, type EventMap } from '@basmilius/apple-common';
-import { chacha20Decrypt, chacha20Encrypt } from './encryption';
+import { chacha20Decrypt, chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
 /**
  * Default events emitted by all AirPlay streams.
@@ -27,6 +27,10 @@ export class BaseStream<TEventMap extends EventMap = {}> extends EncryptionAware
      */
     decrypt(data: Buffer): Buffer | false {
         return chacha20Decrypt(this._encryption, data);
+    }
+
+    decryptFrames(data: Buffer): {data: Buffer; consumed: number} {
+        return chacha20DecryptFrames(this._encryption, data);
     }
 
     /**

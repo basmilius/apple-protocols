@@ -51,6 +51,7 @@ export class ControlClient extends EventEmitter {
     #anchorRtp: number = 0;
     /** NTP wall-clock timestamp at the anchor point. */
     #anchorNtp: bigint = 0n;
+    #remoteAddress?: string;
 
     /**
      * Creates a new control client.
@@ -123,6 +124,7 @@ export class ControlClient extends EventEmitter {
      * @throws When the sync task is already running.
      */
     start(remoteAddr: string): void {
+        this.#remoteAddress = remoteAddr;
         if (this.#syncTask) {
             throw new Error('Already running');
         }
@@ -186,6 +188,9 @@ export class ControlClient extends EventEmitter {
      * @param rinfo - Remote address info of the sender.
      */
     #onMessage(data: Buffer, rinfo: { address: string; port: number }): void {
+        if (data.length < 8 || (data[0] >> 6) !== 2 || rinfo.address !== this.#remoteAddress || rinfo.port !== this.#context.controlPort) {
+            return;
+        }
         const actualType = data[1] & 0x7F;
 
         if (actualType === 0x55) {
@@ -205,7 +210,7 @@ export class ControlClient extends EventEmitter {
      * @param addr - Remote address to send retransmitted packets to.
      */
     #retransmitLostPackets(request: { lostSeqno: number; lostPackets: number }, addr: { address: string; port: number }): void {
-        for (let i = 0; i < request.lostPackets; i++) {
+        for (let i = 0; i < Math.min(request.lostPackets, 512); i++) {
             const seqno = (request.lostSeqno + i) & 0xFFFF;
             if (this.#packetBacklog.has(seqno)) {
                 const packet = this.#packetBacklog.get(seqno)!;

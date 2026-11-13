@@ -1,7 +1,7 @@
 import { type Context, EncryptionState, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { RtspClient } from '@basmilius/apple-rtsp';
-import { chacha20Decrypt, chacha20Encrypt } from './encryption';
+import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
 /**
  * RTSP-based control stream for AirPlay protocol communication.
@@ -83,12 +83,12 @@ export class ControlStream extends RtspClient {
      * @param data - Raw data from the TCP socket.
      * @returns Decrypted data, passthrough if unencrypted, or `false` if incomplete.
      */
-    protected override transformIncoming(data: Buffer): Buffer | false {
+    protected override transformIncoming(data: Buffer): Buffer | {data: Buffer; consumed: number} {
         if (!this.#encryptionState) {
             return data;
         }
 
-        return chacha20Decrypt(this.#encryptionState, data);
+        return chacha20DecryptFrames(this.#encryptionState, data);
     }
 
     /**

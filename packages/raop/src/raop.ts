@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { Socket as UdpSocket } from 'node:dgram';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, Context, Discovery, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, AudioSourceSession, PlaybackError, Context, Discovery, type DiscoveryResult, TimingServer } from '@basmilius/apple-common';
 import type { MediaMetadata, PlaybackInfo, Settings, StreamContext, StreamProtocol } from './types';
 import { RaopRtspClient as RtspClient } from './rtspClient';
 import { StreamClient } from './streamClient';
@@ -60,6 +60,7 @@ export class RaopClient extends EventEmitter<EventMap> {
 
     /** Application context for logging and identity. */
     readonly #context: Context;
+    #source?: AudioSourceSession;
     /** RAOP RTSP client for protocol-level commands. */
     readonly #rtsp: RtspClient;
     /** Stream client managing audio transport and metadata. */
@@ -95,16 +96,21 @@ export class RaopClient extends EventEmitter<EventMap> {
      * @param options - Optional metadata and volume settings.
      */
     async stream(source: AudioSource, options: StreamOptions = {}): Promise<void> {
-        await source.start();
-
+        if (this.#source) throw new PlaybackError('A RAOP stream is already active.');
+        const session = new AudioSourceSession(source);
+        this.#source = session;
         try {
+            await session.start();
             await this.#streamClient.sendAudio(
-                source,
+                session,
                 options.metadata,
                 options.volume
             );
         } finally {
-            await source.stop();
+            await session.stop();
+            if (this.#source === session) {
+                this.#source = undefined;
+            }
         }
     }
 
@@ -114,6 +120,7 @@ export class RaopClient extends EventEmitter<EventMap> {
      */
     stop(): void {
         this.#streamClient.stop();
+        void this.#source?.stop().catch(error => this.#context.logger.error('Source cleanup failed', error));
     }
 
     /**
@@ -130,6 +137,7 @@ export class RaopClient extends EventEmitter<EventMap> {
      * RTSP session and shuts down the control channel.
      */
     async close(): Promise<void> {
+        this.stop();
         this.#streamClient.close();
         await this.#rtsp.disconnect();
     }

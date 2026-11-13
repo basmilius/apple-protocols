@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE, type AudioSource, AudioSourceSession, type Context, EncryptionError, randomInt32, randomInt64, SetupError } from '@basmilius/apple-common';
 import { NTP, Plist } from '@basmilius/apple-encoding';
 import { Chacha20 } from '@basmilius/apple-encryption';
 import { LatencyManager } from './latencyManager';
@@ -131,6 +131,8 @@ export class AudioStream {
     #redundancyCount: number;
 
     #controlPort: number = 0;
+    #source?: AudioSourceSession;
+    #closed = false;
     /** UDP socket for RTCP control messages (sync, retransmit requests). */
     #controlSocket?: UdpSocket;
     /** 32-byte shared key for ChaCha20 audio encryption. */
@@ -192,18 +194,24 @@ export class AudioStream {
      * @throws SetupError if SETUP fails or returns no stream info.
      */
     async setup(): Promise<{ dataPort: number; controlPort: number }> {
+        if (this.#closed) throw new SetupError('Audio setup cancelled.');
         this.#sharedKey = Buffer.from(randomBytes(32));
 
         this.#ssrc = randomInt32() >>> 0;
 
-        this.#controlSocket = createSocket('udp4');
+        const socket = this.#controlSocket = createSocket('udp4');
         this.#controlSocket.on('message', (data, rinfo) => this.#onControlMessage(data, rinfo));
 
         await new Promise<void>((resolve, reject) => {
-            this.#controlSocket!.once('error', reject);
-            this.#controlSocket!.bind(0, () => {
-                this.#controlSocket!.removeListener('error', reject);
-                this.#controlPort = this.#controlSocket!.address().port;
+            const cleanup = (): void => {socket.off('error', fail); socket.off('close', closed);};
+            const fail = (error: Error): void => {cleanup(); reject(error);};
+            const closed = (): void => fail(new SetupError('Audio setup cancelled.'));
+            socket.once('error', fail);
+            socket.once('close', closed);
+            socket.bind(0, () => {
+                cleanup();
+                if (this.#closed) {reject(new SetupError('Audio setup cancelled.')); return;}
+                this.#controlPort = socket.address().port;
                 resolve();
             });
         });
@@ -257,6 +265,7 @@ export class AudioStream {
             {'Content-Type': 'application/x-apple-binary-plist'}
         );
 
+        if (this.#closed) throw new SetupError('Audio setup cancelled.');
         if (response.status !== 200) {
             const text = await response.text();
             throw new SetupError(`Failed to setup audio stream: ${response.status} - ${text}`);
@@ -280,6 +289,7 @@ export class AudioStream {
 
         this.#context.logger.debug('[audio]', 'Sending RECORD...');
         await this.#protocol.controlStream.record(`/${this.#protocol.controlStream.sessionId}`);
+        if (this.#closed) throw new SetupError('Audio setup cancelled.');
         this.#context.logger.debug('[audio]', 'RECORD complete');
 
         return {
@@ -297,13 +307,17 @@ export class AudioStream {
             throw new SetupError('Audio stream not setup.');
         }
 
-        this.#dataSocket = createSocket('udp4');
-
+        if (this.#closed) throw new SetupError('Audio preparation cancelled.');
+        const socket = this.#dataSocket = createSocket('udp4');
         await new Promise<void>((resolve, reject) => {
-            this.#dataSocket!.once('error', reject);
-            this.#dataSocket!.connect(this.#dataPort, remoteAddress, () => {
-                this.#dataSocket!.removeListener('error', reject);
-                resolve();
+            const cleanup = (): void => {socket.off('error', fail); socket.off('close', closed);};
+            const fail = (error: Error): void => {cleanup(); reject(error);};
+            const closed = (): void => fail(new SetupError('Audio preparation cancelled.'));
+            socket.once('error', fail);
+            socket.once('close', closed);
+            socket.connect(this.#dataPort, remoteAddress, () => {
+                cleanup();
+                this.#closed ? reject(new SetupError('Audio preparation cancelled.')) : resolve();
             });
         });
 
@@ -339,6 +353,7 @@ export class AudioStream {
             'Range': 'npt=0-',
             'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
         });
+        if (this.#closed) throw new SetupError('Audio preparation cancelled.');
         this.#context.logger.debug('[audio]', 'FLUSH complete');
 
         this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
@@ -411,13 +426,21 @@ export class AudioStream {
      * @param remoteAddress - Receiver address for the UDP connection.
      */
     async stream(source: AudioSource, remoteAddress: string): Promise<void> {
-        const ctx = await this.prepare(remoteAddress);
-
+        const session = new AudioSourceSession(source);
+        this.#source = session;
         try {
+            if (this.#closed) {
+                return;
+            }
+            const ctx = await this.prepare(remoteAddress);
+            if (this.#closed) {
+                return;
+            }
+            await session.start();
             this.#context.logger.info('[audio]', 'Starting audio stream...');
 
             const packetCount = await streamWithTiming(
-                (firstPacket) => this.#sendPacket(source, firstPacket, ctx),
+                (firstPacket) => this.#sendPacket(session, firstPacket, ctx),
                 {
                     sampleRate: ctx.sampleRate,
                     logger: this.#context.logger,
@@ -433,10 +456,12 @@ export class AudioStream {
             await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
             this.#context.logger.debug('[audio]', 'TEARDOWN complete');
 
+        } finally {
             this.close();
-        } catch (err) {
-            this.close();
-            throw err;
+            await session.stop();
+            if (this.#source === session) {
+                this.#source = undefined;
+            }
         }
     }
 
@@ -452,11 +477,14 @@ export class AudioStream {
      * @returns Number of frames sent, or 0 when all padding has been sent.
      */
     async #sendPacket(source: AudioSource, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
-        if (ctx.paddingSent >= ctx.latency) {
+        if (this.#closed || ctx.paddingSent >= ctx.latency) {
             return 0;
         }
 
         let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
+        if (this.#closed) {
+            return 0;
+        }
 
         if (!frames || frames.length === 0) {
             // No more audio data - send padding (silent frames)
@@ -712,6 +740,9 @@ export class AudioStream {
      * @param rinfo - Remote address info of the sender.
      */
     #onControlMessage(data: Buffer, rinfo: { address: string; port: number }): void {
+        if (data.length < 8 || (data[0] >> 6) !== 2 || rinfo.address !== this.#protocol.discoveryResult.address || rinfo.port !== this.#remoteControlPort) {
+            return;
+        }
         const actualType = data[1] & 0x7F;
 
         if (actualType === 0x55) {
@@ -732,7 +763,7 @@ export class AudioStream {
      */
     #retransmitPackets(data: Buffer, addr: { address: string; port: number }): void {
         const lostSeqno = data.readUInt16BE(4);
-        const lostPackets = data.readUInt16BE(6);
+        const lostPackets = Math.min(data.readUInt16BE(6), 512);
 
         // Each NACK indicates a glitch — report to latency manager.
         this.#latencyManager?.reportGlitch();
@@ -768,6 +799,8 @@ export class AudioStream {
      * clears the retransmission backlog. Safe to call multiple times.
      */
     close(): void {
+        this.#closed = true;
+        void this.#source?.stop().catch(error => this.#context.logger.error('[audio]', 'Source cleanup failed', error));
         this.#stopSync();
 
         try {

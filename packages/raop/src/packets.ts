@@ -163,6 +163,10 @@ export type RetransmitRequest = {
  * @returns Parsed retransmit request with sequence number and packet count.
  */
 export function decodeRetransmitRequest(data: Buffer): RetransmitRequest {
+    if (data.length < 8 || (data[0] >> 6) !== 2 || (data[1] & 0x7F) !== 0x55) {
+        throw new Error('Invalid RTP retransmit request');
+    }
+
     return {
         lostSeqno: data.readUInt16BE(4),
         lostPackets: data.readUInt16BE(6)

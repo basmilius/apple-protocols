@@ -92,7 +92,7 @@ export class RtspClient extends Connection<{}> {
      * @param data - The raw (potentially encrypted) incoming data buffer.
      * @returns The transformed (decrypted) buffer, or `false` if more data is needed.
      */
-    protected transformIncoming(data: Buffer): Buffer | false {
+    protected transformIncoming(data: Buffer): Buffer | false | {data: Buffer; consumed: number} {
         return data;
     }
 
@@ -262,8 +262,9 @@ export class RtspClient extends Connection<{}> {
                 return;
             }
 
-            this.#encryptedBuffer = Buffer.alloc(0);
-            this.#buffer = Buffer.concat([this.#buffer, transformed]);
+            const result = Buffer.isBuffer(transformed) ? {data: transformed, consumed: this.#encryptedBuffer.length} : transformed;
+            this.#encryptedBuffer = Buffer.from(this.#encryptedBuffer.subarray(result.consumed));
+            this.#buffer = Buffer.concat([this.#buffer, result.data]);
 
             while (this.#buffer.byteLength > 0) {
                 const result = parseResponse(this.#buffer);

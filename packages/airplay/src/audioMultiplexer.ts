@@ -1,5 +1,5 @@
-import { AUDIO_FRAMES_PER_PACKET, type AudioSource, type Context } from '@basmilius/apple-common';
-import { AudioStream, type AudioStreamOptions } from './audioStream';
+import { AUDIO_FRAMES_PER_PACKET, type AudioSource, AudioSourceSession, type Context } from '@basmilius/apple-common';
+import { type AudioStreamContext, AudioStream, type AudioStreamOptions } from './audioStream';
 import type { Protocol } from './protocol';
 import { streamWithTiming } from './streamTiming';
 
@@ -14,6 +14,7 @@ type Target = {
  */
 export class AudioMultiplexer {
     readonly #context: Context;
+    #source?: AudioSourceSession;
     readonly #targets: Target[] = [];
 
     constructor(context: Context) {
@@ -38,6 +39,7 @@ export class AudioMultiplexer {
      * Removes all targets and closes their audio streams.
      */
     clear(): void {
+        void this.#source?.stop().catch(error => this.#context.logger.error('Audio source cleanup failed', error));
         for (const target of this.#targets) {
             target.stream.close();
         }
@@ -62,23 +64,29 @@ export class AudioMultiplexer {
 
         this.#context.logger.info('[multiplexer]', `Streaming to ${this.#targets.length} device(s)...`);
 
-        await Promise.all(this.#targets.map(async (target) => {
-            await target.stream.setup();
-        }));
-
-        const contexts = await Promise.all(this.#targets.map(async (target) => {
-            return target.stream.prepare(target.protocol.discoveryResult.address);
-        }));
-
-        // Use the negotiated format from the first target for frame/packet sizing.
-        const sampleRate = contexts[0].sampleRate;
-        const packetSize = contexts[0].packetSize;
-
+        if (this.#source) throw new Error('A multiroom stream is already active.');
+        const targets = [...this.#targets];
+        const session = this.#source = new AudioSourceSession(source);
         try {
+            const setups = await Promise.allSettled(targets.map(target => target.stream.setup()));
+            const failedSetup = setups.find(result => result.status === 'rejected');
+            if (failedSetup?.status === 'rejected') {
+                throw failedSetup.reason;
+            }
+            const prepared = await Promise.allSettled(targets.map(target => target.stream.prepare(target.protocol.discoveryResult.address)));
+            const failedPrepare = prepared.find(result => result.status === 'rejected');
+            if (failedPrepare?.status === 'rejected') {
+                throw failedPrepare.reason;
+            }
+            const contexts = prepared.map(result => (result as PromiseFulfilledResult<AudioStreamContext>).value);
+            const sampleRate = contexts[0].sampleRate;
+            const packetSize = contexts[0].packetSize;
+            if (session.stopped) return;
+            await session.start();
             this.#context.logger.info('[multiplexer]', 'Starting multi-room audio stream...');
 
             const sendPacket = async (firstPacket: boolean): Promise<number> => {
-                let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
+                let frames = await session.readFrames(AUDIO_FRAMES_PER_PACKET);
 
                 if (!frames || frames.length === 0) {
                     return 0;
@@ -90,7 +98,7 @@ export class AudioMultiplexer {
                     frames = padded;
                 }
 
-                await Promise.all(this.#targets.map(async (target) => {
+                await Promise.all(targets.map(async (target) => {
                     await target.stream.sendFrameData(frames!, firstPacket);
                 }));
 
@@ -105,16 +113,16 @@ export class AudioMultiplexer {
 
             this.#context.logger.info('[multiplexer]', `Multi-room stream finished, sent ${packetCount} packets to ${this.#targets.length} device(s)`);
 
-            await Promise.all(this.#targets.map(async (target) => {
+            await Promise.all(targets.map(async (target) => {
                 await target.stream.finish();
                 target.stream.close();
             }));
-        } catch (err) {
-            for (const target of this.#targets) {
+        } finally {
+            for (const target of targets) {
                 target.stream.close();
             }
-
-            throw err;
+            await session.stop();
+            if (this.#source === session) this.#source = undefined;
         }
     }
 }

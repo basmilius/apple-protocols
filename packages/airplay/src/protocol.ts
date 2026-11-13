@@ -1,4 +1,4 @@
-import { type AudioSource, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, type PtpMaster, randomInt64, selectTimingStrategy, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
+import { type AudioSource, AudioSourceSession, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, type PtpMaster, randomInt64, selectTimingStrategy, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
 import { Plist } from '@basmilius/apple-encoding';
 import { Pairing, Verify } from './pairing';
 import { AudioStream } from './audioStream';
@@ -117,6 +117,7 @@ export class Protocol {
     readonly #sessionUUID: string;
     readonly #verify: Verify;
     #audioStream?: AudioStream;
+    #audioSource?: AudioSourceSession;
     #dataStream?: DataStream;
     #effectiveSourceVersion?: string;
     #eventStream?: EventStream;
@@ -219,6 +220,8 @@ export class Protocol {
      * and does not catch errors.
      */
     destroy(): void {
+        void this.#audioSource?.stop().catch(error => this.context.logger.error('Audio source cleanup failed', error));
+        this.#audioSource = undefined;
         this.#audioStream?.close();
         this.#controlStream.destroy();
         this.#dataStream?.destroy();
@@ -233,6 +236,8 @@ export class Protocol {
      * all stream references.
      */
     disconnect(): void {
+        void this.#audioSource?.stop().catch(error => this.context.logger.error('Audio source cleanup failed', error));
+        this.#audioSource = undefined;
         try {
             this.#audioStream?.close();
         } catch (err) {
@@ -746,9 +751,20 @@ export class Protocol {
      * @param source - Audio source to read PCM frames from.
      */
     async setupAudioStream(source: AudioSource): Promise<void> {
-        this.#audioStream = new AudioStream(this);
-        await this.#audioStream.setup();
-        await this.#audioStream.stream(source, this.#discoveryResult.address);
+        if (this.#audioSource) throw new PlaybackError('An audio stream is already active.');
+        const session = this.#audioSource = new AudioSourceSession(source);
+        const stream = new AudioStream(this);
+        this.#audioStream = stream;
+        try {
+            await stream.setup();
+            if (this.#audioStream === stream) {
+                await stream.stream(session, this.#discoveryResult.address);
+            }
+        } finally {
+            stream.close();
+            await session.stop();
+            if (this.#audioSource === session) this.#audioSource = undefined;
+        }
     }
 
     /**

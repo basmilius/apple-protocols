@@ -17,52 +17,43 @@ import { nonce } from './utils';
  * @returns Concatenated plaintext of all frames, or `false` if data is incomplete (partial frame delivery).
  */
 export function chacha20Decrypt(state: EncryptionState, data: Buffer): Buffer | false {
-    const result: Buffer[] = [];
     let offset = 0;
-    let readCount = state.readCount ?? 0;
-
-    try {
-        while (offset < data.length) {
-            if (offset + 2 > data.length) {
-                return false;
-            }
-
-            const frameLength = data.readUInt16LE(offset);
-            offset += 2;
-
-            if (frameLength === 0) {
-                throw new Error('Corrupt encrypted frame: zero-length frame');
-            }
-
-            const end = offset + frameLength + 16;
-
-            if (end > data.length) {
-                return false;
-            }
-
-            const ciphertext = data.subarray(offset, offset + frameLength);
-            const authTag = data.subarray(offset + frameLength, end);
-            offset = end;
-
-            const plaintext = Chacha20.decrypt(
-                state.readKey,
-                nonce(readCount++),
-                Buffer.from(Uint16Array.of(frameLength).buffer.slice(0, 2)),
-                ciphertext,
-                authTag
-            );
-
-            result.push(plaintext);
+    while (offset < data.length) {
+        if (offset + 2 > data.length) {
+            return false;
         }
-
-        state.readCount = readCount;
-
-        return Buffer.concat(result);
-    } catch (err) {
-        /* Advance the counter even on error. The caller must discard ciphertext to avoid counting a frame twice. */
-        state.readCount = readCount;
-        throw err;
+        const length = data.readUInt16LE(offset);
+        if (length === 0) {
+            throw new Error('Invalid encrypted frame length');
+        }
+        offset += length + 18;
+        if (offset > data.length) {
+            return false;
+        }
     }
+    return chacha20DecryptFrames(state, data).data;
+}
+
+/** Consumes complete frames once; callers retain only the unconsumed ciphertext tail. */
+export function chacha20DecryptFrames(state: EncryptionState, data: Buffer): {data: Buffer; consumed: number} {
+    const output: Buffer[] = [];
+    let offset = 0;
+    // Receive blocks can exceed the 1024-byte chunks we send.
+    while (offset + 2 <= data.length) {
+        const length = data.readUInt16LE(offset);
+        if (length === 0) {
+            throw new Error('Invalid encrypted frame length');
+        }
+        const end = offset + length + 18;
+        if (end > data.length) {
+            break;
+        }
+        const plaintext = Chacha20.decrypt(state.readKey, nonce(state.readCount), data.subarray(offset, offset + 2), data.subarray(offset + 2, end - 16), data.subarray(end - 16, end));
+        state.readCount++;
+        output.push(plaintext);
+        offset = end;
+    }
+    return {data: Buffer.concat(output), consumed: offset};
 }
 
 /**

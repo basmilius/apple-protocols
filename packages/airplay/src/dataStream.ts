@@ -287,9 +287,11 @@ export class DataStream extends BaseStream<EventMap> {
             frame = this.encrypt(frame);
         }
 
-        const decoded = describeProtocolMessage(message);
-        this.context.logger.raw('[data]', `Sending message. ${decoded.typeName}`, decoded);
-        this.#tap('out', decoded, bytes);
+        if (reporter.tapsTraffic || reporter.accepts('raw')) {
+            const decoded = describeProtocolMessage(message);
+            this.context.logger.raw('[data]', `Sending message. ${decoded.typeName}`, decoded);
+            this.#tap('out', decoded, bytes);
+        }
 
         this.write(frame);
     }
@@ -368,18 +370,20 @@ export class DataStream extends BaseStream<EventMap> {
     async onStreamData(data: Buffer): Promise<void> {
         try {
             if (this.isEncrypted) {
+                if (this.#encryptedBuffer.length + data.length > 4 * 1024 * 1024) {
+                    throw new Error('Encrypted stream buffer limit exceeded.');
+                }
                 this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
 
-                const decrypted = this.decrypt(this.#encryptedBuffer);
-
-                if (!decrypted) {
-                    return;
-                }
-
-                this.#encryptedBuffer = Buffer.alloc(0);
-                this.#buffer = Buffer.concat([this.#buffer, decrypted]);
+                const decrypted = this.decryptFrames(this.#encryptedBuffer);
+                this.#encryptedBuffer = Buffer.from(this.#encryptedBuffer.subarray(decrypted.consumed));
+                this.#buffer = Buffer.concat([this.#buffer, decrypted.data]);
             } else {
                 this.#buffer = Buffer.concat([this.#buffer, data]);
+            }
+
+            if (this.#buffer.length > 4 * 1024 * 1024) {
+                throw new Error('Plaintext stream buffer limit exceeded.');
             }
 
             while (this.#buffer.byteLength >= DATA_HEADER_LENGTH) {
@@ -415,9 +419,11 @@ export class DataStream extends BaseStream<EventMap> {
                 const content = Buffer.from(plist.params.data);
 
                 for (const message of parseMessages(content)) {
-                    const decoded = describeProtocolMessage(message);
-                    this.context.logger.raw('[data]', `Received message. ${decoded.typeName}`, decoded);
-                    this.#tap('in', decoded);
+                    if (reporter.tapsTraffic || reporter.accepts('raw')) {
+                        const decoded = describeProtocolMessage(message);
+                        this.context.logger.raw('[data]', `Received message. ${decoded.typeName}`, decoded);
+                        this.#tap('in', decoded);
+                    }
                     this.#handleMessage(message);
                 }
 

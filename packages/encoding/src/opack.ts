@@ -2,7 +2,7 @@
 type Packed = Uint8Array;
 
 /** List of previously packed objects, used for back-reference deduplication. */
-type ObjectList = Packed[];
+type ObjectList = {values: Packed[]; index: Map<number, number[]>};
 
 /** Result of unpacking a single value: the decoded value and the new byte offset. */
 type UnpackResult = {
@@ -53,8 +53,7 @@ const TAG = {
     ARRAY_BASE: 0xD0,
     ARRAY_VARIABLE: 0xDF,
     DICT_BASE: 0xE0,
-    DICT_VARIABLE: 0xEF,
-    DICT_TERMINATOR: 0x81
+    DICT_VARIABLE: 0xEF
 } as const;
 
 const textDecoder = new TextDecoder();
@@ -199,7 +198,7 @@ export function decode(data: Uint8Array): any {
  * @throws TypeError if the value type is unsupported.
  */
 export function encode(data: any): Uint8Array {
-    return _pack(data, []);
+    return _pack(data, {values: [], index: new Map()});
 }
 
 /**
@@ -252,7 +251,7 @@ function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
 
 /**
  * Reads a little-endian unsigned integer of arbitrary byte length from a buffer.
- * Returns 0 if the read would exceed the buffer bounds.
+ * Throws if the read would exceed the buffer bounds.
  *
  * @param buf - The source buffer.
  * @param offset - The byte offset to start reading from.
@@ -269,7 +268,7 @@ function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
     } else if (len === 2) {
         return buf[offset] | (buf[offset + 1] << 8);
     } else if (len === 4) {
-        return buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | ((buf[offset + 3] << 24) >>> 0);
+        return (buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24)) >>> 0;
     } else {
         let v = 0n;
         for (let i = len - 1; i >= 0; i--) {
@@ -492,13 +491,21 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
         }
 
         if (needsTerminator) {
-            packed[pos] = TAG.DICT_TERMINATOR;
+            packed[pos] = TAG.TERMINATOR;
         }
     } else {
         throw new TypeError(typeof data + '');
     }
 
-    const idx = objectList.findIndex(v => v.length === packed!.length && v.every((x, i) => x === packed![i]));
+    let hash = 2166136261;
+    for (const byte of packed!) {
+        hash = Math.imul(hash ^ byte, 16777619);
+    }
+    const candidates = objectList.index.get(hash);
+    const idx = candidates?.find(index => {
+        const value = objectList.values[index];
+        return value.length === packed!.length && value.every((byte, offset) => byte === packed![offset]);
+    }) ?? -1;
 
     if (idx >= 0) {
         if (idx < 0x21) {
@@ -525,7 +532,13 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             packed.set(uintToLEBytes(idx, 8), 1);
         }
     } else if (packed!.length > 1) {
-        objectList.push(packed!);
+        const index = objectList.values.length;
+        objectList.values.push(packed!);
+        if (candidates) {
+            candidates.push(index);
+        } else {
+            objectList.index.set(hash, [index]);
+        }
     }
 
     return packed!;
@@ -543,7 +556,8 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
  * @returns The unpacked value and the new byte offset.
  * @throws TypeError if the buffer is exhausted or an unknown tag is encountered.
  */
-function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackResult {
+function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 0): UnpackResult {
+    if (depth > 128) throw new TypeError('OPack nesting limit exceeded');
     if (offset >= data.length) throw new TypeError('No data to unpack');
 
     const tag = data[offset];
@@ -551,7 +565,6 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
     let value: any;
     let newOffset: number;
 
-    // simple tokens
     if (tag === TAG.TRUE) {
         value = true;
         newOffset = offset + 1;
@@ -580,6 +593,9 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         newOffset = offset + 9;
     } else if ((tag & 0xF0) === TAG.INT_1BYTE) {
         const noOfBytes = 1 << (tag & 0xF);
+        if (![TAG.INT_1BYTE, TAG.INT_2BYTE, TAG.INT_4BYTE, TAG.INT_8BYTE].includes(tag as any)) {
+            throw new TypeError('Invalid OPack integer width');
+        }
         const val = readLittleEndian(data, offset + 1, noOfBytes);
         value = sizedInteger(val, noOfBytes);
         newOffset = offset + 1 + noOfBytes;
@@ -610,18 +626,19 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         if (count === 0xF) {
             const arr: any[] = [];
             while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
-                const result = _unpackAt(data, pos, objectList);
+                const result = _unpackAt(data, pos, objectList, depth + 1);
                 arr.push(result.value);
                 pos = result.offset;
             }
-            if (pos < data.length) {
-                pos++;
+            if (pos >= data.length) {
+                throw new TypeError('Missing OPack container terminator');
             }
+            pos++;
             value = arr;
         } else {
             const arr = new Array(count);
             for (let i = 0; i < count; i++) {
-                const result = _unpackAt(data, pos, objectList);
+                const result = _unpackAt(data, pos, objectList, depth + 1);
                 arr[i] = result.value;
                 pos = result.offset;
             }
@@ -636,19 +653,20 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
 
         if (count === 0xF) {
             while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
-                const keyResult = _unpackAt(data, pos, objectList);
-                const valResult = _unpackAt(data, keyResult.offset, objectList);
-                obj[keyResult.value] = valResult.value;
+                const keyResult = _unpackAt(data, pos, objectList, depth + 1);
+                const valResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
+                Object.defineProperty(obj, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
                 pos = valResult.offset;
             }
-            if (pos < data.length) {
-                pos++;
+            if (pos >= data.length) {
+                throw new TypeError('Missing OPack container terminator');
             }
+            pos++;
         } else {
             for (let i = 0; i < count; i++) {
-                const keyResult = _unpackAt(data, pos, objectList);
-                const valResult = _unpackAt(data, keyResult.offset, objectList);
-                obj[keyResult.value] = valResult.value;
+                const keyResult = _unpackAt(data, pos, objectList, depth + 1);
+                const valResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
+                Object.defineProperty(obj, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
                 pos = valResult.offset;
             }
         }
@@ -666,7 +684,7 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         newOffset = offset + 1;
         addToObjectList = false;
     } else if (tag >= TAG.REF_1BYTE && tag <= TAG.REF_8BYTE) {
-        const len = tag - TAG.REF_MAX_INLINE;
+        const len = 1 << (tag - TAG.REF_1BYTE);
         const uid = readLittleEndian(data, offset + 1, len);
 
         if (uid >= objectList.length) {
@@ -680,10 +698,11 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[]): UnpackR
         throw new TypeError(`Unknown tag 0x${tag.toString(16)}`);
     }
 
-    // Mirror the packer's reference table: only objects whose encoded form is longer than one byte are
-    // added (single-byte values like booleans, null and inline integers are skipped), and back-references
-    // themselves are never re-added. Containers are included, after their children. Keeping this rule in
-    // lock-step with _pack is what makes back-reference indices resolve to the correct object.
+    // Keep reference indices in encoder order: children before containers, no single-byte values.
+    if (newOffset > data.length) {
+        throw new TypeError('Truncated OPack value');
+    }
+
     if (addToObjectList && newOffset - offset > 1) {
         objectList.push(value);
     }

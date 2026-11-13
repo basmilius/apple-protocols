@@ -186,7 +186,9 @@ function DiscoveryView() {
     return (
         <>
             <Section title="Wake" icon={Zap}>
-                <TextInput label="Address to wake" mono placeholder="192.168.1.10" value={address} onChange={event => setAddress(event.target.value)}/>
+                <Field label="Address" hint="Also used by Find by address.">
+                    <TextInput label="Address to wake" mono placeholder="192.168.1.10" value={address} onChange={event => setAddress(event.target.value)}/>
+                </Field>
                 <div className="flex flex-wrap items-center gap-2">
                     <CommandButton label="Knock on four ports" icon={Zap} tooltip="mdns:wake" disabled={address.trim().length === 0} run={() => invoke('mdns:wake', {address: address.trim()})}/>
                 </div>
@@ -204,8 +206,10 @@ function DiscoveryView() {
                 <Field label="Identifier">
                     <TextInput label="Identifier" mono placeholder="Living-Room.local" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
                 </Field>
-                <div className="flex items-center gap-2">
+                <Field label="Tries">
                     <TextInput label="Tries" type="number" value={tries} onChange={event => setTries(event.target.value)} className="w-20"/>
+                </Field>
+                <div className="flex items-center gap-2">
                     <CommandButton
                         label="Find until"
                         showResult={false}

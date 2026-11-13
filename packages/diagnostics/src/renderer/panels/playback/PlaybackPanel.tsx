@@ -2,11 +2,10 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Bookmark, ChevronsRight, FastForward, ListMusic, ListPlus, type LucideIcon, Pause, Play, Repeat, Rewind, RotateCcw, RotateCw, Shuffle, SkipBack, SkipForward, Square, ThumbsDown, ThumbsUp, Timer } from 'lucide-react';
 import { formatDuration } from '@shared/helpers';
-import { Button, ButtonGroup, CommandButton, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
+import { Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
-    Labeled,
     MEDIA_CONTROL_ITEMS,
     NotConnected,
     NumberInput,
@@ -144,11 +143,13 @@ function CompanionMedia({call, connected}: { readonly call: DeviceCall; readonly
                 <ResultBlock label="Supported actions" tooltip="companionLink.fetchSupportedActions" run={() => call('companionLink', 'fetchSupportedActions')} disabled={!connected} defaultDepth={3}/>
                 <ResultBlock label="Media control status" tooltip="companionLink.fetchMediaControlStatus" run={() => call('companionLink', 'fetchMediaControlStatus')} disabled={!connected} defaultDepth={3}/>
             </Row>
-            <Row>
+            <ControlRow label="Media control" icon={ICONS.send}>
                 <Select label="Media control command" value={command} onValueChange={setCommand} items={MEDIA_CONTROL_ITEMS} size="sm"/>
-                <TextInput label="Command content as JSON" mono className="h-7 w-72" placeholder='Content as JSON, for example {"volume":0.5}' value={content} onChange={event => setContent(event.target.value)}/>
                 <CommandButton label="Send" variant="primary" icon={ICONS.send} tooltip="companionLink.mediaControlCommand" run={send} disabled={!connected}/>
-            </Row>
+            </ControlRow>
+            <ControlRow label="Content (JSON)" icon={ICONS.result} hint="Optional, for example {&quot;volume&quot;:0.5}.">
+                <TextInput label="Command content as JSON" mono className="h-7 min-w-0 flex-1 basis-40" value={content} onChange={event => setContent(event.target.value)}/>
+            </ControlRow>
             {contentError !== null && <p className="text-xs text-status-error">{contentError}</p>}
         </Section>
     );
@@ -205,68 +206,53 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                         <HoldButton label="Rewind" icon={Rewind} begin="playback.beginRewind" end="playback.endRewind" call={call} connected={connected}/>
                         <HoldButton label="Fast forward" icon={FastForward} begin="playback.beginFastForward" end="playback.endFastForward" call={call} connected={connected}/>
                     </div>
-                    <Row>
-                        <Labeled label="Skip (s)">
-                            <NumberInput label="Skip seconds" value={skipSeconds} onValueChange={setSkipSeconds}/>
-                        </Labeled>
+                    <ControlRow label="Skip (seconds)" icon={RotateCw}>
+                        <NumberInput label="Skip seconds" value={skipSeconds} onValueChange={setSkipSeconds}/>
                         <PlaybackCommand {...context} label="Back" icon={RotateCcw} command="SkipBackward" path="playback.skipBackward" args={[numberOf(skipSeconds, 15)]}/>
                         <PlaybackCommand {...context} label="Forward" icon={RotateCw} command="SkipForward" path="playback.skipForward" args={[numberOf(skipSeconds, 15)]}/>
-                        <PlaybackCommand {...context} label="Previous chapter" command="PreviousChapter" path="playback.previousChapter"/>
-                        <PlaybackCommand {...context} label="Next chapter" command="NextChapter" path="playback.nextChapter"/>
-                    </Row>
+                    </ControlRow>
+                    <ControlRow label="Chapter" icon={ListMusic}>
+                        <PlaybackCommand {...context} label="Previous" command="PreviousChapter" path="playback.previousChapter"/>
+                        <PlaybackCommand {...context} label="Next" command="NextChapter" path="playback.nextChapter"/>
+                    </ControlRow>
                     <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. It still runs, to see what the device does.</p>
                 </Section>
             </PanelGroup>
 
             <PanelGroup title="Modes, library and queue" icon={ListMusic}>
                 <Section title="Modes" icon={Shuffle}>
-                    <div className="flex flex-wrap gap-1.5">
-                        <Pill tone="muted" icon={<Icon icon={Shuffle} size={12}/>}>{`shuffle ${modes.shuffle}`}</Pill>
-                        <Pill tone="muted" icon={<Icon icon={Repeat} size={12}/>}>{`repeat ${modes.repeat}`}</Pill>
-                    </div>
-                    <Row>
+                    <ControlRow label="Shuffle" icon={Shuffle} value={modes.shuffle}>
                         <Select label="Shuffle mode" value={shuffleMode} onValueChange={setShuffleMode} items={SHUFFLE_MODE_ITEMS} size="sm"/>
-                        <PlaybackCommand {...context} label="Set shuffle" icon={Shuffle} command="ChangeShuffleMode" path="playback.setShuffleMode" args={[valueOf(SHUFFLE_MODES, shuffleMode)]}/>
+                        <PlaybackCommand {...context} label="Set" command="ChangeShuffleMode" path="playback.setShuffleMode" args={[valueOf(SHUFFLE_MODES, shuffleMode)]}/>
                         <PlaybackCommand {...context} label="Advance" command="AdvanceShuffleMode" path="playback.advanceShuffleMode"/>
-                    </Row>
-                    <Row>
+                    </ControlRow>
+                    <ControlRow label="Repeat" icon={Repeat} value={modes.repeat}>
                         <Select label="Repeat mode" value={repeatMode} onValueChange={setRepeatMode} items={REPEAT_MODE_ITEMS} size="sm"/>
-                        <PlaybackCommand {...context} label="Set repeat" icon={Repeat} command="ChangeRepeatMode" path="playback.setRepeatMode" args={[valueOf(REPEAT_MODES, repeatMode)]}/>
+                        <PlaybackCommand {...context} label="Set" command="ChangeRepeatMode" path="playback.setRepeatMode" args={[valueOf(REPEAT_MODES, repeatMode)]}/>
                         <PlaybackCommand {...context} label="Advance" command="AdvanceRepeatMode" path="playback.advanceRepeatMode"/>
-                    </Row>
-                </Section>
-
-                <Section title="Rate and sleep" icon={Timer}>
-                    <Row>
-                        <Labeled label="Rate">
-                            <NumberInput label="Playback rate" value={rate} onValueChange={setRate} className="w-16"/>
-                        </Labeled>
-                        <PlaybackCommand {...context} label="Set rate" icon={ChevronsRight} command="ChangePlaybackRate" path="playback.setPlaybackRate" args={[numberOf(rate, 1)]}/>
-                    </Row>
-                    <Row>
-                        <Labeled label="Sleep (s)">
-                            <NumberInput label="Sleep timer seconds" value={sleepSeconds} onValueChange={setSleepSeconds}/>
-                        </Labeled>
-                        <Labeled label="Stop mode">
-                            <NumberInput label="Sleep stop mode" value={stopMode} onValueChange={setStopMode} className="w-14"/>
-                        </Labeled>
-                        <PlaybackCommand {...context} label="Set sleep timer" icon={Timer} command="SetSleepTimer" path="playback.setSleepTimer" args={[numberOf(sleepSeconds, 1800), numberOf(stopMode, 0)]}/>
-                    </Row>
+                    </ControlRow>
+                    <ControlRow label="Rate" icon={ChevronsRight} value={nowPlaying ? `${nowPlaying.playbackRate}x` : undefined}>
+                        <NumberInput label="Playback rate" value={rate} onValueChange={setRate} className="w-16"/>
+                        <PlaybackCommand {...context} label="Set" command="ChangePlaybackRate" path="playback.setPlaybackRate" args={[numberOf(rate, 1)]}/>
+                    </ControlRow>
+                    <ControlRow label="Sleep timer" icon={Timer} hint="Seconds until playback stops, and the stop mode the device expects.">
+                        <NumberInput label="Sleep timer seconds" value={sleepSeconds} onValueChange={setSleepSeconds}/>
+                        <NumberInput label="Sleep stop mode" value={stopMode} onValueChange={setStopMode} className="w-14"/>
+                        <PlaybackCommand {...context} label="Set" command="SetSleepTimer" path="playback.setSleepTimer" args={[numberOf(sleepSeconds, 1800), numberOf(stopMode, 0)]}/>
+                    </ControlRow>
                 </Section>
 
                 <Section title="Library and queue" icon={ListMusic}>
-                    <Row>
+                    <ControlRow label="Current item" icon={ICONS.nowPlaying}>
                         <PlaybackCommand {...context} label="Like" icon={ThumbsUp} command="LikeTrack" path="playback.likeTrack"/>
                         <PlaybackCommand {...context} label="Dislike" icon={ThumbsDown} command="DislikeTrack" path="playback.dislikeTrack"/>
                         <PlaybackCommand {...context} label="Bookmark" icon={Bookmark} command="BookmarkTrack" path="playback.bookmarkTrack"/>
                         <PlaybackCommand {...context} label="Add to library" icon={ListPlus} command="AddNowPlayingItemToLibrary" path="playback.addToLibrary"/>
-                    </Row>
-                    <Row>
-                        <Labeled label="Queue length">
-                            <NumberInput label="Queue length" value={queueLength} onValueChange={setQueueLength}/>
-                        </Labeled>
-                        <PlaybackCommand {...context} label="Request queue" icon={ListMusic} command="GetPlaybackQueue" path="playback.requestPlaybackQueue" args={[numberOf(queueLength, 10)]}/>
-                    </Row>
+                    </ControlRow>
+                    <ControlRow label="Queue length" icon={ListMusic}>
+                        <NumberInput label="Queue length" value={queueLength} onValueChange={setQueueLength}/>
+                        <PlaybackCommand {...context} label="Request queue" command="GetPlaybackQueue" path="playback.requestPlaybackQueue" args={[numberOf(queueLength, 10)]}/>
+                    </ControlRow>
                 </Section>
 
             </PanelGroup>

@@ -26,7 +26,7 @@ export function Section({title, icon, actions, collapsible = false, defaultOpen 
     const [open, setOpen] = useState(!collapsible || defaultOpen);
 
     return (
-        <section className={clsx('flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', className)}>
+        <section className={clsx('@container flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', className)}>
             <header className="flex h-4 min-w-0 shrink-0 items-center gap-2 leading-4">
                 {icon && <Icon icon={icon} size={16} className="shrink-0 text-text-muted"/>}
                 <SectionLabel render={<h2/>} className="min-w-0 truncate text-text-muted">

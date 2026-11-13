@@ -60,11 +60,11 @@ function AppsSection({call, connected}: Context) {
                 </div>
             )}
             <ControlRow label="Bundle identifier" icon={Package}>
-                <TextInput label="Bundle identifier" mono className="h-7 w-56" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>
+                <TextInput label="Bundle identifier" mono className="h-7 min-w-0 flex-1 basis-40" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>
                 <CommandButton label="Launch" tooltip="apps.launch" run={() => call('device', 'apps.launch', [bundleId.trim()])} disabled={!connected || bundleId.trim().length === 0}/>
             </ControlRow>
             <ControlRow label="URL" icon={Link2}>
-                <TextInput label="URL to open" mono className="h-7 w-56" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
+                <TextInput label="URL to open" mono className="h-7 min-w-0 flex-1 basis-40" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
                 <CommandButton label="Via AirPlay" tooltip="apps.openUrl" run={() => call('device', 'apps.openUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
                 <CommandButton label="Via Companion Link" tooltip="companionLink.launchUrl" run={() => call('companionLink', 'launchUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
             </ControlRow>
@@ -113,11 +113,11 @@ function AccountsSection({call, connected}: Context) {
                 <ResultBlock label="Companion account" tooltip="companionLink.activeUserAccount" run={() => call('companionLink', 'activeUserAccount')} disabled={!connected}/>
             </Row>
             <ControlRow label="Account id" icon={ICONS.identifier}>
-                <TextInput label="Account identifier" mono className="h-7 w-56" value={accountId} onChange={event => setAccountId(event.target.value)}/>
+                <TextInput label="Account identifier" mono className="h-7 min-w-0 flex-1 basis-40" value={accountId} onChange={event => setAccountId(event.target.value)}/>
                 <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [accountId.trim()])} disabled={!connected || accountId.trim().length === 0}/>
             </ControlRow>
             <ControlRow label="iCloud alt DSID" icon={ICONS.identifier}>
-                <TextInput label="iCloud alt DSID" mono className="h-7 w-56" value={dsid} onChange={event => setDsid(event.target.value)}/>
+                <TextInput label="iCloud alt DSID" mono className="h-7 min-w-0 flex-1 basis-40" value={dsid} onChange={event => setDsid(event.target.value)}/>
                 <CommandButton label="Switch" tooltip="accounts.switchActive" run={() => call('device', 'accounts.switchActive', [dsid.trim()])} disabled={!connected || dsid.trim().length === 0}/>
             </ControlRow>
         </Section>
@@ -185,7 +185,7 @@ function UpNextSection({call, connected}: Context) {
     return (
         <Section title="Up next" icon={ICONS.upNext}>
             <ControlRow label="Pagination token" icon={ICONS.upNext} hint="Optional; leave empty for the first page.">
-                <TextInput label="Pagination token" mono className="h-7 w-48" value={paginationToken} onChange={event => setPaginationToken(event.target.value)}/>
+                <TextInput label="Pagination token" mono className="h-7 min-w-0 flex-1 basis-40" value={paginationToken} onChange={event => setPaginationToken(event.target.value)}/>
             </ControlRow>
             <ResultBlock
                 label="Fetch up next"
@@ -195,7 +195,7 @@ function UpNextSection({call, connected}: Context) {
                 defaultDepth={3}
             />
             <ControlRow label="Item identifier" icon={ICONS.identifier}>
-                <TextInput label="Up next identifier" mono className="h-7 w-48" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
+                <TextInput label="Up next identifier" mono className="h-7 min-w-0 flex-1 basis-40" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
             </ControlRow>
             <ControlRow label="Kind" icon={Tag}>
                 <TextInput label="Up next kind" mono className="h-7 w-32" value={kind} onChange={event => setKind(event.target.value)}/>

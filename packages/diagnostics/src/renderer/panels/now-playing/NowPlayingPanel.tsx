@@ -4,8 +4,8 @@ import { formatDuration, isBytes } from '@shared/helpers';
 import { useAppleMusic } from '@/state/apple-music';
 import { useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { EventFeed, Labeled, NotConnected, NumberInput, numberOf, PanelLink, Row } from '@/panels/sdk-shared';
-import { BoolValue, Button, CommandButton, EmptyState, Field, FormError, Icon, ICONS, KeyValue, KeyValueList, Meter, PanelBody, PanelGroup, Pill, Section, StatusPill, TextInput } from '@/ui';
+import { EventFeed, NotConnected, NumberInput, numberOf, PanelLink, Row } from '@/panels/sdk-shared';
+import { BoolValue, Button, CommandButton, ControlRow, EmptyState, Field, FormError, Icon, ICONS, KeyValue, KeyValueList, Meter, PanelBody, PanelGroup, Pill, Section, StatusPill, TextInput } from '@/ui';
 import { ArtworkVideo } from './ArtworkVideo';
 import { LyricsDemo } from './LyricsDemo';
 import { LyricsView } from './LyricsView';
@@ -153,15 +153,11 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
                     icon={ICONS.artwork}
                     actions={artwork !== null && <Pill tone={artwork.url === null ? 'muted' : 'accent'}>{artwork.url === null ? 'inline data' : 'url'}</Pill>}
                 >
-                    <Row>
-                        <Labeled label="Width">
-                            <NumberInput label="Artwork width" value={width} onValueChange={setWidth}/>
-                        </Labeled>
-                        <Labeled label="Height">
-                            <NumberInput label="Artwork height" value={height} onValueChange={setHeight}/>
-                        </Labeled>
+                    <ControlRow label="Size (pixels)" icon={ICONS.artwork} hint="Width and height; -1 keeps the aspect ratio. Animated artwork uses the same size.">
+                        <NumberInput label="Artwork width" value={width} onValueChange={setWidth}/>
+                        <NumberInput label="Artwork height" value={height} onValueChange={setHeight}/>
                         <CommandButton label="Get artwork" variant="primary" icon={ICONS.artwork} tooltip="artwork.get" run={loadArtwork} showResult={false} disabled={!connected}/>
-                    </Row>
+                    </ControlRow>
                     {artwork === null ? (
                         <p className="text-xs text-text-muted">Nothing fetched yet. A device without a now playing item answers with null.</p>
                     ) : (

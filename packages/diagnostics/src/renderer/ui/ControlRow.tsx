@@ -13,7 +13,7 @@ type ControlRowProps = {
 
 /**
  * One group of inputs with a label in front that says what they control. Every row keeps the same label column, so rows in a
- * card line up; in a narrow card the label stands above the controls.
+ * card line up; in a card narrower than 480 pixels (the card is a container) the label stands above the controls.
  */
 export function ControlRow({label, icon, value, hint, children}: ControlRowProps) {
     return (

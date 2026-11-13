@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { RefreshCw, TrendingDown, Volume2, VolumeX } from 'lucide-react';
-import { ButtonGroup, CommandButton, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
+import { ButtonGroup, CommandButton, ControlRow, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { Labeled, NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
+import { NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
 
 const toDevice = (percent: number): number => percent / 100;
 
@@ -93,13 +93,9 @@ export function VolumePanel({deviceId}: PanelProps) {
                 </Section>
 
                 <Section title="Fade and adjust" icon={TrendingDown}>
-                    <Row>
-                        <Labeled label="Fade to (%)">
-                            <NumberInput label="Fade target" value={fadeTarget} onValueChange={setFadeTarget}/>
-                        </Labeled>
-                        <Labeled label="Over (ms)">
-                            <NumberInput label="Fade duration" value={fadeDuration} onValueChange={setFadeDuration}/>
-                        </Labeled>
+                    <ControlRow label="Fade" icon={TrendingDown} hint="Target level in percent, over a duration in milliseconds.">
+                        <NumberInput label="Fade target in percent" value={fadeTarget} onValueChange={setFadeTarget}/>
+                        <NumberInput label="Fade duration in milliseconds" value={fadeDuration} onValueChange={setFadeDuration}/>
                         <DisabledReason reason={fadeBlocked}>
                             <CommandButton
                                 label="Fade"
@@ -110,9 +106,11 @@ export function VolumePanel({deviceId}: PanelProps) {
                                 disabled={fadeBlocked !== null}
                             />
                         </DisabledReason>
-                    </Row>
-                    <Row>
+                    </ControlRow>
+                    <ControlRow label="Adjust" icon={ICONS.volume}>
                         <Select label="Adjustment" value={adjustment} onValueChange={setAdjustment} items={VOLUME_ADJUSTMENT_ITEMS} size="sm"/>
+                    </ControlRow>
+                    <ControlRow label="On output" icon={ICONS.outputDevice}>
                         <Select label="Output device" value={adjustUid} onValueChange={setAdjustUid} items={outputItems} size="sm"/>
                         <CommandButton
                             label="Adjust"
@@ -120,7 +118,7 @@ export function VolumePanel({deviceId}: PanelProps) {
                             run={() => call('device', 'volume.adjust', adjustUid === DEFAULT_OUTPUT ? [valueOf(VOLUME_ADJUSTMENTS, adjustment)] : [valueOf(VOLUME_ADJUSTMENTS, adjustment), adjustUid])}
                             disabled={!connected}
                         />
-                    </Row>
+                    </ControlRow>
                 </Section>
 
                 <Section title="Output devices" icon={ICONS.outputDevice} actions={<CountPill>{outputDevices.length}</CountPill>}>
@@ -148,27 +146,24 @@ export function VolumePanel({deviceId}: PanelProps) {
 
                 <Section title="Sound modes" icon={ICONS.experimental} collapsible defaultOpen={false}>
                     <p className="text-xs text-text-muted">These go straight at the AirPlay manager. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
-                    <Row>
-                        <TextInput label="Audio mode" mono className="h-7 w-40" placeholder="default" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
-                        <CommandButton label="Set audio mode" tooltip="airplay.setAudioMode" run={() => call('airplay', 'setAudioMode', [audioMode])} disabled={!connected}/>
-                    </Row>
-                    <Row>
-                        <TextInput label="Listening mode" mono className="h-7 w-40" placeholder="Default" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
-                        <CommandButton label="Set listening mode" tooltip="airplay.setListeningMode" run={() => call('airplay', 'setListeningMode', [listeningMode])} disabled={!connected}/>
-                    </Row>
-                    <Row>
-                        <Labeled label="Fade type">
-                            <NumberInput label="Audio fade type" value={fadeType} onValueChange={setFadeType} className="w-14"/>
-                        </Labeled>
-                        <CommandButton label="Audio fade" tooltip="airplay.audioFade" run={() => call('airplay', 'audioFade', [numberOf(fadeType, 0)])} disabled={!connected}/>
-                    </Row>
-                    <Row>
-                        <span className="text-xs text-text-muted">Conversation detection</span>
+                    <ControlRow label="Audio mode" icon={ICONS.audio}>
+                        <TextInput label="Audio mode" mono className="h-7 min-w-0 flex-1 basis-40" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
+                        <CommandButton label="Set" tooltip="airplay.setAudioMode" run={() => call('airplay', 'setAudioMode', [audioMode])} disabled={!connected}/>
+                    </ControlRow>
+                    <ControlRow label="Listening mode" icon={ICONS.outputDevice}>
+                        <TextInput label="Listening mode" mono className="h-7 min-w-0 flex-1 basis-40" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
+                        <CommandButton label="Set" tooltip="airplay.setListeningMode" run={() => call('airplay', 'setListeningMode', [listeningMode])} disabled={!connected}/>
+                    </ControlRow>
+                    <ControlRow label="Audio fade type" icon={TrendingDown}>
+                        <NumberInput label="Audio fade type" value={fadeType} onValueChange={setFadeType} className="w-14"/>
+                        <CommandButton label="Fade" tooltip="airplay.audioFade" run={() => call('airplay', 'audioFade', [numberOf(fadeType, 0)])} disabled={!connected}/>
+                    </ControlRow>
+                    <ControlRow label="Conversation detection" icon={ICONS.lyrics}>
                         <ButtonGroup>
                             <CommandButton label="On" tooltip="airplay.setConversationDetectionEnabled(true)" run={() => call('airplay', 'setConversationDetectionEnabled', [true])} disabled={!connected}/>
                             <CommandButton label="Off" tooltip="airplay.setConversationDetectionEnabled(false)" run={() => call('airplay', 'setConversationDetectionEnabled', [false])} disabled={!connected}/>
                         </ButtonGroup>
-                    </Row>
+                    </ControlRow>
                 </Section>
             </PanelGroup>
         </PanelBody>

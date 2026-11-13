@@ -199,15 +199,6 @@ export function Row({children, className}: { readonly children: ReactNode; reado
     return <div className={clsx('flex flex-wrap items-center gap-2', className)}>{children}</div>;
 }
 
-export function Labeled({label, children}: { readonly label: string; readonly children: ReactNode }) {
-    return (
-        <span className="inline-flex items-center gap-1.5">
-            <span className="text-xs text-text-muted">{label}</span>
-            {children}
-        </span>
-    );
-}
-
 type NumberInputProps = {
     readonly label: string;
     readonly value: string;

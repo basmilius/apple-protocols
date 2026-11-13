@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { BoolValue, Checkbox, CommandButton, CountPill, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Pill, Section, StatusPill, TextInput } from '@/ui';
+import { BoolValue, Checkbox, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Pill, Section, StatusPill, TextInput } from '@/ui';
 import { useDevices } from '@/state/devices';
 import { useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
@@ -116,11 +116,11 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                         ))}
                     </div>
                 )}
-                <Row>
+                <ControlRow label="Add by uid" icon={ICONS.identifier}>
                     <TextInput
                         label="Output device uid"
                         mono
-                        className="h-7 w-72"
+                        className="h-7 min-w-0 flex-1 basis-40"
                         placeholder="Paste an output device uid"
                         value={manualUid}
                         onChange={event => setManualUid(event.target.value)}
@@ -131,7 +131,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                         }}
                     />
                     <IconButton icon={Plus} label="Add the uid" size="sm" onClick={addManual}/>
-                </Row>
+                </ControlRow>
                 <Row>
                     <CommandButton label="Add to group" tooltip="multiroom.addDevice" run={() => call('device', 'multiroom.addDevice', selected)} disabled={!connected || selected.length === 0}/>
                     <CommandButton label="Remove from group" tooltip="multiroom.removeDevice" run={() => call('device', 'multiroom.removeDevice', selected)} disabled={!connected || selected.length === 0}/>

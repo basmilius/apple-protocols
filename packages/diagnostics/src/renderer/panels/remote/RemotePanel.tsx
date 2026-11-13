@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, Circle, LayoutGrid, type LucideIcon, Pause, Play, Square } from 'lucide-react';
-import { asCard, Button, ButtonGroup, CommandButton, CountPill, IconButton, ICONS, KeyValue, KeyValueList, PanelGroup, Section, Select, StatusPill, TextArea } from '@/ui';
+import { asCard, Button, ButtonGroup, CommandButton, ControlRow, CountPill, IconButton, ICONS, KeyValue, KeyValueList, PanelGroup, Section, Select, StatusPill, TextArea } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { BUTTON_PRESS_ITEMS, COMPANION_HID_ITEMS, EventFeed, HID_PRESETS, Labeled, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row, hex } from '@/panels/sdk-shared';
+import { BUTTON_PRESS_ITEMS, COMPANION_HID_ITEMS, EventFeed, HID_PRESETS, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row, hex } from '@/panels/sdk-shared';
 import { RemoteFace } from './RemoteFace';
 import { TouchPad } from './TouchPad';
 
@@ -89,29 +89,25 @@ export function RemotePanel({deviceId}: PanelProps) {
 
                 {isAppleTv && (
                     <Section title="Touch" icon={ICONS.touch} actions={!companionConnected && <StatusPill status="off" icon={ICONS.companionLink}>needs Companion Link</StatusPill>}>
-                        <div className="flex flex-wrap items-start gap-6">
-                            <TouchPad deviceId={deviceId} disabled={!companionConnected} finger={numberOf(finger, 1)}/>
-                            <div className="flex flex-col gap-2">
-                                <Labeled label="Finger">
-                                    <NumberInput label="Finger" value={finger} onValueChange={setFinger} className="w-14"/>
-                                </Labeled>
-                                <Labeled label="Swipe duration (ms)">
-                                    <NumberInput label="Swipe duration" value={swipeDuration} onValueChange={setSwipeDuration}/>
-                                </Labeled>
-                                <ButtonGroup>
-                                    {SWIPES.map(swipe => (
-                                        <IconButton
-                                            key={swipe.direction}
-                                            icon={swipe.icon}
-                                            label={`Swipe ${swipe.direction}`}
-                                            disabled={!companionConnected}
-                                            onClick={() => void call('companionLink', 'swipe', [swipe.direction, numberOf(swipeDuration, 200)])}
-                                        />
-                                    ))}
-                                    <IconButton icon={Circle} label="Tap to select" disabled={!companionConnected} onClick={() => void call('companionLink', 'tap')}/>
-                                </ButtonGroup>
-                            </div>
-                        </div>
+                        <TouchPad deviceId={deviceId} disabled={!companionConnected} finger={numberOf(finger, 1)}/>
+                        <ControlRow label="Finger" icon={ICONS.touch}>
+                            <NumberInput label="Finger" value={finger} onValueChange={setFinger} className="w-14"/>
+                        </ControlRow>
+                        <ControlRow label="Swipe (ms)" icon={ChevronRight}>
+                            <NumberInput label="Swipe duration in milliseconds" value={swipeDuration} onValueChange={setSwipeDuration}/>
+                            <ButtonGroup>
+                                {SWIPES.map(swipe => (
+                                    <IconButton
+                                        key={swipe.direction}
+                                        icon={swipe.icon}
+                                        label={`Swipe ${swipe.direction}`}
+                                        disabled={!companionConnected}
+                                        onClick={() => void call('companionLink', 'swipe', [swipe.direction, numberOf(swipeDuration, 200)])}
+                                    />
+                                ))}
+                                <IconButton icon={Circle} label="Tap to select" disabled={!companionConnected} onClick={() => void call('companionLink', 'tap')}/>
+                            </ButtonGroup>
+                        </ControlRow>
                     </Section>
                 )}
 
@@ -129,23 +125,21 @@ export function RemotePanel({deviceId}: PanelProps) {
                 </Section>
 
                 <Section title="HID primitives" icon={ICONS.advanced} collapsible defaultOpen={false} actions={<CountPill>{`page ${hidPage} / usage ${hex(hidUsage)}`}</CountPill>}>
-                    <Row>
-                        <Labeled label="Usage page">
-                            <NumberInput label="Usage page" value={page} onValueChange={setPage} className="w-14"/>
-                        </Labeled>
-                        <Labeled label="Usage">
-                            <NumberInput label="Usage" value={usage} onValueChange={setUsage}/>
-                        </Labeled>
-                        <Labeled label="Hold (ms)">
-                            <NumberInput label="Hold duration" value={holdDuration} onValueChange={setHoldDuration}/>
-                        </Labeled>
-                    </Row>
+                    <ControlRow label="Usage page" icon={ICONS.advanced}>
+                        <NumberInput label="Usage page" value={page} onValueChange={setPage} className="w-14"/>
+                    </ControlRow>
+                    <ControlRow label="Usage" icon={ICONS.advanced} hint="Decimal, or hex with 0x.">
+                        <NumberInput label="Usage" value={usage} onValueChange={setUsage}/>
+                    </ControlRow>
+                    <ControlRow label="Hold (ms)" icon={ICONS.timing}>
+                        <NumberInput label="Hold duration in milliseconds" value={holdDuration} onValueChange={setHoldDuration}/>
+                    </ControlRow>
                     <Row>
                         <CommandButton label="Press and release" tooltip="remote.pressAndRelease" run={() => call('device', 'remote.pressAndRelease', [hidPage, hidUsage])} disabled={!connected}/>
                         <CommandButton label="Long press" tooltip="remote.longPress" run={() => call('device', 'remote.longPress', [hidPage, hidUsage, numberOf(holdDuration, 1000)])} disabled={!connected}/>
                         <CommandButton label="Double press" tooltip="remote.doublePress" run={() => call('device', 'remote.doublePress', [hidPage, hidUsage])} disabled={!connected}/>
                     </Row>
-                    <Row>
+                    <ControlRow label="Presets" icon={ICONS.remote}>
                         {HID_PRESETS.map(preset => (
                             <Button
                                 key={preset.name}
@@ -159,33 +153,31 @@ export function RemotePanel({deviceId}: PanelProps) {
                                 {preset.name}
                             </Button>
                         ))}
-                    </Row>
+                    </ControlRow>
                 </Section>
 
                 {companionConnected && (
                     <Section title="Companion Link keys" icon={ICONS.companionLink} collapsible defaultOpen={false}>
-                        <Row>
-                            <Labeled label="Command">
-                                <Select label="HID command" value={companionCommand} onValueChange={setCompanionCommand} items={COMPANION_HID_ITEMS} size="sm"/>
-                            </Labeled>
-                            <Labeled label="Press">
-                                <Select label="Press type" value={companionType} onValueChange={setCompanionType} items={BUTTON_PRESS_ITEMS} size="sm"/>
-                            </Labeled>
-                            <Labeled label="Hold (ms)">
-                                <NumberInput label="Companion hold" value={companionHold} onValueChange={setCompanionHold}/>
-                            </Labeled>
+                        <ControlRow label="Press" icon={ICONS.remote}>
+                            <Select label="Press type" value={companionType} onValueChange={setCompanionType} items={BUTTON_PRESS_ITEMS} size="sm"/>
+                        </ControlRow>
+                        <ControlRow label="Hold (ms)" icon={ICONS.timing}>
+                            <NumberInput label="Companion hold in milliseconds" value={companionHold} onValueChange={setCompanionHold}/>
+                        </ControlRow>
+                        <ControlRow label="Key" icon={ICONS.companionLink}>
+                            <Select label="HID command" value={companionCommand} onValueChange={setCompanionCommand} items={COMPANION_HID_ITEMS} size="sm"/>
                             <CommandButton
-                                label="Press button"
+                                label="Press"
                                 variant="primary"
                                 tooltip="companionLink.pressButton"
                                 run={() => call('companionLink', 'pressButton', [companionCommand, companionType, numberOf(companionHold, 500)])}
                             />
-                        </Row>
-                        <Row>
+                        </ControlRow>
+                        <ControlRow label="Shortcuts" icon={ICONS.companionLink}>
                             {COMPANION_SHORTCUTS.map(command => (
                                 <CommandButton key={command} label={command} run={() => call('companionLink', 'pressButton', [command, companionType, numberOf(companionHold, 500)])}/>
                             ))}
-                        </Row>
+                        </ControlRow>
                     </Section>
                 )}
             </PanelGroup>

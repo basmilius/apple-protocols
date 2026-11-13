@@ -7,7 +7,7 @@ import type { PanelProps } from '@/panels/registry';
 import { MissingDevice } from '@/panels/sdk-shared';
 import { useStatus } from '@/panels/shared-media/hooks';
 import { DEFAULT_SOURCE, SourcePicker } from '@/panels/shared-media/SourcePicker';
-import { Banner, Button, Field, Icon, IconButton, ICONS, JsonView, KeyValue, KeyValueList, PanelBody, Section, Select, Slider, StatusBar, StatusPill, TextInput, useAsyncAction } from '@/ui';
+import { Banner, Button, ControlRow, Field, Icon, IconButton, ICONS, JsonView, KeyValue, KeyValueList, PanelBody, Section, Select, Slider, StatusBar, StatusPill, TextInput, useAsyncAction } from '@/ui';
 
 /** Requires an advertised `_raop._tcp` service and uses its own RTSP connection. */
 export function RaopPanel({deviceId}: PanelProps) {
@@ -54,14 +54,15 @@ export function RaopPanel({deviceId}: PanelProps) {
                 {services.length === 0 ? (
                     <p className="text-xs text-text-muted">No RAOP services found on the network yet. Rescan, or the device does not advertise one.</p>
                 ) : (
-                    <Select<string>
-                        label="RAOP service"
-                        value={chosen}
-                        onValueChange={setServiceId}
-                        items={services.map(service => ({value: service.id, label: service.fqdn, description: `${service.address}:${service.port}, ${service.modelName || 'unknown model'}`}))}
-                    />
+                    <Field label="RAOP service" hint={onAddress.length > 0 ? `${onAddress.length} service on this device's address.` : 'Nothing on this device’s address. Pick another service to test against.'}>
+                        <Select<string>
+                            label="RAOP service"
+                            value={chosen}
+                            onValueChange={setServiceId}
+                            items={services.map(service => ({value: service.id, label: service.fqdn, description: `${service.address}:${service.port}, ${service.modelName || 'unknown model'}`}))}
+                        />
+                    </Field>
                 )}
-                <p className="text-xs text-text-muted">{onAddress.length > 0 ? `${onAddress.length} service on this device's address.` : 'Nothing on this device’s address. Pick another service to test against.'}</p>
                 <div className="flex flex-wrap items-center gap-2">
                     <Button variant="primary" size="sm" disabled={action.busy || open} onClick={() => void action.run(() => invoke('raop:connect', {deviceId, serviceId: serviceId ?? onAddress[0]?.id}))}>
                         <Icon icon={ICONS.raop} size={14}/>
@@ -88,11 +89,9 @@ export function RaopPanel({deviceId}: PanelProps) {
                         <TextInput label="Artist" value={artist} disabled={streaming} onChange={event => setArtist(event.target.value)}/>
                     </Field>
                 </div>
-                <div className="flex items-center gap-1">
-                    <Icon icon={ICONS.volume} size={14} className="shrink-0 text-text-faint"/>
+                <ControlRow label="Volume" icon={ICONS.volume} value={`${volume}%`}>
                     <Slider label="Volume" value={volume} disabled={!open} onValueChange={setVolume} onValueCommitted={next => void action.run(() => invoke('raop:setVolume', {deviceId, volume: next}))}/>
-                    <span className="w-10 shrink-0 text-right text-xs tabular-nums text-text-muted">{volume}%</span>
-                </div>
+                </ControlRow>
                 <div className="flex flex-wrap items-center gap-2">
                     <Button variant="primary" size="sm" disabled={action.busy || !open || streaming} onClick={() => void action.run(() => invoke('raop:stream', {deviceId, source, metadata: {title, artist}, volume}))}>
                         <Icon icon={ICONS.audio} size={14}/>

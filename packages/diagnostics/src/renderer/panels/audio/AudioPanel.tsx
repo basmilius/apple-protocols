@@ -9,7 +9,7 @@ import { MissingDevice, NotConnected } from '@/panels/sdk-shared';
 import { useStatus } from '@/panels/shared-media/hooks';
 import { DEFAULT_SOURCE, SourcePicker } from '@/panels/shared-media/SourcePicker';
 import { Sparkline, StatGrid } from '@/panels/shared-media/Telemetry';
-import { Banner, Button, Field, Icon, ICONS, KeyValue, KeyValueList, Meter, MiddleTruncate, PanelBody, RelativeTime, Section, Segmented, Slider, StatusBar, StatusPill, TextInput, Toggle, useAsyncAction } from '@/ui';
+import { Banner, Button, ControlRow, Field, Icon, ICONS, KeyValue, KeyValueList, Meter, MiddleTruncate, PanelBody, RelativeTime, Section, Segmented, Slider, StatusBar, StatusPill, TextInput, Toggle, useAsyncAction } from '@/ui';
 
 type Mode = 'stream' | 'url';
 
@@ -65,15 +65,18 @@ export function AudioPanel({deviceId}: PanelProps) {
                         <SourcePicker value={source} onValueChange={setSource} disabled={playing}/>
                     </Section>
 
-                    <Section title="Volume and timing" icon={ICONS.volume} actions={<span className="mono text-xs tabular-nums text-text-muted">{volumeDb} dB</span>}>
-                        <Slider label="Stream volume in dB" value={volumeDb} min={-60} max={0} step={1} disabled={playing} onValueChange={setVolumeDb}/>
-                        <p className="text-xs text-text-muted">A fresh audio session starts silent, so the stream sets this before the first packet. -144 mutes, 0 is the loudest.</p>
-                        <div className="flex items-center gap-2">
-                            <Icon icon={ICONS.timing} size={14} className="text-text-faint"/>
+                    <Section title="Volume and timing" icon={ICONS.volume}>
+                        <ControlRow label="Volume" icon={ICONS.volume} value={`${volumeDb} dB`} hint="A fresh audio session starts silent, so the stream sets this before the first packet. -144 mutes, 0 is the loudest.">
+                            <Slider label="Stream volume in dB" value={volumeDb} min={-60} max={0} step={1} disabled={playing} onValueChange={setVolumeDb}/>
+                        </ControlRow>
+                        <ControlRow
+                            label="Timing"
+                            icon={ICONS.timing}
+                            value={ptp ? 'PTP' : 'NTP'}
+                            hint="NTP through the shared timing server is the proven path. PTP runs this stream with a grandmaster of our own, which is known to yield silent playback on PTP-capable receivers."
+                        >
                             <Toggle label="Run the PTP experiment" checked={ptp} disabled={playing} onCheckedChange={setPtp}/>
-                            <StatusPill status={ptp ? 'warning' : 'ok'}>{ptp ? 'PTP' : 'NTP'}</StatusPill>
-                        </div>
-                        <p className="text-xs text-text-muted">NTP through the shared timing server is the proven path. PTP runs this stream with a grandmaster of our own, which is known to yield silent playback on PTP-capable receivers.</p>
+                        </ControlRow>
                     </Section>
 
                     <div className="flex flex-wrap items-center gap-2">

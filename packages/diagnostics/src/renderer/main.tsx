@@ -7,6 +7,8 @@ import { App } from '@/App';
 import { formatSource, i18n } from '@/i18n';
 import { startDevices } from '@/state/devices';
 import { startTheme } from '@/state/theme';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/jetbrains-mono';
 import '@/styles.css';
 
 /* The room for the traffic lights comes from the platform alone, so it also stays in fullscreen. */

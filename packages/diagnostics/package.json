@@ -48,6 +48,8 @@
         "@basmilius/apple-raop": "workspace:*",
         "@basmilius/apple-rtsp": "workspace:*",
         "@basmilius/apple-sdk": "workspace:*",
+        "@fontsource-variable/geist": "^5.3.0",
+        "@fontsource-variable/jetbrains-mono": "^5.3.0",
         "@tailwindcss/vite": "^4.3.3",
         "@tanstack/react-virtual": "^3.14.11",
         "@types/node": "^25.9.2",

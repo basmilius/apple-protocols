@@ -1,9 +1,9 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { BufferAudioSource } from './bufferAudioSource';
+import { convertPcm } from './decoder/pcm';
 
 /**
- * Audio source for raw signed 16-bit big-endian PCM data. Serves
- * the provided buffer directly without any decoding or conversion.
+ * Raw signed 16-bit big-endian stereo PCM, resampled to 44100 Hz when needed.
  */
 export class Pcm extends BufferAudioSource {
     /**
@@ -14,7 +14,13 @@ export class Pcm extends BufferAudioSource {
      */
     constructor(pcmBuffer: Buffer, sampleRate: number = AUDIO_SAMPLE_RATE) {
         const frameSize = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
+        if (!Number.isFinite(sampleRate) || sampleRate <= 0 || pcmBuffer.length % frameSize !== 0) {
+            throw new RangeError('PCM requires a positive sample rate and complete stereo frames.');
+        }
         const duration = pcmBuffer.length / frameSize / sampleRate;
+        if (sampleRate !== AUDIO_SAMPLE_RATE) {
+            pcmBuffer = convertPcm(pcmBuffer, {inputChannels: AUDIO_CHANNELS, inputSampleRate: sampleRate, inputBitsPerSample: 16, inputEndian: 'big'});
+        }
         super(pcmBuffer, duration, frameSize);
     }
 }

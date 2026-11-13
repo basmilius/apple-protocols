@@ -1,6 +1,7 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isMp3 } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
+import { fetchAudio } from './fetchAudio';
 
 /**
  * Audio source for MP3 data. Decodes MP3 to signed 16-bit big-endian
@@ -44,14 +45,6 @@ export class Mp3 extends BufferAudioSource {
      * @throws Error if the fetched data is not valid MP3.
      */
     static async fromUrl(url: string): Promise<Mp3> {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
-        }
-
-        const arrayBuffer = await response.arrayBuffer();
-
-        return Mp3.fromBuffer(Buffer.from(arrayBuffer));
+        return Mp3.fromBuffer(await fetchAudio(url));
     }
 }

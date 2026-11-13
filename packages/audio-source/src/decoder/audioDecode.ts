@@ -182,6 +182,8 @@ function decodeWavExtensible(buf) {
                 sample = dataView.getFloat32(byteOffset, true);
             } else if (isFloat && bytesPerSample === 8) {
                 sample = dataView.getFloat64(byteOffset, true);
+            } else if (bytesPerSample === 1 && !isFloat) {
+                sample = (dataBuffer[byteOffset] - 128) / 128;
             } else if (bytesPerSample === 2) {
                 sample = dataView.getInt16(byteOffset, true) / 32768;
             } else if (bytesPerSample === 3) {

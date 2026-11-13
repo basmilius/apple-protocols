@@ -3,11 +3,20 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@bas
 /** Converts to 44100 Hz signed 16-bit big-endian stereo PCM using linear interpolation and channel mapping. */
 export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
     const {inputChannels, inputSampleRate, inputBitsPerSample, inputEndian} = options;
+    if (!Number.isSafeInteger(inputChannels) || inputChannels < 1 || !Number.isFinite(inputSampleRate) || inputSampleRate <= 0 || ![8, 16, 24, 32].includes(inputBitsPerSample)) {
+        throw new RangeError('Invalid PCM input format.');
+    }
     const bytesPerSample = inputBitsPerSample / 8;
     const inputFrameSize = inputChannels * bytesPerSample;
+    if (input.length % inputFrameSize !== 0) {
+        throw new RangeError('PCM input must contain complete frames.');
+    }
     const inputFrames = Math.floor(input.length / inputFrameSize);
 
     const outputFrames = Math.floor(inputFrames * AUDIO_SAMPLE_RATE / inputSampleRate);
+    if (!Number.isSafeInteger(outputFrames) || outputFrames * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL > 256 * 1024 * 1024) {
+        throw new RangeError('Converted PCM exceeds the output limit.');
+    }
     const output = Buffer.alloc(outputFrames * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL);
 
     for (let i = 0; i < outputFrames; i++) {

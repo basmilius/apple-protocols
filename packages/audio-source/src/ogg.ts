@@ -1,6 +1,7 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isOgg } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
+import { fetchAudio } from './fetchAudio';
 
 /**
  * Audio source for OGG Vorbis data. Decodes OGG to signed 16-bit
@@ -44,14 +45,6 @@ export class Ogg extends BufferAudioSource {
      * @throws Error if the fetched data is not valid OGG.
      */
     static async fromUrl(url: string): Promise<Ogg> {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
-        }
-
-        const arrayBuffer = await response.arrayBuffer();
-
-        return Ogg.fromBuffer(Buffer.from(arrayBuffer));
+        return Ogg.fromBuffer(await fetchAudio(url));
     }
 }

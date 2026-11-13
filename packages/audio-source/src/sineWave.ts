@@ -1,5 +1,6 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { BufferAudioSource } from './bufferAudioSource';
+import { convertPcm } from './decoder/pcm';
 
 /**
  * Audio source that generates a pure sine wave tone. Useful for
@@ -16,9 +17,14 @@ export class SineWave extends BufferAudioSource {
      * @param bytesPerChannel - Number of bytes per sample per channel.
      */
     constructor(durationSeconds: number, frequency: number = 440, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
-        const frameSize = channels * bytesPerChannel;
-        const buffer = SineWave.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
-        super(buffer, durationSeconds, frameSize);
+        if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || !Number.isFinite(frequency) || frequency <= 0 || !Number.isFinite(sampleRate) || sampleRate <= 0 || !Number.isSafeInteger(channels) || channels <= 0 || bytesPerChannel !== 2) {
+            throw new RangeError('Invalid sine wave format or duration.');
+        }
+        let buffer = SineWave.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
+        if (sampleRate !== AUDIO_SAMPLE_RATE || channels !== AUDIO_CHANNELS) {
+            buffer = convertPcm(buffer, {inputChannels: channels, inputSampleRate: sampleRate, inputBitsPerSample: 16, inputEndian: 'big'});
+        }
+        super(buffer, durationSeconds, AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL);
     }
 
     /**
@@ -32,7 +38,10 @@ export class SineWave extends BufferAudioSource {
      * @returns A buffer containing the generated PCM data.
      */
     static #generateSineWave(sampleRate: number, channels: number, bytesPerChannel: number, durationSeconds: number, frequency: number): Buffer {
-        const totalSamples = sampleRate * durationSeconds;
+        const totalSamples = Math.floor(sampleRate * durationSeconds);
+        if (totalSamples * channels * bytesPerChannel > 256 * 1024 * 1024) {
+            throw new RangeError('Sine wave exceeds the PCM output limit.');
+        }
         const buffer = Buffer.alloc(totalSamples * channels * bytesPerChannel);
 
         const fadeSamples = Math.floor(sampleRate * 0.05);

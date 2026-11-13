@@ -1,6 +1,7 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, PlaybackError } from '@basmilius/apple-common';
 import { decode } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
+import { fetchAudio } from './fetchAudio';
 
 /**
  * Audio source that fetches audio from a URL, automatically detecting
@@ -24,26 +25,12 @@ export class Url extends BufferAudioSource {
      * @param url - URL pointing to an audio file.
      * @returns A new Url audio source with the decoded PCM data.
      */
-    static async fromUrl(url: string, options: {format?: 'encoded' | 'pcm'} = {}): Promise<Url> {
-        let response: Response;
-
-        try {
-            response = await fetch(url);
-        } catch (err) {
-            const error = new PlaybackError(`Failed to fetch audio from ${url}: ${err instanceof Error ? err.message : String(err)}`);
-            error.cause = err;
-            throw error;
-        }
-
-        if (!response.ok) {
-            throw new PlaybackError(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
-        }
-
+    static async fromUrl(url: string, options: {format?: 'encoded' | 'pcm'; signal?: AbortSignal; maxBytes?: number; timeoutMs?: number} = {}): Promise<Url> {
         let pcmBuffer: Buffer;
 
         try {
-            const buffer = Buffer.from(await response.arrayBuffer());
-            pcmBuffer = options.format === 'pcm' ? buffer : await decode(buffer);
+            const buffer = await fetchAudio(url, options);
+            pcmBuffer = options.format === 'pcm' ? buffer : await decode(buffer, {signal: options.signal});
             if (pcmBuffer.length % (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) !== 0) {
                 throw new Error('PCM data does not contain complete stereo frames');
             }

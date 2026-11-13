@@ -1,6 +1,7 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
 import { decode, isWav } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
+import { fetchAudio } from './fetchAudio';
 
 /**
  * Audio source for WAV data. Decodes WAV (including WAVE_FORMAT_EXTENSIBLE)
@@ -43,13 +44,6 @@ export class Wav extends BufferAudioSource {
      * @param url - URL pointing to a WAV file.
      */
     static async fromUrl(url: string): Promise<Wav> {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch audio from ${url}: ${response.status} ${response.statusText}`);
-        }
-
-        const arrayBuffer = await response.arrayBuffer();
-        return Wav.fromBuffer(Buffer.from(arrayBuffer));
+        return Wav.fromBuffer(await fetchAudio(url));
     }
 }

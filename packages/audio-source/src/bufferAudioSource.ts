@@ -21,6 +21,7 @@ export abstract class BufferAudioSource implements AudioSource {
      *   {@link AUDIO_CHANNELS} × {@link AUDIO_BYTES_PER_CHANNEL}.
      */
     constructor(buffer: Buffer, duration: number, frameSize: number = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) {
+        if (!Number.isSafeInteger(frameSize) || frameSize <= 0 || buffer.length % frameSize !== 0 || !Number.isFinite(duration) || duration < 0) throw new RangeError('Invalid PCM buffer format or duration.');
         this.#buffer = buffer;
         this.#frameSize = frameSize;
         this.duration = duration;
@@ -33,6 +34,7 @@ export abstract class BufferAudioSource implements AudioSource {
      * @returns A buffer containing the requested PCM data, or null if the end has been reached.
      */
     async readFrames(count: number): Promise<Buffer | null> {
+        if (!Number.isSafeInteger(count) || count <= 0) throw new RangeError('Frame count must be a positive integer.');
         if (this.#offset >= this.#buffer.length) {
             return null;
         }

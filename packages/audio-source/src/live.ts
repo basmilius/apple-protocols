@@ -44,6 +44,9 @@ export class Live implements AudioSource {
      * @param bufferDuration Buffer capacity in seconds of audio.
      */
     constructor(bufferDuration: number = DEFAULT_BUFFER_DURATION) {
+        if (!Number.isFinite(bufferDuration) || bufferDuration <= 0 || bufferDuration * AUDIO_SAMPLE_RATE < 1) {
+            throw new RangeError('Live buffer duration must hold at least one audio frame.');
+        }
         this.#frameSize = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
         this.#capacity = Math.floor(bufferDuration * AUDIO_SAMPLE_RATE) * this.#frameSize;
         this.#buffer = Buffer.alloc(this.#capacity);
@@ -78,6 +81,10 @@ export class Live implements AudioSource {
      * @returns The number of bytes actually written.
      */
     write(data: Buffer): number {
+        if (data.length % this.#frameSize !== 0) {
+            throw new RangeError('Live PCM writes must contain complete stereo frames.');
+        }
+
         if (this.#ended) {
             return 0;
         }
@@ -140,6 +147,9 @@ export class Live implements AudioSource {
      * @returns A buffer containing the requested PCM data, or null if the stream has ended.
      */
     async readFrames(count: number): Promise<Buffer | null> {
+        if (!Number.isSafeInteger(count) || count <= 0 || count * this.#frameSize > this.#capacity) {
+            throw new RangeError('Frame count must be positive and fit in the Live buffer.');
+        }
         const bytesNeeded = count * this.#frameSize;
 
         if (this.#available >= bytesNeeded) {
@@ -170,6 +180,7 @@ export class Live implements AudioSource {
      * and re-enabling writes after an {@link end} call.
      */
     async reset(): Promise<void> {
+        this.#pendingResolve?.(null);
         this.#readPos = 0;
         this.#writePos = 0;
         this.#available = 0;

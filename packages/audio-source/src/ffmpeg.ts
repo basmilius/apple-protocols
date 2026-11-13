@@ -1,173 +1,185 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioSource } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioSource, PlaybackError } from '@basmilius/apple-common';
 
-/**
- * Audio source that decodes any file format supported by FFmpeg into
- * signed 16-bit big-endian PCM by spawning an `ffmpeg` child process.
- * Requires FFmpeg to be installed and available on the system PATH.
- */
+const FRAME_SIZE = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
+const BUFFER_LIMIT = AUDIO_SAMPLE_RATE * FRAME_SIZE;
+const STDERR_LIMIT = 4096;
+
+type Reader = {bytes: number; resolve: (value: Buffer | null) => void; reject: (error: Error) => void};
+
+/** FFmpeg decodes to 44100 Hz signed 16-bit big-endian stereo PCM. Requires ffmpeg on PATH. */
 export class Ffmpeg implements AudioSource {
-    /** Total duration of the audio in seconds. */
     readonly duration: number;
-
-    /** Size of a single audio frame in bytes (channels * bytesPerChannel). */
-    readonly #frameSize: number;
-
-    /** Absolute or relative path to the input audio file. */
     readonly #filePath: string;
-
-    /** Target sample rate for the PCM output. */
-    readonly #sampleRate: number;
-
-    /** Target number of audio channels for the PCM output. */
-    readonly #channels: number;
-
-    /** The spawned FFmpeg child process, or null when not running. */
+    readonly #chunks: Buffer[] = [];
+    readonly #readers: Reader[] = [];
+    #offset = 0;
+    #buffered = 0;
+    #peakBuffered = 0;
+    #ended = true;
+    #failure?: PlaybackError;
+    #stderr = '';
     #ffmpeg: ChildProcess | null = null;
+    #stopping?: Promise<void>;
 
-    /** Accumulation buffer for PCM data received from FFmpeg stdout. */
-    #buffer: Buffer = Buffer.alloc(0);
-
-    /** Whether the FFmpeg process has finished outputting data. */
-    #ended: boolean = false;
-
-    /** Queue of pending consumers waiting for PCM data. */
-    #resolveQueue: Array<{ count: number; resolve: (value: Buffer | null) => void }> = [];
-
-    /**
-     * Creates an FFmpeg-based audio source.
-     *
-     * @param filePath - Path to the audio file to decode.
-     * @param duration - Total duration of the audio in seconds.
-     * @param sampleRate - Target sample rate in Hz.
-     * @param channels - Target number of audio channels.
-     * @param bytesPerChannel - Number of bytes per sample per channel.
-     */
     constructor(filePath: string, duration: number, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
+        if (!Number.isFinite(sampleRate) || sampleRate <= 0 || !Number.isSafeInteger(channels) || channels <= 0 || bytesPerChannel !== 2) {
+            throw new RangeError('FFmpeg requires a positive sample rate and channel count, and 16-bit samples.');
+        }
+        if (!Number.isFinite(duration) || duration < 0) throw new RangeError('FFmpeg duration must be finite and non-negative.');
         this.#filePath = filePath;
         this.duration = duration;
-        this.#sampleRate = sampleRate;
-        this.#channels = channels;
-        this.#frameSize = channels * bytesPerChannel;
     }
 
-    /**
-     * Spawns the FFmpeg process and begins decoding the audio file
-     * into signed 16-bit big-endian PCM streamed to stdout.
-     */
+    get stats(): {bufferedBytes: number; peakBufferedBytes: number; bufferLimit: number; paused: boolean} {
+        return {bufferedBytes: this.#buffered, peakBufferedBytes: this.#peakBuffered, bufferLimit: BUFFER_LIMIT, paused: this.#ffmpeg?.stdout?.isPaused() ?? false};
+    }
+
     async start(): Promise<void> {
-        this.#ffmpeg = spawn('ffmpeg', [
-            '-i', this.#filePath,
-            '-f', 's16be',
-            '-acodec', 'pcm_s16be',
-            '-ar', String(this.#sampleRate),
-            '-ac', String(this.#channels),
-            '-'
-        ], {
-            stdio: ['ignore', 'pipe', 'ignore']
-        });
-
-        this.#ffmpeg.stdout!.on('data', (chunk: Buffer) => {
-            this.#buffer = Buffer.concat([this.#buffer, chunk]);
-            this.#processQueue();
-        });
-
-        this.#ffmpeg.stdout!.on('end', () => {
-            this.#ended = true;
-            this.#processQueue();
-        });
-
-        this.#ffmpeg.on('error', () => {
-            this.#ffmpeg?.kill();
-            this.#ended = true;
-            this.#processQueue();
-        });
-    }
-
-    /**
-     * Resets the audio source. No-op for FFmpeg sources since the
-     * child process cannot be rewound; call {@link stop} and {@link start} instead.
-     */
-    async reset(): Promise<void> {
-    }
-
-    /**
-     * Stops the FFmpeg process and cleans up all resources. Resolves
-     * any pending read promises with null.
-     */
-    async stop(): Promise<void> {
-        if (!this.#ffmpeg) {
+        if (this.#stopping) {
+            await this.#stopping;
+        }
+        if (this.#ffmpeg) {
             return;
         }
+        this.#clear();
+        this.#ended = false;
+        this.#failure = undefined;
+        this.#stderr = '';
+        this.#peakBuffered = 0;
 
-        while (this.#resolveQueue.length > 0) {
-            this.#resolveQueue.shift()!.resolve(null);
-        }
-
-        this.#ffmpeg.stdout?.removeAllListeners();
-        this.#ffmpeg.removeAllListeners();
-
-        this.#ffmpeg.kill();
-        this.#ffmpeg = null;
-    }
-
-    /**
-     * Reads the specified number of audio frames from the decoded PCM buffer.
-     * Blocks until enough data is available or the stream ends.
-     *
-     * @param count - Number of audio frames to read.
-     * @returns A buffer containing the requested PCM data, or null if the stream has ended.
-     */
-    async readFrames(count: number): Promise<Buffer | null> {
-        const bytesNeeded = count * this.#frameSize;
-
-        if (this.#buffer.length >= bytesNeeded) {
-            const chunk = this.#buffer.subarray(0, bytesNeeded);
-            this.#buffer = this.#buffer.subarray(bytesNeeded);
-            return chunk;
-        }
-
-        if (this.#ended) {
-            if (this.#buffer.length > 0) {
-                const chunk = this.#buffer;
-                this.#buffer = Buffer.alloc(0);
-                return chunk;
+        const child = spawn('ffmpeg', ['-nostdin', '-v', 'error', '-i', this.#filePath, '-f', 's16be', '-acodec', 'pcm_s16be', '-ar', String(AUDIO_SAMPLE_RATE), '-ac', String(AUDIO_CHANNELS), '-'], {stdio: ['ignore', 'pipe', 'pipe']});
+        this.#ffmpeg = child;
+        child.stderr!.on('data', chunk => {
+            if (this.#ffmpeg === child) {
+                this.#stderr = (this.#stderr + chunk.toString()).slice(-STDERR_LIMIT);
             }
-            return null;
-        }
-
-        return new Promise((resolve) => {
-            this.#resolveQueue.push({ count, resolve });
+        });
+        child.stdout!.on('data', (chunk: Buffer) => {
+            if (this.#ffmpeg !== child) {
+                return;
+            }
+            this.#chunks.push(chunk);
+            this.#buffered += chunk.length;
+            this.#peakBuffered = Math.max(this.#peakBuffered, this.#buffered);
+            this.#flush();
+            if (this.#buffered >= BUFFER_LIMIT) {
+                child.stdout!.pause();
+            }
+        });
+        child.on('error', error => {
+            if (this.#ffmpeg === child) {
+                this.#fail(error.message);
+            }
+        });
+        child.once('close', (code, signal) => {
+            if (this.#ffmpeg !== child) {
+                return;
+            }
+            this.#ffmpeg = null;
+            this.#ended = true;
+            if (code !== 0) {
+                this.#fail(`FFmpeg exited with ${code ?? signal}: ${this.#stderr.trim()}`);
+            } else if (this.#buffered % FRAME_SIZE !== 0) {
+                this.#fail('FFmpeg returned an incomplete PCM frame.');
+            } else {
+                this.#flush();
+            }
+        });
+        await new Promise<void>((resolve, reject) => {
+            child.once('spawn', resolve);
+            child.once('error', error => reject(new PlaybackError(`Cannot start FFmpeg: ${error.message}`)));
         });
     }
 
-    /**
-     * Fulfills pending read promises from the resolve queue whenever
-     * enough PCM data has accumulated in the buffer or the stream has ended.
-     */
-    #processQueue(): void {
-        while (this.#resolveQueue.length > 0) {
-            const { count, resolve } = this.#resolveQueue[0];
-            const bytesNeeded = count * this.#frameSize;
+    /** Stops the current decoder; the next start decodes from the beginning. */
+    async reset(): Promise<void> {
+        await this.stop();
+    }
 
-            if (this.#buffer.length >= bytesNeeded) {
-                const chunk = this.#buffer.subarray(0, bytesNeeded);
-                this.#buffer = this.#buffer.subarray(bytesNeeded);
-                this.#resolveQueue.shift();
-                resolve(chunk);
-            } else if (this.#ended) {
-                this.#resolveQueue.shift();
+    stop(): Promise<void> {
+        if (this.#stopping) {
+            return this.#stopping;
+        }
+        const child = this.#ffmpeg;
+        this.#ffmpeg = null;
+        this.#ended = true;
+        this.#clear();
+        for (const reader of this.#readers.splice(0)) {
+            reader.resolve(null);
+        }
+        if (!child) {
+            return Promise.resolve();
+        }
+        this.#stopping = new Promise<void>(resolve => {
+            const timeout = setTimeout(() => child.kill('SIGKILL'), 2000);
+            child.once('close', () => {clearTimeout(timeout); resolve();});
+            child.stdout?.resume();
+            child.kill();
+        }).finally(() => {this.#stopping = undefined;});
+        return this.#stopping;
+    }
 
-                if (this.#buffer.length > 0) {
-                    const chunk = this.#buffer;
-                    this.#buffer = Buffer.alloc(0);
-                    resolve(chunk);
-                } else {
-                    resolve(null);
-                }
+    /** Reads must fit the one-second producer buffer; failures reject rather than masquerading as EOF. */
+    async readFrames(count: number): Promise<Buffer | null> {
+        if (!Number.isSafeInteger(count) || count <= 0 || count * FRAME_SIZE > BUFFER_LIMIT) {
+            throw new RangeError('FFmpeg frame count must be positive and fit the producer buffer.');
+        }
+        if (this.#failure) {
+            throw this.#failure;
+        }
+        return new Promise((resolve, reject) => {
+            this.#readers.push({bytes: count * FRAME_SIZE, resolve, reject});
+            this.#flush();
+        });
+    }
+
+    #flush(): void {
+        while (this.#readers.length > 0) {
+            const reader = this.#readers[0];
+            if (this.#failure) {
+                this.#readers.shift()!.reject(this.#failure);
+            } else if (this.#buffered >= reader.bytes || this.#ended) {
+                this.#readers.shift();
+                const size = Math.min(reader.bytes, this.#buffered);
+                reader.resolve(size === 0 ? null : this.#take(size));
             } else {
                 break;
             }
         }
+        if (this.#buffered < BUFFER_LIMIT / 2) {
+            this.#ffmpeg?.stdout?.resume();
+        }
+    }
+
+    #take(bytes: number): Buffer {
+        const output = Buffer.allocUnsafe(bytes);
+        let written = 0;
+        while (written < bytes) {
+            const chunk = this.#chunks[0];
+            const size = Math.min(bytes - written, chunk.length - this.#offset);
+            chunk.copy(output, written, this.#offset, this.#offset + size);
+            this.#offset += size;
+            written += size;
+            if (this.#offset === chunk.length) {
+                this.#chunks.shift();
+                this.#offset = 0;
+            }
+        }
+        this.#buffered -= bytes;
+        return output;
+    }
+
+    #clear(): void {
+        this.#chunks.length = 0;
+        this.#offset = 0;
+        this.#buffered = 0;
+    }
+
+    #fail(message: string): void {
+        this.#failure = new PlaybackError(message);
+        this.#ended = true;
+        this.#clear();
+        this.#flush();
     }
 }

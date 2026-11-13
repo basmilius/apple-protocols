@@ -4,7 +4,7 @@ import { ListRow } from '@adecore/ui';
 import type { DiscoveryService, MdnsMode, MdnsRecord } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
-import { BoolValue, Button, CommandButton, CopyButton, CountPill, EmptyState, Field, FormError, Icon, ICONS, JsonView, KeyValue, KeyValueList, PanelBody, Pill, Section, Segmented, Select, type SelectItem, TextInput } from '@/ui';
+import { asCard, BoolValue, Button, CommandButton, CopyButton, CountPill, EmptyState, Field, FormError, Icon, ICONS, JsonView, KeyValue, KeyValueList, PanelBody, Pill, Section, Segmented, Select, type SelectItem, TextInput } from '@/ui';
 
 /* The service strings `@basmilius/apple-common` exports. The renderer cannot import the package. */
 const AIRPLAY = '_airplay._tcp.local';
@@ -228,12 +228,15 @@ function DiscoveryView() {
     );
 }
 
+asCard(ScanView);
+asCard(DiscoveryView);
+
 export function MdnsPanel(_props: PanelProps) {
     const [view, setView] = useState<'scan' | 'discovery'>('scan');
 
     return (
         <PanelBody>
-            <div className="col-span-full">
+            <div>
                 <Segmented<'scan' | 'discovery'>
                     label="mDNS view"
                     value={view}

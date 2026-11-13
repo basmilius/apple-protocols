@@ -279,7 +279,6 @@ export function NotConnected({children}: { readonly children?: ReactNode }) {
             tone="attention"
             icon={ICONS.disconnect}
             message={children ?? 'Not connected. Connect the device from the top bar to use these commands.'}
-            className="col-span-full"
         />
     );
 }

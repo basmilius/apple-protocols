@@ -6,7 +6,7 @@ import { useDevice } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { MissingDevice } from '@/panels/sdk-shared';
 import { useStatus } from '@/panels/shared-media/hooks';
-import { Button, ConfirmDialog, FormError, Icon, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Section, Spinner, StatusPill, TextInput, useAsyncAction } from '@/ui';
+import { asCard, Button, ConfirmDialog, FormError, Icon, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Section, Spinner, StatusPill, TextInput, useAsyncAction } from '@/ui';
 
 const PROTOCOLS: readonly { readonly id: ProtocolName; readonly label: string; readonly icon: LucideIcon }[] = [
     {id: 'airplay', label: 'AirPlay', icon: ICONS.airplay},
@@ -77,6 +77,8 @@ function StepIcon({step, current}: { readonly step: PairStage; readonly current:
 
     return <Icon icon={CircleDashed} size={14} className="text-text-faint"/>;
 }
+
+asCard(ProtocolCard);
 
 /** Pairing must work before the device has a connected session. */
 export function PairingPanel({deviceId}: PanelProps) {
@@ -176,7 +178,7 @@ export function PairingPanel({deviceId}: PanelProps) {
                 </Section>
             )}
 
-            {action.failure && <FormError className="col-span-full">{action.failure}</FormError>}
+            {action.failure && <FormError>{action.failure}</FormError>}
 
             <ConfirmDialog
                 open={forgetting !== null}

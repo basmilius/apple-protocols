@@ -47,7 +47,7 @@ export function AudioPanel({deviceId}: PanelProps) {
                 )}
             </StatusBar>
 
-            <div className="col-span-full">
+            <div>
                 <Segmented<Mode>
                     label="Audio mode"
                     value={mode}
@@ -76,7 +76,7 @@ export function AudioPanel({deviceId}: PanelProps) {
                         <p className="text-xs text-text-muted">NTP through the shared timing server is the proven path. PTP runs this stream with a grandmaster of our own, which is known to yield silent playback on PTP-capable receivers.</p>
                     </Section>
 
-                    <div className="col-span-full flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button variant="primary" size="sm" disabled={!connected || playing || action.busy} onClick={() => void action.run(() => invoke('audio:stream', {deviceId, source, volumeDb, ptpExperiment: ptp}))}>
                             <Icon icon={ICONS.audio} size={14}/>
                             Start stream

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, Circle, LayoutGrid, type LucideIcon, Pause, Play, Square } from 'lucide-react';
-import { Button, ButtonGroup, CommandButton, CountPill, IconButton, ICONS, KeyValue, KeyValueList, PanelGroup, Section, Select, StatusPill, TextArea } from '@/ui';
+import { asCard, Button, ButtonGroup, CommandButton, CountPill, IconButton, ICONS, KeyValue, KeyValueList, PanelGroup, Section, Select, StatusPill, TextArea } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { BUTTON_PRESS_ITEMS, COMPANION_HID_ITEMS, EventFeed, HID_PRESETS, Labeled, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row, hex } from '@/panels/sdk-shared';
@@ -58,6 +58,8 @@ function TextInputSection({deviceId, call, connected, companionConnected}: { rea
         </Section>
     );
 }
+
+asCard(TextInputSection);
 
 export function RemotePanel({deviceId}: PanelProps) {
     const {snapshot, connected} = useDevice(deviceId);

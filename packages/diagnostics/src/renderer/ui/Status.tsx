@@ -65,7 +65,7 @@ export function BoolValue({value, yes = 'yes', no = 'no'}: { readonly value: boo
 /** The line over a page: what state the thing is in, with a banner above it when something waits. */
 export function StatusBar({banner, children}: { readonly banner?: ReactNode; readonly children?: ReactNode }) {
     return (
-        <div className="col-span-full flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
             {banner}
             {children && <div className="flex flex-wrap items-center gap-1.5 text-xs text-text-faint">{children}</div>}
         </div>

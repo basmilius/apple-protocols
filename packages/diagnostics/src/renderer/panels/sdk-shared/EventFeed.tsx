@@ -5,7 +5,7 @@ import type { DeviceEventSource } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useLayout } from '@/state/layout';
 import { useDeviceEvents } from '@/panels/hooks';
-import { CountPill, Icon, IconButton, ICONS, JsonView, Section } from '@/ui';
+import { asCard, CountPill, Icon, IconButton, ICONS, JsonView, Section } from '@/ui';
 
 type EventFeedProps = {
     readonly deviceId: string | null;
@@ -65,3 +65,5 @@ export function EventFeed({deviceId, title, empty, sources, names, limit = 20, w
         </Section>
     );
 }
+
+asCard(EventFeed);

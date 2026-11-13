@@ -61,6 +61,7 @@ import {
     Wrench,
     Zap
 } from 'lucide-react';
+import { PlayPauseIcon } from './PlayPauseIcon';
 
 /** One glyph per recurring concept, so a page and its neighbors draw the same thing the same way. */
 export const ICONS = {
@@ -87,6 +88,7 @@ export const ICONS = {
     model: Cpu,
     info: Info,
     nowPlaying: Music,
+    playPause: PlayPauseIcon,
     app: AppWindow,
     artwork: Image,
     animatedArtwork: Film,

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Bookmark, ChevronsRight, FastForward, ListMusic, ListPlus, type LucideIcon, Pause, Play, Repeat, Rewind, RotateCcw, RotateCw, Shuffle, SkipBack, SkipForward, Square, ThumbsDown, ThumbsUp, Timer } from 'lucide-react';
 import { formatDuration } from '@shared/helpers';
-import { Button, ButtonGroup, CommandButton, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput } from '@/ui';
+import { Button, ButtonGroup, CommandButton, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
@@ -51,12 +51,22 @@ function PlaybackCommand({label, command, path, args, icon, call, supported, con
     );
 }
 
-function TransportKey({label, command, path, icon, call, supported, connected}: CommandProps & { readonly icon: LucideIcon }) {
+/* The toggle is the primary key; play, pause and stop are small, for testing the separate commands. */
+function TransportKey({label, command, path, icon, primary = false, small = false, call, supported, connected}: CommandProps & { readonly icon: LucideIcon; readonly primary?: boolean; readonly small?: boolean }) {
     const known = supported.includes(command);
+    const name = known ? label : `${label}, not in supportedCommands`;
 
     return (
         <span className={clsx('relative inline-flex', !known && 'opacity-60')}>
-            <IconButton icon={icon} label={known ? label : `${label}, not in supportedCommands`} disabled={!connected} onClick={() => void call('device', path)}/>
+            {primary ? (
+                <Tooltip label={name}>
+                    <Button variant="primary" aria-label={name} disabled={!connected} onClick={() => void call('device', path)}>
+                        <Icon icon={icon} size={16}/>
+                    </Button>
+                </Tooltip>
+            ) : (
+                <IconButton icon={icon} label={name} size={small ? 'sm' : undefined} disabled={!connected} onClick={() => void call('device', path)}/>
+            )}
             <Unsupported command={command} supported={supported}/>
         </span>
     );
@@ -184,11 +194,13 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                     <div className="flex flex-wrap items-center gap-3">
                         <ButtonGroup>
                             <TransportKey {...context} label="Previous" command="PreviousTrack" path="playback.previous" icon={SkipBack}/>
-                            <TransportKey {...context} label="Play" command="Play" path="playback.play" icon={Play}/>
-                            <TransportKey {...context} label="Pause" command="Pause" path="playback.pause" icon={Pause}/>
-                            <TransportKey {...context} label="Play or pause" command="TogglePlayPause" path="playback.playPause" icon={playing ? Pause : Play}/>
-                            <TransportKey {...context} label="Stop" command="Stop" path="playback.stop" icon={Square}/>
+                            <TransportKey {...context} primary label="Play or pause" command="TogglePlayPause" path="playback.playPause" icon={ICONS.playPause}/>
                             <TransportKey {...context} label="Next" command="NextTrack" path="playback.next" icon={SkipForward}/>
+                        </ButtonGroup>
+                        <ButtonGroup>
+                            <TransportKey {...context} small label="Play" command="Play" path="playback.play" icon={Play}/>
+                            <TransportKey {...context} small label="Pause" command="Pause" path="playback.pause" icon={Pause}/>
+                            <TransportKey {...context} small label="Stop" command="Stop" path="playback.stop" icon={Square}/>
                         </ButtonGroup>
                         <HoldButton label="Rewind" icon={Rewind} begin="playback.beginRewind" end="playback.endRewind" call={call} connected={connected}/>
                         <HoldButton label="Fast forward" icon={FastForward} begin="playback.beginFastForward" end="playback.endFastForward" call={call} connected={connected}/>

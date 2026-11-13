@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CornerUpLeft, LayoutGrid, Play, Power, SkipBack, SkipForward, Tv, Volume1, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CornerUpLeft, LayoutGrid, Power, SkipBack, SkipForward, Tv, Volume1, Volume2, VolumeX } from 'lucide-react';
 import type { CallRoot } from '@shared/contract';
+import { ICONS } from '@/ui/icons';
 import type { CompanionHidCommand } from '@/panels/sdk-shared';
 
 /** How long a button stays down before its release counts as a hold instead of a tap. */
@@ -60,7 +61,7 @@ export const FACE_COMMANDS: readonly FaceCommand[] = [
     {id: 'home', label: 'Home', tooltip: 'Home, twice for the app switcher', icon: Tv, kbd: 'H', page: 12, usage: 0x40, path: 'remote.home', promotesToDouble: true, companion: 'Home', appleTvOnly: true},
     {id: 'appSwitcher', label: 'App switcher', icon: LayoutGrid, page: 12, usage: 0x40, path: 'remote.home', doubleTap: true, companion: 'Home', appleTvOnly: true},
     {id: 'previous', label: 'Previous', icon: SkipBack, page: 12, usage: 0xb6, path: 'remote.previous', companion: 'SkipBackward'},
-    {id: 'playPause', label: 'Play or pause', icon: Play, kbd: 'Space', page: 12, usage: 0xb0, path: 'remote.playPause', companion: 'PlayPause'},
+    {id: 'playPause', label: 'Play or pause', icon: ICONS.playPause, kbd: 'Space', page: 12, usage: 0xb0, path: 'remote.playPause', companion: 'PlayPause'},
     {id: 'next', label: 'Next', icon: SkipForward, page: 12, usage: 0xb5, path: 'remote.next', companion: 'SkipForward'},
     {id: 'volumeDown', label: 'Volume down', icon: Volume1, kbd: '-', page: 12, usage: 0xea, path: 'remote.volumeDown', companion: 'VolumeDown'},
     {id: 'mute', label: 'Mute', icon: VolumeX, kbd: 'M', page: 12, usage: 0xe2, path: 'remote.mute', companion: 'Mute'},

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, ChevronUp, Circle, LayoutGrid, type LucideIcon, Pause, Play, Square } from 'lucide-react';
 import { Button, ButtonGroup, CommandButton, CountPill, IconButton, ICONS, KeyValue, KeyValueList, PanelGroup, Section, Select, StatusPill, TextArea } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
@@ -15,13 +15,13 @@ const SWIPES = [
 ] as const;
 
 /* The face covers navigation, transport, volume and power; these are the remote keys it has no button for. */
-const EXTRA_KEYS: readonly { readonly label: string; readonly path: string }[] = [
-    {label: 'Top menu', path: 'remote.topMenu'},
-    {label: 'Channel up', path: 'remote.channelUp'},
-    {label: 'Channel down', path: 'remote.channelDown'},
-    {label: 'Play', path: 'remote.play'},
-    {label: 'Pause', path: 'remote.pause'},
-    {label: 'Stop', path: 'remote.stop'}
+const EXTRA_KEYS: readonly { readonly label: string; readonly path: string; readonly icon: LucideIcon }[] = [
+    {label: 'Top menu', path: 'remote.topMenu', icon: LayoutGrid},
+    {label: 'Channel up', path: 'remote.channelUp', icon: ChevronsUp},
+    {label: 'Channel down', path: 'remote.channelDown', icon: ChevronsDown},
+    {label: 'Play', path: 'remote.play', icon: Play},
+    {label: 'Pause', path: 'remote.pause', icon: Pause},
+    {label: 'Stop', path: 'remote.stop', icon: Square}
 ];
 
 const COMPANION_SHORTCUTS = ['Siri', 'Screensaver', 'Guide', 'Info', 'PageUp', 'PageDown', 'Power'];
@@ -121,7 +121,7 @@ export function RemotePanel({deviceId}: PanelProps) {
                 <Section title="Extra keys" icon={ICONS.remote} collapsible defaultOpen={false}>
                     <Row>
                         {EXTRA_KEYS.map(key => (
-                            <CommandButton key={key.path} label={key.label} tooltip={key.path} run={() => call('device', key.path)} disabled={!connected}/>
+                            <CommandButton key={key.path} label={key.label} icon={key.icon} tooltip={key.path} run={() => call('device', key.path)} disabled={!connected}/>
                         ))}
                     </Row>
                 </Section>

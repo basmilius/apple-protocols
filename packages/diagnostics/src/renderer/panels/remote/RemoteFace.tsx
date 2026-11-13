@@ -1,6 +1,6 @@
 import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Music, Pause } from 'lucide-react';
+import { Music } from 'lucide-react';
 import type { StateSnapshot } from '@shared/contract';
 import { Badge, Icon, Kbd, Segmented, type SegmentedItem } from '@/ui';
 import type { DeviceCall } from '@/panels/hooks';
@@ -115,7 +115,6 @@ export function RemoteFace({snapshot, call, connected, companionConnected}: Remo
                             <RemoteButton
                                 key={command.id}
                                 command={command}
-                                icon={command.id === 'playPause' && playing ? Pause : undefined}
                                 transport={transport}
                                 call={call}
                                 disabled={!connected}

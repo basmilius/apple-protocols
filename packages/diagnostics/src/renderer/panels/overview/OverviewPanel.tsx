@@ -1,8 +1,8 @@
-import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import { SkipBack, SkipForward } from 'lucide-react';
 import type { StateSnapshot } from '@shared/contract';
 import { formatDuration, formatTime } from '@shared/helpers';
 import { DeviceIcon } from '@/shell/DeviceIcon';
-import { ButtonGroup, CopyButton, EmptyState, Icon, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, Section, StatusBar, StatusPill } from '@/ui';
+import { Button, ButtonGroup, CopyButton, EmptyState, Icon, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, Section, StatusBar, StatusPill, Tooltip } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, useLogs, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { MissingDevice, PanelLink, VolumeControls, VolumeModePill } from '@/panels/sdk-shared';
@@ -10,7 +10,6 @@ import { MissingDevice, PanelLink, VolumeControls, VolumeModePill } from '@/pane
 function MiniPlayer({snapshot, connected, call}: { readonly snapshot: StateSnapshot | null; readonly connected: boolean; readonly call: DeviceCall }) {
     const nowPlaying = snapshot?.nowPlaying ?? null;
     const elapsed = usePlayhead(nowPlaying, snapshot?.updatedAt);
-    const playing = nowPlaying?.playbackState.toLowerCase() === 'playing';
 
     if (nowPlaying === null || (nowPlaying.title === '' && nowPlaying.appName === null)) {
         return <EmptyState icon={ICONS.nowPlaying}>Nothing is playing on this device.</EmptyState>;
@@ -36,7 +35,11 @@ function MiniPlayer({snapshot, connected, call}: { readonly snapshot: StateSnaps
             </div>
             <ButtonGroup className="shrink-0">
                 <IconButton icon={SkipBack} label="Previous" disabled={!connected} onClick={() => void call('device', 'playback.previous')}/>
-                <IconButton icon={playing ? Pause : Play} label={playing ? 'Pause' : 'Play'} disabled={!connected} onClick={() => void call('device', playing ? 'playback.pause' : 'playback.play')}/>
+                <Tooltip label="Play or pause">
+                    <Button variant="primary" aria-label="Play or pause" disabled={!connected} onClick={() => void call('device', 'playback.playPause')}>
+                        <Icon icon={ICONS.playPause} size={16}/>
+                    </Button>
+                </Tooltip>
                 <IconButton icon={SkipForward} label="Next" disabled={!connected} onClick={() => void call('device', 'playback.next')}/>
             </ButtonGroup>
         </div>

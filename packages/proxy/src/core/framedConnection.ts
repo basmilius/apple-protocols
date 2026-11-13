@@ -46,6 +46,9 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
     readonly #queue: QueuedFrame[] = [];
     #buffer: Buffer = Buffer.alloc(0);
     #draining = false;
+    #closed = false;
+    #queuedBytes = 0;
+    #writeBlocked = false;
     #encryption?: EncryptionState;
     #handler?: (type: number, payload: Buffer) => void | Promise<void>;
 
@@ -61,7 +64,8 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         this.#plaintextTypes = new Set(plaintextTypes);
 
         this.#socket.on('data', (data: Buffer) => this.#onData(data));
-        this.#socket.on('close', () => this.emit('close'));
+        this.#socket.on('close', () => {this.#clear(); this.emit('close');});
+        this.#socket.on('drain', () => {this.#writeBlocked = false; this.#flow();});
         this.#socket.on('error', (error: Error) => this.emit('error', error));
     }
 
@@ -89,6 +93,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
 
     /** Destroys the underlying socket. */
     close(): void {
+        this.#clear();
         this.#socket.destroy();
     }
 
@@ -122,8 +127,15 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
             data = Buffer.concat([header, payload]);
         }
 
-        if (this.#socket.writable) {
-            this.#socket.write(data);
+        if (!this.#closed && this.#socket.writable) {
+            if (this.#socket.writableLength + data.length > MAX_BUFFER_SIZE) {
+                this.#fail(new Error('Proxy write buffer limit exceeded.'));
+                return;
+            }
+            if (!this.#socket.write(data)) {
+                this.#writeBlocked = true;
+                this.#flow();
+            }
         }
     }
 
@@ -133,13 +145,14 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
      * @param chunk - The raw data chunk from the socket.
      */
     #onData(chunk: Buffer): void {
-        this.#buffer = Buffer.concat([this.#buffer, chunk]);
-
-        if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
-            this.#buffer = Buffer.alloc(0);
-            this.emit('error', new Error('Buffer overflow: exceeded maximum buffer size.'));
+        if (this.#closed) {
             return;
         }
+        if (this.#buffer.length + this.#queuedBytes + chunk.length > MAX_BUFFER_SIZE) {
+            this.#fail(new Error('Proxy receive queue limit exceeded.'));
+            return;
+        }
+        this.#buffer = Buffer.concat([this.#buffer, chunk]);
 
         while (this.#buffer.byteLength >= HEADER_SIZE) {
             const header = this.#buffer.subarray(0, HEADER_SIZE);
@@ -150,15 +163,17 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
                 break;
             }
 
+            this.#queuedBytes += totalLength;
             this.#queue.push({
                 type: header.readUint8(0),
                 header: Buffer.from(header),
                 body: Buffer.from(this.#buffer.subarray(HEADER_SIZE, totalLength))
             });
 
-            this.#buffer = this.#buffer.subarray(totalLength);
+            this.#buffer = Buffer.from(this.#buffer.subarray(totalLength));
         }
 
+        this.#flow();
         void this.#drain();
     }
 
@@ -167,29 +182,65 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
      * prior frame's handler applies) and awaiting the handler before moving on.
      */
     async #drain(): Promise<void> {
-        if (this.#draining || !this.#handler) {
+        if (this.#closed || this.#draining || !this.#handler) {
             return;
         }
 
         this.#draining = true;
 
         try {
-            while (this.#queue.length > 0) {
+            while (!this.#closed && this.#queue.length > 0) {
                 const {type, header, body} = this.#queue.shift();
                 let payload = body;
 
-                if (this.isEncrypted && !this.#plaintextTypes.has(type) && body.byteLength >= AUTH_TAG_LENGTH) {
+                if (this.isEncrypted && !this.#plaintextTypes.has(type)) {
+                    if (body.byteLength < AUTH_TAG_LENGTH) {
+                        throw new Error('Encrypted proxy frame has no authentication tag.');
+                    }
                     payload = this.#decrypt(header, body);
                 }
 
                 await this.#handler(type, payload);
+                if (!this.#closed) {
+                    this.#queuedBytes -= HEADER_SIZE + body.length;
+                    this.#flow();
+                }
             }
         } catch (error) {
             this.#context.logger.error('[proxy]', 'FramedConnection.drain()', error);
-            this.emit('error', error as Error);
+            if (!this.#closed) {
+                this.#fail(error as Error);
+            }
         } finally {
             this.#draining = false;
         }
+    }
+
+    get stats(): {queuedBytes: number; writeBytes: number; paused: boolean} {
+        return {queuedBytes: this.#queuedBytes + this.#buffer.length, writeBytes: this.#socket.writableLength, paused: this.#socket.isPaused()};
+    }
+
+    #flow(): void {
+        if (this.#closed) {
+            return;
+        }
+        if (this.#writeBlocked || this.#queuedBytes + this.#buffer.length >= MAX_BUFFER_SIZE / 2) {
+            this.#socket.pause();
+        } else {
+            this.#socket.resume();
+        }
+    }
+
+    #clear(): void {
+        this.#closed = true;
+        this.#buffer = Buffer.alloc(0);
+        this.#queue.length = 0;
+        this.#queuedBytes = 0;
+    }
+
+    #fail(error: Error): void {
+        this.close();
+        this.emit('error', error);
     }
 
     /**

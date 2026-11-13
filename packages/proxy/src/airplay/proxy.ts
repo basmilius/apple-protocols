@@ -92,6 +92,7 @@ class AirPlaySession {
     #deviceCSeq = 0;
     #deviceSharedSecret?: Buffer;
     #devicePending?: (message: ControlMessage) => void;
+    #pendingBytes = 0;
     #pending: Buffer[] = [];
     #channels: (EventChannelServer | DataChannelServer)[] = [];
 
@@ -322,6 +323,7 @@ class AirPlaySession {
         }
 
         this.#pending = [];
+        this.#pendingBytes = 0;
     }
 
     /**
@@ -333,6 +335,8 @@ class AirPlaySession {
      */
     async #relayToDevice(raw: Buffer): Promise<Extract<ControlMessage, {kind: 'response'}> | null> {
         if (!this.#deviceReady || !this.#device) {
+            this.#pendingBytes += raw.length;
+            if (this.#pendingBytes > 1024 * 1024) {this.#teardown(); return null;}
             this.#pending.push(raw);
             return null;
         }
@@ -384,6 +388,9 @@ class AirPlaySession {
 
     /** Tears down both connections and any channel servers. */
     #teardown(): void {
+        this.#pending = [];
+        this.#pendingBytes = 0;
+        this.#deviceReady = false;
         for (const channel of this.#channels) {
             channel.stop();
         }

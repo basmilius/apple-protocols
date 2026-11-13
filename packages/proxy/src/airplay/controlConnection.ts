@@ -62,6 +62,9 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     #encBuffer: Buffer = Buffer.alloc(0);
     #plainBuffer: Buffer = Buffer.alloc(0);
     #draining = false;
+    #closed = false;
+    #writeBlocked = false;
+    #activeBytes = 0;
     #handler?: (message: ControlMessage) => void | Promise<void>;
 
     /**
@@ -76,7 +79,8 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         this.#mode = mode;
 
         this.#socket.on('data', (data: Buffer) => this.#onData(data));
-        this.#socket.on('close', () => this.emit('close'));
+        this.#socket.on('close', () => {this.#closed = true; this.#encBuffer = this.#plainBuffer = Buffer.alloc(0); this.emit('close');});
+        this.#socket.on('drain', () => {this.#writeBlocked = false; this.#flow();});
         this.#socket.on('error', (error: Error) => this.emit('error', error));
     }
 
@@ -104,6 +108,8 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
     /** Destroys the socket. */
     close(): void {
+        this.#closed = true;
+        this.#encBuffer = this.#plainBuffer = Buffer.alloc(0);
         this.#socket.destroy();
     }
 
@@ -118,7 +124,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         }
 
         if (!this.#encrypted) {
-            this.#socket.write(raw);
+            this.#write(raw);
             return;
         }
 
@@ -135,7 +141,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             out.push(length, encrypted.ciphertext, encrypted.authTag);
         }
 
-        this.#socket.write(Buffer.concat(out));
+        this.#write(Buffer.concat(out));
     }
 
     /**
@@ -145,13 +151,17 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
      */
     #onData(chunk: Buffer): void {
         try {
+            if (this.#closed) return;
+            if (this.#plainBuffer.length + this.#encBuffer.length + this.#activeBytes + chunk.length > 1024 * 1024) throw new Error('Control receive buffer limit exceeded.');
             this.#plainBuffer = Buffer.concat([this.#plainBuffer, this.#encrypted ? this.#decryptFrames(chunk) : chunk]);
         } catch (error) {
             this.#context.logger.error('[proxy]', 'AirPlay control decrypt failed', error);
+            this.close();
             this.emit('error', error as Error);
             return;
         }
 
+        this.#flow();
         void this.#drain();
     }
 
@@ -170,6 +180,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
         while (offset + 2 <= this.#encBuffer.length) {
             const frameLength = this.#encBuffer.readUInt16LE(offset);
+            if (frameLength === 0) throw new Error('Invalid control frame length.');
             const end = offset + 2 + frameLength + AUTH_TAG_LENGTH;
 
             if (end > this.#encBuffer.length) {
@@ -184,7 +195,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             offset = end;
         }
 
-        this.#encBuffer = this.#encBuffer.subarray(offset);
+        this.#encBuffer = Buffer.from(this.#encBuffer.subarray(offset));
 
         return Buffer.concat(out);
     }
@@ -193,28 +204,49 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
      * Parses complete RTSP messages from the plaintext buffer and delivers them serially.
      */
     async #drain(): Promise<void> {
-        if (this.#draining || !this.#handler) {
+        if (this.#closed || this.#draining || !this.#handler) {
             return;
         }
 
         this.#draining = true;
 
         try {
-            while (true) {
+            while (!this.#closed) {
                 const message = this.#mode === 'server' ? this.#parseRequest() : this.#parseResponse();
 
                 if (!message) {
                     break;
                 }
 
+                this.#activeBytes = message.raw.length;
+                this.#flow();
                 await this.#handler(message);
+                this.#activeBytes = 0;
+                this.#flow();
             }
         } catch (error) {
             this.#context.logger.error('[proxy]', 'AirPlay control drain failed', error);
+            this.close();
             this.emit('error', error as Error);
         } finally {
             this.#draining = false;
         }
+    }
+
+    #write(data: Buffer): void {
+        if (this.#closed) return;
+        if (this.#socket.writableLength + data.length > 1024 * 1024) {
+            this.close();
+            this.emit('error', new Error('Control write buffer limit exceeded.'));
+            return;
+        }
+        if (!this.#socket.write(data)) {this.#writeBlocked = true; this.#flow();}
+    }
+
+    #flow(): void {
+        if (this.#closed) return;
+        if (this.#writeBlocked || this.#plainBuffer.length + this.#encBuffer.length + this.#activeBytes >= 512 * 1024) this.#socket.pause();
+        else this.#socket.resume();
     }
 
     /** Parses one RTSP request from the plaintext buffer, advancing it, or returns null if incomplete. */

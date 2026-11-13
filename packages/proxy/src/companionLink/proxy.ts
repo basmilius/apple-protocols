@@ -97,6 +97,7 @@ class ProxySession {
     #device?: FramedConnection;
     #deviceReady = false;
     #devicePairingResolve?: (payload: Buffer) => void;
+    #pendingBytes = 0;
     #pending: [type: number, payload: Buffer][] = [];
 
     /**
@@ -203,6 +204,7 @@ class ProxySession {
         }
 
         this.#pending = [];
+        this.#pendingBytes = 0;
     }
 
     /**
@@ -252,6 +254,8 @@ class ProxySession {
         if (this.#deviceReady && this.#device) {
             this.#device.send(type, payload);
         } else {
+            this.#pendingBytes += payload.length + 4;
+            if (this.#pendingBytes > 1024 * 1024) {this.#teardown(); return;}
             this.#pending.push([type, payload]);
         }
     }
@@ -276,6 +280,9 @@ class ProxySession {
 
     /** Tears down both connections. */
     #teardown(): void {
+        this.#pending = [];
+        this.#pendingBytes = 0;
+        this.#deviceReady = false;
         this.#controller?.close();
         this.#device?.close();
         this.#controller = undefined;

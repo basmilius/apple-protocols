@@ -56,6 +56,7 @@ export class AirPlayCipher {
      * @returns The recovered plaintext (possibly empty if no frame completed).
      */
     decrypt(chunk: Buffer): Buffer {
+        if (this.#buffer.length + chunk.length > 1024 * 1024) throw new Error('AirPlay relay buffer limit exceeded.');
         this.#buffer = Buffer.concat([this.#buffer, chunk]);
 
         const out: Buffer[] = [];
@@ -63,6 +64,7 @@ export class AirPlayCipher {
 
         while (offset + 2 <= this.#buffer.length) {
             const frameLength = this.#buffer.readUInt16LE(offset);
+            if (frameLength === 0) throw new Error('Invalid encrypted AirPlay frame length.');
             const end = offset + 2 + frameLength + AUTH_TAG_LENGTH;
 
             if (end > this.#buffer.length) {
@@ -77,7 +79,7 @@ export class AirPlayCipher {
             offset = end;
         }
 
-        this.#buffer = this.#buffer.subarray(offset);
+        this.#buffer = Buffer.from(this.#buffer.subarray(offset));
 
         return Buffer.concat(out);
     }
@@ -138,6 +140,8 @@ export class ChannelRelay {
     /** Wires up the bidirectional relay. */
     start(): void {
         this.#controllerSocket.on('data', (data: Buffer) => this.#forward('controller->device', data, this.#controllerCipher, this.#deviceCipher, this.#deviceSocket));
+        this.#deviceSocket.on('drain', () => this.#controllerSocket.resume());
+        this.#controllerSocket.on('drain', () => this.#deviceSocket.resume());
         this.#deviceSocket.on('data', (data: Buffer) => this.#forward('device->controller', data, this.#deviceCipher, this.#controllerCipher, this.#controllerSocket));
 
         const teardown = () => {
@@ -171,10 +175,20 @@ export class ChannelRelay {
             this.#logger(direction, plaintext);
 
             if (out.writable) {
-                out.write(to.encrypt(plaintext));
+                const encrypted = to.encrypt(plaintext);
+                if (out.writableLength + encrypted.length > 1024 * 1024) {
+                    this.#controllerSocket.destroy();
+                    this.#deviceSocket.destroy();
+                    return;
+                }
+                if (!out.write(encrypted)) {
+                    (out === this.#deviceSocket ? this.#controllerSocket : this.#deviceSocket).pause();
+                }
             }
         } catch (error) {
             this.#context.logger.warn('[proxy]', `AirPlay channel relay error (${direction})`, (error as Error).message);
+            this.#controllerSocket.destroy();
+            this.#deviceSocket.destroy();
         }
     }
 }

@@ -1,4 +1,4 @@
-import { build, clean, dts } from '@basmilius/tools';
+import { build, clean } from '@basmilius/tools';
 import type { Build } from 'bun';
 
 type Target = [outfile: string, target: Build.CompileTarget];
@@ -23,10 +23,7 @@ for (const [outfile, target] of targets) {
         minify: false,
         sourcemap: 'none',
         target: 'bun',
-        plugins: [
-            dts()
-        ],
         external: [],
-        compile: {outfile, target}
+        compile: {outfile: `dist/${outfile}`, target}
     });
 }

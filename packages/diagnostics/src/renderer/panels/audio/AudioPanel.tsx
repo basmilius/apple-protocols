@@ -7,7 +7,7 @@ import type { PanelProps } from '@/panels/registry';
 import { useStatus } from '@/panels/shared-media/hooks';
 import { DEFAULT_SOURCE, SourcePicker } from '@/panels/shared-media/SourcePicker';
 import { Sparkline, StatGrid } from '@/panels/shared-media/Telemetry';
-import { Badge, Button, EmptyState, Field, Icon, KeyValue, KeyValueList, Section, Slider, Tabs, TabPanel, Toggle } from '@/ui';
+import { Badge, Button, EmptyState, TextInput, Icon, KeyValue, KeyValueList, Section, Slider, Tabs, TabPanel, Toggle } from '@/ui';
 
 /** The device fetches URLs itself. PCM streaming sends RTP packets and supplies telemetry. */
 export function AudioPanel({deviceId}: PanelProps) {
@@ -99,8 +99,8 @@ export function AudioPanel({deviceId}: PanelProps) {
 
                     <TabPanel value="url" className="flex flex-col gap-5 p-4">
                         <Section title="Media URL">
-                            <Field label="URL" placeholder="https://example.com/video.mp4" value={url} disabled={playing} onChange={event => setUrl(event.target.value)} mono/>
-                            <Field label="Start position (s)" type="number" value={position} disabled={playing} onChange={event => setPosition(Number(event.target.value))} mono/>
+                            <TextInput label="URL" placeholder="https://example.com/video.mp4" value={url} disabled={playing} onChange={event => setUrl(event.target.value)} mono/>
+                            <TextInput label="Start position (s)" type="number" value={position} disabled={playing} onChange={event => setPosition(Number(event.target.value))} mono/>
                             <p className="text-xs text-text-muted">The device fetches this itself over a session of its own. Nothing is sent from here beyond the URL.</p>
                         </Section>
 

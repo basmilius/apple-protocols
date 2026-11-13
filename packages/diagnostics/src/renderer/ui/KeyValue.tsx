@@ -1,22 +1,35 @@
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
+import type { LucideIcon } from 'lucide-react';
+import { Icon, KeyValueList as List } from '@adecore/ui';
 
 type KeyValueProps = {
     readonly label: string;
+    readonly icon?: LucideIcon;
     readonly children: ReactNode;
     readonly mono?: boolean;
     readonly className?: string;
 };
 
-export function KeyValue({label, children, mono = true, className}: KeyValueProps) {
+/** One row of a {@link KeyValueList}; outside one the label and value stack. */
+export function KeyValue({label, icon, children, mono = true, className}: KeyValueProps) {
     return (
-        <div className={clsx('flex items-baseline gap-3 py-0.5', className)}>
-            <span className="w-36 shrink-0 truncate text-xs text-text-muted">{label}</span>
-            <span className={clsx('min-w-0 grow break-all text-text', mono ? 'mono' : 'text-xs')}>{children}</span>
-        </div>
+        <List.Item className={className}>
+            <List.Name className="flex items-center gap-1.5">
+                {icon && <Icon icon={icon} size={12} className="shrink-0"/>}
+                {label}
+            </List.Name>
+            <List.Value mono={mono} className={clsx('min-w-0 break-all text-text', !mono && 'text-xs')}>
+                {children}
+            </List.Value>
+        </List.Item>
     );
 }
 
-export function KeyValueList({className, children}: { readonly className?: string; readonly children: ReactNode }) {
-    return <div className={clsx('flex flex-col divide-y divide-border-soft', className)}>{children}</div>;
+export function KeyValueList({divided = true, className, children}: { readonly divided?: boolean; readonly className?: string; readonly children: ReactNode }) {
+    return (
+        <List.Root divided={divided} className={className}>
+            {children}
+        </List.Root>
+    );
 }

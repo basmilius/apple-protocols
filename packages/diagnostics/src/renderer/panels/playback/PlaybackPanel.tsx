@@ -6,7 +6,7 @@ import { LyricsDemo } from './LyricsDemo';
 import { useAppleMusic } from '@/state/apple-music';
 import type { LyricsResult } from '@basmilius/apple-sdk';
 import { formatDuration, formatTime } from '@shared/helpers';
-import { Badge, Button, CommandButton, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
+import { Badge, Button, CommandButton, EmptyState, TextInput, Icon, JsonView, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
@@ -353,9 +353,9 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                     <summary className="cursor-pointer text-text-muted">Apple Music authorization</summary>
                     <div className="mt-2 space-y-2">
                         <p className="text-text-muted">Use headers from your signed-in Apple Music web session. Tokens are remembered locally on this computer.</p>
-                        <Field label="Bearer token" type="password" autoComplete="off" value={bearerToken} onChange={event => updateAppleMusic({bearerToken: event.target.value})}/>
-                        <Field label="Music user token" type="password" autoComplete="off" value={musicUserToken} onChange={event => updateAppleMusic({musicUserToken: event.target.value})}/>
-                        <Field label="Account storefront" value={storefront} maxLength={2} onChange={event => updateAppleMusic({storefront: event.target.value.toLowerCase()})}/>
+                        <TextInput label="Bearer token" type="password" autoComplete="off" value={bearerToken} onChange={event => updateAppleMusic({bearerToken: event.target.value})}/>
+                        <TextInput label="Music user token" type="password" autoComplete="off" value={musicUserToken} onChange={event => updateAppleMusic({musicUserToken: event.target.value})}/>
+                        <TextInput label="Account storefront" value={storefront} maxLength={2} onChange={event => updateAppleMusic({storefront: event.target.value.toLowerCase()})}/>
                         <Button size="sm" variant="secondary" onClick={clearTokens}>Clear tokens</Button>
                         {storageError && <p className="text-status-error">{storageError}</p>}
                     </div>
@@ -397,7 +397,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                     <Badge tone="muted" mono>{valueOf(COMMANDS, command)}</Badge>
                     <CommandButton label="Send" variant="primary" run={sendCommand} disabled={!connected}/>
                 </Row>
-                <Field
+                <TextInput
                     label="Command options as JSON"
                     mono
                     className="h-7"

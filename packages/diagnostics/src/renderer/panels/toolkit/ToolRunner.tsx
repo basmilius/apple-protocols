@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import { type CallResult, isCallFailure, type RoundTripResult, type ToolInfo, type ToolInput } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
-import { Badge, Button, Field, Icon, JsonView, Select, type SelectItem, TextArea, Toggle } from '@/ui';
+import { Badge, Button, TextInput, Icon, JsonView, Select, type SelectItem, TextArea, Toggle } from '@/ui';
 import { CopyButton } from './CopyButton';
 
 type Values = Record<string, string | boolean>;
@@ -33,7 +33,7 @@ function InputRow({input, value, onChange}: { readonly input: ToolInput; readonl
             {input.type === 'boolean' && <Toggle label={input.label} checked={value === true} onCheckedChange={onChange}/>}
             {input.type === 'select' && <Select label={input.label} value={String(value)} items={options} onValueChange={onChange}/>}
             {(input.type === 'text' || input.type === 'number') && (
-                <Field
+                <TextInput
                     label={input.label}
                     mono={input.type === 'text'}
                     type={input.type === 'number' ? 'number' : 'text'}

@@ -6,7 +6,7 @@ import { invoke, messageOf } from '@/client';
 import { useDevice, useDeviceEvents } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { useStatus } from '@/panels/shared-media/hooks';
-import { Badge, Button, EmptyState, Field, Icon, KeyValue, KeyValueList, PanelBody, Section, Toggle } from '@/ui';
+import { Badge, Button, EmptyState, TextInput, Icon, KeyValue, KeyValueList, PanelBody, Section, Toggle } from '@/ui';
 
 const CONNECTION_EVENTS: readonly string[] = ['connected', 'disconnected', 'recovering', 'recovered', 'recoveryFailed'];
 
@@ -93,9 +93,9 @@ export function ConnectionPanel({deviceId}: PanelProps) {
             <Section title="Recovery" actions={<Badge tone={current?.recovering ? 'running' : enabled ? 'idle' : 'muted'}>{current?.recovering ? `attempt ${current.attempt}` : enabled ? 'armed' : 'off'}</Badge>}>
                 <Toggle label="Recover from unexpected disconnects" checked={enabled} disabled={working || !connected} onCheckedChange={next => void run(() => configure(next))}/>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Field label="Base delay (ms)" type="number" value={baseDelay} disabled={enabled} onChange={event => setBaseDelay(Number(event.target.value))} className="max-w-32" mono/>
-                    <Field label="Max delay (ms)" type="number" value={maxDelay} disabled={enabled} onChange={event => setMaxDelay(Number(event.target.value))} className="max-w-32" mono/>
-                    <Field label="Max attempts" type="number" value={maxAttempts} disabled={enabled} onChange={event => setMaxAttempts(Number(event.target.value))} className="max-w-28" mono/>
+                    <TextInput label="Base delay (ms)" type="number" value={baseDelay} disabled={enabled} onChange={event => setBaseDelay(Number(event.target.value))} className="max-w-32" mono/>
+                    <TextInput label="Max delay (ms)" type="number" value={maxDelay} disabled={enabled} onChange={event => setMaxDelay(Number(event.target.value))} className="max-w-32" mono/>
+                    <TextInput label="Max attempts" type="number" value={maxAttempts} disabled={enabled} onChange={event => setMaxAttempts(Number(event.target.value))} className="max-w-28" mono/>
                 </div>
                 <p className="text-xs text-text-muted">
                     Delays double each attempt up to the maximum. Arming needs a live session, because recovery listens for the device&apos;s own disconnect. Options are read when the toggle is switched on.

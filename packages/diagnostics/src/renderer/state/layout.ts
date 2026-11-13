@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { DeviceEventSource } from '@shared/contract';
 
 const KEY = 'diagnostics.workspace';
 
@@ -19,11 +20,20 @@ type Stored = {
     readonly panels: Readonly<Record<string, string>>;
 };
 
+/** What the events panel opens filtered on when a page hands over its own feed. */
+export type EventsFilter = {
+    readonly sources?: readonly DeviceEventSource[];
+    readonly names?: readonly string[];
+};
+
 type LayoutState = Stored & {
     tool: string | null;
     sidePanelWidth: number;
+    eventsFilter: EventsFilter | null;
     selectDevice(deviceId: string | null): void;
     show(panelId: string): void;
+    showEvents(filter: EventsFilter): void;
+    clearEventsFilter(): void;
     toggleTool(tool: string): void;
     setSidePanelWidth(width: number): void;
 };
@@ -57,6 +67,7 @@ export const useLayout = create<LayoutState>((set, get) => {
         ...restore(),
         tool: localStorage.getItem('diagnostics.tool'),
         sidePanelWidth: restoreWidth(),
+        eventsFilter: null,
         selectDevice(deviceId) {
             save({deviceId, panels: get().panels});
         },
@@ -66,6 +77,13 @@ export const useLayout = create<LayoutState>((set, get) => {
             if (deviceId !== null) {
                 save({deviceId, panels: {...panels, [deviceId]: panelId}});
             }
+        },
+        showEvents(eventsFilter) {
+            set({eventsFilter});
+            get().show('events');
+        },
+        clearEventsFilter() {
+            set({eventsFilter: null});
         },
         toggleTool(tool) {
             const next = get().tool === tool ? null : tool;

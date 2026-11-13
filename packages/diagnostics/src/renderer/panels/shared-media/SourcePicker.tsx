@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { AUDIO_SOURCE_KINDS, type AudioSourceKind, type AudioSourceSpec } from '@shared/contract';
 import { invoke } from '@/client';
-import { Button, Field, Icon, Segmented, Select } from '@/ui';
+import { Button, TextInput, Icon, Segmented, Select } from '@/ui';
 
 const KIND_LABELS: Record<AudioSourceKind, string> = {
     url: 'Url',
@@ -78,11 +78,11 @@ export function SourcePicker({value, onValueChange, disabled}: SourcePickerProps
                 <Segmented<'url' | 'file'> label="Origin" value={origin ?? 'url'} onValueChange={from => change({from})} items={[{value: 'url', label: 'From URL'}, {value: 'file', label: 'From file'}]}/>
             )}
 
-            {wantsUrl && <Field label="URL" placeholder="https://example.com/audio.wav" value={('url' in value ? value.url : '') ?? ''} disabled={disabled} onChange={event => change({url: event.target.value})} mono/>}
+            {wantsUrl && <TextInput label="URL" placeholder="https://example.com/audio.wav" value={('url' in value ? value.url : '') ?? ''} disabled={disabled} onChange={event => change({url: event.target.value})} mono/>}
 
             {wantsPath && (
                 <div className="flex items-center gap-2">
-                    <Field label="Path" placeholder="/path/to/audio" value={('path' in value ? value.path : '') ?? ''} disabled={disabled} onChange={event => change({path: event.target.value})} mono className="grow"/>
+                    <TextInput label="Path" placeholder="/path/to/audio" value={('path' in value ? value.path : '') ?? ''} disabled={disabled} onChange={event => change({path: event.target.value})} mono className="grow"/>
                     <Button variant="secondary" size="sm" disabled={disabled || picking} onClick={() => void pick()}>
                         <Icon icon={FolderOpen} size={14}/>
                         Browse
@@ -90,18 +90,18 @@ export function SourcePicker({value, onValueChange, disabled}: SourcePickerProps
                 </div>
             )}
 
-            {value.kind === 'pcm' && <Field label="Sample rate" type="number" value={value.sampleRate ?? 44100} disabled={disabled} onChange={event => change({sampleRate: Number(event.target.value)})} mono/>}
+            {value.kind === 'pcm' && <TextInput label="Sample rate" type="number" value={value.sampleRate ?? 44100} disabled={disabled} onChange={event => change({sampleRate: Number(event.target.value)})} mono/>}
 
             {(value.kind === 'sineWave' || value.kind === 'live') && (
                 <div className="flex items-center gap-2">
-                    <Field label="Frequency (Hz)" type="number" value={value.frequency} disabled={disabled} onChange={event => change({frequency: Number(event.target.value)})} mono className="grow"/>
-                    <Field label="Duration (s)" type="number" value={value.duration} disabled={disabled} onChange={event => change({duration: Number(event.target.value)})} mono className="grow"/>
+                    <TextInput label="Frequency (Hz)" type="number" value={value.frequency} disabled={disabled} onChange={event => change({frequency: Number(event.target.value)})} mono className="grow"/>
+                    <TextInput label="Duration (s)" type="number" value={value.duration} disabled={disabled} onChange={event => change({duration: Number(event.target.value)})} mono className="grow"/>
                 </div>
             )}
 
-            {value.kind === 'live' && <Field label="Ring buffer (s)" type="number" value={value.bufferDuration ?? 2} disabled={disabled} onChange={event => change({bufferDuration: Number(event.target.value)})} mono/>}
+            {value.kind === 'live' && <TextInput label="Ring buffer (s)" type="number" value={value.bufferDuration ?? 2} disabled={disabled} onChange={event => change({bufferDuration: Number(event.target.value)})} mono/>}
 
-            {value.kind === 'ffmpeg' && <Field label="Duration (s)" type="number" value={value.duration} disabled={disabled} onChange={event => change({duration: Number(event.target.value)})} mono/>}
+            {value.kind === 'ffmpeg' && <TextInput label="Duration (s)" type="number" value={value.duration} disabled={disabled} onChange={event => change({duration: Number(event.target.value)})} mono/>}
 
             <p className="text-xs text-text-muted">{KIND_HINTS[value.kind]}</p>
         </div>

@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Radio, Trash2, Zap } from 'lucide-react';
 import type { DiscoveryService, MdnsMode, MdnsRecord } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
-import { Badge, Button, CommandButton, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, Section, Segmented, Select, type SelectItem, TabPanel, Tabs } from '@/ui';
+import { Badge, Button, CommandButton, EmptyState, TextInput, Icon, JsonView, KeyValue, KeyValueList, Section, Segmented, Select, type SelectItem, TabPanel, Tabs } from '@/ui';
 import { CopyButton } from '@/panels/toolkit/CopyButton';
 
 /* The service strings `@basmilius/apple-common` exports. The renderer cannot import the package. */
@@ -153,10 +153,10 @@ function ScanTab() {
                             {entry.label}
                         </Button>
                     ))}
-                    <Field label="Extra services" mono placeholder="_raop._tcp.local" value={custom} onChange={event => setCustom(event.target.value)} className="h-7 max-w-56"/>
-                    <Field label="Timeout in milliseconds" type="number" value={timeout} onChange={event => setTimeoutMs(event.target.value)} className="h-7 w-24"/>
+                    <TextInput label="Extra services" mono placeholder="_raop._tcp.local" value={custom} onChange={event => setCustom(event.target.value)} className="h-7 max-w-56"/>
+                    <TextInput label="Timeout in milliseconds" type="number" value={timeout} onChange={event => setTimeoutMs(event.target.value)} className="h-7 w-24"/>
                     {mode === 'unicast' && (
-                        <Field label="Addresses" mono placeholder="192.168.1.10, 192.168.1.11" value={hosts} onChange={event => setHosts(event.target.value)} className="h-7 max-w-64"/>
+                        <TextInput label="Addresses" mono placeholder="192.168.1.10, 192.168.1.11" value={hosts} onChange={event => setHosts(event.target.value)} className="h-7 max-w-64"/>
                     )}
                     <span className="ml-auto flex items-center gap-2">
                         <Badge tone="muted">{records.length}</Badge>
@@ -203,8 +203,8 @@ function DiscoveryTab() {
             <div className="flex flex-col gap-4 overflow-auto p-4">
                 <Section title="Wake" actions={<Badge tone="muted">4 ports</Badge>}>
                     <div className="flex items-center gap-2">
-                        <Field label="Address to wake" mono placeholder="192.168.1.10" value={address} onChange={event => setAddress(event.target.value)} className="grow"/>
-                        <CommandButton label="Wake" icon={<Icon icon={Zap} size={14}/>} disabled={address.trim().length === 0} run={() => invoke('mdns:wake', {address: address.trim()})}/>
+                        <TextInput label="Address to wake" mono placeholder="192.168.1.10" value={address} onChange={event => setAddress(event.target.value)} className="grow"/>
+                        <CommandButton label="Wake" icon={Zap} disabled={address.trim().length === 0} run={() => invoke('mdns:wake', {address: address.trim()})}/>
                     </div>
                 </Section>
 
@@ -216,11 +216,11 @@ function DiscoveryTab() {
                             run={() => keep(invoke('discoverytools:findByAddress', {service, address: address.trim()}))}
                         />
                         <CommandButton label="Discover all" run={() => keep(invoke('discoverytools:discoverAll', undefined))}/>
-                        <CommandButton label="Clear cache" icon={<Icon icon={Trash2} size={14}/>} run={() => invoke('discoverytools:clearCache', undefined)}/>
+                        <CommandButton label="Clear cache" icon={Trash2} run={() => invoke('discoverytools:clearCache', undefined)}/>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Field label="Identifier" mono placeholder="Living-Room.local" value={identifier} onChange={event => setIdentifier(event.target.value)} className="grow"/>
-                        <Field label="Tries" type="number" value={tries} onChange={event => setTries(event.target.value)} className="w-20"/>
+                        <TextInput label="Identifier" mono placeholder="Living-Room.local" value={identifier} onChange={event => setIdentifier(event.target.value)} className="grow"/>
+                        <TextInput label="Tries" type="number" value={tries} onChange={event => setTries(event.target.value)} className="w-20"/>
                         <CommandButton
                             label="Find until"
                             disabled={identifier.trim().length === 0}

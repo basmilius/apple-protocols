@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Plus, X } from 'lucide-react';
-import { Badge, Button, CommandButton, Field, IconButton, KeyValue, KeyValueList, Section } from '@/ui';
+import { Badge, Button, CommandButton, TextInput, IconButton, KeyValue, KeyValueList, Section } from '@/ui';
 import { useDevices } from '@/state/devices';
 import { useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
@@ -109,7 +109,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                 </Row>
                 <Row>
                     <Labeled label="Uid">
-                        <Field
+                        <TextInput
                             label="Output device uid"
                             mono
                             className="h-7 w-72"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge, Button, CommandButton, Field, Icon, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
+import { Badge, Button, CommandButton, TextInput, Icon, KeyValue, KeyValueList, Section, Select, Slider } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { Labeled, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, valueOf } from '@/panels/sdk-shared';
@@ -109,7 +109,7 @@ export function VolumePanel({deviceId}: PanelProps) {
                         <Select label="Adjustment" value={adjustment} onValueChange={setAdjustment} items={VOLUME_ADJUSTMENT_ITEMS} size="sm"/>
                     </Labeled>
                     <Labeled label="Output uid">
-                        <Field
+                        <TextInput
                             label="Adjustment output device uid"
                             mono
                             className="h-7 w-56"
@@ -171,13 +171,13 @@ export function VolumePanel({deviceId}: PanelProps) {
                         <p className="text-xs text-text-muted">These go straight at the AirPlay manager. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
                         <Row>
                             <Labeled label="Audio mode">
-                                <Field label="Audio mode" mono className="h-7 w-40" placeholder="default" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
+                                <TextInput label="Audio mode" mono className="h-7 w-40" placeholder="default" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
                             </Labeled>
                             <CommandButton label="setAudioMode" run={() => call('airplay', 'setAudioMode', [audioMode])} disabled={!connected}/>
                         </Row>
                         <Row>
                             <Labeled label="Listening mode">
-                                <Field label="Listening mode" mono className="h-7 w-40" placeholder="Default" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
+                                <TextInput label="Listening mode" mono className="h-7 w-40" placeholder="Default" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
                             </Labeled>
                             <CommandButton label="setListeningMode" run={() => call('airplay', 'setListeningMode', [listeningMode])} disabled={!connected}/>
                         </Row>

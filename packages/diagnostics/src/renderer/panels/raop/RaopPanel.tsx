@@ -6,7 +6,7 @@ import { useDevice } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { useStatus } from '@/panels/shared-media/hooks';
 import { DEFAULT_SOURCE, SourcePicker } from '@/panels/shared-media/SourcePicker';
-import { Badge, Button, EmptyState, Field, Icon, JsonView, KeyValue, KeyValueList, PanelBody, Section, Select, Slider } from '@/ui';
+import { Badge, Button, EmptyState, TextInput, Icon, JsonView, KeyValue, KeyValueList, PanelBody, Section, Select, Slider } from '@/ui';
 
 /** Requires an advertised `_raop._tcp` service and uses its own RTSP connection. */
 export function RaopPanel({deviceId}: PanelProps) {
@@ -95,8 +95,8 @@ export function RaopPanel({deviceId}: PanelProps) {
             <Section title="Stream">
                 <SourcePicker value={source} onValueChange={setSource} disabled={streaming}/>
                 <div className="flex items-center gap-2">
-                    <Field label="Title" value={title} disabled={streaming} onChange={event => setTitle(event.target.value)} className="grow"/>
-                    <Field label="Artist" value={artist} disabled={streaming} onChange={event => setArtist(event.target.value)} className="grow"/>
+                    <TextInput label="Title" value={title} disabled={streaming} onChange={event => setTitle(event.target.value)} className="grow"/>
+                    <TextInput label="Artist" value={artist} disabled={streaming} onChange={event => setArtist(event.target.value)} className="grow"/>
                 </div>
                 <div className="flex items-center gap-3">
                     <Slider label="Volume" value={volume} disabled={!connected} onValueChange={setVolume} onValueCommitted={next => void run(() => invoke('raop:setVolume', {deviceId, volume: next}))}/>

@@ -5,7 +5,7 @@ import type { TrafficProtocol } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useDevices } from '@/state/devices';
 import type { PanelProps } from '@/panels/registry';
-import { Badge, EmptyState, Field, IconButton, JsonView, Segmented } from '@/ui';
+import { Badge, EmptyState, TextInput, IconButton, JsonView, Segmented } from '@/ui';
 
 const PROTOCOLS: readonly TrafficProtocol[] = ['dataStream', 'eventStream', 'companionLink', 'rtsp'];
 
@@ -40,7 +40,7 @@ export function TrafficPanel({deviceId}: PanelProps) {
                     onValueChange={setProtocol}
                     items={[{value: 'all', label: 'All'}, ...PROTOCOLS.map(name => ({value: name, label: name}))]}
                 />
-                <Field label="Filter by summary" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7 max-w-48"/>
+                <TextInput label="Filter by summary" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7 max-w-48"/>
                 <span className="ml-auto flex items-center gap-1">
                     <Badge tone="muted">{rows.length}</Badge>
                     <IconButton icon={Trash2} label="Clear" size="sm" onClick={clear}/>

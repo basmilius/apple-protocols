@@ -4,7 +4,7 @@ import { isCallFailure } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 import { useDevices } from '@/state/devices';
 import type { PanelProps } from '@/panels/registry';
-import { Badge, Button, EmptyState, Field, Icon, KeyValue, KeyValueList, PanelBody, Section, Select, type SelectItem } from '@/ui';
+import { Badge, Button, EmptyState, TextInput, Icon, KeyValue, KeyValueList, PanelBody, Section, Select, type SelectItem } from '@/ui';
 import { CopyButton } from '@/panels/toolkit/CopyButton';
 
 type Decoded = {
@@ -100,12 +100,12 @@ export function FeaturesPanel(_props: PanelProps) {
         <PanelBody>
             <Section title="Features" actions={<Select label="Source" variant="ghost" size="sm" value={source} items={deviceItems} onValueChange={pick}/>}>
                 <div className="flex items-center gap-2">
-                    <Field label="Features" mono placeholder="0x4A7FDFD5,0xBC157FDE" value={features} onChange={event => setFeatures(event.target.value)} className="grow"/>
+                    <TextInput label="Features" mono placeholder="0x4A7FDFD5,0xBC157FDE" value={features} onChange={event => setFeatures(event.target.value)} className="grow"/>
                     <Button variant="primary" size="sm" onClick={() => void decode().catch(error => setDecodeError(messageOf(error)))}>
                         Decode
                     </Button>
                 </div>
-                <Field label="TXT record (JSON)" mono placeholder='{"model": "AppleTV14,1"}' value={txt} onChange={event => setTxt(event.target.value)}/>
+                <TextInput label="TXT record (JSON)" mono placeholder='{"model": "AppleTV14,1"}' value={txt} onChange={event => setTxt(event.target.value)}/>
                 {decodeError !== null && <p className="text-xs text-status-error">{decodeError}</p>}
             </Section>
 
@@ -126,7 +126,7 @@ export function FeaturesPanel(_props: PanelProps) {
                         title={`Flags set (${decoded.flagCount})`}
                         actions={
                             <>
-                                <Field label="Filter flags" placeholder="Filter" value={filter} onChange={event => setFilter(event.target.value)} className="h-7 max-w-40"/>
+                                <TextInput label="Filter flags" placeholder="Filter" value={filter} onChange={event => setFilter(event.target.value)} className="h-7 max-w-40"/>
                                 <CopyButton text={decoded.flags.join('\n')} label="Copy flags"/>
                             </>
                         }
@@ -148,7 +148,7 @@ export function FeaturesPanel(_props: PanelProps) {
 
             <Section title="Device model">
                 <div className="flex items-center gap-2">
-                    <Field label="Model identifier" mono placeholder="AppleTV14,1" value={identifier} onChange={event => setIdentifier(event.target.value)} className="grow"/>
+                    <TextInput label="Model identifier" mono placeholder="AppleTV14,1" value={identifier} onChange={event => setIdentifier(event.target.value)} className="grow"/>
                     <Button variant="secondary" size="sm" onClick={() => void lookup().catch(error => setModelError(messageOf(error)))}>
                         <Icon icon={Search} size={14}/>
                         Look up

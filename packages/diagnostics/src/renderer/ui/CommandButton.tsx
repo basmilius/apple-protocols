@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { Button, Icon, Popover } from '@adecore/ui';
+import { useState } from 'react';
+import { Button, Icon, Popover, Tooltip } from '@adecore/ui';
 import clsx from 'clsx';
-import { Braces, TriangleAlert } from 'lucide-react';
+import { Braces, type LucideIcon, TriangleAlert } from 'lucide-react';
 import { messageOf } from '@/client';
 import { JsonView } from './JsonView';
 
@@ -10,7 +10,11 @@ type CommandButtonProps = {
     readonly run: () => Promise<unknown>;
     readonly variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'positive';
     readonly size?: 'sm' | 'md';
-    readonly icon?: ReactNode;
+    readonly icon?: LucideIcon;
+    /* The call behind the label, such as `apps.openUrl`. */
+    readonly tooltip?: string;
+    /* Off where the caller shows the returned value itself; errors still open the popover. */
+    readonly showResult?: boolean;
     readonly disabled?: boolean;
     readonly className?: string;
 };
@@ -21,7 +25,7 @@ type Outcome = {
 };
 
 /* Shows returned values and errors in a popover beside the command. */
-export function CommandButton({label, run, variant = 'secondary', size = 'sm', icon, disabled, className}: CommandButtonProps) {
+export function CommandButton({label, run, variant = 'secondary', size = 'sm', icon, tooltip, showResult = true, disabled, className}: CommandButtonProps) {
     const [busy, setBusy] = useState(false);
     const [outcome, setOutcome] = useState<Outcome | null>(null);
     const [open, setOpen] = useState(false);
@@ -32,7 +36,7 @@ export function CommandButton({label, run, variant = 'secondary', size = 'sm', i
 
         try {
             const value = await run();
-            setOutcome(value === undefined || value === null ? null : {ok: true, value});
+            setOutcome(!showResult || value === undefined || value === null ? null : {ok: true, value});
         } catch (error) {
             setOutcome({ok: false, value: messageOf(error)});
             setOpen(true);
@@ -41,12 +45,16 @@ export function CommandButton({label, run, variant = 'secondary', size = 'sm', i
         }
     };
 
+    const button = (
+        <Button variant={variant} size={size} disabled={disabled || busy} onClick={() => void press()} className={busy ? 'opacity-60' : undefined}>
+            {icon && <Icon icon={icon} size={14}/>}
+            {label}
+        </Button>
+    );
+
     return (
         <span className={clsx('inline-flex items-center gap-1', className)}>
-            <Button variant={variant} size={size} disabled={disabled || busy} onClick={() => void press()} className={busy ? 'opacity-60' : undefined}>
-                {icon}
-                {label}
-            </Button>
+            {tooltip ? <Tooltip label={<span className="mono">{tooltip}</span>}>{button}</Tooltip> : button}
             {outcome !== null && (
                 <Popover.Root open={open} onOpenChange={setOpen}>
                     <Popover.Trigger

@@ -5,7 +5,7 @@ import { invoke, messageOf } from '@/client';
 import { useDevice } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { useStatus } from '@/panels/shared-media/hooks';
-import { Badge, Button, EmptyState, Field, Icon, KeyValue, KeyValueList, PanelBody, Section, Segmented } from '@/ui';
+import { Badge, Button, EmptyState, TextInput, Icon, KeyValue, KeyValueList, PanelBody, Section, Segmented } from '@/ui';
 
 const STAGE_TONE: Record<PairStage, 'muted' | 'accent' | 'running' | 'idle' | 'error'> = {
     idle: 'muted',
@@ -104,7 +104,7 @@ export function PairingPanel({deviceId}: PanelProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Field
+                    <TextInput
                         label="PIN"
                         placeholder="0000"
                         value={pin}

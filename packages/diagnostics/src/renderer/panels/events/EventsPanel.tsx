@@ -6,7 +6,7 @@ import { formatTime } from '@shared/helpers';
 import { useDevices } from '@/state/devices';
 import { useDeviceEvents } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { Badge, EmptyState, Field, IconButton, JsonView, Segmented } from '@/ui';
+import { Badge, EmptyState, TextInput, IconButton, JsonView, Segmented } from '@/ui';
 
 const SOURCE_TONE: Record<DeviceEventSource, 'muted' | 'accent' | 'idle' | 'running' | 'warning'> = {
     device: 'accent',
@@ -45,7 +45,7 @@ export function EventsPanel({deviceId}: PanelProps) {
                     onValueChange={setSource}
                     items={[{value: 'all', label: 'All'}, ...DEVICE_EVENT_SOURCES.map(name => ({value: name, label: name}))]}
                 />
-                <Field label="Filter by name" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7 max-w-48"/>
+                <TextInput label="Filter by name" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7 max-w-48"/>
                 <span className="ml-auto flex items-center gap-1">
                     <Badge tone="muted">{rows.length}</Badge>
                     <IconButton icon={paused ? Play : Pause} label={paused ? 'Resume' : 'Pause'} size="sm" active={paused} onClick={() => setPaused(!paused)}/>

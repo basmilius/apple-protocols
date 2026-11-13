@@ -6,7 +6,7 @@ import { DEBUG_GROUPS, type DebugGroup, type LogEntry } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useDevices } from '@/state/devices';
 import { useLogs } from '@/panels/hooks';
-import { Badge, BTN_GROUP, EmptyState, Field, IconButton, Select, type SelectItem } from '@/ui';
+import { Badge, BTN_GROUP, EmptyState, TextInput, IconButton, Select, type SelectItem } from '@/ui';
 import { LogDetail } from './LogDetail';
 
 /** One row, in the line height `.mono` prints at. */
@@ -193,7 +193,7 @@ export function LogConsole() {
                 ))}
             </div>
             <div className="shrink-0 border-b border-border p-2">
-                <Field label="Filter log lines" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7"/>
+                <TextInput label="Filter log lines" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7"/>
             </div>
             <div className="flex min-h-0 grow flex-col">
                 <div className="relative min-h-0 min-w-0 grow">

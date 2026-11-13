@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { formatTime } from '@shared/helpers';
-import { Badge, CommandButton, EmptyState, Field, JsonView, KeyValue, KeyValueList, Section, Select, TabPanel, Tabs, TextArea } from '@/ui';
+import { Badge, CommandButton, EmptyState, TextInput, JsonView, KeyValue, KeyValueList, Section, Select, TabPanel, Tabs, TextArea } from '@/ui';
 import type { TabItem } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
@@ -65,7 +65,7 @@ function AppsTab({call, connected}: { readonly call: DeviceCall; readonly connec
                 <Row>
                     <CommandButton label="List apps" run={list} disabled={!connected}/>
                     <Labeled label="Bundle id">
-                        <Field label="Bundle identifier" mono className="h-7 w-72" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>
+                        <TextInput label="Bundle identifier" mono className="h-7 w-72" placeholder="com.apple.TVMovies" value={bundleId} onChange={event => setBundleId(event.target.value)}/>
                     </Labeled>
                     <CommandButton label="Launch" variant="primary" run={() => call('device', 'apps.launch', [bundleId.trim()])} disabled={!connected || bundleId.trim().length === 0}/>
                 </Row>
@@ -88,7 +88,7 @@ function AppsTab({call, connected}: { readonly call: DeviceCall; readonly connec
 
             <Section title="Open URL">
                 <Row>
-                    <Field label="URL to open" mono className="h-7 w-96" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
+                    <TextInput label="URL to open" mono className="h-7 w-96" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
                     <CommandButton label="apps.openUrl" run={() => call('device', 'apps.openUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
                     <CommandButton label="companionLink.launchUrl" run={() => call('companionLink', 'launchUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
                 </Row>
@@ -136,13 +136,13 @@ function AccountsTab({call, connected}: { readonly call: DeviceCall; readonly co
             <Section title="Switch by identifier">
                 <Row>
                     <Labeled label="Account id">
-                        <Field label="Account identifier" mono className="h-7 w-72" value={accountId} onChange={event => setAccountId(event.target.value)}/>
+                        <TextInput label="Account identifier" mono className="h-7 w-72" value={accountId} onChange={event => setAccountId(event.target.value)}/>
                     </Labeled>
                     <CommandButton label="accounts.switch" run={() => call('device', 'accounts.switch', [accountId.trim()])} disabled={!connected || accountId.trim().length === 0}/>
                 </Row>
                 <Row>
                     <Labeled label="iCloud alt DSID">
-                        <Field label="iCloud alt DSID" mono className="h-7 w-72" value={dsid} onChange={event => setDsid(event.target.value)}/>
+                        <TextInput label="iCloud alt DSID" mono className="h-7 w-72" value={dsid} onChange={event => setDsid(event.target.value)}/>
                     </Labeled>
                     <CommandButton label="accounts.switchActive" run={() => call('device', 'accounts.switchActive', [dsid.trim()])} disabled={!connected || dsid.trim().length === 0}/>
                 </Row>
@@ -240,7 +240,7 @@ function SystemTab({call, connected}: { readonly call: DeviceCall; readonly conn
             <Section title="Up next">
                 <Row>
                     <Labeled label="Pagination token">
-                        <Field label="Pagination token" mono className="h-7 w-56" placeholder="Optional" value={paginationToken} onChange={event => setPaginationToken(event.target.value)}/>
+                        <TextInput label="Pagination token" mono className="h-7 w-56" placeholder="Optional" value={paginationToken} onChange={event => setPaginationToken(event.target.value)}/>
                     </Labeled>
                 </Row>
                 <ResultBlock
@@ -251,10 +251,10 @@ function SystemTab({call, connected}: { readonly call: DeviceCall; readonly conn
                 />
                 <Row>
                     <Labeled label="Identifier">
-                        <Field label="Up next identifier" mono className="h-7 w-56" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
+                        <TextInput label="Up next identifier" mono className="h-7 w-56" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
                     </Labeled>
                     <Labeled label="Kind">
-                        <Field label="Up next kind" mono className="h-7 w-32" value={kind} onChange={event => setKind(event.target.value)}/>
+                        <TextInput label="Up next kind" mono className="h-7 w-32" value={kind} onChange={event => setKind(event.target.value)}/>
                     </Labeled>
                     <CommandButton label="Add to up next" run={() => call('device', 'system.addToUpNext', [identifier.trim(), kind.trim()])} disabled={!connected || identifier.trim().length === 0}/>
                     <CommandButton
@@ -312,7 +312,7 @@ function CompanionTab({call, connected}: { readonly call: DeviceCall; readonly c
                     <Select label="Media control command" value={command} onValueChange={setCommand} items={MEDIA_CONTROL_ITEMS} size="sm"/>
                     <CommandButton label="Send" variant="primary" run={send} disabled={!connected}/>
                 </Row>
-                <Field label="Command content as JSON" mono className="h-7" placeholder='Content as JSON, for example {"volume":0.5}' value={content} onChange={event => setContent(event.target.value)}/>
+                <TextInput label="Command content as JSON" mono className="h-7" placeholder='Content as JSON, for example {"volume":0.5}' value={content} onChange={event => setContent(event.target.value)}/>
                 {contentError !== null && <p className="text-xs text-status-error">{contentError}</p>}
             </Section>
 

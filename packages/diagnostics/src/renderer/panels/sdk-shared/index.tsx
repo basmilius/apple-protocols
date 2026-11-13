@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react';
 import clsx from 'clsx';
-import { CommandButton, EmptyState, Field, JsonView } from '@/ui';
-import type { SelectItem } from '@/ui';
+import { RefreshCw, X } from 'lucide-react';
+import { Banner, CommandButton, CopyButton, EmptyState, IconButton, ICONS, JsonView, type SelectItem, TextInput } from '@/ui';
 
 /* Shared SDK enum and HID values stay here because `ui/` must not depend on protocol details. */
 
@@ -219,7 +219,7 @@ type NumberInputProps = {
 /* Keep raw input text so empty values and partially typed `0x` prefixes survive editing. */
 export function NumberInput({label, value, onValueChange, placeholder, className}: NumberInputProps) {
     return (
-        <Field
+        <TextInput
             label={label}
             mono
             value={value}
@@ -234,13 +234,15 @@ export function NumberInput({label, value, onValueChange, placeholder, className
 type ResultBlockProps = {
     readonly label: string;
     readonly run: () => Promise<unknown>;
+    /* The call behind the label, shown as its tooltip. */
+    readonly tooltip?: string;
     readonly disabled?: boolean;
     readonly defaultDepth?: number;
     readonly actions?: ReactNode;
 };
 
 /** A getter whose answer is worth keeping on screen rather than in the button's popover. */
-export function ResultBlock({label, run, disabled, defaultDepth = 2, actions}: ResultBlockProps) {
+export function ResultBlock({label, run, tooltip, disabled, defaultDepth = 2, actions}: ResultBlockProps) {
     const [value, setValue] = useState<unknown>(undefined);
 
     const load = async (): Promise<unknown> => {
@@ -251,13 +253,17 @@ export function ResultBlock({label, run, disabled, defaultDepth = 2, actions}: R
     };
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className={clsx('flex flex-col gap-2', value !== undefined && 'basis-full')}>
             <Row>
-                <CommandButton label={label} run={load} disabled={disabled}/>
+                <CommandButton label={label} icon={RefreshCw} tooltip={tooltip} run={load} showResult={false} disabled={disabled}/>
                 {actions}
             </Row>
             {value !== undefined && (
-                <div className="max-h-64 overflow-auto rounded-lg border border-border bg-code-bg p-2">
+                <div className="relative max-h-64 overflow-auto rounded-lg border border-border bg-code-bg p-2">
+                    <span className="absolute top-1 right-1 flex items-center">
+                        <CopyButton text={JSON.stringify(value, null, 4) ?? ''} label="Copy result"/>
+                        <IconButton icon={X} label="Close result" size="sm" onClick={() => setValue(undefined)}/>
+                    </span>
                     <JsonView value={value} defaultDepth={defaultDepth}/>
                 </div>
             )}
@@ -265,6 +271,27 @@ export function ResultBlock({label, run, disabled, defaultDepth = 2, actions}: R
     );
 }
 
+/** The line a device page opens with while its session is down; connecting happens from the top row. */
 export function NotConnected({children}: { readonly children?: ReactNode }) {
-    return <EmptyState className="py-6">{children ?? 'Connect the device to use these commands.'}</EmptyState>;
+    return (
+        <Banner
+            placement="inline"
+            tone="attention"
+            icon={ICONS.disconnect}
+            message={children ?? 'Not connected. Connect the device from the top bar to use these commands.'}
+            className="col-span-full"
+        />
+    );
 }
+
+/** For a device that dropped out of the last scan while one of its pages stayed open. */
+export function MissingDevice() {
+    return (
+        <div className="grid h-full place-items-center">
+            <EmptyState icon={ICONS.mdns}>This device is not in the last scan. Rescan to bring it back.</EmptyState>
+        </div>
+    );
+}
+
+export { EventFeed } from './EventFeed';
+export { PanelLink } from './PanelLink';

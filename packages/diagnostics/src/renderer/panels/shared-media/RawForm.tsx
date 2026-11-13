@@ -1,5 +1,5 @@
 import type { RawBuilderInfo, RawParam } from '@shared/contract';
-import { Field, Select, TextArea, Toggle } from '@/ui';
+import { TextInput, Select, TextArea, Toggle } from '@/ui';
 
 type RawFormProps = {
     readonly builder: RawBuilderInfo;
@@ -45,7 +45,7 @@ function Control({param, value, disabled, onValueChange}: { readonly param: RawP
             return <Toggle label={param.label} checked={value === true} disabled={disabled} onCheckedChange={onValueChange}/>;
 
         case 'number':
-            return <Field label={param.label} type="number" value={Number(value ?? 0)} disabled={disabled} onChange={event => onValueChange(Number(event.target.value))} mono/>;
+            return <TextInput label={param.label} type="number" value={Number(value ?? 0)} disabled={disabled} onChange={event => onValueChange(Number(event.target.value))} mono/>;
 
         case 'enum':
             return (
@@ -62,10 +62,10 @@ function Control({param, value, disabled, onValueChange}: { readonly param: RawP
             return <TextArea label={param.label} value={typeof value === 'string' ? value : JSON.stringify(value ?? {}, null, 4)} disabled={disabled} rows={5} onChange={event => onValueChange(event.target.value)}/>;
 
         case 'stringList':
-            return <Field label={`${param.label} (comma separated)`} value={Array.isArray(value) ? (value as string[]).join(', ') : ''} disabled={disabled} onChange={event => onValueChange(splitList(event.target.value))} mono/>;
+            return <TextInput label={`${param.label} (comma separated)`} value={Array.isArray(value) ? (value as string[]).join(', ') : ''} disabled={disabled} onChange={event => onValueChange(splitList(event.target.value))} mono/>;
 
         default:
-            return <Field label={param.label} value={String(value ?? '')} disabled={disabled} onChange={event => onValueChange(event.target.value)} mono/>;
+            return <TextInput label={param.label} value={String(value ?? '')} disabled={disabled} onChange={event => onValueChange(event.target.value)} mono/>;
     }
 }
 

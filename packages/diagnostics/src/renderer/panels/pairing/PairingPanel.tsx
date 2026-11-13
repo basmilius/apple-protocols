@@ -54,7 +54,7 @@ function ProtocolCard({device, protocol, busy, running, onPair, onForget}: CardP
                     <Icon icon={ICONS.pairing} size={14}/>
                     {paired ? 'Pair again' : 'Pair'}
                 </Button>
-                <Button variant="ghost" size="sm" disabled={busy || !paired} onClick={onForget}>
+                <Button variant="secondary" size="sm" disabled={busy || !paired} onClick={onForget}>
                     <Icon icon={ICONS.forget} size={14}/>
                     Forget
                 </Button>
@@ -130,7 +130,7 @@ export function PairingPanel({deviceId}: PanelProps) {
                     icon={ICONS.pin}
                     actions={
                         running && (
-                            <Button variant="ghost" size="sm" disabled={action.busy} onClick={() => void action.run(() => invoke('pair:cancel', {deviceId}))}>
+                            <Button variant="secondary" size="sm" disabled={action.busy} onClick={() => void action.run(() => invoke('pair:cancel', {deviceId}))}>
                                 Cancel
                             </Button>
                         )

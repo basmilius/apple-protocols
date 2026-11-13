@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pause, Play, RotateCcw } from 'lucide-react';
+import { ButtonGroup, IconButton } from '@/ui';
 import { LyricsView } from './LyricsView';
 
 const DEMO_LINES = [
@@ -32,8 +33,17 @@ export function LyricsDemo() {
         <div className="space-y-3">
             <LyricsView text={DEMO_TTML} elapsed={elapsed} title="The long way home" artist="Preview · original sample lyrics"/>
             <div className="flex items-center gap-3 text-xs text-text-muted">
-                <button type="button" aria-label={playing ? 'Pause demo' : 'Play demo'} onClick={() => setPlaying(value => !value)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent">{playing ? <Pause size={16}/> : <Play size={16}/>}</button>
-                <button type="button" aria-label="Restart demo" onClick={() => {setElapsed(1); setRestart(value => value + 1);}} className="flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent"><RotateCcw size={15}/></button>
+                <ButtonGroup>
+                    <IconButton icon={playing ? Pause : Play} label={playing ? 'Pause demo' : 'Play demo'} onClick={() => setPlaying(value => !value)}/>
+                    <IconButton
+                        icon={RotateCcw}
+                        label="Restart demo"
+                        onClick={() => {
+                            setElapsed(1);
+                            setRestart(value => value + 1);
+                        }}
+                    />
+                </ButtonGroup>
                 <span>Demo · no Apple Music session needed</span>
             </div>
         </div>

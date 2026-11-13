@@ -7,9 +7,9 @@ export function PanelLink({panel, label}: { readonly panel: string; readonly lab
     const show = useLayout(state => state.show);
 
     return (
-        <Button variant="ghost" size="xs" onClick={() => show(panel)}>
+        <Button variant="secondary" size="sm" onClick={() => show(panel)}>
             {label}
-            <Icon icon={ArrowRight} size={12}/>
+            <Icon icon={ArrowRight} size={14}/>
         </Button>
     );
 }

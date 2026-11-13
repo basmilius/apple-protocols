@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronRight, type LucideIcon } from 'lucide-react';
-import { Icon, SectionLabel } from '@adecore/ui';
+import { Icon, IconButton, SectionLabel } from '@adecore/ui';
 
 type SectionProps = {
     readonly title: string;
@@ -16,28 +16,28 @@ type SectionProps = {
     readonly children: ReactNode;
 };
 
+/**
+ * A card with its header in the top left corner.
+ *
+ * The header line is as tall as the 16 pixel icon, so the icon stands as far from the top edge as from the left one. Actions
+ * are taller than that line; a negative margin lets them hang over it without pushing the title down.
+ */
 export function Section({title, icon, actions, wide = false, collapsible = false, defaultOpen = true, className, children}: SectionProps) {
     const [open, setOpen] = useState(!collapsible || defaultOpen);
 
-    const label = (
-        <span className="flex min-w-0 items-center gap-1.5 text-text-faint">
-            {collapsible && <Icon icon={open ? ChevronDown : ChevronRight} size={12}/>}
-            {icon && <Icon icon={icon} size={13}/>}
-            <SectionLabel render={<h2/>} className="truncate">{title}</SectionLabel>
-        </span>
-    );
-
     return (
-        <section className={clsx('flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', wide && 'col-span-full', className)}>
-            <header className="flex min-h-7 shrink-0 flex-wrap items-center gap-2">
-                {collapsible ? (
-                    <button type="button" aria-expanded={open} className="flex min-w-0 cursor-default items-center hover:text-text" onClick={() => setOpen(!open)}>
-                        {label}
-                    </button>
-                ) : (
-                    label
+        <section className={clsx('flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', wide && 'col-span-full', className)}>
+            <header className="flex h-4 min-w-0 shrink-0 items-center gap-2 leading-4">
+                {icon && <Icon icon={icon} size={16} className="shrink-0 text-text-muted"/>}
+                <SectionLabel render={<h2/>} className="min-w-0 truncate text-text-muted">
+                    {title}
+                </SectionLabel>
+                {((actions && open) || collapsible) && (
+                    <span className="-my-1.5 ml-auto flex shrink-0 items-center gap-1">
+                        {open && actions}
+                        {collapsible && <IconButton icon={open ? ChevronDown : ChevronRight} label={open ? `Collapse ${title}` : `Expand ${title}`} size="sm" aria-expanded={open} onClick={() => setOpen(!open)}/>}
+                    </span>
                 )}
-                {actions && open && <span className="ml-auto flex items-center gap-1">{actions}</span>}
             </header>
             {open && children}
         </section>

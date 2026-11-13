@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import clsx from 'clsx';
 import { ChevronDown, ChevronRight, SquareArrowOutUpRight } from 'lucide-react';
+import { ListRow } from '@adecore/ui';
 import type { DeviceEventSource } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useLayout } from '@/state/layout';
@@ -39,21 +39,22 @@ export function EventFeed({deviceId, title, empty, sources, names, limit = 20, w
             {feed.length === 0 ? (
                 <p className="text-xs text-text-muted">{empty}</p>
             ) : (
-                <div className="max-h-64 overflow-auto rounded-lg bg-surface-sunken">
+                <div className="-mx-2 flex max-h-64 flex-col gap-px overflow-auto">
                     {feed.map(event => (
-                        <div key={event.sequence} className="border-b border-border-soft last:border-b-0">
-                            <button
-                                type="button"
-                                aria-expanded={open === event.sequence}
-                                className={clsx('flex w-full cursor-default items-center gap-2 px-2 py-1 text-left hover:bg-surface-hover', open === event.sequence && 'bg-surface-active')}
+                        <div key={event.sequence}>
+                            <ListRow
+                                variant="inset"
+                                selected={open === event.sequence}
+                                render={<button type="button" aria-expanded={open === event.sequence}/>}
+                                className="w-full cursor-default gap-2 text-left"
                                 onClick={() => setOpen(open === event.sequence ? null : event.sequence)}
                             >
                                 <Icon icon={open === event.sequence ? ChevronDown : ChevronRight} size={12} className="shrink-0 text-text-faint"/>
                                 <span className="mono shrink-0 text-code-dim">{formatTime(event.timestamp)}</span>
                                 <span className="min-w-0 truncate text-xs text-text">{event.name}</span>
-                            </button>
+                            </ListRow>
                             {open === event.sequence && (
-                                <div className="bg-code-bg px-2 py-1.5">
+                                <div className="mx-2 my-1 rounded-lg bg-code-bg px-2 py-1.5">
                                     <JsonView value={event.payload} defaultDepth={2}/>
                                 </div>
                             )}

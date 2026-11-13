@@ -145,7 +145,7 @@ export function RemotePanel({deviceId}: PanelProps) {
                         <Button
                             key={preset.name}
                             size="sm"
-                            variant={preset.page === hidPage && preset.usage === hidUsage ? 'primary' : 'ghost'}
+                            variant={preset.page === hidPage && preset.usage === hidUsage ? 'primary' : 'secondary'}
                             onClick={() => {
                                 setPage(String(preset.page));
                                 setUsage(hex(preset.usage));

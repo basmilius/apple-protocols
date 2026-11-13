@@ -105,7 +105,7 @@ export function AudioPanel({deviceId}: PanelProps) {
                                 <Icon icon={Square} size={14}/>
                                 Stop
                             </Button>
-                            <Button variant="ghost" size="sm" disabled={!playing || running !== 'url' || action.busy} onClick={() => void action.run(() => invoke('audio:waitForEnd', {deviceId}))}>
+                            <Button variant="secondary" size="sm" disabled={!playing || running !== 'url' || action.busy} onClick={() => void action.run(() => invoke('audio:waitForEnd', {deviceId}))}>
                                 <Icon icon={Hourglass} size={14}/>
                                 Wait for end
                             </Button>

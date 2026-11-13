@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { ListRow } from '@adecore/ui';
 import type { ClientSnapshot, PlayerSnapshot, StateSnapshot } from '@shared/contract';
 import { formatDuration } from '@shared/helpers';
 import { BoolValue, CommandButton, CountPill, EmptyState, Icon, ICONS, JsonView, KeyValue, KeyValueList, Pill, Section, StatusPill, Table } from '@/ui';
@@ -47,14 +48,14 @@ function PlayerRow({player, updatedAt}: { readonly player: PlayerSnapshot; reado
     const elapsed = usePlayhead(player, updatedAt);
 
     return (
-        <div className="border-t border-border-soft first:border-t-0">
-            <button type="button" aria-expanded={open} className="flex w-full cursor-default flex-wrap items-center gap-1.5 py-1.5 text-left hover:text-text" onClick={() => setOpen(!open)}>
+        <div>
+            <ListRow variant="inset" selected={open} render={<button type="button" aria-expanded={open}/>} className="h-auto min-h-8 w-full cursor-default flex-wrap gap-1.5 py-1 text-left" onClick={() => setOpen(!open)}>
                 <Icon icon={open ? ChevronDown : ChevronRight} size={12} className="text-text-faint"/>
                 <span className="text-xs text-text">{player.displayName || player.identifier || 'Unnamed player'}</span>
                 {player.isActive && <StatusPill status="accent">active</StatusPill>}
                 {player.isDefaultPlayer && <Pill tone="muted">default</Pill>}
                 <Pill tone="muted">{player.playbackState}</Pill>
-            </button>
+            </ListRow>
             {open && (
                 <div className="flex flex-col gap-2 pb-2 pl-5">
                     <KeyValueList>

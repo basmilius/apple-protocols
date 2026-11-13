@@ -208,7 +208,7 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
                 <Row>
                     <CommandButton label="Get lyrics" tooltip="media.getLyrics" run={() => fetchLyrics(false)} showResult={false} disabled={!connected}/>
                     <CommandButton label="From Apple Music" tooltip="media.getLyricsFromCatalog" run={() => fetchLyrics(true)} showResult={false} disabled={!connected || !hasTokens}/>
-                    <Button size="sm" variant="ghost" onClick={() => setShowLyricsDemo(value => !value)}>
+                    <Button size="sm" variant="secondary" onClick={() => setShowLyricsDemo(value => !value)}>
                         {showLyricsDemo ? 'Close preview' : 'Try preview'}
                     </Button>
                 </Row>
@@ -246,7 +246,7 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
                     <TextInput label="Account storefront" value={storefront} maxLength={2} className="w-16" onChange={event => updateAppleMusic({storefront: event.target.value.toLowerCase()})}/>
                 </Field>
                 <div>
-                    <Button size="sm" variant="ghost" onClick={clearTokens}>
+                    <Button size="sm" variant="secondary" onClick={clearTokens}>
                         <Icon icon={ICONS.clear} size={14}/>
                         Clear tokens
                     </Button>

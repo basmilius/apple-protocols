@@ -25,11 +25,11 @@ export function RawPanel({deviceId}: PanelProps) {
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-2">
+            <header className="flex min-h-11 shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
                 <Segmented<RawTransport> label="Transport" value={transport} onValueChange={setTransport} items={items}/>
             </header>
             <div className="min-h-0 grow">
-                <RawConsole key={transport} deviceId={deviceId} transport={transport} emptyText="The builder catalog could not be read from main."/>
+                <RawConsole deviceId={deviceId} transport={transport} emptyText="The builder catalog could not be read from main."/>
             </div>
         </div>
     );

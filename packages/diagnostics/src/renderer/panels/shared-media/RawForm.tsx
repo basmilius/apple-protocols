@@ -1,5 +1,5 @@
 import type { RawBuilderInfo, RawParam } from '@shared/contract';
-import { TextInput, Select, TextArea, Toggle } from '@/ui';
+import { Field, Select, TextArea, TextInput, Toggle } from '@/ui';
 
 type RawFormProps = {
     readonly builder: RawBuilderInfo;
@@ -28,12 +28,11 @@ export function RawForm({builder, args, onArgsChange, disabled}: RawFormProps) {
     };
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
             {builder.params.map(param => (
-                <div key={param.name} className="flex flex-col gap-1">
+                <Field key={param.name} label={param.type === 'boolean' ? undefined : param.label} hint={param.hint}>
                     <Control param={param} value={args[param.name]} disabled={disabled} onValueChange={value => set(param.name, value)}/>
-                    {param.hint && <p className="text-xs text-text-muted">{param.hint}</p>}
-                </div>
+                </Field>
             ))}
         </div>
     );

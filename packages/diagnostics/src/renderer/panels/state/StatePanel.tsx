@@ -1,147 +1,167 @@
-import { useMemo, useState } from 'react';
-import { formatDuration, formatTime } from '@shared/helpers';
-import type { ClientSnapshot, PlayerSnapshot } from '@shared/contract';
-import { Badge, CommandButton, EmptyState, JsonView, KeyValue, KeyValueList, Section } from '@/ui';
-import { type DeviceCall, useDevice, useDeviceCall, useDeviceEvents, usePlayhead } from '@/panels/hooks';
+import { useState } from 'react';
+import clsx from 'clsx';
+import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import type { ClientSnapshot, PlayerSnapshot, StateSnapshot } from '@shared/contract';
+import { formatDuration } from '@shared/helpers';
+import { BoolValue, CommandButton, CountPill, EmptyState, Icon, ICONS, JsonView, KeyValue, KeyValueList, Pill, Section, StatusPill, Table } from '@/ui';
+import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { NotConnected, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
+import { EventFeed, NotConnected, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
 
-/* Read scalar getters together; protocol objects need separate tree views. */
-const SCALAR_GETTERS: readonly string[] = [
-    'title',
-    'artist',
-    'album',
-    'genre',
-    'duration',
-    'elapsedTime',
-    'playbackRate',
-    'isPlaying',
-    'playbackState',
-    'mediaType',
-    'shuffleMode',
-    'repeatMode',
-    'volume',
-    'isMuted',
-    'volumeAvailable',
-    'isKeyboardActive',
-    'clusterId',
-    'isClusterLeader'
+type Getter = {
+    readonly name: string;
+    /* What the snapshot says, for comparison. Absent for values that move on their own or use another unit. */
+    readonly snapshot?: (snapshot: StateSnapshot | null) => unknown;
+};
+
+const activePlayer = (snapshot: StateSnapshot | null): PlayerSnapshot | null => snapshot?.clients.flatMap(client => client.players).find(player => player.isActive) ?? null;
+
+const GETTERS: readonly Getter[] = [
+    {name: 'title', snapshot: snapshot => snapshot?.nowPlaying?.title},
+    {name: 'artist', snapshot: snapshot => snapshot?.nowPlaying?.artist},
+    {name: 'album', snapshot: snapshot => snapshot?.nowPlaying?.album},
+    {name: 'genre', snapshot: snapshot => snapshot?.nowPlaying?.genre},
+    {name: 'duration', snapshot: snapshot => snapshot?.nowPlaying?.duration},
+    {name: 'elapsedTime'},
+    {name: 'playbackRate', snapshot: snapshot => snapshot?.nowPlaying?.playbackRate},
+    {name: 'isPlaying', snapshot: snapshot => (snapshot?.nowPlaying ? snapshot.nowPlaying.playbackState === 'Playing' : undefined)},
+    {name: 'playbackState', snapshot: snapshot => snapshot?.nowPlaying?.playbackState},
+    {name: 'mediaType', snapshot: snapshot => snapshot?.nowPlaying?.mediaType},
+    {name: 'shuffleMode', snapshot: snapshot => activePlayer(snapshot)?.shuffleMode},
+    {name: 'repeatMode', snapshot: snapshot => activePlayer(snapshot)?.repeatMode},
+    {name: 'volume'},
+    {name: 'isMuted', snapshot: snapshot => snapshot?.volume?.muted},
+    {name: 'volumeAvailable', snapshot: snapshot => snapshot?.volume?.available},
+    {name: 'isKeyboardActive', snapshot: snapshot => snapshot?.keyboard?.active},
+    {name: 'clusterId', snapshot: snapshot => snapshot?.cluster?.clusterId},
+    {name: 'isClusterLeader', snapshot: snapshot => snapshot?.cluster?.isLeader}
 ];
 
-function PlayerBlock({player, updatedAt}: { readonly player: PlayerSnapshot; readonly updatedAt: number | undefined }) {
+const STATE_SOURCE = ['state'] as const;
+const COLUMNS = [{width: 'minmax(0,1fr)'}, {width: 'minmax(0,1.2fr)'}, {width: 'minmax(0,1.2fr)'}, {width: '1.5rem'}] as const;
+
+const show = (value: unknown): string => (value === undefined ? '-' : (JSON.stringify(value) ?? 'undefined'));
+
+function PlayerRow({player, updatedAt}: { readonly player: PlayerSnapshot; readonly updatedAt: number | undefined }) {
+    const [open, setOpen] = useState(player.isActive);
     const elapsed = usePlayhead(player, updatedAt);
 
     return (
-        <div className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
-            <div className="flex flex-wrap items-center gap-1.5">
+        <div className="border-t border-border-soft first:border-t-0">
+            <button type="button" aria-expanded={open} className="flex w-full cursor-default flex-wrap items-center gap-1.5 py-1.5 text-left hover:text-text" onClick={() => setOpen(!open)}>
+                <Icon icon={open ? ChevronDown : ChevronRight} size={12} className="text-text-faint"/>
                 <span className="text-xs text-text">{player.displayName || player.identifier || 'Unnamed player'}</span>
-                {player.isActive && <Badge tone="accent">active</Badge>}
-                {player.isDefaultPlayer && <Badge tone="muted">default</Badge>}
-                <Badge tone="muted">{player.playbackState}</Badge>
-            </div>
-            <KeyValueList>
-                <KeyValue label="Identifier">{player.identifier || '-'}</KeyValue>
-                <KeyValue label="Title" mono={false}>
-                    {player.title || '-'}
-                </KeyValue>
-                <KeyValue label="Artist" mono={false}>
-                    {player.artist || '-'}
-                </KeyValue>
-                <KeyValue label="Album" mono={false}>
-                    {player.album || '-'}
-                </KeyValue>
-                <KeyValue label="Genre" mono={false}>
-                    {player.genre || '-'}
-                </KeyValue>
-                <KeyValue label="Series" mono={false}>
-                    {player.seriesName || '-'}
-                </KeyValue>
-                <KeyValue label="Season / episode">
-                    {player.seasonNumber} / {player.episodeNumber}
-                </KeyValue>
-                <KeyValue label="Media type">{player.mediaType}</KeyValue>
-                <KeyValue label="Content identifier">{player.contentIdentifier || '-'}</KeyValue>
-                <KeyValue label="Shuffle / repeat">
-                    {player.shuffleMode} / {player.repeatMode}
-                </KeyValue>
-                <KeyValue label="Rate">{player.playbackRate}</KeyValue>
-                <KeyValue label="Position">
-                    {formatDuration(elapsed)} / {formatDuration(player.duration)}
-                </KeyValue>
-            </KeyValueList>
-            <div className="flex flex-wrap gap-1">
-                {player.supportedCommands.length === 0 ? (
-                    <span className="text-xs text-text-muted">No supported commands reported.</span>
-                ) : (
-                    player.supportedCommands.map(command => (
-                        <Badge key={command} tone="muted" mono>
-                            {command}
-                        </Badge>
-                    ))
-                )}
-            </div>
+                {player.isActive && <StatusPill status="accent">active</StatusPill>}
+                {player.isDefaultPlayer && <Pill tone="muted">default</Pill>}
+                <Pill tone="muted">{player.playbackState}</Pill>
+            </button>
+            {open && (
+                <div className="flex flex-col gap-2 pb-2 pl-5">
+                    <KeyValueList>
+                        <KeyValue label="Identifier">{player.identifier || '-'}</KeyValue>
+                        <KeyValue label="Title" mono={false}>{player.title || '-'}</KeyValue>
+                        <KeyValue label="Artist" mono={false}>{player.artist || '-'}</KeyValue>
+                        <KeyValue label="Album" mono={false}>{player.album || '-'}</KeyValue>
+                        <KeyValue label="Genre" mono={false}>{player.genre || '-'}</KeyValue>
+                        <KeyValue label="Series" mono={false}>{player.seriesName || '-'}</KeyValue>
+                        <KeyValue label="Season / episode">{`${player.seasonNumber} / ${player.episodeNumber}`}</KeyValue>
+                        <KeyValue label="Media type">{player.mediaType}</KeyValue>
+                        <KeyValue label="Content identifier">{player.contentIdentifier || '-'}</KeyValue>
+                        <KeyValue label="Shuffle / repeat">{`${player.shuffleMode} / ${player.repeatMode}`}</KeyValue>
+                        <KeyValue label="Rate">{player.playbackRate}</KeyValue>
+                        <KeyValue label="Position">{`${formatDuration(elapsed)} / ${formatDuration(player.duration)}`}</KeyValue>
+                    </KeyValueList>
+                    <div className="flex flex-wrap gap-1">
+                        {player.supportedCommands.length === 0 ? (
+                            <span className="text-xs text-text-muted">No supported commands reported.</span>
+                        ) : (
+                            player.supportedCommands.map(command => (
+                                <Pill key={command} tone="muted" mono>
+                                    {command}
+                                </Pill>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
 function ClientBlock({client, updatedAt}: { readonly client: ClientSnapshot; readonly updatedAt: number | undefined }) {
     return (
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-sunken p-2">
+        <div className="flex flex-col gap-1 py-2">
             <div className="flex flex-wrap items-center gap-1.5">
+                <Icon icon={ICONS.app} size={14} className="text-text-faint"/>
                 <span className="text-xs font-medium text-text">{client.displayName || client.bundleIdentifier}</span>
-                <Badge tone="muted" mono>
-                    {client.bundleIdentifier}
-                </Badge>
-                {client.isActive && <Badge tone="accent">active</Badge>}
-                <Badge tone="muted">{client.playbackState}</Badge>
-                <Badge tone="muted">{`${client.players.length} players`}</Badge>
+                <span className="mono text-text-faint">{client.bundleIdentifier}</span>
+                {client.isActive && <StatusPill status="accent">active</StatusPill>}
+                <Pill tone="muted">{client.playbackState}</Pill>
+                <CountPill>{`${client.players.length} players`}</CountPill>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="pl-5">
                 {client.players.map(player => (
-                    <PlayerBlock key={`${client.bundleIdentifier}:${player.identifier}`} player={player} updatedAt={updatedAt}/>
+                    <PlayerRow key={`${client.bundleIdentifier}:${player.identifier}`} player={player} updatedAt={updatedAt}/>
                 ))}
             </div>
         </div>
     );
 }
 
-/* Display getter failures in the value column. */
-function GetterTable({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
-    const [values, setValues] = useState<readonly { readonly name: string; readonly text: string }[]>([]);
+/* Getter failures land in the getter column. */
+function GetterTable({call, connected, snapshot}: { readonly call: DeviceCall; readonly connected: boolean; readonly snapshot: StateSnapshot | null }) {
+    const [values, setValues] = useState<Readonly<Record<string, string>> | null>(null);
 
     const readAll = async (): Promise<unknown> => {
         const results = await Promise.all(
-            SCALAR_GETTERS.map(async name => {
+            GETTERS.map(async getter => {
                 try {
-                    return {name, text: JSON.stringify(await call('device', `state.${name}`)) ?? 'undefined'};
+                    return [getter.name, show(await call('device', `state.${getter.name}`))] as const;
                 } catch (error) {
-                    return {name, text: error instanceof Error ? error.message : String(error)};
+                    return [getter.name, error instanceof Error ? error.message : String(error)] as const;
                 }
             })
         );
 
-        setValues(results);
+        setValues(Object.fromEntries(results));
 
-        return results.length;
+        return null;
     };
 
     return (
-        <div className="flex flex-col gap-2">
+        <Section
+            wide
+            title="Getters against the snapshot"
+            icon={ICONS.result}
+            actions={<CommandButton label="Read getters" icon={RefreshCw} tooltip="state.*" run={readAll} showResult={false} disabled={!connected}/>}
+        >
+            <Table.Root label="StateController getters" columns={COLUMNS} density="compact">
+                <Table.Head>
+                    <Table.Column>Getter</Table.Column>
+                    <Table.Column>Snapshot</Table.Column>
+                    <Table.Column>Getter value</Table.Column>
+                    <Table.Column/>
+                </Table.Head>
+                {GETTERS.map(getter => {
+                    const expected = getter.snapshot ? show(getter.snapshot(snapshot)) : null;
+                    const actual = values?.[getter.name] ?? null;
+                    const differs = expected !== null && actual !== null && expected !== actual;
+
+                    return (
+                        <Table.Row key={getter.name} focusable={false}>
+                            <Table.Cell mono>{getter.name}</Table.Cell>
+                            <Table.Cell mono>{expected ?? 'live'}</Table.Cell>
+                            <Table.Cell mono className={clsx(differs && 'text-status-needs-you')}>{actual ?? '-'}</Table.Cell>
+                            <Table.Cell>{differs && <Icon icon={ICONS.warning} size={14} className="text-status-needs-you"/>}</Table.Cell>
+                        </Table.Row>
+                    );
+                })}
+            </Table.Root>
             <Row>
-                <CommandButton label="Read getters" run={readAll} disabled={!connected}/>
-                <ResultBlock label="state.activeApp" run={() => call('device', 'state.activeApp')} disabled={!connected}/>
-                <ResultBlock label="state.outputDevices" run={() => call('device', 'state.outputDevices')} disabled={!connected}/>
+                <ResultBlock label="Active app" tooltip="state.activeApp" run={() => call('device', 'state.activeApp')} disabled={!connected}/>
+                <ResultBlock label="Output devices" tooltip="state.outputDevices" run={() => call('device', 'state.outputDevices')} disabled={!connected}/>
             </Row>
-            {values.length > 0 && (
-                <KeyValueList>
-                    {values.map(entry => (
-                        <KeyValue key={entry.name} label={entry.name}>
-                            {entry.text}
-                        </KeyValue>
-                    ))}
-                </KeyValueList>
-            )}
-        </div>
+        </Section>
     );
 }
 
@@ -149,22 +169,19 @@ export function StatePanel({deviceId}: PanelProps) {
     const {snapshot, connected} = useDevice(deviceId);
     const call = useDeviceCall(deviceId);
 
-    const events = useDeviceEvents(deviceId, {sources: ['state'], limit: 200});
     const clients = snapshot?.clients ?? [];
     const capabilities = snapshot?.device?.capabilities ?? null;
     const receiverInfo = snapshot?.device?.receiverInfo ?? null;
-
-    const feed = useMemo(() => [...events].reverse(), [events]);
 
     return (
         <PanelBody>
             {!connected && <NotConnected/>}
 
-            <Section wide title="Clients" actions={<Badge tone="muted">{clients.length}</Badge>}>
+            <Section wide title="Clients" icon={ICONS.state} actions={<CountPill>{clients.length}</CountPill>}>
                 {clients.length === 0 ? (
-                    <EmptyState className="py-4">No media client has registered with this device.</EmptyState>
+                    <EmptyState icon={ICONS.app}>No media client has registered with this device.</EmptyState>
                 ) : (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col divide-y divide-border-soft">
                         {clients.map(client => (
                             <ClientBlock key={client.bundleIdentifier} client={client} updatedAt={snapshot?.updatedAt}/>
                         ))}
@@ -172,51 +189,38 @@ export function StatePanel({deviceId}: PanelProps) {
                 )}
             </Section>
 
-            <Section title="StateController">
-                <GetterTable call={call} connected={connected}/>
-            </Section>
+            <GetterTable call={call} connected={connected} snapshot={snapshot}/>
 
-            <Section title="Capabilities">
+            <Section title="Capabilities" icon={ICONS.info}>
                 {capabilities === null ? (
                     <p className="text-xs text-text-muted">The snapshot carries no capabilities yet.</p>
                 ) : (
                     <KeyValueList>
                         {Object.entries(capabilities).map(([name, value]) => (
                             <KeyValue key={name} label={name}>
-                                {String(value)}
+                                {typeof value === 'boolean' ? <BoolValue value={value}/> : String(value)}
                             </KeyValue>
                         ))}
                     </KeyValueList>
                 )}
-                {receiverInfo !== null && (
-                    <div className="max-h-56 overflow-auto rounded-lg border border-border bg-code-bg p-2">
-                        <JsonView value={receiverInfo} defaultDepth={2}/>
-                    </div>
-                )}
                 <Row>
-                    <ResultBlock label="device.capabilities" run={() => call('device', 'capabilities')} disabled={!connected}/>
-                    <ResultBlock label="device.receiverInfo" run={() => call('device', 'receiverInfo')} disabled={!connected}/>
-                    <ResultBlock label="receiverFeatures" run={() => call('airplayProtocol', 'receiverFeatures')} disabled={!connected}/>
+                    <ResultBlock label="Capabilities" tooltip="device.capabilities" run={() => call('device', 'capabilities')} disabled={!connected}/>
+                    <ResultBlock label="Receiver info" tooltip="device.receiverInfo" run={() => call('device', 'receiverInfo')} disabled={!connected}/>
+                    <ResultBlock label="Receiver features" tooltip="airplayProtocol.receiverFeatures" run={() => call('airplayProtocol', 'receiverFeatures')} disabled={!connected}/>
                 </Row>
             </Section>
 
-            <Section wide title="State events" actions={<Badge tone="muted">{feed.length}</Badge>}>
-                <div className="max-h-72 overflow-auto rounded-lg border border-border bg-code-bg p-2">
-                    {feed.length === 0 ? (
-                        <p className="text-xs text-text-muted">The state controller has not emitted anything yet.</p>
-                    ) : (
-                        feed.map(event => (
-                            <div key={event.sequence} className="border-b border-border-soft py-1 last:border-b-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="mono text-code-dim">{formatTime(event.timestamp)}</span>
-                                    <span className="text-xs text-text">{event.name}</span>
-                                </div>
-                                <JsonView value={event.payload} defaultDepth={1}/>
-                            </div>
-                        ))
-                    )}
-                </div>
+            <Section title="Receiver info" icon={ICONS.airplay} collapsible defaultOpen={false}>
+                {receiverInfo === null ? (
+                    <p className="text-xs text-text-muted">The snapshot carries no receiver info yet.</p>
+                ) : (
+                    <div className="max-h-96 overflow-auto rounded-lg bg-code-bg p-2">
+                        <JsonView value={receiverInfo} defaultDepth={2}/>
+                    </div>
+                )}
             </Section>
+
+            <EventFeed wide deviceId={deviceId} title="State events" sources={STATE_SOURCE} empty="The state controller has not emitted anything yet." limit={50}/>
         </PanelBody>
     );
 }

@@ -31,6 +31,7 @@ export { ICONS } from './icons';
 export { JsonView } from './JsonView';
 export { Kbd, shortcut } from './Kbd';
 export { KeyValue, KeyValueList } from './KeyValue';
+export { DetailPane, MasterDetail } from './MasterDetail';
 export { ContextMenu, ContextMenuItem, Menu, MenuItem, MenuSeparator } from './Menu';
 export { Section } from './Section';
 export { Segmented, type SegmentedItem } from './Segmented';

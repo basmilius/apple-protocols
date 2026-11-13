@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { RefreshCw, TrendingDown, Volume1, Volume2, VolumeOff, VolumeX } from 'lucide-react';
-import { ButtonGroup, CommandButton, CountPill, IconButton, ICONS, MiddleTruncate, PanelBody, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
+import { RefreshCw, TrendingDown, Volume2, VolumeX } from 'lucide-react';
+import { ButtonGroup, CommandButton, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { Labeled, NotConnected, NumberInput, numberOf, ResultBlock, Row, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, valueOf } from '@/panels/sdk-shared';
+import { Labeled, NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
 
 const toDevice = (percent: number): number => percent / 100;
 
@@ -46,7 +46,6 @@ export function VolumePanel({deviceId}: PanelProps) {
     const {snapshot, connected} = useDevice(deviceId);
     const call = useDeviceCall(deviceId);
 
-    const [level, setLevel] = useState<number | null>(null);
     const [fadeTarget, setFadeTarget] = useState('20');
     const [fadeDuration, setFadeDuration] = useState('2000');
     const [adjustment, setAdjustment] = useState('IncrementSmall');
@@ -57,7 +56,8 @@ export function VolumePanel({deviceId}: PanelProps) {
 
     const volume = snapshot?.volume ?? null;
     const outputDevices = snapshot?.outputDevices ?? [];
-    const shown = level ?? volume?.level ?? 0;
+    const control = volume?.control ?? 'none';
+    const fadeBlocked = !connected ? 'Connect the device first.' : !setsLevel(control) ? 'Fading needs absolute volume control, which this device does not offer.' : null;
 
     const outputItems = useMemo<SelectItem<string>[]>(
         () => [{value: DEFAULT_OUTPUT, label: 'This device'}, ...outputDevices.map(output => ({value: output.uid, label: output.name || output.uid}))],
@@ -73,36 +73,22 @@ export function VolumePanel({deviceId}: PanelProps) {
                 icon={ICONS.volume}
                 actions={
                     <>
-                        <StatusPill status={volume?.available ? 'ok' : 'off'}>{volume?.available ? 'available' : 'unavailable'}</StatusPill>
+                        {connected && <VolumeModePill control={control}/>}
                         {volume?.muted && <StatusPill status="warning" icon={VolumeX}>muted</StatusPill>}
                     </>
                 }
             >
-                <div className="flex items-center gap-3">
-                    <Slider
-                        label="Volume"
-                        value={shown}
-                        disabled={!connected}
-                        onValueChange={setLevel}
-                        onValueCommitted={next => {
-                            setLevel(null);
-                            void call('device', 'volume.set', [toDevice(next)]);
-                        }}
-                    />
-                    <span className="w-10 shrink-0 text-right text-xs tabular-nums text-text-muted">{shown}%</span>
-                </div>
-                <Row>
-                    <ButtonGroup>
-                        <IconButton icon={Volume1} label="Down" disabled={!connected} onClick={() => void call('device', 'volume.down')}/>
-                        <IconButton icon={Volume2} label="Up" disabled={!connected} onClick={() => void call('device', 'volume.up')}/>
-                    </ButtonGroup>
-                    <ButtonGroup>
-                        <IconButton icon={VolumeX} label="Mute" disabled={!connected} onClick={() => void call('device', 'volume.mute')}/>
-                        <IconButton icon={Volume2} label="Unmute" disabled={!connected} onClick={() => void call('device', 'volume.unmute')}/>
-                        <IconButton icon={VolumeOff} label="Toggle mute" disabled={!connected} onClick={() => void call('device', 'volume.toggleMute')}/>
-                    </ButtonGroup>
-                    <CommandButton label="Read" icon={RefreshCw} tooltip="volume.get" run={() => call('device', 'volume.get')} disabled={!connected}/>
-                </Row>
+                <VolumeControls volume={volume} connected={connected} call={call}/>
+                {connected && control !== 'none' && (
+                    <Row>
+                        <ButtonGroup>
+                            <IconButton icon={VolumeX} label="Mute" onClick={() => void call('device', 'volume.mute')}/>
+                            <IconButton icon={Volume2} label="Unmute" onClick={() => void call('device', 'volume.unmute')}/>
+                        </ButtonGroup>
+                        <CommandButton label="Read" icon={RefreshCw} tooltip="volume.get" run={() => call('device', 'volume.get')}/>
+                    </Row>
+                )}
+                <p className="text-xs text-text-faint">{`The receiver reports volume as ${volume?.available ? 'available' : 'unavailable'}; the control mode above decides what the SDK sends.`}</p>
             </Section>
 
             <Section title="Fade and adjust" icon={TrendingDown}>
@@ -113,14 +99,16 @@ export function VolumePanel({deviceId}: PanelProps) {
                     <Labeled label="Over (ms)">
                         <NumberInput label="Fade duration" value={fadeDuration} onValueChange={setFadeDuration}/>
                     </Labeled>
-                    <CommandButton
-                        label="Fade"
-                        variant="primary"
-                        icon={TrendingDown}
-                        tooltip="volume.fade"
-                        run={() => call('device', 'volume.fade', [toDevice(numberOf(fadeTarget, 20)), numberOf(fadeDuration, 2000)])}
-                        disabled={!connected}
-                    />
+                    <DisabledReason reason={fadeBlocked}>
+                        <CommandButton
+                            label="Fade"
+                            variant="primary"
+                            icon={TrendingDown}
+                            tooltip="volume.fade"
+                            run={() => call('device', 'volume.fade', [toDevice(numberOf(fadeTarget, 20)), numberOf(fadeDuration, 2000)])}
+                            disabled={fadeBlocked !== null}
+                        />
+                    </DisabledReason>
                 </Row>
                 <Row>
                     <Select label="Adjustment" value={adjustment} onValueChange={setAdjustment} items={VOLUME_ADJUSTMENT_ITEMS} size="sm"/>

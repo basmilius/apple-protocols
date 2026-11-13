@@ -98,11 +98,15 @@ export type NowPlayingSnapshot = {
     readonly bundleIdentifier: string | null;
 };
 
+/** What the receiver lets a client change: an absolute level, relative steps, both or nothing. */
+export type VolumeControl = 'none' | 'relative' | 'absolute' | 'both';
+
 export type VolumeSnapshot = {
     /** 0 to 100. */
     readonly level: number;
     readonly available: boolean;
     readonly muted: boolean;
+    readonly control: VolumeControl;
 };
 
 export type ClusterSnapshot = {

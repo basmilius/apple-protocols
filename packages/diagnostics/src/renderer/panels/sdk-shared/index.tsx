@@ -295,3 +295,4 @@ export function MissingDevice() {
 
 export { EventFeed } from './EventFeed';
 export { PanelLink } from './PanelLink';
+export { setsLevel, VolumeControls, VolumeModePill } from './VolumeControls';

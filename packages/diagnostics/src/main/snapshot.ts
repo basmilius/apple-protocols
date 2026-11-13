@@ -11,6 +11,7 @@ import type {
     ParticipantSnapshot,
     PlayerSnapshot,
     StateSnapshot,
+    VolumeControl,
     VolumeSnapshot
 } from '@shared/contract';
 
@@ -51,7 +52,7 @@ export function emptySnapshot(deviceId: string, status: DeviceSessionStatus = 'd
         },
         device: null,
         nowPlaying: emptyNowPlaying(),
-        volume: {level: 0, available: false, muted: false},
+        volume: {level: 0, available: false, muted: false, control: 'none'},
         keyboard: {active: false, text: null, placeholder: null},
         cluster: {clusterId: null, isLeader: false, isClusterAware: false},
         outputDevices: [],
@@ -154,11 +155,19 @@ function nowPlayingOf(device: Device, artworkUrl: string | null): NowPlayingSnap
     };
 }
 
+const VOLUME_CONTROL: Record<number, VolumeControl> = {
+    [Proto.VolumeCapabilities_Enum.None]: 'none',
+    [Proto.VolumeCapabilities_Enum.Relative]: 'relative',
+    [Proto.VolumeCapabilities_Enum.Absolute]: 'absolute',
+    [Proto.VolumeCapabilities_Enum.Both]: 'both'
+};
+
 function volumeOf(state: AirPlayState): VolumeSnapshot {
     return {
         level: Math.round(state.volume * 100),
         available: state.volumeAvailable,
-        muted: state.volumeMuted
+        muted: state.volumeMuted,
+        control: VOLUME_CONTROL[state.volumeCapabilities] ?? 'none'
     };
 }
 

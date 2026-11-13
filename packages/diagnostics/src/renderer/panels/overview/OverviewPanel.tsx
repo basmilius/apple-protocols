@@ -1,35 +1,11 @@
-import { useState } from 'react';
-import { Pause, Play, SkipBack, SkipForward, VolumeX } from 'lucide-react';
-import type { StateSnapshot, VolumeSnapshot } from '@shared/contract';
+import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import type { StateSnapshot } from '@shared/contract';
 import { formatDuration, formatTime } from '@shared/helpers';
 import { DeviceIcon } from '@/shell/DeviceIcon';
-import { ButtonGroup, CopyButton, EmptyState, Icon, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, Section, Slider, StatusBar, StatusPill } from '@/ui';
+import { ButtonGroup, CopyButton, EmptyState, Icon, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, Section, StatusBar, StatusPill } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, useLogs, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
-import { MissingDevice, PanelLink } from '@/panels/sdk-shared';
-
-/* Send volume on release; per-frame commands would flood the serial device connection. */
-function VolumeControl({volume, connected, call}: { readonly volume: VolumeSnapshot | null; readonly connected: boolean; readonly call: DeviceCall }) {
-    const [dragging, setDragging] = useState<number | null>(null);
-    const level = dragging ?? volume?.level ?? 0;
-
-    return (
-        <div className="flex items-center gap-3">
-            <Icon icon={volume?.muted ? VolumeX : ICONS.volume} size={14} className="shrink-0 text-text-faint"/>
-            <Slider
-                label="Volume"
-                value={level}
-                disabled={!connected || volume?.available !== true}
-                onValueChange={setDragging}
-                onValueCommitted={next => {
-                    setDragging(null);
-                    void call('device', 'volume.set', [next / 100]);
-                }}
-            />
-            <span className="w-10 shrink-0 text-right text-xs tabular-nums text-text-muted">{level}%</span>
-        </div>
-    );
-}
+import { MissingDevice, PanelLink, VolumeControls, VolumeModePill } from '@/panels/sdk-shared';
 
 function MiniPlayer({snapshot, connected, call}: { readonly snapshot: StateSnapshot | null; readonly connected: boolean; readonly call: DeviceCall }) {
     const nowPlaying = snapshot?.nowPlaying ?? null;
@@ -103,9 +79,8 @@ export function OverviewPanel({deviceId}: PanelProps) {
                 <MiniPlayer snapshot={snapshot} connected={connected} call={call}/>
             </Section>
 
-            <Section title="Volume" icon={ICONS.volume} actions={<PanelLink panel="volume" label="Volume"/>}>
-                <VolumeControl volume={volume} connected={connected} call={call}/>
-                {volume?.available === false && <p className="text-xs text-text-muted">This device reports no adjustable volume.</p>}
+            <Section title="Volume" icon={ICONS.volume} actions={<>{connected && <VolumeModePill control={volume?.control ?? 'none'}/>}<PanelLink panel="volume" label="Volume"/></>}>
+                <VolumeControls volume={volume} connected={connected} call={call}/>
             </Section>
 
             <Section title="Device" icon={ICONS.info}>

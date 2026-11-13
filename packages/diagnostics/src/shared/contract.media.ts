@@ -59,6 +59,7 @@ export type StreamRequest = {
 
 /** What `AudioStream.stats` reports, plus the PTP counters when the experiment is on. */
 export type AudioTelemetry = {
+    readonly sourceBuffer: {readonly bufferedBytes: number; readonly peakBufferedBytes: number; readonly bufferLimit: number; readonly paused: boolean} | null;
     readonly packetsSent: number;
     readonly retransmitRequests: number;
     readonly retransmitsFulfilled: number;

@@ -1,5 +1,5 @@
 import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
-import { RaopClient } from '@basmilius/apple-raop';
+import { pctToDbfs, RaopClient } from '@basmilius/apple-raop';
 import type { RaopServiceInfo, RaopStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import { serialize } from '../../serialize';
@@ -8,6 +8,8 @@ import { buildSource, type BuiltSource } from './sources';
 
 /** One RAOP session, which lives beside the AirPlay session rather than inside it. */
 type RaopState = {
+    generation: number;
+    connecting: boolean;
     client: RaopClient | null;
     service: DiscoveryResult | null;
     streaming: boolean;
@@ -31,6 +33,8 @@ export function registerRaopChannels(context: ChannelContext): void {
         }
 
         const created: RaopState = {
+            generation: 0,
+            connecting: false,
             client: null,
             service: null,
             streaming: false,
@@ -86,15 +90,15 @@ export function registerRaopChannels(context: ChannelContext): void {
     handle('raop:connect', async request => {
         const state = stateOf(request.deviceId);
 
+        if (state.connecting || state.streaming) throw new Error('This RAOP session is busy. Stop it first.');
+        const generation = ++state.generation;
+        state.connecting = true;
+        try {
         if (state.client !== null) {
             await state.client.close();
             state.client = null;
         }
-
-        if (services.length === 0) {
-            services = await Discovery.raop().find(true);
-        }
-
+        if (services.length === 0) services = await Discovery.raop().find(true);
         const discovered = context.sessions.discoveredDevice(request.deviceId);
         const service = request.serviceId ? services.find(candidate => candidate.id === request.serviceId) : services.find(candidate => candidate.address === discovered?.address);
 
@@ -104,6 +108,7 @@ export function registerRaopChannels(context: ChannelContext): void {
 
         const timingServer = await context.sessions.timingServer();
         const client = await RaopClient.create(service, timingServer);
+        if (generation !== state.generation) {await client.close(); throw new Error('RAOP connect cancelled.');}
 
         client.on('playing', info => {
             state.lastEvent = `playing: ${info.metadata?.title ?? 'unknown'}`;
@@ -124,10 +129,12 @@ export function registerRaopChannels(context: ChannelContext): void {
         context.send('raop:status', status);
 
         return status;
+        } finally {state.connecting = false;}
     });
 
     /* Streaming runs until the source is exhausted, so completion arrives as a `raop:status` push. */
     handle('raop:stream', async request => {
+        if (request.volume !== undefined) validateVolume(request.volume);
         const state = stateOf(request.deviceId);
         const client = clientOf(request.deviceId);
 
@@ -135,7 +142,14 @@ export function registerRaopChannels(context: ChannelContext): void {
             throw new Error('This RAOP session is already streaming. Stop it first.');
         }
 
-        const built = await buildSource(request.source);
+        const generation = ++state.generation;
+        state.streaming = true;
+        let built: BuiltSource;
+        try {built = await buildSource(request.source);} catch (error) {
+            if (generation === state.generation) {state.streaming = false; state.error = String(error); push(request.deviceId);}
+            throw error;
+        }
+        if (generation !== state.generation) {built.dispose(); return;}
 
         state.built = built;
         state.streaming = true;
@@ -152,12 +166,16 @@ export function registerRaopChannels(context: ChannelContext): void {
 
         client.stream(built.source, {metadata, volume: request.volume}).then(
             () => {
+                built.dispose();
+                if (generation !== state.generation) return;
                 state.streaming = false;
                 state.built?.dispose();
                 state.built = null;
                 push(request.deviceId);
             },
             error => {
+                built.dispose();
+                if (generation !== state.generation) return;
                 state.streaming = false;
                 state.built?.dispose();
                 state.built = null;
@@ -168,17 +186,24 @@ export function registerRaopChannels(context: ChannelContext): void {
     });
 
     handle('raop:setVolume', async request => {
-        await clientOf(request.deviceId).setVolume(request.volume);
+        validateVolume(request.volume);
+        await clientOf(request.deviceId).setVolume(pctToDbfs(request.volume));
     });
 
     handle('raop:stop', request => {
+        const state = stateOf(request.deviceId);
+        state.generation++;
         clientOf(request.deviceId).stop();
-        stateOf(request.deviceId).built?.dispose();
+        state.built?.dispose();
+        state.built = null;
+        state.streaming = false;
+        push(request.deviceId);
     });
 
     handle('raop:close', async request => {
         const state = stateOf(request.deviceId);
 
+        state.generation++;
         state.built?.dispose();
         state.built = null;
         state.streaming = false;
@@ -204,4 +229,8 @@ function describe(service: DiscoveryResult): RaopServiceInfo {
         port: service.service.port,
         modelName: service.modelName
     };
+}
+
+function validateVolume(volume: number): void {
+    if (typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0 || volume > 100) throw new RangeError('RAOP volume must be between 0 and 100 percent.');
 }

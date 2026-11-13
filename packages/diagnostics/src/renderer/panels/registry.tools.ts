@@ -1,13 +1,15 @@
-import { Binary, Database, KeyRound, Radio, ToggleLeft } from 'lucide-react';
+import { Activity, Binary, Database, KeyRound, Radio, ToggleLeft } from 'lucide-react';
 import type { PanelDefinition } from './registry';
 import { EncodingPanel } from './encoding/EncodingPanel';
 import { EncryptionPanel } from './encryption/EncryptionPanel';
 import { FeaturesPanel } from './features/FeaturesPanel';
 import { MdnsPanel } from './mdns/MdnsPanel';
+import { PerformancePanel } from './performance/PerformancePanel';
 import { StoragePanel } from './storage/StoragePanel';
 
 /* Tools also work in cells without a device. */
 export const TOOLS_PANELS: readonly PanelDefinition[] = [
+    {id: 'performance', title: 'Performance', icon: Activity, group: 'tools', appliesTo: () => true, component: PerformancePanel},
     {
         id: 'encoding',
         title: 'Encoding',

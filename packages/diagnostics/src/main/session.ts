@@ -46,8 +46,10 @@ export class DeviceSession {
     #status: DeviceSessionStatus = 'disconnected';
     #error: string | null = null;
     #artworkUrl: string | null = null;
-    #artworkPending = false;
+    #artworkPending: Device | null = null;
     #snapshotQueued = false;
+    #connecting?: Promise<StateSnapshot>;
+    #generation = 0;
 
     constructor(discovered: DiscoveredDevice, host: SessionHost, timingServer: TimingServer) {
         this.#discovered = discovered;
@@ -77,10 +79,19 @@ export class DeviceSession {
 
     /** Connects AirPlay and, when credentials exist, Companion Link. Apple TV needs credentials; HomePod pairs transiently. */
     async connect(storage: Storage): Promise<StateSnapshot> {
-        if (this.#device !== null) {
-            await this.disconnect();
+        if (this.#connecting) return this.#connecting;
+        if (this.#status === 'connected' && this.#device) return this.snapshot();
+        const operation = this.#connect(storage);
+        this.#connecting = operation;
+        try {
+            return await operation;
+        } finally {
+            if (this.#connecting === operation) this.#connecting = undefined;
         }
+    }
 
+    async #connect(storage: Storage): Promise<StateSnapshot> {
+        const generation = ++this.#generation;
         this.#status = 'connecting';
         this.#error = null;
         this.#host.emitDiscovery();
@@ -105,7 +116,10 @@ export class DeviceSession {
             } else {
                 await device.connect();
             }
+            if (generation !== this.#generation || this.#device !== device) throw new Error('Device connect cancelled.');
         } catch (error) {
+            try {device.disconnect();} catch {}
+            if (generation !== this.#generation || this.#device !== device) throw error;
             this.#status = 'failed';
             this.#error = error instanceof Error ? error.message : String(error);
             this.#teardown();
@@ -129,6 +143,7 @@ export class DeviceSession {
     }
 
     async disconnect(): Promise<void> {
+        this.#generation++;
         const device = this.#device;
         this.#teardown();
         this.#device = null;
@@ -191,14 +206,15 @@ export class DeviceSession {
     async refreshArtwork(): Promise<void> {
         const device = this.#device;
 
-        if (device === null || this.#artworkPending) {
+        if (device === null || this.#artworkPending === device) {
             return;
         }
 
-        this.#artworkPending = true;
+        this.#artworkPending = device;
 
         try {
             const artwork = await device.artwork.get();
+            if (this.#device !== device) return;
 
             if (artwork === null) {
                 this.#artworkUrl = null;
@@ -208,9 +224,9 @@ export class DeviceSession {
                 this.#artworkUrl = artwork.url;
             }
         } catch {
-            this.#artworkUrl = null;
+            if (this.#device === device) this.#artworkUrl = null;
         } finally {
-            this.#artworkPending = false;
+            if (this.#artworkPending === device) this.#artworkPending = null;
         }
 
         this.#host.emitSnapshot(this.snapshot());
@@ -300,6 +316,7 @@ export class SessionManager {
     readonly #storage: Storage;
 
     #timingServer: TimingServer | null = null;
+    #timingPromise?: Promise<TimingServer>;
     #discovered = new Map<string, DiscoveredDevice>();
 
     constructor(host: SessionHost, storage: Storage) {
@@ -357,7 +374,8 @@ export class SessionManager {
             throw new Error(`Device '${deviceId}' is not in the last discovery result. Scan first.`);
         }
 
-        const session = this.#sessions.get(deviceId) ?? new DeviceSession(discovered, this.#host, await this.#timing());
+        const timing = await this.#timing();
+        const session = this.#sessions.get(deviceId) ?? new DeviceSession(discovered, this.#host, timing);
         this.#sessions.set(deviceId, session);
         session.discovered = discovered;
 
@@ -394,18 +412,24 @@ export class SessionManager {
     async shutdown(): Promise<void> {
         await Promise.all(Array.from(this.#sessions.values()).map(session => session.disconnect()));
         this.#sessions.clear();
+        await this.#timingPromise?.catch(() => {});
         this.#timingServer?.close();
         this.#timingServer = null;
     }
 
     async #timing(): Promise<TimingServer> {
-        if (this.#timingServer === null) {
+        if (this.#timingServer) return this.#timingServer;
+        if (!this.#timingPromise) {
             const server = new TimingServer();
-            await server.listen();
-            this.#timingServer = server;
+            this.#timingPromise = server.listen().then(() => {
+                this.#timingServer = server;
+                return server;
+            }, error => {
+                server.close();
+                throw error;
+            }).finally(() => {this.#timingPromise = undefined;});
         }
-
-        return this.#timingServer;
+        return this.#timingPromise;
     }
 
     #describe(device: DiscoveredDevice): DiscoveredDeviceInfo {

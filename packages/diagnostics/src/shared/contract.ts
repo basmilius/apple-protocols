@@ -17,6 +17,7 @@ export type DebugGroup = 'debug' | 'error' | 'info' | 'net' | 'raw' | 'warn';
 export type Bytes = {
     readonly $bytes: string;
     readonly length: number;
+    readonly truncated?: boolean;
 };
 
 export type SerializedError = {
@@ -300,8 +301,19 @@ export type ThemeRequest = {
  * Channel name to `[request, response]`. `void` on either side means the channel takes or returns
  * nothing. Every device-scoped request carries `deviceId`.
  */
+export type RetentionStats = {readonly entries: number; readonly retainedBytes: number; readonly byteLimit: number; readonly dropped: number};
+export type PerformanceStatus = {
+    readonly sampledAt: number;
+    readonly startedAt: number;
+    readonly eventLoop: {readonly p95Ms: number; readonly p99Ms: number; readonly maxMs: number; readonly peakMs: number; readonly utilization: number};
+    readonly memory: {readonly rss: number; readonly heapUsed: number; readonly external: number; readonly arrayBuffers: number};
+    readonly retention: Readonly<Record<string, RetentionStats>>;
+};
+
 export type CoreInvokeMap = {
     'app:info': [void, AppInfo];
+    'performance:status': [void, PerformanceStatus];
+    'performance:reset': [void, PerformanceStatus];
     'app:theme': [ThemeRequest, void];
 
     'discovery:scan': [{ readonly rescan?: boolean }, readonly DiscoveredDeviceInfo[]];
@@ -348,6 +360,8 @@ export type DiagnosticsBridge = {
 
 export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
     'app:info',
+    'performance:status',
+    'performance:reset',
     'app:theme',
     'discovery:scan',
     'discovery:list',

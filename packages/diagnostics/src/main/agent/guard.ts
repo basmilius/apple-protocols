@@ -1,67 +1,46 @@
-import type { InvokeChannel } from '@shared/contract';
+import type { InvokeChannel, RawMessageRequest } from '@shared/contract';
+import { validateRawRequest } from '../channels/media/rawCatalog';
+import { checkAction } from './actions';
 
-/** Channels that open a native dialog or only make sense for the window. */
 const DENIED: readonly InvokeChannel[] = ['app:theme', 'audio:pickFile'];
-
-/** Channels that throw credentials away. Pairing again needs a person in front of the device. */
 const DESTRUCTIVE: readonly InvokeChannel[] = ['pair:forget', 'storage:removeCredentials', 'storage:removeDevice'];
-
-const VOLUME_PATH = /(^|\.)volume\.(set|fade|setForDevice)$/;
-
-/** Fraction of full volume allowed without confirmation when an agent controls a device. */
-const MAX_VOLUME = Number(process.env.DIAGNOSTICS_AGENT_MAX_VOLUME ?? 0.5);
+const configured = Number(process.env.DIAGNOSTICS_AGENT_MAX_VOLUME ?? 0.5);
+const MAX_VOLUME = Number.isFinite(configured) && configured >= 0 && configured <= 1 ? configured : 0.5;
 
 export function isDenied(channel: InvokeChannel): boolean {
     return DENIED.includes(channel);
 }
 
-/**
- * Agent bridge security boundary. Returns a refusal reason or `null`.
- * `confirm` permits volume changes and credential removal, but never denied channels.
- */
+/** Confirmation relaxes policy limits, never input validation or the action registry. */
 export function refusal(channel: InvokeChannel, request: unknown, confirm: boolean): string | null {
-    if (isDenied(channel)) {
-        return `Channel '${channel}' is not available to the agent bridge.`;
-    }
-
+    if (isDenied(channel)) return `Channel '${channel}' is not available to the agent bridge.`;
+    if (request !== undefined && (request === null || typeof request !== 'object' || Array.isArray(request))) return 'Request must be an object.';
     const body = (request ?? {}) as Record<string, unknown>;
-
-    if (channel === 'storage:read' && body.reveal === true) {
-        return 'Revealing stored credentials is not available to the agent bridge.';
+    if (channel === 'storage:read' && body.reveal === true) return 'Revealing stored credentials is not available to the agent bridge.';
+    if (channel === 'raw:send') {
+        try {validateRawRequest(body as unknown as RawMessageRequest);} catch (error) {return error instanceof Error ? error.message : String(error);}
     }
-
-    if (confirm) {
-        return null;
+    let volume: number | undefined;
+    let needsConfirm = DESTRUCTIVE.includes(channel) || channel === 'raw:send';
+    if (channel === 'device:call') {
+        const action = checkAction(body);
+        if (action.error) return action.error;
+        volume = action.volume;
+        needsConfirm ||= action.confirm === true;
     }
-
-    if (DESTRUCTIVE.includes(channel)) {
-        return `Channel '${channel}' removes credentials. Ask the user first, then repeat with confirm.`;
-    }
-
-    const volume = requestedVolume(channel, body);
-
-    if (volume !== null && volume > MAX_VOLUME) {
-        return `Volume ${volume} is above the agent limit of ${MAX_VOLUME}. Ask the user first, then repeat with confirm.`;
-    }
-
-    return null;
-}
-
-/** The volume a request asks for as a fraction, or `null` when it sets none. */
-function requestedVolume(channel: InvokeChannel, body: Record<string, unknown>): number | null {
     if (channel === 'raop:setVolume' || channel === 'raop:stream') {
-        return typeof body.volume === 'number' ? body.volume / 100 : null;
+        const value = body.volume;
+        if (channel === 'raop:setVolume' || value !== undefined) {
+            if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) return 'RAOP volume must be a percentage from 0 to 100.';
+            volume = value / 100;
+        }
     }
-
-    if (channel !== 'device:call' || typeof body.path !== 'string' || !VOLUME_PATH.test(body.path)) {
-        return null;
+    if (channel === 'audio:stream') {
+        const value = body.volumeDb ?? -20;
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < -144 || value > 0) return 'Audio volumeDb must be between -144 and 0 dB.';
+        volume = value === -144 ? 0 : 10 ** (value / 20);
     }
-
-    const value = (Array.isArray(body.args) ? body.args : []).find(argument => typeof argument === 'number');
-
-    if (value === undefined) {
-        return null;
-    }
-
-    return value > 1 ? value / 100 : value;
+    if (!confirm && needsConfirm) return `Channel '${channel}' needs user agreement, then confirm.`;
+    if (!confirm && volume !== undefined && volume > MAX_VOLUME) return `Volume ${volume} is above the agent limit of ${MAX_VOLUME}. Ask the user first, then repeat with confirm.`;
+    return null;
 }

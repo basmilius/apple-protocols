@@ -1,28 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { ArrowDownLeft, ArrowUpRight, Trash2 } from 'lucide-react';
-import type { TrafficProtocol, TrafficRecord } from '@shared/contract';
+import type { TrafficProtocol } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
-import { invoke, on } from '@/client';
+import { useDevices } from '@/state/devices';
 import type { PanelProps } from '@/panels/registry';
 import { Badge, EmptyState, Field, IconButton, JsonView, Segmented } from '@/ui';
 
 const PROTOCOLS: readonly TrafficProtocol[] = ['dataStream', 'eventStream', 'companionLink', 'rtsp'];
 
-/** Main keeps 5000; a panel that renders every row does not need to hold more than it can show. */
-const CAPACITY = 1000;
-
 export function TrafficPanel({deviceId}: PanelProps) {
-    const [records, setRecords] = useState<readonly TrafficRecord[]>([]);
+    const records = useDevices(state => state.traffic);
     const [protocol, setProtocol] = useState<TrafficProtocol | 'all'>('all');
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState<number | null>(null);
-
-    useEffect(() => {
-        void invoke('traffic:history', undefined).then(history => setRecords(history.slice(-CAPACITY)));
-
-        return on('traffic:entry', record => setRecords(current => [...current, record].slice(-CAPACITY)));
-    }, []);
 
     const rows = useMemo(() => {
         const needle = search.trim().toLowerCase();
@@ -37,8 +28,7 @@ export function TrafficPanel({deviceId}: PanelProps) {
     const detail = rows.find(record => record.id === selected) ?? rows[0] ?? null;
 
     function clear() {
-        void invoke('traffic:clear', undefined);
-        setRecords([]);
+        void useDevices.getState().clearTraffic();
     }
 
     return (

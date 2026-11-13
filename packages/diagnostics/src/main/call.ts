@@ -11,6 +11,14 @@ export async function runCall(roots: CallRoots, request: CallRequest): Promise<C
     const started = Date.now();
 
     try {
+        if (!request || typeof request.root !== 'string' || typeof request.path !== 'string' || (request.args !== undefined && !Array.isArray(request.args))) throw new Error('Invalid call request.');
+        if (!Object.hasOwn(roots, request.root)) throw new Error(`Root '${request.root}' is not allowed.`);
+        if (['device', 'airplay'].includes(request.root) && ['volume.set', 'volume.fade', 'volume.setForDevice'].includes(request.path)) {
+            const index = request.path === 'volume.setForDevice' ? 1 : 0;
+            const value = request.args?.[index];
+            if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) throw new RangeError('SDK volume must be a fraction from 0 to 1.');
+            if (request.path === 'volume.fade' && (typeof request.args?.[1] !== 'number' || !Number.isFinite(request.args[1]) || request.args[1] < 0)) throw new RangeError('Fade duration must be non-negative and finite.');
+        }
         const root = roots[request.root];
 
         if (root === undefined || root === null) {

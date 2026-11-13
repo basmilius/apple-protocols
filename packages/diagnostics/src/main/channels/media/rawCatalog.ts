@@ -1,6 +1,6 @@
 import { DataStreamMessage, Proto } from '@basmilius/apple-airplay';
 import { FrameType } from '@basmilius/apple-companion-link';
-import type { RawBuilderInfo, RawParam, RawParamOption, RawTransport } from '@shared/contract';
+import type { RawBuilderInfo, RawMessageRequest, RawParam, RawParamOption, RawTransport } from '@shared/contract';
 
 export type RawEntry = RawBuilderInfo & {
     run(targets: RawTargets, args: Args, exchange: boolean): Promise<unknown> | unknown;
@@ -296,4 +296,30 @@ export function rawEntry(transport: RawTransport, id: string): RawEntry {
     }
 
     return entry;
+}
+
+export function validateRawRequest(request: RawMessageRequest): void {
+    const entry = rawEntry(request.transport, request.id);
+    if (!request.args || typeof request.args !== 'object' || Array.isArray(request.args)) throw new Error('Raw arguments must be an object.');
+    for (const name of Object.keys(request.args)) {
+        if (!entry.params.some(param => param.name === name)) throw new Error(`Unknown raw argument '${name}'.`);
+    }
+    for (const param of entry.params) {
+        const value = request.args[param.name];
+        if (value === undefined && (param.optional || param.defaultValue !== undefined)) continue;
+        let valid = false;
+        switch (param.type) {
+            case 'number': valid = typeof value === 'number' && Number.isFinite(value); break;
+            case 'boolean': valid = typeof value === 'boolean'; break;
+            case 'string': valid = typeof value === 'string'; break;
+            case 'enum': valid = param.options?.some(option => option.value === value) === true; break;
+            case 'stringList': valid = Array.isArray(value) && value.every(item => typeof item === 'string'); break;
+            case 'json': {
+                const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+                valid = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
+                break;
+            }
+        }
+        if (!valid) throw new Error(`Invalid raw argument '${param.name}': expected ${param.type}.`);
+    }
 }

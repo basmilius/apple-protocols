@@ -2,6 +2,7 @@ import { inspect } from 'node:util';
 import { reporter, type ReporterEntry } from '@basmilius/apple-sdk';
 import type { LogEntry } from '@shared/contract';
 import { serializeAll } from './serialize';
+import { Ring } from './ring';
 
 const CAPACITY = 5000;
 
@@ -10,7 +11,7 @@ const ANSI = /\u001b\[\d+m/g;
 
 /** Collects protocol logs through the reporter sink, retaining device IDs for filtering. */
 export class LogBuffer {
-    readonly #entries: LogEntry[] = [];
+    readonly #ring = new Ring<LogEntry>(CAPACITY, entry => entry.id);
     readonly #listeners = new Set<(entry: LogEntry) => void>();
 
     #next = 1;
@@ -20,7 +21,11 @@ export class LogBuffer {
     }
 
     get entries(): readonly LogEntry[] {
-        return this.#entries;
+        return this.#ring.entries;
+    }
+
+    get stats(): Ring<LogEntry>['stats'] {
+        return this.#ring.stats;
     }
 
     /** Sends every group to the buffer and leaves the console output as it was. */
@@ -34,25 +39,22 @@ export class LogBuffer {
     }
 
     clear(): void {
-        this.#entries.length = 0;
+        this.#ring.clear();
     }
 
     onReport(entry: ReporterEntry): void {
+        const args = serializeAll(entry.args);
         const record: LogEntry = {
             id: this.#next,
             group: entry.group,
             deviceId: entry.deviceId,
-            message: format(entry.args),
-            args: serializeAll(entry.args.filter(argument => typeof argument !== 'string')),
+            message: format(args).slice(0, 8192),
+            args: args.filter(argument => typeof argument !== 'string'),
             timestamp: entry.timestamp
         };
 
         this.#next += 1;
-        this.#entries.push(record);
-
-        if (this.#entries.length > CAPACITY) {
-            this.#entries.splice(0, this.#entries.length - CAPACITY);
-        }
+        this.#ring.push(record);
 
         for (const listener of this.#listeners) {
             listener(record);
@@ -62,7 +64,7 @@ export class LogBuffer {
 
 function format(args: readonly unknown[]): string {
     return args
-        .map(argument => (typeof argument === 'string' ? argument : inspect(argument, {depth: 3, breakLength: 160, colors: false})))
+        .map(argument => (typeof argument === 'string' ? argument : inspect(argument, {depth: 3, breakLength: 160, colors: false, maxArrayLength: 50, maxStringLength: 8192})))
         .join(' ')
         .replace(ANSI, '');
 }

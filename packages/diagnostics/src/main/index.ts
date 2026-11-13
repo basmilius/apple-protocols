@@ -8,6 +8,7 @@ import { registerToolsChannels } from './channels/tools';
 import { handle } from './ipc';
 import { LogBuffer } from './logs';
 import { Ring } from './ring';
+import { RuntimeMetrics } from './performance';
 import { SessionManager, type SessionHost } from './session';
 import { StorageQueue } from './storage';
 import { TrafficBuffer } from './traffic';
@@ -21,6 +22,7 @@ const logs = new LogBuffer();
 const traffic = new TrafficBuffer();
 const events = new Ring<DeviceEvent>(5000, event => event.sequence);
 const resume = new ResumeList();
+const metrics = new RuntimeMetrics(() => ({logs: logs.stats, events: events.stats, traffic: traffic.ring.stats}));
 
 let agent: AgentServer | null = null;
 let resuming = false;
@@ -45,6 +47,8 @@ const host: SessionHost = {
 const sessions = new SessionManager(host, storage.storage);
 
 const registerChannels = (): void => {
+    handle('performance:status', () => metrics.status());
+    handle('performance:reset', () => metrics.reset());
     handle('app:info', () => ({
         platform: process.platform,
         versions: {electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node},

@@ -24,6 +24,7 @@ const FILE_FILTERS: Partial<Record<AudioSourceKind, Electron.FileFilter[]>> = {
 };
 
 type AudioState = {
+    generation: number;
     mode: AudioStatus['mode'];
     playing: boolean;
     source: string | null;
@@ -51,6 +52,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         }
 
         const created: AudioState = {
+            generation: 0,
             mode: 'idle',
             playing: false,
             source: null,
@@ -101,6 +103,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         }
 
         return {
+            sourceBuffer: state.built?.bufferStats() ?? null,
             packetsSent: stats.packetsSent,
             retransmitRequests: stats.retransmitRequests,
             retransmitsFulfilled: stats.retransmitsFulfilled,
@@ -131,8 +134,9 @@ export function registerAudioChannels(context: ChannelContext): void {
         context.send('audio:status', statusOf(deviceId));
     };
 
-    const finish = (deviceId: string, error: unknown | null): void => {
+    const finish = (deviceId: string, error: unknown | null, generation?: number): void => {
         const state = stateOf(deviceId);
+        if (generation !== undefined && state.generation !== generation) return;
 
         if (state.telemetry !== null) {
             clearInterval(state.telemetry);
@@ -159,6 +163,8 @@ export function registerAudioChannels(context: ChannelContext): void {
         const state = stateOf(request.deviceId);
         const media = mediaOf(request.deviceId);
 
+        if (state.playing) throw new Error('This device is already playing. Stop it first.');
+        const generation = ++state.generation;
         state.mode = 'url';
         state.playing = true;
         state.source = request.url;
@@ -171,7 +177,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         try {
             await media.playUrl(request.url, request.position ?? 0);
         } catch (error) {
-            finish(request.deviceId, error);
+            finish(request.deviceId, error, generation);
 
             throw error;
         }
@@ -180,17 +186,20 @@ export function registerAudioChannels(context: ChannelContext): void {
     });
 
     handle('audio:stopUrl', request => {
+        stateOf(request.deviceId).generation++;
         mediaOf(request.deviceId).stopPlayUrl();
         finish(request.deviceId, null);
     });
 
     handle('audio:waitForEnd', async request => {
+        const generation = stateOf(request.deviceId).generation;
         await mediaOf(request.deviceId).waitForPlaybackEnd();
-        finish(request.deviceId, null);
+        finish(request.deviceId, null, generation);
     });
 
     /* Return when streaming starts; completion and failures arrive through `audio:status`. */
     handle('audio:stream', async request => {
+        if (request.volumeDb !== undefined && (typeof request.volumeDb !== 'number' || !Number.isFinite(request.volumeDb) || request.volumeDb < -144 || request.volumeDb > 0)) throw new RangeError('Volume must be between -144 and 0 dB.');
         const session = sessionOf(request.deviceId);
         const state = stateOf(request.deviceId);
 
@@ -198,7 +207,17 @@ export function registerAudioChannels(context: ChannelContext): void {
             throw new Error('This device is already playing. Stop it first.');
         }
 
-        const built = await buildSource(request.source);
+        const generation = ++state.generation;
+        state.playing = true;
+        state.mode = 'stream';
+        let built: BuiltSource;
+        try {
+            built = await buildSource(request.source);
+        } catch (error) {
+            finish(request.deviceId, error, generation);
+            throw error;
+        }
+        if (state.generation !== generation) {built.dispose(); return;}
         const volumeDb = request.volumeDb ?? DEFAULT_VOLUME_DB;
         const ptp = request.ptpExperiment === true;
 
@@ -218,13 +237,14 @@ export function registerAudioChannels(context: ChannelContext): void {
         const running = ptp ? streamOverPtp(session, state, built, volumeDb, credentials) : mediaOf(request.deviceId).streamAudio(built.source, volumeDb);
 
         running.then(
-            () => finish(request.deviceId, null),
-            error => finish(request.deviceId, error)
+            () => finish(request.deviceId, null, generation),
+            error => finish(request.deviceId, error, generation)
         );
     });
 
     handle('audio:stopStream', request => {
         const state = stateOf(request.deviceId);
+        state.generation++;
 
         if (state.ptpProtocol !== null) {
             state.ptpProtocol.disconnect();
@@ -232,7 +252,7 @@ export function registerAudioChannels(context: ChannelContext): void {
             mediaOf(request.deviceId).stopStreamAudio();
         }
 
-        state.built?.dispose();
+        finish(request.deviceId, null);
     });
 
     handle('audio:status', request => statusOf(request.deviceId));
@@ -266,18 +286,26 @@ async function streamOverPtp(session: DeviceSession, state: AudioState, built: B
     state.ptpProtocol = protocol;
     state.ptpMaster = master;
 
+    const check = (): void => {
+        if (state.ptpProtocol !== protocol) throw new Error('Audio preparation cancelled.');
+    };
     try {
         await protocol.connect();
+        check();
         await protocol.fetchInfo();
+        check();
 
         const keys = await handshake(protocol, credentials);
+        check();
 
         protocol.controlStream.enableEncryption(keys.accessoryToControllerKey, keys.controllerToAccessoryKey);
 
         await protocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
+        check();
 
         // A fresh AirPlay audio session starts silent.
         await protocol.controlStream.setParameter('volume', String(volumeDb));
+        check();
 
         state.feedback = setInterval(() => {
             void protocol.feedback().catch(() => undefined);

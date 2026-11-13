@@ -14,12 +14,18 @@ const LIVE_CHUNK_MS = 200;
 export type BuiltSource = {
     readonly source: AudioSource;
     readonly description: string;
+    bufferStats(): {bufferedBytes: number; peakBufferedBytes: number; bufferLimit: number; paused: boolean} | null;
     /** Stops whatever keeps feeding the source, for {@link Live}. */
     dispose(): void;
 };
 
 /** Constructs an audio source from the renderer's serializable specification. */
 export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
+    if (!spec || typeof spec !== 'object') throw new Error('An audio source specification is required.');
+    for (const key of ['frequency', 'duration', 'bufferDuration', 'sampleRate'] as const) {
+        const value = spec[key as keyof AudioSourceSpec];
+        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) throw new RangeError(`Audio ${key} must be a positive finite number.`);
+    }
     switch (spec.kind) {
         case 'url':
             return plain(await Url.fromUrl(demand(spec.url, 'url')), `Url ${spec.url}`);
@@ -83,8 +89,8 @@ function live(spec: Extract<AudioSourceSpec, { kind: 'live' }>): BuiltSource {
             const sample = Math.round(Math.sin(phase) * 0x3fff);
             phase += (2 * Math.PI * spec.frequency) / SAMPLE_RATE;
 
-            chunk.writeInt16LE(sample, i * frameBytes);
-            chunk.writeInt16LE(sample, i * frameBytes + BYTES_PER_CHANNEL);
+            chunk.writeInt16BE(sample, i * frameBytes);
+            chunk.writeInt16BE(sample, i * frameBytes + BYTES_PER_CHANNEL);
         }
 
         source.write(chunk);
@@ -92,6 +98,7 @@ function live(spec: Extract<AudioSourceSpec, { kind: 'live' }>): BuiltSource {
 
     return {
         source,
+        bufferStats: () => null,
         description: `Live ${spec.frequency} Hz for ${spec.duration}s`,
         dispose: () => {
             clearInterval(timer);
@@ -113,11 +120,11 @@ function describeOrigin(spec: Extract<AudioSourceSpec, { from: 'url' | 'file' }>
 }
 
 function plain(source: AudioSource, description: string): BuiltSource {
-    return {source, description, dispose: () => undefined};
+    return {source, description, bufferStats: () => source instanceof Ffmpeg ? source.stats : null, dispose: () => {void source.stop().catch(() => {});}};
 }
 
 function demand(value: string | undefined, name: string): string {
-    if (value === undefined || value.trim().length === 0) {
+    if (typeof value !== 'string' || value.trim().length === 0) {
         throw new Error(`This audio source needs a ${name}.`);
     }
 

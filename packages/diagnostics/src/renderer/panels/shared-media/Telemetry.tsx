@@ -29,7 +29,7 @@ export function Sparkline({label, value, format}: SparklineProps) {
     return (
         <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface-sunken p-2">
             <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs text-text-faint">{label}</span>
+                <span className="text-xs text-text-muted">{label}</span>
                 <span className="mono text-xs tabular-nums text-text">{format ? format(value) : value}</span>
             </div>
             <svg viewBox="0 0 100 24" preserveAspectRatio="none" className="h-6 w-full">
@@ -44,7 +44,7 @@ export function StatGrid({entries}: { readonly entries: readonly [string, string
         <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
             {entries.map(([label, value]) => (
                 <div key={label} className="rounded-lg border border-border bg-surface-sunken px-2 py-1.5">
-                    <div className="text-xs text-text-faint">{label}</div>
+                    <div className="text-xs text-text-muted">{label}</div>
                     <div className="mono truncate text-xs tabular-nums text-text">{value}</div>
                 </div>
             ))}

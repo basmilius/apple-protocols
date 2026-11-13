@@ -33,7 +33,7 @@ export default defineConfig({
         build: {
             rollupOptions: {
                 external,
-                input: `${here}src/main/index.ts`,
+                input: {index: `${here}src/main/index.ts`, 'decode-worker': `${packages}/audio-source/src/decoder/worker.ts`},
                 output: {
                     format: 'es',
                     entryFileNames: '[name].mjs'

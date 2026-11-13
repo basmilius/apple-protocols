@@ -4,7 +4,7 @@ import { handle } from '../../ipc';
 import { serialize, serializeError } from '../../serialize';
 import type { DeviceSession } from '../../session';
 import type { ChannelContext } from '../context';
-import { RAW_CATALOG, rawEntry, type RawTargets } from './rawCatalog';
+import { RAW_CATALOG, rawEntry, validateRawRequest, type RawTargets } from './rawCatalog';
 
 export function registerRawChannels(context: ChannelContext): void {
     handle('raw:builders', () => RAW_CATALOG);
@@ -19,6 +19,7 @@ export function registerRawChannels(context: ChannelContext): void {
                 throw new Error(`No session for device '${request.deviceId}'. Connect first.`);
             }
 
+            validateRawRequest(request);
             const entry = rawEntry(request.transport, request.id);
             const value = await entry.run(targetsOf(session), request.args, request.exchange === true);
 

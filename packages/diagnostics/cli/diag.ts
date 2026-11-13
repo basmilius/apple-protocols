@@ -23,7 +23,8 @@ const HELP = `diag: drive the running diagnostics app and read what it captured.
   wait <logs|events|traffic> [filters]    block until something matches, --timeout in seconds
 
 <device> is a device id or a part of its name.
-Roots: device, airplay, airplayState, companionLink, airplayProtocol, companionLinkProtocol.
+Agent roots: device, airplay, airplayState, companionLink (registered actions only).
+Raw protocol experiments use the app or raw:send with --confirm.
 
 Filters: --device <device>  --after <cursor> | --since-mark  --grep <regex>  --limit <n>
          --group (logs)  --source --name (events)  --protocol --direction (traffic)

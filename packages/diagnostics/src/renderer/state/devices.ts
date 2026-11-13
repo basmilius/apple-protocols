@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { DeviceEvent, DiscoveredDeviceInfo, LogEntry, StateSnapshot } from '@shared/contract';
+import type { DeviceEvent, DiscoveredDeviceInfo, LogEntry, StateSnapshot, TrafficRecord } from '@shared/contract';
 import { invoke, on } from '@/client';
+import { Capture } from './capture';
 
 /** Enough scrollback to follow a connect without letting a chatty data stream eat the renderer. */
 const MAX_EVENTS = 4000;
@@ -11,6 +12,8 @@ type DevicesState = {
     snapshots: Readonly<Record<string, StateSnapshot>>;
     events: readonly DeviceEvent[];
     logs: readonly LogEntry[];
+    traffic: readonly TrafficRecord[];
+    clearTraffic(): Promise<void>;
     scanning: boolean;
     busy: Readonly<Record<string, boolean>>;
     eventsPaused: boolean;
@@ -24,9 +27,16 @@ type DevicesState = {
     setLogsPaused(paused: boolean): void;
 };
 
-const bounded = <T>(items: readonly T[], added: T, max: number): T[] => {
-    const next = [...items, added];
-    return next.length > max ? next.slice(next.length - max) : next;
+const eventCapture = new Capture<DeviceEvent>(MAX_EVENTS);
+const logCapture = new Capture<LogEntry>(MAX_LOGS);
+const trafficCapture = new Capture<TrafficRecord>(1000);
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+const flushSoon = (): void => {
+    if (flushTimer !== undefined) return;
+    flushTimer = setTimeout(() => {
+        flushTimer = undefined;
+        useDevices.setState({events: eventCapture.snapshot(), logs: logCapture.snapshot(), traffic: trafficCapture.snapshot()});
+    }, 50);
 };
 
 export const useDevices = create<DevicesState>((set, get) => ({
@@ -34,6 +44,7 @@ export const useDevices = create<DevicesState>((set, get) => ({
     snapshots: {},
     events: [],
     logs: [],
+    traffic: [],
     scanning: false,
     busy: {},
     eventsPaused: false,
@@ -71,11 +82,18 @@ export const useDevices = create<DevicesState>((set, get) => ({
         }
     },
     clearEvents() {
+        eventCapture.clear();
         set({events: []});
     },
     async clearLogs() {
         await invoke('log:clear', undefined);
+        logCapture.clear();
         set({logs: []});
+    },
+    async clearTraffic() {
+        await invoke('traffic:clear', undefined);
+        trafficCapture.clear();
+        set({traffic: []});
     },
     setEventsPaused(eventsPaused) {
         set({eventsPaused});
@@ -98,7 +116,8 @@ export async function startDevices(): Promise<void> {
             return;
         }
 
-        useDevices.setState(state => ({events: bounded(state.events, event, MAX_EVENTS)}));
+        eventCapture.push(event);
+        flushSoon();
     });
 
     on('log:entry', entry => {
@@ -106,9 +125,20 @@ export async function startDevices(): Promise<void> {
             return;
         }
 
-        useDevices.setState(state => ({logs: bounded(state.logs, entry, MAX_LOGS)}));
+        logCapture.push(entry);
+        flushSoon();
     });
 
-    useDevices.setState({logs: await invoke('log:history', undefined)});
+    on('traffic:entry', record => {trafficCapture.push(record); flushSoon();});
+    const [logs, traffic] = await Promise.all([invoke('log:history', undefined), invoke('traffic:history', undefined)]);
+    const currentLogs = logCapture.snapshot();
+    const currentTraffic = trafficCapture.snapshot();
+    logCapture.clear();
+    trafficCapture.clear();
+    const mergedLogs = new Map([...logs, ...currentLogs].map(entry => [entry.id, entry]));
+    const mergedTraffic = new Map([...traffic, ...currentTraffic].map(entry => [entry.id, entry]));
+    for (const entry of [...mergedLogs.values()].sort((a, b) => a.id - b.id)) logCapture.push(entry);
+    for (const entry of [...mergedTraffic.values()].sort((a, b) => a.id - b.id)) trafficCapture.push(entry);
+    flushSoon();
     await useDevices.getState().scan();
 }

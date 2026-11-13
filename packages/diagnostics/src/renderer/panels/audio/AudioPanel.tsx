@@ -152,6 +152,12 @@ function Telemetry({status}: { readonly status: AudioStatus | null }) {
                 <Sparkline label="Bytes sent" value={telemetry.totalBytesSent} format={value => `${(value / 1024).toFixed(0)} KiB`}/>
                 <Sparkline label="Retransmit requests" value={telemetry.retransmitRequests}/>
             </div>
+            {telemetry.sourceBuffer && <Section title="Source buffer">
+                <StatGrid entries={[
+                    ['Queued', `${telemetry.sourceBuffer.bufferedBytes} B`], ['Peak', `${telemetry.sourceBuffer.peakBufferedBytes} B`],
+                    ['Pause threshold', `${telemetry.sourceBuffer.bufferLimit} B`], ['Producer', telemetry.sourceBuffer.paused ? 'paused' : 'running']
+                ]}/>
+            </Section>}
             <StatGrid
                 entries={[
                     ['Retransmits fulfilled', String(telemetry.retransmitsFulfilled)],

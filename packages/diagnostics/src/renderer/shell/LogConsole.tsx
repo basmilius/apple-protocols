@@ -211,7 +211,7 @@ export function LogConsole() {
                 spare and the entry takes a column of its own. */}
             <div className={clsx('flex min-h-0 grow', bottom ? 'flex-row' : 'flex-col')}>
                 <div className="relative min-h-0 min-w-0 grow">
-                    <div ref={scroller} onScroll={onScroll} className="h-full overflow-auto bg-code-bg">
+                    <div ref={scroller} onScroll={onScroll} role="region" aria-label="Log messages" tabIndex={0} className="h-full overflow-auto bg-code-bg">
                         {shown.length === 0 ? (
                             <EmptyState>Nothing logged yet. Connect a device to see its protocol traffic.</EmptyState>
                         ) : (
@@ -224,7 +224,7 @@ export function LogConsole() {
                                             key={entry.id}
                                             data-index={item.index}
                                             className={clsx(
-                                                'absolute top-0 left-0 flex w-full cursor-default gap-2 px-2 whitespace-pre',
+                                                'absolute top-0 left-0 flex w-max min-w-full cursor-default gap-2 px-2 whitespace-pre',
                                                 entry.id === detailId ? 'bg-surface-active' : selected.includes(entry.id) ? 'bg-surface-hover' : 'hover:bg-surface-hover'
                                             )}
                                             style={{height: ROW_HEIGHT, transform: `translateY(${item.start}px)`}}
@@ -239,7 +239,7 @@ export function LogConsole() {
                                         >
                                             <span className="mono shrink-0 text-code-dim">{formatTime(entry.timestamp)}</span>
                                             <span className={clsx('mono w-10 shrink-0', GROUP_COLOR[entry.group])}>{entry.group}</span>
-                                            <span className="mono min-w-0 grow truncate text-code-fg" title={entry.message}>
+                                            <span className="mono whitespace-nowrap text-code-fg" title={entry.message}>
                                                 {entry.message}
                                             </span>
                                         </div>

@@ -304,16 +304,16 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
 
         if (val <= TAG.INT_INLINE_MAX_VALUE) {
             packed = u8(TAG.INT_BASE + val);
-        } else if (val <= 0xFF) {
+        } else if (val <= 0x7F) {
             packed = new Uint8Array(2);
             packed[0] = TAG.INT_1BYTE;
             packed[1] = val;
-        } else if (val <= 0xFFFF) {
+        } else if (val <= 0x7FFF) {
             packed = new Uint8Array(3);
             packed[0] = TAG.INT_2BYTE;
             packed[1] = val & 0xFF;
             packed[2] = (val >> 8) & 0xFF;
-        } else if (val <= 0xFFFFFFFF) {
+        } else if (val <= 0x7FFFFFFF) {
             packed = new Uint8Array(5);
             packed[0] = TAG.INT_4BYTE;
             packed[1] = val & 0xFF;
@@ -337,18 +337,19 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             const view = new DataView(packed.buffer, packed.byteOffset + 1, 8);
             view.setBigInt64(0, BigInt(data), true);
         } else {
+            // tvOS reads OPack integers as signed, so each width stops before its top bit.
             if (data <= TAG.INT_INLINE_MAX_VALUE) {
                 packed = u8(TAG.INT_BASE + data);
-            } else if (data <= 0xFF) {
+            } else if (data <= 0x7F) {
                 packed = new Uint8Array(2);
                 packed[0] = TAG.INT_1BYTE;
                 packed[1] = data;
-            } else if (data <= 0xFFFF) {
+            } else if (data <= 0x7FFF) {
                 packed = new Uint8Array(3);
                 packed[0] = TAG.INT_2BYTE;
                 packed[1] = data & 0xFF;
                 packed[2] = (data >> 8) & 0xFF;
-            } else if (data <= 0xFFFFFFFF) {
+            } else if (data <= 0x7FFFFFFF) {
                 packed = new Uint8Array(5);
                 packed[0] = TAG.INT_4BYTE;
                 packed[1] = data & 0xFF;

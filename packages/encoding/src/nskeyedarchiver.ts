@@ -26,11 +26,8 @@ export function decode(archive: any): unknown {
         if (ref && typeof ref === 'object') {
             const obj = ref as Record<string, unknown>;
 
-            if (obj['NS.objects'] && Array.isArray(obj['NS.objects'])) {
-                return (obj['NS.objects'] as unknown[]).map(resolve);
-            }
-
-            if (obj['NS.keys'] && Array.isArray(obj['NS.keys'])) {
+            // An NSDictionary carries NS.objects as well, so it must be matched before NSArray.
+            if (Array.isArray(obj['NS.keys']) && Array.isArray(obj['NS.objects'])) {
                 const keys = (obj['NS.keys'] as unknown[]).map(resolve) as string[];
                 const values = (obj['NS.objects'] as unknown[]).map(resolve);
                 const result: Record<string, unknown> = {};
@@ -40,6 +37,10 @@ export function decode(archive: any): unknown {
                 }
 
                 return result;
+            }
+
+            if (Array.isArray(obj['NS.objects'])) {
+                return (obj['NS.objects'] as unknown[]).map(resolve);
             }
 
             /* Resolve plain-object values, excluding archive class metadata. */

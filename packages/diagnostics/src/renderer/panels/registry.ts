@@ -35,11 +35,10 @@ export type PanelSection = {
 
 /** The sidebar of a device, in reading order: what it is, what it does, what goes over the line. */
 export const PANEL_SECTIONS: readonly PanelSection[] = [
-    {title: 'Device', panels: ['overview', 'state', 'connection', 'pairing']},
-    {title: 'Control', panels: ['remote', 'appletv', 'playback', 'volume', 'multiroom', 'artwork']},
+    {title: 'Device', panels: ['overview', 'connection', 'pairing']},
+    {title: 'Control', panels: ['remote', 'nowplaying', 'playback', 'volume', 'multiroom', 'appletv']},
     {title: 'Streaming', panels: ['audio', 'raop']},
-    {title: 'Inspect', panels: ['statistics', 'traffic', 'events']},
-    {title: 'Raw', panels: ['raw-datastream', 'raw-companion', 'control-stream']}
+    {title: 'Inspect', panels: ['statistics', 'traffic', 'events', 'state', 'raw']}
 ];
 
 /** Register new panel folders through the SDK, media or tools registries, and a device panel in {@link PANEL_SECTIONS} too. */

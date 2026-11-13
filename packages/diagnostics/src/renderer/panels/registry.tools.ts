@@ -1,4 +1,4 @@
-import { Activity, Binary, Database, KeyRound, Radio, ToggleLeft } from 'lucide-react';
+import { Binary, Database, Gauge, LockKeyhole, Radar, ToggleLeft } from 'lucide-react';
 import type { PanelDefinition } from './registry';
 import { EncodingPanel } from './encoding/EncodingPanel';
 import { EncryptionPanel } from './encryption/EncryptionPanel';
@@ -9,7 +9,7 @@ import { StoragePanel } from './storage/StoragePanel';
 
 /* Tools also work in cells without a device. */
 export const TOOLS_PANELS: readonly PanelDefinition[] = [
-    {id: 'performance', title: 'Performance', icon: Activity, appliesTo: () => true, component: PerformancePanel},
+    {id: 'performance', title: 'Performance', icon: Gauge, appliesTo: () => true, component: PerformancePanel},
     {
         id: 'encoding',
         title: 'Encoding',
@@ -20,7 +20,7 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
     {
         id: 'encryption',
         title: 'Encryption',
-        icon: KeyRound,
+        icon: LockKeyhole,
         appliesTo: () => true,
         component: EncryptionPanel
     },
@@ -34,7 +34,7 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
     {
         id: 'mdns',
         title: 'mDNS',
-        icon: Radio,
+        icon: Radar,
         appliesTo: () => true,
         component: MdnsPanel
     },

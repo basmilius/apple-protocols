@@ -1,12 +1,13 @@
-import { Gamepad2, Image, ListTree, Play, Speaker, Tv, Volume2 } from 'lucide-react';
+import { Gamepad2, ListTree, Music, Play, Tv, Volume2 } from 'lucide-react';
+import { ICONS } from '@/ui/icons';
 import type { PanelDefinition } from './registry';
 import { RemotePanel } from './remote/RemotePanel';
+import { NowPlayingPanel } from './now-playing/NowPlayingPanel';
 import { PlaybackPanel } from './playback/PlaybackPanel';
 import { VolumePanel } from './volume/VolumePanel';
 import { MultiroomPanel } from './multiroom/MultiroomPanel';
 import { StatePanel } from './state/StatePanel';
 import { AppleTVPanel } from './appletv/AppleTVPanel';
-import { ArtworkPanel } from './artwork/ArtworkPanel';
 
 export const SDK_PANELS: readonly PanelDefinition[] = [
     {
@@ -15,6 +16,13 @@ export const SDK_PANELS: readonly PanelDefinition[] = [
         icon: Gamepad2,
         appliesTo: context => context.device !== null,
         component: RemotePanel
+    },
+    {
+        id: 'nowplaying',
+        title: 'Now playing',
+        icon: Music,
+        appliesTo: context => context.device !== null,
+        component: NowPlayingPanel
     },
     {
         id: 'playback',
@@ -33,16 +41,9 @@ export const SDK_PANELS: readonly PanelDefinition[] = [
     {
         id: 'multiroom',
         title: 'Multiroom',
-        icon: Speaker,
+        icon: ICONS.multiroom,
         appliesTo: context => context.device !== null,
         component: MultiroomPanel
-    },
-    {
-        id: 'artwork',
-        title: 'Artwork',
-        icon: Image,
-        appliesTo: context => context.device !== null,
-        component: ArtworkPanel
     },
     {
         id: 'state',

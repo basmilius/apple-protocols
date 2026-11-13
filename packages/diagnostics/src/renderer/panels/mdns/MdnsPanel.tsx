@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
-import clsx from 'clsx';
-import { ChevronDown, ChevronRight, Radio, Trash2, Zap } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, Trash2, Zap } from 'lucide-react';
+import { ListRow } from '@adecore/ui';
 import type { DiscoveryService, MdnsMode, MdnsRecord } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
-import { Badge, Button, CommandButton, EmptyState, TextInput, Icon, JsonView, KeyValue, KeyValueList, Section, Segmented, Select, type SelectItem, TabPanel, Tabs } from '@/ui';
-import { CopyButton } from '@/panels/toolkit/CopyButton';
+import { BoolValue, Button, CommandButton, CopyButton, CountPill, EmptyState, Field, FormError, Icon, ICONS, JsonView, KeyValue, KeyValueList, PanelBody, Pill, Section, Segmented, Select, type SelectItem, TextInput } from '@/ui';
 
 /* The service strings `@basmilius/apple-common` exports. The renderer cannot import the package. */
 const AIRPLAY = '_airplay._tcp.local';
@@ -24,76 +23,72 @@ const SERVICE_ITEMS: readonly SelectItem<DiscoveryService>[] = [
     {value: 'raop', label: 'RAOP'}
 ];
 
+const splitList = (text: string): string[] =>
+    text
+        .split(',')
+        .map(entry => entry.trim())
+        .filter(entry => entry.length > 0);
+
 function RecordRow({record}: { readonly record: MdnsRecord }) {
     const [open, setOpen] = useState(false);
     const txt = useMemo(() => Object.entries(record.txt), [record.txt]);
 
     return (
-        <>
-            <tr className={clsx('cursor-default border-b border-border-soft', open ? 'bg-surface-active' : 'hover:bg-surface-hover')} onClick={() => setOpen(!open)}>
-                <td className="w-6 pl-2 align-top">
-                    <Icon icon={open ? ChevronDown : ChevronRight} size={12}/>
-                </td>
-                <td className="truncate px-1 py-1 align-top text-xs">{record.name}</td>
-                <td className="mono w-40 px-1 py-1 align-top text-xs text-text-muted">
-                    {record.address}:{record.port}
-                </td>
-                <td className="w-24 px-1 py-1 align-top">
-                    <Badge tone="muted">{record.pairing}</Badge>
-                </td>
-                <td className="w-16 px-1 py-1 align-top">
-                    <Badge tone="accent">v{record.protocolVersion}</Badge>
-                </td>
-                <td className="w-14 px-1 py-1 text-right align-top">
-                    <span className="mono text-xs text-text-faint">{record.features?.flags.length ?? 0}</span>
-                </td>
-            </tr>
+        <div>
+            <ListRow variant="stacked" selected={open} render={<button type="button" aria-expanded={open}/>} className="w-full cursor-default" onClick={() => setOpen(!open)}>
+                <span className="flex min-w-0 items-center gap-1.5">
+                    <Icon icon={open ? ChevronDown : ChevronRight} size={12} className="shrink-0 text-text-faint"/>
+                    <span className="min-w-0 truncate text-xs text-text">{record.name}</span>
+                </span>
+                <span className="flex flex-wrap items-center gap-1.5 pl-4.5">
+                    <span className="mono text-text-muted">{`${record.address}:${record.port}`}</span>
+                    <Pill tone="muted">{record.pairing}</Pill>
+                    <Pill tone="accent">{`v${record.protocolVersion}`}</Pill>
+                    <Pill tone="muted" mono>{`${record.features?.flags.length ?? 0} flags`}</Pill>
+                </span>
+            </ListRow>
             {open && (
-                <tr className="border-b border-border-soft bg-surface-sunken">
-                    <td colSpan={6} className="px-3 py-2">
-                        <div className="flex flex-col gap-3">
-                            <KeyValueList>
-                                <KeyValue label="Service">{record.service}</KeyValue>
-                                <KeyValue label="FQDN">{record.fqdn}</KeyValue>
-                                <KeyValue label="Model">{record.model || '-'}</KeyValue>
-                                <KeyValue label="Model name" mono={false}>
-                                    {record.modelName || '-'}
-                                </KeyValue>
-                                <KeyValue label="Password">{record.passwordRequired ? 'required' : 'not required'}</KeyValue>
-                                <KeyValue label="Remote control">{record.remoteControl ? 'supported' : 'unsupported'}</KeyValue>
-                                {record.features && <KeyValue label="Features">{`${record.features.raw} (${record.features.mask})`}</KeyValue>}
-                            </KeyValueList>
-                            {record.features && record.features.flags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {record.features.flags.map(flag => (
-                                        <Badge key={flag} tone="idle" mono>
-                                            {flag}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            )}
-                            <div>
-                                <div className="mb-1 flex items-center gap-2">
-                                    <span className="text-xs text-text-faint">TXT ({txt.length})</span>
-                                    <CopyButton text={JSON.stringify(record.txt, null, 4)} label="Copy TXT"/>
-                                </div>
-                                <KeyValueList>
-                                    {txt.map(([key, value]) => (
-                                        <KeyValue key={key} label={key}>
-                                            {value}
-                                        </KeyValue>
-                                    ))}
-                                </KeyValueList>
-                            </div>
+                <div className="flex flex-col gap-3 px-2.5 pt-1 pb-3">
+                    <KeyValueList>
+                        <KeyValue label="Service">{record.service}</KeyValue>
+                        <KeyValue label="FQDN">{record.fqdn}</KeyValue>
+                        <KeyValue label="Model">{record.model || '-'}</KeyValue>
+                        <KeyValue label="Model name" mono={false}>{record.modelName || '-'}</KeyValue>
+                        <KeyValue label="Password">
+                            <BoolValue value={record.passwordRequired} yes="required" no="not required"/>
+                        </KeyValue>
+                        <KeyValue label="Remote control">
+                            <BoolValue value={record.remoteControl} yes="supported" no="unsupported"/>
+                        </KeyValue>
+                        {record.features && <KeyValue label="Features">{`${record.features.raw} (${record.features.mask})`}</KeyValue>}
+                    </KeyValueList>
+                    {record.features && record.features.flags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                            {record.features.flags.map(flag => (
+                                <Pill key={flag} tone="muted" mono>
+                                    {flag}
+                                </Pill>
+                            ))}
                         </div>
-                    </td>
-                </tr>
+                    )}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-muted">{`TXT (${txt.length})`}</span>
+                        <CopyButton text={JSON.stringify(record.txt, null, 4)} label="Copy TXT"/>
+                    </div>
+                    <KeyValueList>
+                        {txt.map(([key, value]) => (
+                            <KeyValue key={key} label={key}>
+                                {value}
+                            </KeyValue>
+                        ))}
+                    </KeyValueList>
+                </div>
             )}
-        </>
+        </div>
     );
 }
 
-function ScanTab() {
+function ScanView() {
     const [mode, setMode] = useState<MdnsMode>('multicast');
     const [services, setServices] = useState<readonly string[]>([AIRPLAY, COMPANION_LINK, RAOP]);
     const [custom, setCustom] = useState('');
@@ -111,23 +106,8 @@ function ScanTab() {
         setScanning(true);
         setError(null);
 
-        const extra = custom
-            .split(',')
-            .map(entry => entry.trim())
-            .filter(entry => entry.length > 0);
-
         try {
-            setRecords(
-                await invoke('mdns:scan', {
-                    mode,
-                    services: [...services, ...extra],
-                    hosts: hosts
-                        .split(',')
-                        .map(entry => entry.trim())
-                        .filter(entry => entry.length > 0),
-                    timeoutMs: Number(timeout) || 4000
-                })
-            );
+            setRecords(await invoke('mdns:scan', {mode, services: [...services, ...splitList(custom)], hosts: splitList(hosts), timeoutMs: Number(timeout) || 4000}));
         } catch (failure) {
             setError(messageOf(failure, 'The scan failed.'));
         } finally {
@@ -136,56 +116,60 @@ function ScanTab() {
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
-            <div className="shrink-0 border-b border-border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Segmented<MdnsMode>
-                        label="Scan mode"
-                        value={mode}
-                        onValueChange={setMode}
-                        items={[
-                            {value: 'multicast', label: 'Multicast'},
-                            {value: 'unicast', label: 'Unicast'}
-                        ]}
-                    />
-                    {KNOWN.map(entry => (
-                        <Button key={entry.service} size="sm" variant={services.includes(entry.service) ? 'primary' : 'secondary'} onClick={() => toggle(entry.service)}>
-                            {entry.label}
-                        </Button>
-                    ))}
-                    <TextInput label="Extra services" mono placeholder="_raop._tcp.local" value={custom} onChange={event => setCustom(event.target.value)} className="h-7 max-w-56"/>
-                    <TextInput label="Timeout in milliseconds" type="number" value={timeout} onChange={event => setTimeoutMs(event.target.value)} className="h-7 w-24"/>
-                    {mode === 'unicast' && (
-                        <TextInput label="Addresses" mono placeholder="192.168.1.10, 192.168.1.11" value={hosts} onChange={event => setHosts(event.target.value)} className="h-7 max-w-64"/>
-                    )}
-                    <span className="ml-auto flex items-center gap-2">
-                        <Badge tone="muted">{records.length}</Badge>
-                        <Button variant="primary" size="sm" disabled={scanning} onClick={() => void scan()}>
-                            <Icon icon={Radio} size={14}/>
-                            {scanning ? 'Scanning' : 'Scan'}
-                        </Button>
-                    </span>
-                </div>
-                {error !== null && <p className="mt-2 text-xs text-status-error">{error}</p>}
-            </div>
-            <div className="min-h-0 grow overflow-auto">
-                {records.length === 0 ? (
-                    <EmptyState>Nothing found yet. A multicast scan answers within the timeout; unicast needs an address.</EmptyState>
-                ) : (
-                    <table className="w-full table-fixed border-collapse">
-                        <tbody>
-                            {records.map(record => (
-                                <RecordRow key={`${record.service}:${record.id}:${record.address}`} record={record}/>
-                            ))}
-                        </tbody>
-                    </table>
+        <>
+            <Section title="Scan" icon={ICONS.mdns}>
+                <Segmented<MdnsMode>
+                    label="Scan mode"
+                    value={mode}
+                    onValueChange={setMode}
+                    items={[
+                        {value: 'multicast', label: 'Multicast'},
+                        {value: 'unicast', label: 'Unicast'}
+                    ]}
+                />
+                <Field label="Services">
+                    <div className="flex flex-wrap gap-1.5">
+                        {KNOWN.map(entry => (
+                            <Pill key={entry.service} tone={services.includes(entry.service) ? 'accent' : 'muted'} pressed={services.includes(entry.service)} onClick={() => toggle(entry.service)}>
+                                {entry.label}
+                            </Pill>
+                        ))}
+                    </div>
+                </Field>
+                <Field label="Extra services" hint="Comma separated.">
+                    <TextInput label="Extra services" mono placeholder="_raop._tcp.local" value={custom} onChange={event => setCustom(event.target.value)}/>
+                </Field>
+                {mode === 'unicast' && (
+                    <Field label="Addresses" hint="Comma separated; unicast asks each one directly.">
+                        <TextInput label="Addresses" mono placeholder="192.168.1.10, 192.168.1.11" value={hosts} onChange={event => setHosts(event.target.value)}/>
+                    </Field>
                 )}
-            </div>
-        </div>
+                <Field label="Timeout (ms)">
+                    <TextInput label="Timeout in milliseconds" type="number" value={timeout} onChange={event => setTimeoutMs(event.target.value)} className="w-28"/>
+                </Field>
+                <Button variant="primary" size="sm" disabled={scanning} onClick={() => void scan()}>
+                    <Icon icon={ICONS.mdns} size={14}/>
+                    {scanning ? 'Scanning' : 'Scan'}
+                </Button>
+                {error !== null && <FormError>{error}</FormError>}
+            </Section>
+
+            <Section title="Records" icon={Search} actions={<CountPill>{records.length}</CountPill>}>
+                {records.length === 0 ? (
+                    <EmptyState icon={ICONS.mdns}>Nothing found yet. A multicast scan answers within the timeout; unicast needs an address.</EmptyState>
+                ) : (
+                    <div className="-mx-2 flex flex-col gap-px">
+                        {records.map(record => (
+                            <RecordRow key={`${record.service}:${record.id}:${record.address}`} record={record}/>
+                        ))}
+                    </div>
+                )}
+            </Section>
+        </>
     );
 }
 
-function DiscoveryTab() {
+function DiscoveryView() {
     const [service, setService] = useState<DiscoveryService>('airplay');
     const [address, setAddress] = useState('');
     const [identifier, setIdentifier] = useState('');
@@ -195,70 +179,72 @@ function DiscoveryTab() {
     const keep = async (value: Promise<unknown>): Promise<unknown> => {
         const resolved = await value;
         setResult(resolved);
+
         return resolved;
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
-            <div className="flex flex-col gap-4 overflow-auto p-4">
-                <Section title="Wake" actions={<Badge tone="muted">4 ports</Badge>}>
-                    <div className="flex items-center gap-2">
-                        <TextInput label="Address to wake" mono placeholder="192.168.1.10" value={address} onChange={event => setAddress(event.target.value)} className="grow"/>
-                        <CommandButton label="Wake" icon={Zap} disabled={address.trim().length === 0} run={() => invoke('mdns:wake', {address: address.trim()})}/>
-                    </div>
-                </Section>
+        <>
+            <Section title="Wake" icon={Zap}>
+                <TextInput label="Address to wake" mono placeholder="192.168.1.10" value={address} onChange={event => setAddress(event.target.value)}/>
+                <div className="flex flex-wrap items-center gap-2">
+                    <CommandButton label="Knock on four ports" icon={Zap} tooltip="mdns:wake" disabled={address.trim().length === 0} run={() => invoke('mdns:wake', {address: address.trim()})}/>
+                </div>
+            </Section>
 
-                <Section title="Find" actions={<Select<DiscoveryService> label="Service" variant="ghost" size="sm" value={service} items={SERVICE_ITEMS} onValueChange={setService}/>}>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <CommandButton
-                            label="Find by address"
-                            disabled={address.trim().length === 0}
-                            run={() => keep(invoke('discoverytools:findByAddress', {service, address: address.trim()}))}
-                        />
-                        <CommandButton label="Discover all" run={() => keep(invoke('discoverytools:discoverAll', undefined))}/>
-                        <CommandButton label="Clear cache" icon={Trash2} run={() => invoke('discoverytools:clearCache', undefined)}/>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <TextInput label="Identifier" mono placeholder="Living-Room.local" value={identifier} onChange={event => setIdentifier(event.target.value)} className="grow"/>
-                        <TextInput label="Tries" type="number" value={tries} onChange={event => setTries(event.target.value)} className="w-20"/>
-                        <CommandButton
-                            label="Find until"
-                            disabled={identifier.trim().length === 0}
-                            run={() => keep(invoke('discoverytools:findUntil', {service, id: identifier.trim(), tries: Number(tries) || 10}))}
-                        />
-                    </div>
-                </Section>
+            <Section title="Find" icon={Search}>
+                <Field label="Service">
+                    <Select<DiscoveryService> label="Service" value={service} items={SERVICE_ITEMS} onValueChange={setService}/>
+                </Field>
+                <div className="flex flex-wrap items-center gap-2">
+                    <CommandButton label="Find by address" showResult={false} disabled={address.trim().length === 0} run={() => keep(invoke('discoverytools:findByAddress', {service, address: address.trim()}))}/>
+                    <CommandButton label="Discover all" showResult={false} run={() => keep(invoke('discoverytools:discoverAll', undefined))}/>
+                    <CommandButton label="Clear cache" icon={Trash2} run={() => invoke('discoverytools:clearCache', undefined)}/>
+                </div>
+                <Field label="Identifier">
+                    <TextInput label="Identifier" mono placeholder="Living-Room.local" value={identifier} onChange={event => setIdentifier(event.target.value)}/>
+                </Field>
+                <div className="flex items-center gap-2">
+                    <TextInput label="Tries" type="number" value={tries} onChange={event => setTries(event.target.value)} className="w-20"/>
+                    <CommandButton
+                        label="Find until"
+                        showResult={false}
+                        disabled={identifier.trim().length === 0}
+                        run={() => keep(invoke('discoverytools:findUntil', {service, id: identifier.trim(), tries: Number(tries) || 10}))}
+                    />
+                </div>
+            </Section>
 
-                <Section title="Result" actions={result === null ? null : <CopyButton text={JSON.stringify(result, null, 4)} label="Copy result"/>}>
-                    <div className="overflow-auto rounded-lg border border-border bg-code-bg p-2">
-                        {result === null ? <EmptyState className="py-4">Nothing run yet.</EmptyState> : <JsonView value={result} defaultDepth={3}/>}
+            <Section title="Result" icon={ICONS.result} actions={result !== null && <CopyButton text={JSON.stringify(result, null, 4)} label="Copy result"/>}>
+                {result === null ? (
+                    <EmptyState icon={ICONS.result}>Nothing run yet.</EmptyState>
+                ) : (
+                    <div className="overflow-auto rounded-lg bg-code-bg p-2">
+                        <JsonView value={result} defaultDepth={3}/>
                     </div>
-                </Section>
-            </div>
-        </div>
+                )}
+            </Section>
+        </>
     );
 }
 
 export function MdnsPanel(_props: PanelProps) {
-    const [tab, setTab] = useState('scan');
+    const [view, setView] = useState<'scan' | 'discovery'>('scan');
 
     return (
-        <Tabs
-            label="mDNS"
-            value={tab}
-            onValueChange={setTab}
-            className="h-full"
-            items={[
-                {value: 'scan', label: 'Scan'},
-                {value: 'discovery', label: 'Discovery'}
-            ]}
-        >
-            <TabPanel value="scan">
-                <ScanTab/>
-            </TabPanel>
-            <TabPanel value="discovery">
-                <DiscoveryTab/>
-            </TabPanel>
-        </Tabs>
+        <PanelBody>
+            <div className="col-span-full">
+                <Segmented<'scan' | 'discovery'>
+                    label="mDNS view"
+                    value={view}
+                    onValueChange={setView}
+                    items={[
+                        {value: 'scan', label: 'Scan', icon: ICONS.mdns},
+                        {value: 'discovery', label: 'Discovery', icon: Search}
+                    ]}
+                />
+            </div>
+            {view === 'scan' ? <ScanView/> : <DiscoveryView/>}
+        </PanelBody>
     );
 }

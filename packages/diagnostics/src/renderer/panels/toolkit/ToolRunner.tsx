@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Play } from 'lucide-react';
 import { type CallResult, isCallFailure, type RoundTripResult, type ToolInfo, type ToolInput } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
-import { Badge, Button, TextInput, Icon, JsonView, Select, type SelectItem, TextArea, Toggle } from '@/ui';
-import { CopyButton } from './CopyButton';
+import { Banner, Button, CopyButton, Field, Icon, ICONS, JsonView, Pill, Select, type SelectItem, StatusPill, TextArea, TextInput, Toggle } from '@/ui';
 
 type Values = Record<string, string | boolean>;
 
@@ -22,13 +21,10 @@ const isRoundTrip = (value: unknown): value is RoundTripResult =>
 
 function InputRow({input, value, onChange}: { readonly input: ToolInput; readonly value: string | boolean; readonly onChange: (next: string | boolean) => void }) {
     const options = useMemo<SelectItem<string>[]>(() => (input.options ?? []).map(option => ({value: option.value, label: option.label})), [input.options]);
+    const label = input.optional === true ? `${input.label} (optional)` : input.label;
 
     return (
-        <label className="flex flex-col gap-1">
-            <span className="flex items-baseline gap-2 text-xs text-text-muted">
-                {input.label}
-                {input.optional === true && <span className="text-xs text-text-faint">optional</span>}
-            </span>
+        <Field label={input.type === 'boolean' ? undefined : label} hint={input.hint}>
             {input.type === 'textarea' && <TextArea label={input.label} rows={input.rows ?? 4} placeholder={input.placeholder} value={String(value)} onChange={event => onChange(event.target.value)}/>}
             {input.type === 'boolean' && <Toggle label={input.label} checked={value === true} onCheckedChange={onChange}/>}
             {input.type === 'select' && <Select label={input.label} value={String(value)} items={options} onValueChange={onChange}/>}
@@ -42,26 +38,17 @@ function InputRow({input, value, onChange}: { readonly input: ToolInput; readonl
                     onChange={event => onChange(event.target.value)}
                 />
             )}
-            {input.hint && <span className="text-xs text-text-faint">{input.hint}</span>}
-        </label>
+        </Field>
     );
 }
 
 function RoundTripSummary({value}: { readonly value: RoundTripResult }) {
     return (
         <div className="flex flex-wrap items-center gap-1.5">
-            <Badge tone={value.ok ? 'idle' : 'warning'}>{value.ok ? 'byte for byte equal' : `differs at byte ${value.offset}`}</Badge>
-            <Badge tone="muted" mono>
-                in {value.inputLength} B
-            </Badge>
-            <Badge tone="muted" mono>
-                out {value.outputLength} B
-            </Badge>
-            {!value.ok && value.expected !== null && (
-                <Badge tone="muted" mono>
-                    expected {value.expected}, got {value.actual ?? 'nothing'}
-                </Badge>
-            )}
+            <StatusPill status={value.ok ? 'ok' : 'warning'}>{value.ok ? 'byte for byte equal' : `differs at byte ${value.offset}`}</StatusPill>
+            <Pill tone="muted" mono>{`in ${value.inputLength} B`}</Pill>
+            <Pill tone="muted" mono>{`out ${value.outputLength} B`}</Pill>
+            {!value.ok && value.expected !== null && <Pill tone="muted" mono>{`expected ${value.expected}, got ${value.actual ?? 'nothing'}`}</Pill>}
         </div>
     );
 }
@@ -92,8 +79,11 @@ export function ToolRunner({tool, deviceId}: { readonly tool: ToolInfo; readonly
     const text = value === null ? '' : JSON.stringify(value, null, 4);
 
     return (
-        <div className="flex flex-col gap-3">
-            <p className="text-xs text-text-muted">{tool.description}</p>
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+                <p className="text-xs text-text-muted">{tool.description}</p>
+                <span className="mono text-text-faint">{tool.id}</span>
+            </div>
             {tool.inputs.map(input => (
                 <InputRow key={input.name} input={input} value={values[input.name] ?? ''} onChange={next => setValues(current => ({...current, [input.name]: next}))}/>
             ))}
@@ -102,18 +92,14 @@ export function ToolRunner({tool, deviceId}: { readonly tool: ToolInfo; readonly
                     <Icon icon={Play} size={14}/>
                     {running ? 'Running' : 'Run'}
                 </Button>
-                {result !== null && !isCallFailure(result) && <Badge tone="muted">{result.durationMs} ms</Badge>}
+                {result !== null && !isCallFailure(result) && <Pill tone="muted" mono>{`${result.durationMs} ms`}</Pill>}
                 <span className="ml-auto">{value !== null && <CopyButton text={text} label="Copy result"/>}</span>
             </div>
-            {result !== null && isCallFailure(result) && (
-                <p className="mono rounded-lg border border-status-error/40 bg-status-error/10 px-2 py-1.5 text-xs text-status-error">
-                    {result.error.name}: {result.error.message}
-                </p>
-            )}
+            {result !== null && isCallFailure(result) && <Banner placement="inline" tone="error" icon={ICONS.warning} message={`${result.error.name}: ${result.error.message}`}/>}
             {value !== null && (
                 <div className="flex flex-col gap-2">
                     {isRoundTrip(value) && <RoundTripSummary value={value}/>}
-                    <div className="overflow-auto rounded-lg border border-border bg-code-bg p-2">
+                    <div className="overflow-auto rounded-lg bg-code-bg p-2">
                         <JsonView value={value} defaultDepth={3}/>
                     </div>
                 </div>

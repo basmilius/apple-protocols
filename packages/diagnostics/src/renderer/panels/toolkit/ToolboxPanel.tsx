@@ -41,11 +41,10 @@ export function ToolboxPanel({category, deviceId}: { readonly category: ToolCate
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-2">
-                <Select label="Tool" size="sm" value={selected.id} items={groups} onValueChange={setToolId} className="max-w-72"/>
-                <span className="mono ml-auto text-xs text-text-faint">{selected.id}</span>
+            <header className="shrink-0 border-b border-border p-3">
+                <Select label="Tool" value={selected.id} items={groups} onValueChange={setToolId} className="w-full"/>
             </header>
-            <div className="min-h-0 grow overflow-auto p-4">
+            <div className="min-h-0 grow overflow-auto p-3">
                 <ToolRunner tool={selected} deviceId={deviceId}/>
             </div>
         </div>

@@ -1,4 +1,5 @@
 import { createInstance } from 'i18next';
+import { CHARTS_NAMESPACE, CHARTS_RESOURCES } from '@adecore/charts';
 import type { FormatSource } from '@adecore/ui/format';
 
 export const i18n = createInstance();
@@ -9,6 +10,10 @@ await i18n.init({
     resources: {},
     interpolation: {escapeValue: false}
 });
+
+for (const [language, words] of Object.entries(CHARTS_RESOURCES)) {
+    i18n.addResourceBundle(language, CHARTS_NAMESPACE, words);
+}
 
 export const formatSource: FormatSource = {
     language: () => i18n.resolvedLanguage ?? i18n.language,

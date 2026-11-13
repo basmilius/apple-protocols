@@ -1,166 +1,86 @@
 import { create } from 'zustand';
-import { panelIds } from '@/panels/registry';
-import {
-    type CellAt,
-    type CellRef,
-    cleanLayout,
-    closeCell,
-    drop,
-    focusCell,
-    focusDirection,
-    resizeCells,
-    resizeColumns,
-    showIn,
-    singleLayout,
-    type SplitDirection,
-    type SplitLayout,
-    type SplitZone
-} from '@/shell/split';
 
-const KEY = 'diagnostics.layout';
+const KEY = 'diagnostics.workspace';
 
-const WELCOME: CellRef = {deviceId: null, panelId: 'welcome'};
+/** The panel a device opens on, and the one a stored choice falls back to when it no longer applies. */
+export const DEFAULT_PANEL = 'overview';
 
-export type ConsoleDock = 'right' | 'bottom';
+/** The rail's log console, next to the ids of the tools panels. */
+export const CONSOLE_TOOL = 'console';
 
-export const CONSOLE_SIZE: Record<ConsoleDock, { initial: number; min: number; max(): number }> = {
-    right: {initial: 420, min: 320, max: () => Math.max(320, window.innerWidth - 480)},
-    bottom: {initial: 280, min: 160, max: () => Math.max(160, window.innerHeight - 240)}
+export const SIDE_PANEL_SIZE = {
+    initial: 420,
+    min: 320,
+    max: (): number => Math.max(320, window.innerWidth - 640)
 };
 
-type LayoutState = {
-    layout: SplitLayout;
-    sidebarOpen: boolean;
-    consoleOpen: boolean;
-    consoleDock: ConsoleDock;
-    consoleSize: Record<ConsoleDock, number>;
-    expanded: readonly string[];
-    focusAt(at: CellAt): void;
-    focusStep(direction: SplitDirection): void;
-    dropAt(ref: CellRef, at: CellAt, zone: SplitZone): void;
-    show(ref: CellRef, at?: CellAt): void;
-    setCell(at: CellAt, ref: Partial<CellRef>): void;
-    close(at: CellAt): void;
-    split(direction: 'right' | 'down', at?: CellAt): void;
-    resizeColumn(index: number, before: number, after: number): void;
-    resizeCell(column: number, index: number, before: number, after: number): void;
-    toggleSidebar(): void;
-    toggleConsole(): void;
-    setConsoleDock(dock: ConsoleDock): void;
-    setConsoleSize(dock: ConsoleDock, size: number): void;
-    toggleExpanded(deviceId: string): void;
+type Stored = {
+    readonly deviceId: string | null;
+    readonly panels: Readonly<Record<string, string>>;
 };
 
-const restore = (): SplitLayout => {
+type LayoutState = Stored & {
+    tool: string | null;
+    sidePanelWidth: number;
+    selectDevice(deviceId: string | null): void;
+    show(panelId: string): void;
+    toggleTool(tool: string): void;
+    setSidePanelWidth(width: number): void;
+};
+
+const restore = (): Stored => {
     try {
-        const raw = localStorage.getItem(KEY);
+        const stored = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<Stored> | null;
 
-        if (raw === null) {
-            return singleLayout(WELCOME);
-        }
-
-        return cleanLayout(JSON.parse(raw) as SplitLayout, panelIds()) ?? singleLayout(WELCOME);
+        return {deviceId: stored?.deviceId ?? null, panels: stored?.panels ?? {}};
     } catch {
-        return singleLayout(WELCOME);
+        return {deviceId: null, panels: {}};
     }
 };
 
-const persist = (layout: SplitLayout): SplitLayout => {
-    localStorage.setItem(KEY, JSON.stringify(layout));
-    return layout;
+const restoreWidth = (): number => {
+    const stored = Number(localStorage.getItem('diagnostics.sidePanel.width'));
+
+    return Number.isFinite(stored) && stored >= SIDE_PANEL_SIZE.min ? stored : SIDE_PANEL_SIZE.initial;
 };
 
-const flag = (key: string, fallback: boolean): boolean => {
-    const value = localStorage.getItem(key);
-    return value === null ? fallback : value === '1';
-};
+/** The panel the selected device shows. Every device remembers its own. */
+export const currentPanel = (state: Stored): string => (state.deviceId === null ? DEFAULT_PANEL : (state.panels[state.deviceId] ?? DEFAULT_PANEL));
 
-const restoreDock = (): ConsoleDock => (localStorage.getItem('diagnostics.console.dock') === 'bottom' ? 'bottom' : 'right');
+export const useLayout = create<LayoutState>((set, get) => {
+    const save = (stored: Stored): void => {
+        localStorage.setItem(KEY, JSON.stringify(stored));
+        set(stored);
+    };
 
-const restoreSize = (dock: ConsoleDock): number => {
-    const bounds = CONSOLE_SIZE[dock];
-    const stored = Number(localStorage.getItem(`diagnostics.console.size.${dock}`));
-    return Number.isFinite(stored) && stored >= bounds.min ? stored : bounds.initial;
-};
+    return {
+        ...restore(),
+        tool: localStorage.getItem('diagnostics.tool'),
+        sidePanelWidth: restoreWidth(),
+        selectDevice(deviceId) {
+            save({deviceId, panels: get().panels});
+        },
+        show(panelId) {
+            const {deviceId, panels} = get();
 
-const restoreExpanded = (): string[] => {
-    try {
-        const raw = localStorage.getItem('diagnostics.sidebar.expanded');
-        return raw === null ? [] : (JSON.parse(raw) as string[]);
-    } catch {
-        return [];
-    }
-};
+            if (deviceId !== null) {
+                save({deviceId, panels: {...panels, [deviceId]: panelId}});
+            }
+        },
+        toggleTool(tool) {
+            const next = get().tool === tool ? null : tool;
 
-export const useLayout = create<LayoutState>((set, get) => ({
-    layout: restore(),
-    sidebarOpen: flag('diagnostics.sidebar', true),
-    consoleOpen: flag('diagnostics.console', false),
-    consoleDock: restoreDock(),
-    consoleSize: {right: restoreSize('right'), bottom: restoreSize('bottom')},
-    expanded: restoreExpanded(),
-    focusAt(at) {
-        set({layout: persist(focusCell(get().layout, at))});
-    },
-    focusStep(direction) {
-        set({layout: persist(focusDirection(get().layout, direction))});
-    },
-    dropAt(ref, at, zone) {
-        set({layout: persist(drop(get().layout, ref, at, zone))});
-    },
-    show(ref, at) {
-        set({layout: persist(showIn(get().layout, ref, at))});
-    },
-    setCell(at, ref) {
-        const layout = get().layout;
-        const cell = layout.columns[at.column]?.cells[at.cell];
+            if (next === null) {
+                localStorage.removeItem('diagnostics.tool');
+            } else {
+                localStorage.setItem('diagnostics.tool', next);
+            }
 
-        if (!cell) {
-            return;
+            set({tool: next});
+        },
+        setSidePanelWidth(sidePanelWidth) {
+            localStorage.setItem('diagnostics.sidePanel.width', String(sidePanelWidth));
+            set({sidePanelWidth});
         }
-
-        set({layout: persist(drop(layout, {deviceId: cell.deviceId, panelId: cell.panelId, ...ref}, at, 'center'))});
-    },
-    close(at) {
-        const next = closeCell(get().layout, at);
-        set({layout: persist(next ?? singleLayout(WELCOME))});
-    },
-    split(direction, at) {
-        const layout = get().layout;
-        const target = at ?? layout.focus;
-        const cell = layout.columns[target.column]?.cells[target.cell];
-        set({layout: persist(drop(layout, cell ? {deviceId: cell.deviceId, panelId: cell.panelId} : WELCOME, target, direction))});
-    },
-    resizeColumn(index, before, after) {
-        set({layout: persist(resizeColumns(get().layout, index, before, after))});
-    },
-    resizeCell(column, index, before, after) {
-        set({layout: persist(resizeCells(get().layout, column, index, before, after))});
-    },
-    toggleSidebar() {
-        const sidebarOpen = !get().sidebarOpen;
-        localStorage.setItem('diagnostics.sidebar', sidebarOpen ? '1' : '0');
-        set({sidebarOpen});
-    },
-    toggleConsole() {
-        const consoleOpen = !get().consoleOpen;
-        localStorage.setItem('diagnostics.console', consoleOpen ? '1' : '0');
-        set({consoleOpen});
-    },
-    setConsoleDock(consoleDock) {
-        localStorage.setItem('diagnostics.console.dock', consoleDock);
-        set({consoleDock, consoleOpen: true});
-    },
-    setConsoleSize(dock, size) {
-        localStorage.setItem(`diagnostics.console.size.${dock}`, String(size));
-        set({consoleSize: {...get().consoleSize, [dock]: size}});
-    },
-    toggleExpanded(deviceId) {
-        const current = get().expanded;
-        const expanded = current.includes(deviceId) ? current.filter(id => id !== deviceId) : [...current, deviceId];
-        localStorage.setItem('diagnostics.sidebar.expanded', JSON.stringify(expanded));
-        set({expanded});
-    }
-}));
-
-export { WELCOME };
+    };
+});

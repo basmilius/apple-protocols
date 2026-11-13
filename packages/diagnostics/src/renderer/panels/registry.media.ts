@@ -13,7 +13,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'pairing',
         title: 'Pairing',
         icon: KeyRound,
-        group: 'protocol',
         appliesTo: context => context.device !== null,
         component: PairingPanel
     },
@@ -21,7 +20,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'connection',
         title: 'Connection',
         icon: Cable,
-        group: 'protocol',
         appliesTo: context => context.device !== null,
         component: ConnectionPanel
     },
@@ -29,7 +27,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'audio',
         title: 'Audio',
         icon: Speaker,
-        group: 'media',
         appliesTo: context => context.device !== null && context.device.services.airplay !== null,
         component: AudioPanel
     },
@@ -37,7 +34,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'raop',
         title: 'RAOP',
         icon: Radio,
-        group: 'media',
         appliesTo: context => context.device !== null,
         component: RaopPanel
     },
@@ -45,7 +41,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'raw-datastream',
         title: 'Raw data stream',
         icon: Terminal,
-        group: 'protocol',
         appliesTo: context => context.device !== null && context.device.services.airplay !== null,
         component: RawDataStreamPanel
     },
@@ -53,7 +48,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'raw-companion',
         title: 'Raw Companion Link',
         icon: TvMinimalPlay,
-        group: 'protocol',
         appliesTo: context => context.device !== null && context.device.services.companionLink !== null,
         component: RawCompanionPanel
     },
@@ -61,7 +55,6 @@ export const MEDIA_PANELS: readonly PanelDefinition[] = [
         id: 'control-stream',
         title: 'Control stream',
         icon: Sliders,
-        group: 'protocol',
         appliesTo: context => context.device !== null && context.device.services.airplay !== null,
         component: ControlStreamPanel
     }

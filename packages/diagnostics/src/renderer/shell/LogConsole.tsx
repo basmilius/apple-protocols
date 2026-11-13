@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
-import { Copy, PanelBottom, PanelRight, Pause, Play, Trash2, X } from 'lucide-react';
+import { Copy, Pause, Play, Trash2 } from 'lucide-react';
 import { DEBUG_GROUPS, type DebugGroup, type LogEntry } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { useDevices } from '@/state/devices';
-import { useLayout } from '@/state/layout';
 import { useLogs } from '@/panels/hooks';
 import { Badge, BTN_GROUP, EmptyState, Field, IconButton, Select, type SelectItem } from '@/ui';
 import { LogDetail } from './LogDetail';
@@ -36,9 +35,6 @@ const isTyping = (target: EventTarget | null): boolean =>
 
 /* Virtualize the log buffer because rendering thousands of hex-dump rows would stall the window. */
 export function LogConsole() {
-    const toggleConsole = useLayout(state => state.toggleConsole);
-    const dock = useLayout(state => state.consoleDock);
-    const setConsoleDock = useLayout(state => state.setConsoleDock);
     const devices = useDevices(state => state.devices);
     const clear = useDevices(state => state.clearLogs);
     const [groups, setGroups] = useState<readonly DebugGroup[]>(DEBUG_GROUPS);
@@ -53,7 +49,6 @@ export function LogConsole() {
     const [copied, setCopied] = useState(false);
     const [stuck, setStuck] = useState(true);
     const scroller = useRef<HTMLDivElement>(null);
-    const bottom = dock === 'bottom';
 
     const deviceIds = useMemo(() => (deviceId === ALL ? undefined : [deviceId]), [deviceId]);
     const visible = useLogs({deviceIds, search});
@@ -178,13 +173,6 @@ export function LogConsole() {
                             void clear();
                         }}
                     />
-                    <IconButton
-                        icon={bottom ? PanelRight : PanelBottom}
-                        label={bottom ? 'Dock to the right' : 'Dock to the bottom'}
-                        size="sm"
-                        onClick={() => setConsoleDock(bottom ? 'right' : 'bottom')}
-                    />
-                    <IconButton icon={X} label="Close console" size="sm" onClick={toggleConsole}/>
                 </span>
             </header>
             <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-2 py-1.5">
@@ -207,9 +195,7 @@ export function LogConsole() {
             <div className="shrink-0 border-b border-border p-2">
                 <Field label="Filter log lines" placeholder="Filter" value={search} onChange={event => setSearch(event.target.value)} className="h-7"/>
             </div>
-            {/* Beside the grid the entry goes under the list; under the grid the list has width to
-                spare and the entry takes a column of its own. */}
-            <div className={clsx('flex min-h-0 grow', bottom ? 'flex-row' : 'flex-col')}>
+            <div className="flex min-h-0 grow flex-col">
                 <div className="relative min-h-0 min-w-0 grow">
                     <div ref={scroller} onScroll={onScroll} role="region" aria-label="Log messages" tabIndex={0} className="h-full overflow-auto bg-code-bg">
                         {shown.length === 0 ? (
@@ -267,7 +253,7 @@ export function LogConsole() {
                         deviceName={devices.find(device => device.id === detail.deviceId)?.name ?? null}
                         groupColor={GROUP_COLOR}
                         onClose={() => setDetailId(null)}
-                        className={bottom ? 'w-[420px] shrink-0 border-l border-border' : 'h-2/5 shrink-0 border-t border-border'}
+                        className="h-2/5 shrink-0 border-t border-border"
                     />
                 )}
             </div>

@@ -1,19 +1,17 @@
 import type { ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Activity, ArrowLeftRight, LayoutDashboard, Sparkles } from 'lucide-react';
+import { Activity, ArrowLeftRight, ChartColumn, LayoutDashboard } from 'lucide-react';
 import type { DiscoveredDeviceInfo, StateSnapshot } from '@shared/contract';
 import { EventsPanel } from './events/EventsPanel';
 import { OverviewPanel } from './overview/OverviewPanel';
+import { StatisticsPanel } from './statistics/StatisticsPanel';
 import { TrafficPanel } from './traffic/TrafficPanel';
-import { WelcomePanel } from './welcome/WelcomePanel';
 import { MEDIA_PANELS } from './registry.media';
 import { SDK_PANELS } from './registry.sdk';
 import { TOOLS_PANELS } from './registry.tools';
 
-export type PanelGroup = 'general' | 'protocol' | 'media' | 'tools';
-
 export type PanelProps = {
-    /* Null only for a panel that applies to no device, such as the welcome cell. */
+    /* Null only for a tool in the side panel, which belongs to no device. */
     readonly deviceId: string | null;
 };
 
@@ -26,33 +24,30 @@ export type PanelDefinition = {
     readonly id: string;
     readonly title: string;
     readonly icon: LucideIcon;
-    readonly group: PanelGroup;
     appliesTo(context: PanelContext): boolean;
     readonly component: ComponentType<PanelProps>;
 };
 
-export const PANEL_GROUP_LABELS: Record<PanelGroup, string> = {
-    general: 'General',
-    protocol: 'Protocol',
-    media: 'Media',
-    tools: 'Tools'
+export type PanelSection = {
+    readonly title: string;
+    readonly panels: readonly string[];
 };
 
-/** Register new panel folders through the SDK, media or tools registries. */
+/** The sidebar of a device, in reading order: what it is, what it does, what goes over the line. */
+export const PANEL_SECTIONS: readonly PanelSection[] = [
+    {title: 'Device', panels: ['overview', 'state', 'connection', 'pairing']},
+    {title: 'Control', panels: ['remote', 'appletv', 'playback', 'volume', 'multiroom', 'artwork']},
+    {title: 'Streaming', panels: ['audio', 'raop']},
+    {title: 'Inspect', panels: ['statistics', 'traffic', 'events']},
+    {title: 'Raw', panels: ['raw-datastream', 'raw-companion', 'control-stream']}
+];
+
+/** Register new panel folders through the SDK, media or tools registries, and a device panel in {@link PANEL_SECTIONS} too. */
 export const PANELS: readonly PanelDefinition[] = [
-    {
-        id: 'welcome',
-        title: 'Welcome',
-        icon: Sparkles,
-        group: 'general',
-        appliesTo: context => context.device === null,
-        component: WelcomePanel
-    },
     {
         id: 'overview',
         title: 'Overview',
         icon: LayoutDashboard,
-        group: 'general',
         appliesTo: context => context.device !== null,
         component: OverviewPanel
     },
@@ -60,7 +55,6 @@ export const PANELS: readonly PanelDefinition[] = [
         id: 'events',
         title: 'Events',
         icon: Activity,
-        group: 'protocol',
         appliesTo: context => context.device !== null,
         component: EventsPanel
     },
@@ -68,17 +62,19 @@ export const PANELS: readonly PanelDefinition[] = [
         id: 'traffic',
         title: 'Traffic',
         icon: ArrowLeftRight,
-        group: 'protocol',
         appliesTo: context => context.device !== null,
         component: TrafficPanel
+    },
+    {
+        id: 'statistics',
+        title: 'Statistics',
+        icon: ChartColumn,
+        appliesTo: context => context.device !== null,
+        component: StatisticsPanel
     },
     ...SDK_PANELS,
     ...MEDIA_PANELS,
     ...TOOLS_PANELS
 ];
-
-export const panelIds = (): string[] => PANELS.map(panel => panel.id);
-
-export const panelById = (id: string): PanelDefinition | null => PANELS.find(panel => panel.id === id) ?? null;
 
 export const panelsFor = (context: PanelContext): PanelDefinition[] => PANELS.filter(panel => panel.appliesTo(context));

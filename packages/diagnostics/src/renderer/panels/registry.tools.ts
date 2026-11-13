@@ -9,12 +9,11 @@ import { StoragePanel } from './storage/StoragePanel';
 
 /* Tools also work in cells without a device. */
 export const TOOLS_PANELS: readonly PanelDefinition[] = [
-    {id: 'performance', title: 'Performance', icon: Activity, group: 'tools', appliesTo: () => true, component: PerformancePanel},
+    {id: 'performance', title: 'Performance', icon: Activity, appliesTo: () => true, component: PerformancePanel},
     {
         id: 'encoding',
         title: 'Encoding',
         icon: Binary,
-        group: 'tools',
         appliesTo: () => true,
         component: EncodingPanel
     },
@@ -22,7 +21,6 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
         id: 'encryption',
         title: 'Encryption',
         icon: KeyRound,
-        group: 'tools',
         appliesTo: () => true,
         component: EncryptionPanel
     },
@@ -30,7 +28,6 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
         id: 'features',
         title: 'Feature flags',
         icon: ToggleLeft,
-        group: 'tools',
         appliesTo: () => true,
         component: FeaturesPanel
     },
@@ -38,7 +35,6 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
         id: 'mdns',
         title: 'mDNS',
         icon: Radio,
-        group: 'tools',
         appliesTo: () => true,
         component: MdnsPanel
     },
@@ -46,7 +42,6 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
         id: 'storage',
         title: 'Storage',
         icon: Database,
-        group: 'tools',
         appliesTo: () => true,
         component: StoragePanel
     }

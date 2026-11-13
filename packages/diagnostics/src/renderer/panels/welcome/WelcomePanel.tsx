@@ -1,39 +1,38 @@
-import { Monitor, MonitorSpeaker, Speaker } from 'lucide-react';
-import type { DeviceType } from '@shared/contract';
+import { MonitorSpeaker, RefreshCw } from 'lucide-react';
+import { ScrollArea } from '@adecore/ui';
 import { useDevices } from '@/state/devices';
 import { useLayout } from '@/state/layout';
 import { TOOLS_PANELS } from '@/panels/registry.tools';
-import { EmptyState, Icon, Kbd, Section, Tile } from '@/ui';
+import { DeviceIcon } from '@/shell/DeviceIcon';
+import { EmptyState, Icon, IconButton, Section, Tile } from '@/ui';
 
-const TYPE_ICON: Record<DeviceType, typeof Monitor> = {
-    appletv: Monitor,
-    homepod: Speaker,
-    'homepod-mini': Speaker,
-    unknown: MonitorSpeaker
-};
-
-/* Pointer capture focuses this cell before `show` chooses its target. */
 export function WelcomePanel() {
     const devices = useDevices(state => state.devices);
     const scanning = useDevices(state => state.scanning);
-    const show = useLayout(state => state.show);
+    const scan = useDevices(state => state.scan);
+    const selectDevice = useLayout(state => state.selectDevice);
+    const tool = useLayout(state => state.tool);
+    const toggleTool = useLayout(state => state.toggleTool);
 
     return (
-        <div className="flex h-full flex-col gap-5 overflow-auto p-4">
-            <Section title="Devices">
+        <ScrollArea className="h-full" viewportClassName="mx-auto flex w-full max-w-[1000px] flex-col gap-5 p-6">
+            <Section
+                title="Devices"
+                actions={<IconButton icon={RefreshCw} label="Rescan" size="sm" disabled={scanning} className={scanning ? 'animate-spin' : undefined} onClick={() => void scan(true)}/>}
+            >
                 {devices.length === 0 ? (
                     <EmptyState icon={<Icon icon={MonitorSpeaker} size={20}/>}>
-                        {scanning ? 'Looking for Apple TVs and HomePods.' : 'No devices found yet. Rescan in the sidebar to look again.'}
+                        {scanning ? 'Looking for Apple TVs and HomePods.' : 'No devices found yet. Rescan to look again.'}
                     </EmptyState>
                 ) : (
                     <div className="grid grid-cols-2 gap-2">
                         {devices.map(device => (
                             <Tile
                                 key={device.id}
-                                icon={<Icon icon={TYPE_ICON[device.deviceType]} size={16}/>}
+                                icon={<DeviceIcon device={device} size={16}/>}
                                 title={device.name}
                                 description={device.address}
-                                onClick={() => show({deviceId: device.id, panelId: 'overview'})}
+                                onClick={() => selectDevice(device.id)}
                             />
                         ))}
                     </div>
@@ -48,18 +47,15 @@ export function WelcomePanel() {
                             size="sm"
                             icon={<Icon icon={panel.icon} size={14}/>}
                             title={panel.title}
-                            onClick={() => show({deviceId: null, panelId: panel.id})}
+                            onClick={() => {
+                                if (tool !== panel.id) {
+                                    toggleTool(panel.id);
+                                }
+                            }}
                         />
                     ))}
                 </div>
             </Section>
-
-            <p className="flex flex-wrap items-center gap-2 text-2xs text-text-faint">
-                <Kbd>Mod+\</Kbd>
-                splits right
-                <Kbd>Mod+Shift+\</Kbd>
-                splits down
-            </p>
-        </div>
+        </ScrollArea>
     );
 }

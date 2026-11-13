@@ -28,11 +28,20 @@ let agent: AgentServer | null = null;
 let resuming = false;
 
 let window: BrowserWindow | null = null;
+let quitting = false;
 
+/* A terminal that closed before the app makes every later write fail with EIO or EPIPE, and an
+   unhandled stream error would take the process down on its way out. */
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
+
+/* While quitting the window still exists but its frame may be gone, and Electron logs each send to it. */
 const send = <C extends EventChannel>(channel: C, payload: EventMap[C]): void => {
-    if (window !== null && !window.isDestroyed()) {
-        window.webContents.send(channel, payload);
+    if (quitting || window === null || window.isDestroyed() || window.webContents.isDestroyed()) {
+        return;
     }
+
+    window.webContents.send(channel, payload);
 };
 
 const host: SessionHost = {
@@ -131,6 +140,11 @@ const startAgent = async (): Promise<void> => {
     }
 };
 
+// Chromium bounces a scroller at its end only on macOS by default; Windows and Linux get the same through this feature.
+if (process.platform !== 'darwin') {
+    app.commandLine.appendSwitch('enable-features', 'ElasticOverscroll');
+}
+
 app.whenReady().then(start);
 
 app.on('activate', () => {
@@ -149,6 +163,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+    quitting = true;
     void agent?.stop();
     void sessions.shutdown();
 });

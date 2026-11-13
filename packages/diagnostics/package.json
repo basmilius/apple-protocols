@@ -35,6 +35,7 @@
         "pack:dir": "bun run build && electron-builder --dir --publish never"
     },
     "devDependencies": {
+        "@adecore/charts": "^0.66.8",
         "@adecore/shell": "^0.66.8",
         "@adecore/ui": "^0.66.8",
         "@base-ui/react": "^1.9.0",

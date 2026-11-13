@@ -125,7 +125,7 @@ Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, C
 - Een paneel toevoegen: map onder `src/renderer/panels/<id>/` plus een regel in `registry.sdk.ts`, `registry.media.ts` of `registry.tools.ts`.
 - Logs komen via `reporter.setSink()` (common) met `deviceId` binnen, zonder console-patching.
 - Agent-bridge in `src/main/agent/` (`server.ts`, `guard.ts`, `resume.ts`), CLI in `cli/diag.ts`, gedeelde types in `src/shared/agent.ts`. `handle()` registreert elke handler ook voor `invoke()` in `ipc.ts`, dus een nieuw kanaal is vanzelf beschikbaar voor de agent. De bridge staat aan in dev, of met `--agent` / `DIAGNOSTICS_AGENT=1`.
-- Split grid (`src/renderer/shell/split.ts`): kolommen van cellen, max 3x3, een cel is `{ deviceId, panelId }`.
+- Shell (`src/renderer/shell`) staat op `Workspace` van `@adecore/ui`: device switcher in de top row, sidebar met de panelen van het gekozen device, rail met logconsole en tools als side panel. Er is één paneel tegelijk zichtbaar; `state/layout.ts` onthoudt per device welk. De sidebar-indeling staat in `PANEL_SECTIONS` (`panels/registry.ts`), een nieuw device-paneel moet daar ook in.
 
 ## Debuggen tegen een echt device (agent-loop)
 

@@ -62,7 +62,9 @@ export function createWindow(): BrowserWindow {
             preload: join(here, '../preload/index.mjs'),
             contextIsolation: true,
             nodeIntegration: false,
-            sandbox: false
+            sandbox: false,
+            // Electron leaves the elastic bounce of macOS off unless a window asks; a scroller then bounces at its end.
+            scrollBounce: true
         }
     });
 

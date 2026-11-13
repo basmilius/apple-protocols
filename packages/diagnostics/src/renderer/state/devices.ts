@@ -27,6 +27,10 @@ type DevicesState = {
     setLogsPaused(paused: boolean): void;
 };
 
+/* Discovery answers in the order the devices reply, which differs per scan. */
+const byName = (devices: readonly DiscoveredDeviceInfo[]): DiscoveredDeviceInfo[] =>
+    [...devices].sort((one, other) => one.name.localeCompare(other.name, undefined, {sensitivity: 'base', numeric: true}));
+
 const eventCapture = new Capture<DeviceEvent>(MAX_EVENTS);
 const logCapture = new Capture<LogEntry>(MAX_LOGS);
 const trafficCapture = new Capture<TrafficRecord>(1000);
@@ -57,7 +61,7 @@ export const useDevices = create<DevicesState>((set, get) => ({
         set({scanning: true});
 
         try {
-            set({devices: await invoke('discovery:scan', {rescan})});
+            set({devices: byName(await invoke('discovery:scan', {rescan}))});
         } finally {
             set({scanning: false});
         }
@@ -105,7 +109,7 @@ export const useDevices = create<DevicesState>((set, get) => ({
 
 /** Wires the pushes from main into the store. Called once, before the first render. */
 export async function startDevices(): Promise<void> {
-    on('discovery:changed', devices => useDevices.setState({devices}));
+    on('discovery:changed', devices => useDevices.setState({devices: byName(devices)}));
 
     on('device:snapshot', snapshot => {
         useDevices.setState(state => ({snapshots: {...state.snapshots, [snapshot.deviceId]: snapshot}}));

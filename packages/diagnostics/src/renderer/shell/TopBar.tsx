@@ -1,131 +1,118 @@
-import clsx from 'clsx';
-import { Check, Monitor, Moon, PanelBottom, PanelLeft, PanelLeftClose, PanelRight, Plug, PlugZap, Sun, Terminal } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { useMemo } from 'react';
+import { Home, KeyRound, Plug, PlugZap, RefreshCw } from 'lucide-react';
+import { ProjectSwitcher, ProjectSwitcherGroups, type ProjectSwitcherItem, WindowControlsSpacer, WorkspaceTopRow } from '@adecore/ui';
 import { useDevice } from '@/panels/hooks';
+import { useDevices } from '@/state/devices';
 import { useLayout } from '@/state/layout';
-import { useTheme, type ThemePreference } from '@/state/theme';
-import { panelById } from '@/panels/registry';
-import { Badge, BTN_GROUP, Button, ContextMenu, ContextMenuItem, Icon, Menu, MenuItem, Separator, shortcut, Tooltip } from '@/ui';
-import { cellAt } from './split';
+import type { PanelDefinition } from '@/panels/registry';
+import { Badge, Button, Icon, IconButton, MenuItem, MenuSeparator } from '@/ui';
+import { DeviceIcon } from './DeviceIcon';
 
-/* The traffic lights move under this bar as soon as the sidebar is out of the way. */
-const TRAFFIC_LIGHT_INSET = 80;
+/** Devices with a session come first in the menu, then the paired ones, then the rest. */
+type DeviceItem = ProjectSwitcherItem & {
+    readonly rank: 'session' | 'paired' | 'other';
+};
 
-const THEME_ITEMS: { value: ThemePreference; label: string; icon: LucideIcon }[] = [
-    {value: 'light', label: 'Light', icon: Sun},
-    {value: 'dark', label: 'Dark', icon: Moon},
-    {value: 'system', label: 'System', icon: Monitor}
-];
+function DeviceSwitcher() {
+    const devices = useDevices(state => state.devices);
+    const scanning = useDevices(state => state.scanning);
+    const scan = useDevices(state => state.scan);
+    const connect = useDevices(state => state.connect);
+    const disconnect = useDevices(state => state.disconnect);
+    const deviceId = useLayout(state => state.deviceId);
+    const selectDevice = useLayout(state => state.selectDevice);
+    const show = useLayout(state => state.show);
 
-function ThemeMenu() {
-    const preference = useTheme(state => state.preference);
-    const resolved = useTheme(state => state.resolved);
-    const setPreference = useTheme(state => state.setPreference);
-    const icon = preference === 'system' ? Monitor : resolved === 'dark' ? Moon : Sun;
+    const items = useMemo<DeviceItem[]>(
+        () =>
+            devices.map(device => {
+                const connected = device.session === 'connected';
+
+                return {
+                    rank: device.session !== 'disconnected' ? 'session' : device.paired.length > 0 ? 'paired' : 'other',
+                    id: device.id,
+                    name: device.name,
+                    icon: <DeviceIcon device={device}/>,
+                    hint: device.address,
+                    muted: device.session === 'disconnected',
+                    actions: (
+                        <>
+                            <MenuItem onClick={() => void (connected ? disconnect(device.id) : connect(device.id))}>
+                                <Icon icon={connected ? Plug : PlugZap} size={14}/>
+                                {connected ? 'Disconnect' : 'Connect'}
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => {
+                                    selectDevice(device.id);
+                                    show('pairing');
+                                }}
+                            >
+                                <Icon icon={KeyRound} size={14}/>
+                                Pairing
+                            </MenuItem>
+                        </>
+                    )
+                };
+            }),
+        [devices, connect, disconnect, selectDevice, show]
+    );
+
+    const select = (item: DeviceItem): void => selectDevice(item.id);
 
     return (
-        <Menu
-            align="end"
-            trigger={
-                <button type="button" aria-label="Theme" className="icon-btn cursor-default">
-                    <Icon icon={icon} size={16}/>
-                </button>
+        <ProjectSwitcher
+            label="Devices"
+            current={items.find(item => item.id === deviceId) ?? null}
+            projects={items.filter(item => item.rank === 'session')}
+            onSelect={select}
+            // The theme hides a separator that has no rows on one of its sides, so an empty group leaves no line.
+            before={
+                <>
+                    <ProjectSwitcherGroups projects={items.filter(item => item.rank === 'paired')} onSelect={select}/>
+                    <MenuSeparator/>
+                    <ProjectSwitcherGroups projects={items.filter(item => item.rank === 'other')} onSelect={select}/>
+                </>
             }
         >
-            {THEME_ITEMS.map(item => (
-                <MenuItem key={item.value} onClick={() => setPreference(item.value)}>
-                    <span className="grid size-4 shrink-0 place-items-center">{item.value === preference && <Icon icon={Check} size={14}/>}</span>
-                    <Icon icon={item.icon} size={14}/>
-                    {item.label}
-                </MenuItem>
-            ))}
-        </Menu>
+            <MenuItem disabled={scanning} onClick={() => void scan(true)}>
+                <Icon icon={RefreshCw} size={14}/>
+                Rescan
+            </MenuItem>
+        </ProjectSwitcher>
     );
 }
 
-function ConsoleButton() {
-    const consoleOpen = useLayout(state => state.consoleOpen);
-    const consoleDock = useLayout(state => state.consoleDock);
-    const toggleConsole = useLayout(state => state.toggleConsole);
-    const setConsoleDock = useLayout(state => state.setConsoleDock);
+export function TopBar({panel}: { readonly panel: PanelDefinition | null }) {
+    const deviceId = useLayout(state => state.deviceId);
+    const selectDevice = useLayout(state => state.selectDevice);
+    const {device, snapshot, connected, busy, connect, disconnect} = useDevice(deviceId);
 
     return (
-        <ContextMenu
-            trigger={
-                <button type="button" aria-label="Log console" data-active={String(consoleOpen)} className="icon-btn cursor-default" onClick={toggleConsole}>
-                    <Icon icon={Terminal} size={16}/>
-                </button>
-            }
+        <WorkspaceTopRow
+            slotless
+            // The sidebar stands at the left edge while a device is open, and clears the window's controls itself.
+            leading={device === null ? <WindowControlsSpacer/> : <IconButton icon={Home} label="Back to the start screen" onClick={() => selectDevice(null)}/>}
         >
-            <ContextMenuItem onClick={() => setConsoleDock('right')}>
-                <span className="grid size-4 shrink-0 place-items-center">{consoleDock === 'right' && <Icon icon={Check} size={14}/>}</span>
-                <Icon icon={PanelRight} size={14}/>
-                Dock to the right
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => setConsoleDock('bottom')}>
-                <span className="grid size-4 shrink-0 place-items-center">{consoleDock === 'bottom' && <Icon icon={Check} size={14}/>}</span>
-                <Icon icon={PanelBottom} size={14}/>
-                Dock to the bottom
-            </ContextMenuItem>
-        </ContextMenu>
-    );
-}
-
-/* Interactive controls must opt out of this toolbar's window drag region. */
-export function TopBar() {
-    const layout = useLayout(state => state.layout);
-    const sidebarOpen = useLayout(state => state.sidebarOpen);
-    const toggleSidebar = useLayout(state => state.toggleSidebar);
-    const cell = cellAt(layout, layout.focus);
-    const panel = cell === null ? null : panelById(cell.panelId);
-    const {device, snapshot, connected, busy, connect, disconnect} = useDevice(cell?.deviceId ?? null);
-
-    return (
-        <header
-            className="app-drag flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2 text-xs text-text-muted"
-            style={sidebarOpen ? undefined : {paddingLeft: TRAFFIC_LIGHT_INSET}}
-        >
-            <Tooltip label={sidebarOpen ? 'Hide the sidebar' : 'Show the sidebar'} kbd={shortcut('Mod+B')}>
-                <button
-                    type="button"
-                    aria-label={sidebarOpen ? 'Hide the sidebar' : 'Show the sidebar'}
-                    aria-expanded={sidebarOpen}
-                    className="icon-btn cursor-default"
-                    onClick={toggleSidebar}
-                >
-                    <Icon icon={sidebarOpen ? PanelLeftClose : PanelLeft} size={16}/>
-                </button>
-            </Tooltip>
-            <Separator/>
-            <div className="flex min-w-0 grow items-center gap-2">
-                {device && <span className="truncate text-sm font-medium text-text">{device.name}</span>}
-                {device && panel && <span className="shrink-0 text-text-faint">/</span>}
-                {panel && (
-                    <span className="flex min-w-0 shrink-0 items-center gap-1.5">
+            <DeviceSwitcher/>
+            {device && panel && (
+                <>
+                    <span className="text-text-faint">/</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
                         <Icon icon={panel.icon} size={14}/>
                         <span className="truncate">{panel.title}</span>
                     </span>
-                )}
-            </div>
+                </>
+            )}
+            <span className="grow"/>
             {device && (
                 <>
                     <Badge tone={connected ? 'idle' : 'muted'}>{snapshot?.connection.status ?? 'disconnected'}</Badge>
-                    <Button
-                        variant={connected ? 'secondary' : 'primary'}
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void (connected ? disconnect() : connect())}
-                    >
+                    <Button variant={connected ? 'secondary' : 'primary'} size="sm" disabled={busy} onClick={() => void (connected ? disconnect() : connect())}>
                         <Icon icon={connected ? Plug : PlugZap} size={14}/>
                         {connected ? 'Disconnect' : 'Connect'}
                     </Button>
-                    <Separator/>
                 </>
             )}
-            <div className={clsx(BTN_GROUP, 'toolbar-overlay-inset')}>
-                <ThemeMenu/>
-                <ConsoleButton/>
-            </div>
-        </header>
+        </WorkspaceTopRow>
     );
 }

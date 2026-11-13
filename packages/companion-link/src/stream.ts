@@ -307,8 +307,8 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
             }
         }
 
-        // Pairing responses have no _x.
-        if (this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
+        // Pairing responses have no _x; other frames can arrive while pairing is pending.
+        if (PairingFrameTypes.includes(type) && this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
             const [resolve] = this.#queue.get(PAIRING_QUEUE_IDENTIFIER)!;
             resolve([header, payload]);
             this.#queue.delete(PAIRING_QUEUE_IDENTIFIER);

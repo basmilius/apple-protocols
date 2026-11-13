@@ -432,12 +432,11 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
         this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Began, startX, startY);
 
-        for (let i = 1; i < steps; i++) {
+        for (let i = 1; i <= steps; i++) {
             await waitFor(stepDuration);
             this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Moved, Math.round(startX + deltaX * i), Math.round(startY + deltaY * i));
         }
 
-        await waitFor(stepDuration);
         this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Ended, endX, endY);
     }
 

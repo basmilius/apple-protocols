@@ -259,7 +259,7 @@ export function ResultBlock({label, run, tooltip, disabled, defaultDepth = 2, ac
                 {actions}
             </Row>
             {value !== undefined && (
-                <div className="relative max-h-64 overflow-auto rounded-lg border border-border bg-code-bg p-2">
+                <div className="relative max-h-64 overflow-auto rounded-lg bg-code-bg p-2">
                     <span className="absolute top-1 right-1 flex items-center">
                         <CopyButton text={JSON.stringify(value, null, 4) ?? ''} label="Copy result"/>
                         <IconButton icon={X} label="Close result" size="sm" onClick={() => setValue(undefined)}/>

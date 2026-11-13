@@ -39,7 +39,7 @@ export function EventFeed({deviceId, title, empty, sources, names, limit = 20, w
             {feed.length === 0 ? (
                 <p className="text-xs text-text-muted">{empty}</p>
             ) : (
-                <div className="max-h-64 overflow-auto rounded-lg border border-border">
+                <div className="max-h-64 overflow-auto rounded-lg bg-surface-sunken">
                     {feed.map(event => (
                         <div key={event.sequence} className="border-b border-border-soft last:border-b-0">
                             <button

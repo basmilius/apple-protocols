@@ -34,7 +34,7 @@ export function StatusPill({status, icon, mono, children}: StatusPillProps) {
     const glyph = icon ?? ICONS[status];
 
     return (
-        <Pill size="sm" tone={TONES[status]} mono={mono} icon={status === 'busy' && icon === undefined ? <Spinner size={11}/> : glyph && <Icon icon={glyph} size={12}/>}>
+        <Pill tone={TONES[status]} mono={mono} icon={status === 'busy' && icon === undefined ? <Spinner size={12}/> : glyph && <Icon icon={glyph} size={12}/>}>
             {children}
         </Pill>
     );
@@ -43,7 +43,7 @@ export function StatusPill({status, icon, mono, children}: StatusPillProps) {
 /** A count or a plain fact in a section header. */
 export function CountPill({children}: { readonly children: ReactNode }) {
     return (
-        <Pill size="sm" tone="muted" mono>
+        <Pill tone="muted" mono>
             {children}
         </Pill>
     );

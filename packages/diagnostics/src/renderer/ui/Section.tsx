@@ -28,8 +28,8 @@ export function Section({title, icon, actions, wide = false, collapsible = false
     );
 
     return (
-        <section className={clsx('flex min-w-0 flex-col gap-2', wide && 'col-span-full', className)}>
-            <header className="flex h-6 shrink-0 items-center gap-2">
+        <section className={clsx('flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', wide && 'col-span-full', className)}>
+            <header className="flex min-h-7 shrink-0 flex-wrap items-center gap-2">
                 {collapsible ? (
                     <button type="button" aria-expanded={open} className="flex min-w-0 cursor-default items-center hover:text-text" onClick={() => setOpen(!open)}>
                         {label}

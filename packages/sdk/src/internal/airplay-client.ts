@@ -141,6 +141,20 @@ export class AirPlayClient {
     }
 
     /**
+     * Episode title for TV show content from the active player.
+     */
+    get episodeTitle(): string {
+        return this.activePlayer?.episodeTitle ?? '';
+    }
+
+    /**
+     * Localized content rating of the current content from the active player.
+     */
+    get contentRating(): string {
+        return this.activePlayer?.contentRating ?? '';
+    }
+
+    /**
      * Media type of the current content from the active player.
      */
     get mediaType(): Proto.ContentItemMetadata_MediaType {

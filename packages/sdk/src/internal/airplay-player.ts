@@ -1,4 +1,5 @@
 import { Proto } from '@basmilius/apple-airplay';
+import { type AdditionalMetadata, decodeAdditionalMetadata } from './additional-metadata';
 
 /**
  * Offset in seconds between the Cocoa epoch (2001-01-01) and the Unix epoch (1970-01-01).
@@ -129,7 +130,7 @@ export class AirPlayPlayer {
      * Genre of the current content item.
      */
     get genre(): string {
-        return this.currentItemMetadata?.genre || '';
+        return this.currentItemMetadata?.genre || this.#additionalMetadata?.genre || '';
     }
 
     /**
@@ -143,14 +144,28 @@ export class AirPlayPlayer {
      * Season number for TV show content, or 0 if not applicable.
      */
     get seasonNumber(): number {
-        return this.currentItemMetadata?.seasonNumber || 0;
+        return this.currentItemMetadata?.seasonNumber || this.#additionalMetadata?.seasonNumber || 0;
     }
 
     /**
      * Episode number for TV show content, or 0 if not applicable.
      */
     get episodeNumber(): number {
-        return this.currentItemMetadata?.episodeNumber || 0;
+        return this.currentItemMetadata?.episodeNumber || this.#additionalMetadata?.episodeNumber || 0;
+    }
+
+    /**
+     * Episode title for TV show content. Only the Apple TV app sends it, in its archived now-playing info.
+     */
+    get episodeTitle(): string {
+        return this.#additionalMetadata?.episodeTitle || '';
+    }
+
+    /**
+     * Localized content rating of the current content item (e.g. "12+").
+     */
+    get contentRating(): string {
+        return this.currentItemMetadata?.localizedContentRating || this.#additionalMetadata?.contentRating || '';
     }
 
     /**
@@ -215,8 +230,9 @@ export class AirPlayPlayer {
         const npi = this.#nowPlayingInfo;
         const meta = this.currentItemMetadata;
 
-        const npiValid = npi?.elapsedTime != null && npi.timestamp != null && npi.timestamp !== 0;
-        const metaValid = meta?.elapsedTime != null && meta.elapsedTimeTimestamp != null && meta.elapsedTimeTimestamp !== 0;
+        // Devices occasionally send NaN, which would poison the extrapolation.
+        const npiValid = Number.isFinite(npi?.elapsedTime) && Number.isFinite(npi?.timestamp) && npi.timestamp !== 0;
+        const metaValid = Number.isFinite(meta?.elapsedTime) && Number.isFinite(meta?.elapsedTimeTimestamp) && meta.elapsedTimeTimestamp !== 0;
 
         if (!npiValid && !metaValid) {
             return npi?.elapsedTime || meta?.elapsedTime || 0;
@@ -352,6 +368,10 @@ export class AirPlayPlayer {
      */
     get currentItemLyrics(): Proto.LyricsItem | null {
         return this.currentItem?.lyrics ?? null;
+    }
+
+    get #additionalMetadata(): AdditionalMetadata | null {
+        return decodeAdditionalMetadata(this.currentItemMetadata?.nowPlayingInfoData);
     }
 
     readonly #identifier: string;

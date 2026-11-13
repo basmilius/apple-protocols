@@ -46,6 +46,26 @@ export class StateController extends EventEmitter<StateEventMap> {
         return this.#state.nowPlayingClient?.genre ?? '';
     }
 
+    get seriesName(): string {
+        return this.#state.nowPlayingClient?.seriesName ?? '';
+    }
+
+    get seasonNumber(): number {
+        return this.#state.nowPlayingClient?.seasonNumber ?? 0;
+    }
+
+    get episodeNumber(): number {
+        return this.#state.nowPlayingClient?.episodeNumber ?? 0;
+    }
+
+    get episodeTitle(): string {
+        return this.#state.nowPlayingClient?.episodeTitle ?? '';
+    }
+
+    get contentRating(): string {
+        return this.#state.nowPlayingClient?.contentRating ?? '';
+    }
+
     get duration(): number {
         return this.#state.nowPlayingClient?.duration ?? 0;
     }

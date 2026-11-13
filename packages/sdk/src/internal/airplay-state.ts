@@ -26,6 +26,8 @@ type NowPlayingSnapshot = {
     seriesName: string;
     seasonNumber: number;
     episodeNumber: number;
+    episodeTitle: string;
+    contentRating: string;
     contentIdentifier: string;
     artworkId: string | null;
     hasArtworkUrl: boolean;
@@ -869,6 +871,8 @@ export class AirPlayState extends EventEmitter<EventMap> {
             seriesName: player?.seriesName ?? '',
             seasonNumber: player?.seasonNumber ?? 0,
             episodeNumber: player?.episodeNumber ?? 0,
+            episodeTitle: player?.episodeTitle ?? '',
+            contentRating: player?.contentRating ?? '',
             contentIdentifier: player?.contentIdentifier ?? '',
             artworkId: player?.artworkId ?? null,
             hasArtworkUrl: player?.artworkUrl() != null,
@@ -926,6 +930,8 @@ export class AirPlayState extends EventEmitter<EventMap> {
             && a.seriesName === b.seriesName
             && a.seasonNumber === b.seasonNumber
             && a.episodeNumber === b.episodeNumber
+            && a.episodeTitle === b.episodeTitle
+            && a.contentRating === b.contentRating
             && a.contentIdentifier === b.contentIdentifier
             && a.artworkId === b.artworkId
             && a.hasArtworkUrl === b.hasArtworkUrl

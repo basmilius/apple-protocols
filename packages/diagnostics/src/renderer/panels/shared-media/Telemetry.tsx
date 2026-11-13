@@ -27,7 +27,7 @@ export function Sparkline({label, value, format}: SparklineProps) {
     const points = history.map((entry, index) => `${(index / Math.max(1, HISTORY - 1)) * 100},${24 - (entry / max) * 22}`).join(' ');
 
     return (
-        <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface-sunken p-2">
+        <div className="flex flex-col gap-1 rounded-lg bg-surface-sunken p-2">
             <div className="flex items-baseline justify-between gap-2">
                 <span className="text-xs text-text-muted">{label}</span>
                 <span className="mono text-xs tabular-nums text-text">{format ? format(value) : value}</span>
@@ -41,9 +41,9 @@ export function Sparkline({label, value, format}: SparklineProps) {
 
 export function StatGrid({entries}: { readonly entries: readonly [string, string][] }) {
     return (
-        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-1.5 @[560px]:grid-cols-3">
             {entries.map(([label, value]) => (
-                <div key={label} className="rounded-lg border border-border bg-surface-sunken px-2 py-1.5">
+                <div key={label} className="rounded-lg bg-surface-sunken px-2 py-1.5">
                     <div className="text-xs text-text-muted">{label}</div>
                     <div className="mono truncate text-xs tabular-nums text-text">{value}</div>
                 </div>

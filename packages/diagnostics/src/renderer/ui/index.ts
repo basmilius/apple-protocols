@@ -26,7 +26,6 @@ export {
 export { ConfirmDialog } from '@adecore/ui/settings';
 export { CommandButton } from './CommandButton';
 export { ControlRow } from './ControlRow';
-export { Dialog } from './Dialog';
 export { ICONS } from './icons';
 export { JsonView } from './JsonView';
 export { Kbd, shortcut } from './Kbd';
@@ -38,7 +37,6 @@ export { Segmented, type SegmentedItem } from './Segmented';
 export { Select, type SelectGroup, type SelectItem } from './Select';
 export { Slider } from './Slider';
 export { BoolValue, CountPill, type Status, StatusBar, StatusPill } from './Status';
-export { TabPanel, Tabs, type TabItem } from './Tabs';
 export { TextArea } from './TextArea';
 export { TextInput } from './TextInput';
 export { BRAND, BTN_GROUP, META, SECTION_LABEL } from './classes';

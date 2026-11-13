@@ -36,60 +36,6 @@ export const VOLUME_ADJUSTMENTS: readonly NamedValue[] = [
     {name: 'DecrementLarge', value: 6}
 ];
 
-/** The subset of `Proto.Command` the free-form sender offers by name. */
-export const COMMANDS: readonly NamedValue[] = [
-    {name: 'Play', value: 1},
-    {name: 'Pause', value: 2},
-    {name: 'TogglePlayPause', value: 3},
-    {name: 'Stop', value: 4},
-    {name: 'NextTrack', value: 5},
-    {name: 'PreviousTrack', value: 6},
-    {name: 'AdvanceShuffleMode', value: 7},
-    {name: 'AdvanceRepeatMode', value: 8},
-    {name: 'BeginFastForward', value: 9},
-    {name: 'EndFastForward', value: 10},
-    {name: 'BeginRewind', value: 11},
-    {name: 'EndRewind', value: 12},
-    {name: 'SkipForward', value: 18},
-    {name: 'SkipBackward', value: 19},
-    {name: 'ChangePlaybackRate', value: 20},
-    {name: 'RateTrack', value: 21},
-    {name: 'LikeTrack', value: 22},
-    {name: 'DislikeTrack', value: 23},
-    {name: 'BookmarkTrack', value: 24},
-    {name: 'NextChapter', value: 25},
-    {name: 'PreviousChapter', value: 26},
-    {name: 'NextAlbum', value: 27},
-    {name: 'PreviousAlbum', value: 28},
-    {name: 'NextPlaylist', value: 29},
-    {name: 'PreviousPlaylist', value: 30},
-    {name: 'BanTrack', value: 31},
-    {name: 'AddTrackToWishList', value: 32},
-    {name: 'RemoveTrackFromWishList', value: 33},
-    {name: 'NextInContext', value: 34},
-    {name: 'PreviousInContext', value: 35},
-    {name: 'ResetPlaybackTimeout', value: 41},
-    {name: 'SeekToPlaybackPosition', value: 45},
-    {name: 'ChangeRepeatMode', value: 46},
-    {name: 'ChangeShuffleMode', value: 47},
-    {name: 'SetPlaybackQueue', value: 48},
-    {name: 'AddNowPlayingItemToLibrary', value: 49},
-    {name: 'CreateRadioStation', value: 50},
-    {name: 'AddItemToLibrary', value: 51},
-    {name: 'EnableLanguageOption', value: 53},
-    {name: 'DisableLanguageOption', value: 54},
-    {name: 'Reshuffle', value: 63},
-    {name: 'SetRepeatMode', value: 64},
-    {name: 'SetShuffleMode', value: 65},
-    {name: 'SetSleepTimer', value: 66},
-    {name: 'SetVolume', value: 67},
-    {name: 'AdjustVolume', value: 68},
-    {name: 'InitiatePlayback', value: 69},
-    {name: 'GetPlaybackQueue', value: 71},
-    {name: 'GetPlaybackState', value: 72},
-    {name: 'EnhanceDialogue', value: 77}
-];
-
 /** Page and usage of the keys `RemoteController` sends, so the raw primitives have a starting point. */
 export const HID_PRESETS: readonly { readonly name: string; readonly page: number; readonly usage: number }[] = [
     {name: 'Up', page: 1, usage: 0x8c},
@@ -171,7 +117,6 @@ export const MEDIA_CONTROL_COMMANDS: readonly string[] = [
 export const SHUFFLE_MODE_ITEMS = itemsOf(SHUFFLE_MODES);
 export const REPEAT_MODE_ITEMS = itemsOf(REPEAT_MODES);
 export const VOLUME_ADJUSTMENT_ITEMS = itemsOf(VOLUME_ADJUSTMENTS);
-export const COMMAND_ITEMS = itemsOf(COMMANDS);
 export const COMPANION_HID_ITEMS: readonly SelectItem<string>[] = COMPANION_HID_COMMANDS.map(name => ({value: name, label: name}));
 export const BUTTON_PRESS_ITEMS: readonly SelectItem<string>[] = BUTTON_PRESS_TYPES.map(name => ({value: name, label: name}));
 export const MEDIA_CONTROL_ITEMS: readonly SelectItem<string>[] = MEDIA_CONTROL_COMMANDS.map(name => ({value: name, label: name}));

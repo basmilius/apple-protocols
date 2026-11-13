@@ -30,7 +30,7 @@ export function Sidebar({sections, active}: { readonly sections: readonly Select
         <nav aria-label="Panels" className="flex h-full flex-col">
             <div className="app-drag flex h-12 shrink-0 items-center pr-2">
                 <WindowControlsSpacer/>
-                <span className={clsx(BRAND, 'pointer-events-none pl-3')}>DIAGNOSTICS</span>
+                <span className={clsx(BRAND, 'pointer-events-none pl-3')}>Diagnostics</span>
             </div>
             <ScrollArea className="min-h-0 grow" viewportClassName="flex flex-col gap-3 px-2 pb-2">
                 {sections.map(section => (

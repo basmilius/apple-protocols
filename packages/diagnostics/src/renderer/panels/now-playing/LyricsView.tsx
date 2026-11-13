@@ -109,7 +109,7 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
                     </div>
                 </div>
                 {timed && !follow && <button type="button" onClick={() => setFollow(true)} className="absolute bottom-5 left-1/2 flex min-h-10 -translate-x-1/2 items-center gap-2 rounded-full bg-lyrics-foreground px-4 text-xs font-semibold text-lyrics-shadow shadow-lg transition-transform active:scale-[.96] motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lyrics-foreground"><ArrowDown size={14}/>Follow playback</button>}
-                {timed && follow && <p className="pointer-events-none absolute right-6 bottom-6 text-[10px] font-medium tracking-[.16em] text-lyrics-foreground/40 uppercase">Live lyrics</p>}
+                {timed && follow && <p className="pointer-events-none absolute right-6 bottom-6 text-[10px] font-medium text-lyrics-foreground/40">Live lyrics</p>}
             </div>
         </section>
     );

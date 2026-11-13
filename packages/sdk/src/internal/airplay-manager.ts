@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { type DataStream, DataStreamMessage, type EventStream, Proto, Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, ConnectionClosedError, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AirPlayFeatureFlags, type AudioSource, AudioSourceSession, ConnectionClosedError, type DeviceIdentity, type DiscoveryResult, type TimingServer } from '@basmilius/apple-common';
 import { AirPlayArtwork } from './airplay-artwork';
 import { AirPlayRemote } from './airplay-remote';
 import { AirPlayState } from './airplay-state';
@@ -161,6 +161,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     #prevEventStream?: EventStream;
     #protocol!: Protocol;
     #streamProtocol?: Protocol;
+    #streamSource?: AudioSourceSession;
     #streamFeedbackInterval?: NodeJS.Timeout;
     #timingServer?: TimingServer;
 
@@ -460,14 +461,24 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#cleanupStream();
 
         const streamProtocol = new Protocol(this.#discoveryResult, this.#identity);
+        const session = new AudioSourceSession(source);
+        this.#streamProtocol = streamProtocol;
+        this.#streamSource = session;
+        const checked = async <T>(operation: Promise<T>): Promise<T> => {
+            const value = await operation;
+            if (this.#streamProtocol !== streamProtocol) {
+                throw new ConnectionClosedError('Audio stream cancelled.');
+            }
+            return value;
+        };
 
         if (this.#timingServer) {
             streamProtocol.useTimingServer(this.#timingServer);
         }
 
         try {
-            await streamProtocol.connect();
-            await streamProtocol.fetchInfo();
+            await checked(streamProtocol.connect());
+            await checked(streamProtocol.fetchInfo());
 
             // PTP stays off: PtpMaster yields silent playback on PTP-capable
             // receivers, the NTP timing server does not.
@@ -475,10 +486,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             let keys: AccessoryKeys;
 
             if (this.#credentials) {
-                keys = await streamProtocol.verify.start(this.#credentials);
+                keys = await checked(streamProtocol.verify.start(this.#credentials));
             } else {
-                await streamProtocol.pairing.start();
-                keys = await streamProtocol.pairing.transient();
+                await checked(streamProtocol.pairing.start());
+                keys = await checked(streamProtocol.pairing.transient());
             }
 
             streamProtocol.controlStream.enableEncryption(
@@ -486,12 +497,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
                 keys.controllerToAccessoryKey
             );
 
-            this.#streamProtocol = streamProtocol;
-
-            await streamProtocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
+            await checked(streamProtocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId));
 
             // A fresh AirPlay audio session starts silent.
-            await streamProtocol.controlStream.setParameter('volume', String(volumeDb));
+            await checked(streamProtocol.controlStream.setParameter('volume', String(volumeDb)));
 
             this.#streamFeedbackInterval = setInterval(async () => {
                 try {
@@ -501,15 +510,13 @@ export class AirPlayManager extends EventEmitter<EventMap> {
                 }
             }, FEEDBACK_INTERVAL);
 
-            await streamProtocol.setupAudioStream(source);
-        } catch (err) {
-            if (this.#streamProtocol !== streamProtocol) {
-                streamProtocol.disconnect();
-            }
-
-            throw err;
+            await checked(streamProtocol.setupAudioStream(session));
         } finally {
-            this.#cleanupStream();
+            streamProtocol.disconnect();
+            if (this.#streamProtocol === streamProtocol) {
+                this.#cleanupStream();
+            }
+            await session.stop();
         }
     }
 
@@ -524,6 +531,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * Stops, disconnects, and discards the dedicated audio stream protocol instance.
      */
     #cleanupStream(): void {
+        void this.#streamSource?.stop().catch(error => this.#protocol.context.logger.error('Audio source cleanup failed', error));
+        this.#streamSource = undefined;
         if (this.#streamFeedbackInterval) {
             clearInterval(this.#streamFeedbackInterval);
             this.#streamFeedbackInterval = undefined;

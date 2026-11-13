@@ -1,4 +1,4 @@
-import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
+import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, Discovery, type DiscoveryResult } from '@basmilius/apple-common';
 import { AppleTV, HomePod, HomePodMini } from './device';
 import type { DeviceType } from './types';
 
@@ -35,8 +35,9 @@ export type DiscoverOptions = {
  */
 export async function discover(options: DiscoverOptions = {}): Promise<DiscoveredDevice[]> {
     const useCache = options.useCache ?? true;
-    const airplayResults = await Discovery.airplay().find(useCache);
-    const companionLinkResults = await Discovery.companionLink().find(useCache);
+    const results = await Discovery.findServices([AIRPLAY_SERVICE, COMPANION_LINK_SERVICE], useCache);
+    const airplayResults = results.get(AIRPLAY_SERVICE)!;
+    const companionLinkResults = results.get(COMPANION_LINK_SERVICE)!;
 
     const byAddress = new Map<string, DiscoveredDevice>();
 

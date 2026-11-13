@@ -93,6 +93,8 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
     #keys: AccessoryKeys;
     #protocol!: Protocol;
     #state!: CompanionLinkState;
+    #connecting?: Promise<void>;
+    #generation = 0;
 
     /**
      * Creates a new CompanionLinkDevice.
@@ -124,27 +126,58 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
      * @throws CredentialsError when no credentials are set.
      */
     async connect(): Promise<void> {
+        if (this.#connecting) {
+            return this.#connecting;
+        }
+        if (this.isConnected && !this.#disconnect) {
+            return;
+        }
         if (!this.#credentials) {
             throw new CredentialsError('Credentials are required to connect to a Companion Link device.');
         }
-
-        if (this.#protocol) {
-            this.#protocol.stream.off('close', this.onClose);
-            this.#protocol.stream.off('error', this.onError);
-            this.#protocol.stream.off('timeout', this.onTimeout);
+        const operation = this.#connect();
+        this.#connecting = operation;
+        try {
+            await operation;
+        } finally {
+            if (this.#connecting === operation) {
+                this.#connecting = undefined;
+            }
         }
+    }
 
+    async #connect(): Promise<void> {
+        const cleanup = this.disconnectSafely();
+        const generation = this.#generation;
+        await cleanup;
+        if (generation !== this.#generation) throw new Error('Companion Link connect cancelled.');
+        const protocol = new Protocol(this.#discoveryResult);
+        this.#protocol = protocol;
         this.#disconnect = false;
-        this.#protocol = new Protocol(this.#discoveryResult);
-        this.#protocol.stream.on('close', this.onClose);
-        this.#protocol.stream.on('error', this.onError);
-        this.#protocol.stream.on('timeout', this.onTimeout);
-
-        await this.#protocol.connect();
-        this.#keys = await this.#protocol.verify.start(this.#credentials);
-
-        await this.#setup();
-        this.emit('connected');
+        protocol.stream.on('close', this.onClose);
+        protocol.stream.on('error', this.onError);
+        protocol.stream.on('timeout', this.onTimeout);
+        const check = (): void => {
+            if (generation !== this.#generation || this.#disconnect) {
+                throw new Error('Companion Link connect cancelled.');
+            }
+        };
+        try {
+            await protocol.connect();
+            check();
+            this.#keys = await protocol.verify.start(this.#credentials!);
+            check();
+            await this.#setup(protocol, check);
+            check();
+            this.emit('connected');
+        } catch (error) {
+            if (generation === this.#generation) {
+                await this.disconnectSafely();
+            } else {
+                protocol.stream.destroy();
+            }
+            throw error;
+        }
     }
 
     /**
@@ -152,6 +185,7 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
      */
     async disconnect(): Promise<void> {
         this.#disconnect = true;
+        this.#generation++;
 
         if (this.#heartbeatInterval) {
             clearInterval(this.#heartbeatInterval);
@@ -162,7 +196,14 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
         /* Keep the protocol reference across await; concurrent connect() may replace it. */
         const protocol = this.#protocol;
-        await protocol.disconnect();
+        protocol?.stream.off('close', this.onClose);
+        protocol?.stream.off('error', this.onError);
+        protocol?.stream.off('timeout', this.onTimeout);
+        if (this.#connecting) {
+            protocol?.stream.destroy();
+        } else {
+            await protocol?.disconnect();
+        }
     }
 
     /**
@@ -500,32 +541,38 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
      * Sets up encryption, protocol sessions (system info, TVRC, touch, text input),
      * heartbeat interval, and state tracking. Called after successful pair-verify.
      */
-    async #setup(): Promise<void> {
+    async #setup(protocol: Protocol, check: () => void): Promise<void> {
         const keys = this.#keys;
 
-        this.#protocol.stream.enableEncryption(
+        protocol.stream.enableEncryption(
             keys.accessoryToControllerKey,
             keys.controllerToAccessoryKey
         );
 
         try {
-            await this.#protocol.systemInfo(this.#credentials!.pairingId);
-            await this.#protocol.sessionStart();
-            await this.#protocol.tvrcSessionStart();
+            await protocol.systemInfo(this.#credentials!.pairingId);
+            check();
+            await protocol.sessionStart();
+            check();
+            await protocol.tvrcSessionStart();
+            check();
 
             // A real iOS Remote announces its active iCloud account here; optional, so only when configured.
             if (this.#activeUserAccount) {
-                await this.#protocol.switchActiveUserAccount(this.#activeUserAccount);
+                await protocol.switchActiveUserAccount(this.#activeUserAccount);
+                check();
             }
 
-            await this.#protocol.touchStart();
-            await this.#protocol.tiStart();
+            await protocol.touchStart();
+            check();
+            await protocol.tiStart();
+            check();
 
             this.#heartbeatInterval = setInterval(() => {
                 try {
-                    this.#protocol.noOp();
+                    protocol.noOp();
                 } catch (err) {
-                    this.#protocol.context.logger.error('Heartbeat failed', err);
+                    protocol.context.logger.error('Heartbeat failed', err);
                 }
             }, 15000);
 
@@ -539,7 +586,7 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
                 this.#state.off('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
             }
 
-            this.#state = new CompanionLinkState(this.#protocol);
+            this.#state = new CompanionLinkState(protocol);
             this.#state.on('attentionStateChanged', this.onAttentionStateChanged);
             this.#state.on('mediaControlFlagsChanged', this.onMediaControlFlagsChanged);
             this.#state.on('nowPlayingInfoChanged', this.onNowPlayingInfoChanged);
@@ -548,6 +595,7 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
             this.#state.on('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
             this.#state.subscribe();
             await this.#state.fetchInitialState();
+            check();
         } catch (err) {
             clearInterval(this.#heartbeatInterval);
             this.#heartbeatInterval = undefined;

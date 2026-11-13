@@ -72,7 +72,7 @@ export function VolumeControls({volume, connected, call}: VolumeControlsProps) {
 
     return (
         <>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
                 <Icon icon={volume?.muted ? VolumeX : Volume2} size={14} className="shrink-0 text-text-faint"/>
                 <Slider
                     label="Volume"

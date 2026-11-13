@@ -88,7 +88,7 @@ export function RaopPanel({deviceId}: PanelProps) {
                         <TextInput label="Artist" value={artist} disabled={streaming} onChange={event => setArtist(event.target.value)}/>
                     </Field>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
                     <Icon icon={ICONS.volume} size={14} className="shrink-0 text-text-faint"/>
                     <Slider label="Volume" value={volume} disabled={!open} onValueChange={setVolume} onValueCommitted={next => void action.run(() => invoke('raop:setVolume', {deviceId, volume: next}))}/>
                     <span className="w-10 shrink-0 text-right text-xs tabular-nums text-text-muted">{volume}%</span>

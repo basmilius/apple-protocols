@@ -69,7 +69,7 @@ function Scrubber({elapsed, duration, connected, call}: { readonly elapsed: numb
     const max = duration > 0 ? duration : 100;
 
     return (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
             <span className="w-12 shrink-0 text-right text-xs tabular-nums text-text-muted">{formatDuration(position)}</span>
             <Slider
                 label="Position"

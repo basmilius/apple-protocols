@@ -25,7 +25,7 @@ function OutputVolume({uid, name, volume, call, connected}: { readonly uid: stri
                     <IconButton icon={Volume2} label="Unmute" size="sm" disabled={!connected} onClick={() => void call('device', 'volume.unmuteDevice', [uid])}/>
                 </ButtonGroup>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
                 <Slider
                     label={`Volume of ${name}`}
                     value={level}

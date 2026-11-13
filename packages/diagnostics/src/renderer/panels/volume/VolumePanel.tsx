@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { RefreshCw, TrendingDown, Volume2, VolumeX } from 'lucide-react';
-import { ButtonGroup, CommandButton, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
+import { ButtonGroup, CommandButton, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { Labeled, NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
@@ -68,104 +68,109 @@ export function VolumePanel({deviceId}: PanelProps) {
         <PanelBody>
             {!connected && <NotConnected/>}
 
-            <Section
-                title="Volume"
-                icon={ICONS.volume}
-                actions={
-                    <>
-                        {connected && <VolumeModePill control={control}/>}
-                        {volume?.muted && <StatusPill status="warning" icon={VolumeX}>muted</StatusPill>}
-                    </>
-                }
-            >
-                <VolumeControls volume={volume} connected={connected} call={call}/>
-                {connected && control !== 'none' && (
+            <PanelGroup>
+                <Section
+                    title="Volume"
+                    icon={ICONS.volume}
+                    actions={
+                        <>
+                            {connected && <VolumeModePill control={control}/>}
+                            {volume?.muted && <StatusPill status="warning" icon={VolumeX}>muted</StatusPill>}
+                        </>
+                    }
+                >
+                    <VolumeControls volume={volume} connected={connected} call={call}/>
+                    {connected && control !== 'none' && (
+                        <Row>
+                            <ButtonGroup>
+                                <IconButton icon={VolumeX} label="Mute" onClick={() => void call('device', 'volume.mute')}/>
+                                <IconButton icon={Volume2} label="Unmute" onClick={() => void call('device', 'volume.unmute')}/>
+                            </ButtonGroup>
+                            <CommandButton label="Read" icon={RefreshCw} tooltip="volume.get" run={() => call('device', 'volume.get')}/>
+                        </Row>
+                    )}
+                    <p className="text-xs text-text-faint">{`The receiver reports volume as ${volume?.available ? 'available' : 'unavailable'}; the control mode above decides what the SDK sends.`}</p>
+                </Section>
+
+                <Section title="Fade and adjust" icon={TrendingDown}>
                     <Row>
-                        <ButtonGroup>
-                            <IconButton icon={VolumeX} label="Mute" onClick={() => void call('device', 'volume.mute')}/>
-                            <IconButton icon={Volume2} label="Unmute" onClick={() => void call('device', 'volume.unmute')}/>
-                        </ButtonGroup>
-                        <CommandButton label="Read" icon={RefreshCw} tooltip="volume.get" run={() => call('device', 'volume.get')}/>
+                        <Labeled label="Fade to (%)">
+                            <NumberInput label="Fade target" value={fadeTarget} onValueChange={setFadeTarget}/>
+                        </Labeled>
+                        <Labeled label="Over (ms)">
+                            <NumberInput label="Fade duration" value={fadeDuration} onValueChange={setFadeDuration}/>
+                        </Labeled>
+                        <DisabledReason reason={fadeBlocked}>
+                            <CommandButton
+                                label="Fade"
+                                variant="primary"
+                                icon={TrendingDown}
+                                tooltip="volume.fade"
+                                run={() => call('device', 'volume.fade', [toDevice(numberOf(fadeTarget, 20)), numberOf(fadeDuration, 2000)])}
+                                disabled={fadeBlocked !== null}
+                            />
+                        </DisabledReason>
                     </Row>
-                )}
-                <p className="text-xs text-text-faint">{`The receiver reports volume as ${volume?.available ? 'available' : 'unavailable'}; the control mode above decides what the SDK sends.`}</p>
-            </Section>
-
-            <Section title="Fade and adjust" icon={TrendingDown}>
-                <Row>
-                    <Labeled label="Fade to (%)">
-                        <NumberInput label="Fade target" value={fadeTarget} onValueChange={setFadeTarget}/>
-                    </Labeled>
-                    <Labeled label="Over (ms)">
-                        <NumberInput label="Fade duration" value={fadeDuration} onValueChange={setFadeDuration}/>
-                    </Labeled>
-                    <DisabledReason reason={fadeBlocked}>
+                    <Row>
+                        <Select label="Adjustment" value={adjustment} onValueChange={setAdjustment} items={VOLUME_ADJUSTMENT_ITEMS} size="sm"/>
+                        <Select label="Output device" value={adjustUid} onValueChange={setAdjustUid} items={outputItems} size="sm"/>
                         <CommandButton
-                            label="Fade"
-                            variant="primary"
-                            icon={TrendingDown}
-                            tooltip="volume.fade"
-                            run={() => call('device', 'volume.fade', [toDevice(numberOf(fadeTarget, 20)), numberOf(fadeDuration, 2000)])}
-                            disabled={fadeBlocked !== null}
+                            label="Adjust"
+                            tooltip="volume.adjust"
+                            run={() => call('device', 'volume.adjust', adjustUid === DEFAULT_OUTPUT ? [valueOf(VOLUME_ADJUSTMENTS, adjustment)] : [valueOf(VOLUME_ADJUSTMENTS, adjustment), adjustUid])}
+                            disabled={!connected}
                         />
-                    </DisabledReason>
-                </Row>
-                <Row>
-                    <Select label="Adjustment" value={adjustment} onValueChange={setAdjustment} items={VOLUME_ADJUSTMENT_ITEMS} size="sm"/>
-                    <Select label="Output device" value={adjustUid} onValueChange={setAdjustUid} items={outputItems} size="sm"/>
-                    <CommandButton
-                        label="Adjust"
-                        tooltip="volume.adjust"
-                        run={() => call('device', 'volume.adjust', adjustUid === DEFAULT_OUTPUT ? [valueOf(VOLUME_ADJUSTMENTS, adjustment)] : [valueOf(VOLUME_ADJUSTMENTS, adjustment), adjustUid])}
-                        disabled={!connected}
-                    />
-                </Row>
-            </Section>
+                    </Row>
+                </Section>
 
-            <Section wide title="Output devices" icon={ICONS.outputDevice} actions={<CountPill>{outputDevices.length}</CountPill>}>
-                {outputDevices.length === 0 ? (
-                    <p className="text-xs text-text-muted">The device reports no separate output devices.</p>
-                ) : (
-                    <div className="flex flex-col divide-y divide-border-soft">
-                        {outputDevices.map(output => (
-                            <OutputVolume key={output.uid} uid={output.uid} name={output.name} volume={output.volume} call={call} connected={connected}/>
-                        ))}
-                    </div>
-                )}
-            </Section>
+                <Section title="Output devices" icon={ICONS.outputDevice} actions={<CountPill>{outputDevices.length}</CountPill>}>
+                    {outputDevices.length === 0 ? (
+                        <p className="text-xs text-text-muted">The device reports no separate output devices.</p>
+                    ) : (
+                        <div className="flex flex-col divide-y divide-border-soft">
+                            {outputDevices.map(output => (
+                                <OutputVolume key={output.uid} uid={output.uid} name={output.name} volume={output.volume} call={call} connected={connected}/>
+                            ))}
+                        </div>
+                    )}
+                </Section>
 
-            <Section title="Volume capabilities" icon={ICONS.info}>
-                <Row>
-                    <ResultBlock label="Capabilities" tooltip="airplayState.volumeCapabilities" run={() => call('airplayState', 'volumeCapabilities')} disabled={!connected}/>
-                    <ResultBlock label="Available" tooltip="airplayState.volumeAvailable" run={() => call('airplayState', 'volumeAvailable')} disabled={!connected}/>
-                    <ResultBlock label="Output device UID" tooltip="airplayState.outputDeviceUID" run={() => call('airplayState', 'outputDeviceUID')} disabled={!connected}/>
-                </Row>
-            </Section>
+            </PanelGroup>
 
-            <Section title="Sound modes" icon={ICONS.experimental} collapsible defaultOpen={false}>
-                <p className="text-xs text-text-muted">These go straight at the AirPlay manager. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
-                <Row>
-                    <TextInput label="Audio mode" mono className="h-7 w-40" placeholder="default" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
-                    <CommandButton label="Set audio mode" tooltip="airplay.setAudioMode" run={() => call('airplay', 'setAudioMode', [audioMode])} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <TextInput label="Listening mode" mono className="h-7 w-40" placeholder="Default" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
-                    <CommandButton label="Set listening mode" tooltip="airplay.setListeningMode" run={() => call('airplay', 'setListeningMode', [listeningMode])} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <Labeled label="Fade type">
-                        <NumberInput label="Audio fade type" value={fadeType} onValueChange={setFadeType} className="w-14"/>
-                    </Labeled>
-                    <CommandButton label="Audio fade" tooltip="airplay.audioFade" run={() => call('airplay', 'audioFade', [numberOf(fadeType, 0)])} disabled={!connected}/>
-                </Row>
-                <Row>
-                    <span className="text-xs text-text-muted">Conversation detection</span>
-                    <ButtonGroup>
-                        <CommandButton label="On" tooltip="airplay.setConversationDetectionEnabled(true)" run={() => call('airplay', 'setConversationDetectionEnabled', [true])} disabled={!connected}/>
-                        <CommandButton label="Off" tooltip="airplay.setConversationDetectionEnabled(false)" run={() => call('airplay', 'setConversationDetectionEnabled', [false])} disabled={!connected}/>
-                    </ButtonGroup>
-                </Row>
-            </Section>
+            <PanelGroup title="Capabilities and sound modes" icon={ICONS.info}>
+                <Section title="Volume capabilities" icon={ICONS.info}>
+                    <Row>
+                        <ResultBlock label="Capabilities" tooltip="airplayState.volumeCapabilities" run={() => call('airplayState', 'volumeCapabilities')} disabled={!connected}/>
+                        <ResultBlock label="Available" tooltip="airplayState.volumeAvailable" run={() => call('airplayState', 'volumeAvailable')} disabled={!connected}/>
+                        <ResultBlock label="Output device UID" tooltip="airplayState.outputDeviceUID" run={() => call('airplayState', 'outputDeviceUID')} disabled={!connected}/>
+                    </Row>
+                </Section>
+
+                <Section title="Sound modes" icon={ICONS.experimental} collapsible defaultOpen={false}>
+                    <p className="text-xs text-text-muted">These go straight at the AirPlay manager. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
+                    <Row>
+                        <TextInput label="Audio mode" mono className="h-7 w-40" placeholder="default" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
+                        <CommandButton label="Set audio mode" tooltip="airplay.setAudioMode" run={() => call('airplay', 'setAudioMode', [audioMode])} disabled={!connected}/>
+                    </Row>
+                    <Row>
+                        <TextInput label="Listening mode" mono className="h-7 w-40" placeholder="Default" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
+                        <CommandButton label="Set listening mode" tooltip="airplay.setListeningMode" run={() => call('airplay', 'setListeningMode', [listeningMode])} disabled={!connected}/>
+                    </Row>
+                    <Row>
+                        <Labeled label="Fade type">
+                            <NumberInput label="Audio fade type" value={fadeType} onValueChange={setFadeType} className="w-14"/>
+                        </Labeled>
+                        <CommandButton label="Audio fade" tooltip="airplay.audioFade" run={() => call('airplay', 'audioFade', [numberOf(fadeType, 0)])} disabled={!connected}/>
+                    </Row>
+                    <Row>
+                        <span className="text-xs text-text-muted">Conversation detection</span>
+                        <ButtonGroup>
+                            <CommandButton label="On" tooltip="airplay.setConversationDetectionEnabled(true)" run={() => call('airplay', 'setConversationDetectionEnabled', [true])} disabled={!connected}/>
+                            <CommandButton label="Off" tooltip="airplay.setConversationDetectionEnabled(false)" run={() => call('airplay', 'setConversationDetectionEnabled', [false])} disabled={!connected}/>
+                        </ButtonGroup>
+                    </Row>
+                </Section>
+            </PanelGroup>
         </PanelBody>
     );
 }

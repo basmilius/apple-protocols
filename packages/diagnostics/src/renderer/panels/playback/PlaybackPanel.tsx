@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Bookmark, ChevronsRight, FastForward, ListMusic, ListPlus, type LucideIcon, Pause, Play, Repeat, Rewind, RotateCcw, RotateCw, Shuffle, SkipBack, SkipForward, Square, ThumbsDown, ThumbsUp, Timer } from 'lucide-react';
 import { formatDuration } from '@shared/helpers';
-import { Button, ButtonGroup, CommandButton, CountPill, Icon, IconButton, ICONS, PanelBody, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput } from '@/ui';
+import { Button, ButtonGroup, CommandButton, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
@@ -178,83 +178,92 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                 <PanelLink panel="nowplaying" label="Now playing"/>
             </StatusBar>
 
-            <Section wide title="Transport" icon={Play}>
-                <Scrubber elapsed={elapsed} duration={nowPlaying?.duration ?? 0} connected={connected} call={call}/>
-                <div className="flex flex-wrap items-center gap-3">
-                    <ButtonGroup>
-                        <TransportKey {...context} label="Previous" command="PreviousTrack" path="playback.previous" icon={SkipBack}/>
-                        <TransportKey {...context} label="Play" command="Play" path="playback.play" icon={Play}/>
-                        <TransportKey {...context} label="Pause" command="Pause" path="playback.pause" icon={Pause}/>
-                        <TransportKey {...context} label="Play or pause" command="TogglePlayPause" path="playback.playPause" icon={playing ? Pause : Play}/>
-                        <TransportKey {...context} label="Stop" command="Stop" path="playback.stop" icon={Square}/>
-                        <TransportKey {...context} label="Next" command="NextTrack" path="playback.next" icon={SkipForward}/>
-                    </ButtonGroup>
-                    <HoldButton label="Rewind" icon={Rewind} begin="playback.beginRewind" end="playback.endRewind" call={call} connected={connected}/>
-                    <HoldButton label="Fast forward" icon={FastForward} begin="playback.beginFastForward" end="playback.endFastForward" call={call} connected={connected}/>
-                </div>
-                <Row>
-                    <Labeled label="Skip (s)">
-                        <NumberInput label="Skip seconds" value={skipSeconds} onValueChange={setSkipSeconds}/>
-                    </Labeled>
-                    <PlaybackCommand {...context} label="Back" icon={RotateCcw} command="SkipBackward" path="playback.skipBackward" args={[numberOf(skipSeconds, 15)]}/>
-                    <PlaybackCommand {...context} label="Forward" icon={RotateCw} command="SkipForward" path="playback.skipForward" args={[numberOf(skipSeconds, 15)]}/>
-                    <PlaybackCommand {...context} label="Previous chapter" command="PreviousChapter" path="playback.previousChapter"/>
-                    <PlaybackCommand {...context} label="Next chapter" command="NextChapter" path="playback.nextChapter"/>
-                </Row>
-                <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. It still runs, to see what the device does.</p>
-            </Section>
+            <PanelGroup>
+                <Section wide title="Transport" icon={Play}>
+                    <Scrubber elapsed={elapsed} duration={nowPlaying?.duration ?? 0} connected={connected} call={call}/>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <ButtonGroup>
+                            <TransportKey {...context} label="Previous" command="PreviousTrack" path="playback.previous" icon={SkipBack}/>
+                            <TransportKey {...context} label="Play" command="Play" path="playback.play" icon={Play}/>
+                            <TransportKey {...context} label="Pause" command="Pause" path="playback.pause" icon={Pause}/>
+                            <TransportKey {...context} label="Play or pause" command="TogglePlayPause" path="playback.playPause" icon={playing ? Pause : Play}/>
+                            <TransportKey {...context} label="Stop" command="Stop" path="playback.stop" icon={Square}/>
+                            <TransportKey {...context} label="Next" command="NextTrack" path="playback.next" icon={SkipForward}/>
+                        </ButtonGroup>
+                        <HoldButton label="Rewind" icon={Rewind} begin="playback.beginRewind" end="playback.endRewind" call={call} connected={connected}/>
+                        <HoldButton label="Fast forward" icon={FastForward} begin="playback.beginFastForward" end="playback.endFastForward" call={call} connected={connected}/>
+                    </div>
+                    <Row>
+                        <Labeled label="Skip (s)">
+                            <NumberInput label="Skip seconds" value={skipSeconds} onValueChange={setSkipSeconds}/>
+                        </Labeled>
+                        <PlaybackCommand {...context} label="Back" icon={RotateCcw} command="SkipBackward" path="playback.skipBackward" args={[numberOf(skipSeconds, 15)]}/>
+                        <PlaybackCommand {...context} label="Forward" icon={RotateCw} command="SkipForward" path="playback.skipForward" args={[numberOf(skipSeconds, 15)]}/>
+                        <PlaybackCommand {...context} label="Previous chapter" command="PreviousChapter" path="playback.previousChapter"/>
+                        <PlaybackCommand {...context} label="Next chapter" command="NextChapter" path="playback.nextChapter"/>
+                    </Row>
+                    <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. It still runs, to see what the device does.</p>
+                </Section>
+            </PanelGroup>
 
-            <Section title="Modes" icon={Shuffle}>
-                <div className="flex flex-wrap gap-1.5">
-                    <Pill tone="muted" icon={<Icon icon={Shuffle} size={12}/>}>{`shuffle ${modes.shuffle}`}</Pill>
-                    <Pill tone="muted" icon={<Icon icon={Repeat} size={12}/>}>{`repeat ${modes.repeat}`}</Pill>
-                </div>
-                <Row>
-                    <Select label="Shuffle mode" value={shuffleMode} onValueChange={setShuffleMode} items={SHUFFLE_MODE_ITEMS} size="sm"/>
-                    <PlaybackCommand {...context} label="Set shuffle" icon={Shuffle} command="ChangeShuffleMode" path="playback.setShuffleMode" args={[valueOf(SHUFFLE_MODES, shuffleMode)]}/>
-                    <PlaybackCommand {...context} label="Advance" command="AdvanceShuffleMode" path="playback.advanceShuffleMode"/>
-                </Row>
-                <Row>
-                    <Select label="Repeat mode" value={repeatMode} onValueChange={setRepeatMode} items={REPEAT_MODE_ITEMS} size="sm"/>
-                    <PlaybackCommand {...context} label="Set repeat" icon={Repeat} command="ChangeRepeatMode" path="playback.setRepeatMode" args={[valueOf(REPEAT_MODES, repeatMode)]}/>
-                    <PlaybackCommand {...context} label="Advance" command="AdvanceRepeatMode" path="playback.advanceRepeatMode"/>
-                </Row>
-            </Section>
+            <PanelGroup title="Modes, library and queue" icon={ListMusic}>
+                <Section title="Modes" icon={Shuffle}>
+                    <div className="flex flex-wrap gap-1.5">
+                        <Pill tone="muted" icon={<Icon icon={Shuffle} size={12}/>}>{`shuffle ${modes.shuffle}`}</Pill>
+                        <Pill tone="muted" icon={<Icon icon={Repeat} size={12}/>}>{`repeat ${modes.repeat}`}</Pill>
+                    </div>
+                    <Row>
+                        <Select label="Shuffle mode" value={shuffleMode} onValueChange={setShuffleMode} items={SHUFFLE_MODE_ITEMS} size="sm"/>
+                        <PlaybackCommand {...context} label="Set shuffle" icon={Shuffle} command="ChangeShuffleMode" path="playback.setShuffleMode" args={[valueOf(SHUFFLE_MODES, shuffleMode)]}/>
+                        <PlaybackCommand {...context} label="Advance" command="AdvanceShuffleMode" path="playback.advanceShuffleMode"/>
+                    </Row>
+                    <Row>
+                        <Select label="Repeat mode" value={repeatMode} onValueChange={setRepeatMode} items={REPEAT_MODE_ITEMS} size="sm"/>
+                        <PlaybackCommand {...context} label="Set repeat" icon={Repeat} command="ChangeRepeatMode" path="playback.setRepeatMode" args={[valueOf(REPEAT_MODES, repeatMode)]}/>
+                        <PlaybackCommand {...context} label="Advance" command="AdvanceRepeatMode" path="playback.advanceRepeatMode"/>
+                    </Row>
+                </Section>
 
-            <Section title="Rate and sleep" icon={Timer}>
-                <Row>
-                    <Labeled label="Rate">
-                        <NumberInput label="Playback rate" value={rate} onValueChange={setRate} className="w-16"/>
-                    </Labeled>
-                    <PlaybackCommand {...context} label="Set rate" icon={ChevronsRight} command="ChangePlaybackRate" path="playback.setPlaybackRate" args={[numberOf(rate, 1)]}/>
-                </Row>
-                <Row>
-                    <Labeled label="Sleep (s)">
-                        <NumberInput label="Sleep timer seconds" value={sleepSeconds} onValueChange={setSleepSeconds}/>
-                    </Labeled>
-                    <Labeled label="Stop mode">
-                        <NumberInput label="Sleep stop mode" value={stopMode} onValueChange={setStopMode} className="w-14"/>
-                    </Labeled>
-                    <PlaybackCommand {...context} label="Set sleep timer" icon={Timer} command="SetSleepTimer" path="playback.setSleepTimer" args={[numberOf(sleepSeconds, 1800), numberOf(stopMode, 0)]}/>
-                </Row>
-            </Section>
+                <Section title="Rate and sleep" icon={Timer}>
+                    <Row>
+                        <Labeled label="Rate">
+                            <NumberInput label="Playback rate" value={rate} onValueChange={setRate} className="w-16"/>
+                        </Labeled>
+                        <PlaybackCommand {...context} label="Set rate" icon={ChevronsRight} command="ChangePlaybackRate" path="playback.setPlaybackRate" args={[numberOf(rate, 1)]}/>
+                    </Row>
+                    <Row>
+                        <Labeled label="Sleep (s)">
+                            <NumberInput label="Sleep timer seconds" value={sleepSeconds} onValueChange={setSleepSeconds}/>
+                        </Labeled>
+                        <Labeled label="Stop mode">
+                            <NumberInput label="Sleep stop mode" value={stopMode} onValueChange={setStopMode} className="w-14"/>
+                        </Labeled>
+                        <PlaybackCommand {...context} label="Set sleep timer" icon={Timer} command="SetSleepTimer" path="playback.setSleepTimer" args={[numberOf(sleepSeconds, 1800), numberOf(stopMode, 0)]}/>
+                    </Row>
+                </Section>
 
-            <Section title="Library and queue" icon={ListMusic}>
-                <Row>
-                    <PlaybackCommand {...context} label="Like" icon={ThumbsUp} command="LikeTrack" path="playback.likeTrack"/>
-                    <PlaybackCommand {...context} label="Dislike" icon={ThumbsDown} command="DislikeTrack" path="playback.dislikeTrack"/>
-                    <PlaybackCommand {...context} label="Bookmark" icon={Bookmark} command="BookmarkTrack" path="playback.bookmarkTrack"/>
-                    <PlaybackCommand {...context} label="Add to library" icon={ListPlus} command="AddNowPlayingItemToLibrary" path="playback.addToLibrary"/>
-                </Row>
-                <Row>
-                    <Labeled label="Queue length">
-                        <NumberInput label="Queue length" value={queueLength} onValueChange={setQueueLength}/>
-                    </Labeled>
-                    <PlaybackCommand {...context} label="Request queue" icon={ListMusic} command="GetPlaybackQueue" path="playback.requestPlaybackQueue" args={[numberOf(queueLength, 10)]}/>
-                </Row>
-            </Section>
+                <Section title="Library and queue" icon={ListMusic}>
+                    <Row>
+                        <PlaybackCommand {...context} label="Like" icon={ThumbsUp} command="LikeTrack" path="playback.likeTrack"/>
+                        <PlaybackCommand {...context} label="Dislike" icon={ThumbsDown} command="DislikeTrack" path="playback.dislikeTrack"/>
+                        <PlaybackCommand {...context} label="Bookmark" icon={Bookmark} command="BookmarkTrack" path="playback.bookmarkTrack"/>
+                        <PlaybackCommand {...context} label="Add to library" icon={ListPlus} command="AddNowPlayingItemToLibrary" path="playback.addToLibrary"/>
+                    </Row>
+                    <Row>
+                        <Labeled label="Queue length">
+                            <NumberInput label="Queue length" value={queueLength} onValueChange={setQueueLength}/>
+                        </Labeled>
+                        <PlaybackCommand {...context} label="Request queue" icon={ListMusic} command="GetPlaybackQueue" path="playback.requestPlaybackQueue" args={[numberOf(queueLength, 10)]}/>
+                    </Row>
+                </Section>
 
-            {companionConnected && <CompanionMedia call={call} connected={connected}/>}
+            </PanelGroup>
+
+            {companionConnected && (
+                <PanelGroup title="Companion Link" icon={ICONS.companionLink}>
+                    <CompanionMedia call={call} connected={connected}/>
+                </PanelGroup>
+            )}
         </PanelBody>
     );
 }

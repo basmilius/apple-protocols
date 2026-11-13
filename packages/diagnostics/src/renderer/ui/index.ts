@@ -42,4 +42,4 @@ export { TabPanel, Tabs, type TabItem } from './Tabs';
 export { TextArea } from './TextArea';
 export { TextInput } from './TextInput';
 export { BRAND, BTN_GROUP, META, SECTION_LABEL } from './classes';
-export { PanelBody } from './PanelBody';
+export { PanelBody, PanelGroup } from './PanelBody';

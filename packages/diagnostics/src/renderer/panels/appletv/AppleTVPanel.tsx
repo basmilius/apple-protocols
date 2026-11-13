@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Captions, Ear, type LucideIcon, MapPin, Mic, Play, SunMoon } from 'lucide-react';
-import { Banner, ButtonGroup, CommandButton, CountPill, EmptyState, Icon, IconButton, ICONS, PanelBody, Section, TextInput } from '@/ui';
+import { Banner, ButtonGroup, CommandButton, CountPill, EmptyState, Icon, IconButton, ICONS, PanelBody, PanelGroup, Section, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { EventFeed, Labeled, NotConnected, ResultBlock, Row } from '@/panels/sdk-shared';
@@ -248,12 +248,17 @@ export function AppleTVPanel({deviceId}: PanelProps) {
                 />
             )}
 
-            <AppsSection call={call} connected={connected}/>
-            <AccountsSection call={call} connected={connected}/>
-            <PowerSection call={call} connected={connected}/>
-            <SystemSection call={call} connected={connected}/>
-            <UpNextSection call={call} connected={connected}/>
-            <EventFeed wide deviceId={deviceId} title="Power events" sources={POWER_SOURCES} names={POWER_EVENTS} empty="No power or attention event has come in yet." limit={10}/>
+            <PanelGroup>
+                <AppsSection call={call} connected={connected}/>
+                <AccountsSection call={call} connected={connected}/>
+                <UpNextSection call={call} connected={connected}/>
+            </PanelGroup>
+
+            <PanelGroup title="Power and system" icon={ICONS.power}>
+                <PowerSection call={call} connected={connected}/>
+                <SystemSection call={call} connected={connected}/>
+                <EventFeed wide deviceId={deviceId} title="Power events" sources={POWER_SOURCES} names={POWER_EVENTS} empty="No power or attention event has come in yet." limit={10}/>
+            </PanelGroup>
         </PanelBody>
     );
 }

@@ -7,7 +7,7 @@ type SectionProps = {
     readonly title: string;
     readonly icon?: LucideIcon;
     readonly actions?: ReactNode;
-    /* Keeps the whole row in a `PanelBody` that would otherwise pair this block with a neighbor. */
+    /* Spans both masonry columns, for tables, feeds, charts and other content that needs the width. */
     readonly wide?: boolean;
     /* Folds the body away behind its header, for expert controls a page does not need at first sight. */
     readonly collapsible?: boolean;
@@ -26,7 +26,7 @@ export function Section({title, icon, actions, wide = false, collapsible = false
     const [open, setOpen] = useState(!collapsible || defaultOpen);
 
     return (
-        <section className={clsx('flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', wide && 'col-span-full', className)}>
+        <section className={clsx('flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface-raised p-3 @[520px]:p-4', wide && '[column-span:all]', className)}>
             <header className="flex h-4 min-w-0 shrink-0 items-center gap-2 leading-4">
                 {icon && <Icon icon={icon} size={16} className="shrink-0 text-text-muted"/>}
                 <SectionLabel render={<h2/>} className="min-w-0 truncate text-text-muted">

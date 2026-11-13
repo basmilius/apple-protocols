@@ -417,14 +417,19 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * Waits for the current URL playback to finish, then cleans up the play URL protocol.
      */
     async waitForPlaybackEnd(): Promise<void> {
-        if (!this.#playUrlProtocol) {
+        const protocol = this.#playUrlProtocol;
+
+        if (!protocol) {
             return;
         }
 
         try {
-            await this.#playUrlProtocol.waitForPlaybackEnd();
+            await protocol.waitForPlaybackEnd();
         } finally {
-            this.#cleanupPlayUrl();
+            // A newer playUrl may have replaced the protocol in the meantime; leave that one playing.
+            if (this.#playUrlProtocol === protocol) {
+                this.#cleanupPlayUrl();
+            }
         }
     }
 

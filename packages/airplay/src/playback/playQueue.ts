@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type { Context } from '@corewire/core/transport';
 import { PlaybackError } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
-import type { ControlStream } from './controlStream';
-import type { EventStream } from './eventStream';
-import type { PlaybackInfo } from './protocol';
+import type { ControlChannel } from '../channels/control';
+import type { EventChannel } from '../channels/event';
+import type { PlaybackInfo } from './playback';
 
 /** A play queue command as decoded from `params.data` of a `POST /command`, in either direction. */
 export type PlayQueueCommand = Record<string, unknown>;
@@ -15,10 +15,10 @@ export type PlayQueueState = 'loading' | 'playing' | 'paused' | 'stopped';
 /** Client type of the remote control stream (RCS) that carries play queue commands. */
 const RCS_CLIENT_TYPE_UUID = 'A6B27562-B43A-4F2D-B75F-82391E250194';
 
-/** Channel suffixes tried in order for the RCS SETUP. pyatv #2948 uses RCS-1, macOS was seen sending RCS-2. */
+/** Channel suffixes tried in order for the RCS SETUP; macOS was seen sending RCS-2. */
 const RCS_CHANNEL_SUFFIXES = ['RCS-1', 'RCS-2'];
 
-/** Sends the `setRate` rate as a plist real, as pyatv does. The serializer writes whole numbers as integers otherwise. */
+/** Sends the `setRate` rate as a plist real. The serializer writes whole numbers as integers otherwise. */
 const RATE_AS_REAL = true;
 
 /** Milliseconds to wait for the first `playing` state after `setRate`. */
@@ -92,12 +92,9 @@ export class PlayQueueSession {
     }
 
     readonly #context: Context;
-    readonly #controlStream: ControlStream;
-    readonly #eventStream: EventStream;
+    readonly #controlStream: ControlChannel;
     readonly #sessionUUID: string;
     readonly #senderMac: string;
-    readonly #boundCommand: (command: PlayQueueCommand) => void;
-    readonly #boundClose: () => void;
     readonly #fetchAbort: AbortController = new AbortController();
     readonly #fetchWaiters: Array<() => void> = [];
     readonly #end: Promise<void>;
@@ -114,20 +111,16 @@ export class PlayQueueSession {
     #streamId?: number;
 
     /**
-     * @param context - Context of the protocol, for logging.
-     * @param controlStream - Encrypted control stream the commands go out on.
-     * @param eventStream - Event stream the receiver reports on.
+     * @param controlStream - Encrypted control channel the commands go out on.
+     * @param eventStream - Event channel the receiver reports on.
      * @param sessionUUID - Session UUID from the first SETUP, sent as `X-Apple-Session-ID`.
      * @param senderMac - The `macAddress` sent in the first SETUP; prefix of the RCS channel ID.
      */
-    constructor(context: Context, controlStream: ControlStream, eventStream: EventStream, sessionUUID: string, senderMac: string) {
+    constructor(context: Context, controlStream: ControlChannel, eventStream: EventChannel, sessionUUID: string, senderMac: string) {
         this.#context = context;
         this.#controlStream = controlStream;
-        this.#eventStream = eventStream;
         this.#sessionUUID = sessionUUID;
         this.#senderMac = senderMac;
-        this.#boundCommand = this.handleEvent.bind(this);
-        this.#boundClose = this.#onStreamClose.bind(this);
 
         this.#end = new Promise<void>((resolve, reject) => {
             this.#resolveEnd = resolve;
@@ -137,9 +130,10 @@ export class PlayQueueSession {
         // Nobody may be waiting yet when playback fails; waitForEnd() still sees the rejection.
         this.#end.catch(() => undefined);
 
-        eventStream.on('playQueue', this.#boundCommand);
-        eventStream.on('closed', this.#boundClose);
-        controlStream.on('closed', this.#boundClose);
+        // Both channels live once and every handler checks #settled, so nothing is removed on settle.
+        eventStream.on('playQueue', command => this.handleEvent(command));
+        eventStream.on('closed', () => this.#onStreamClose());
+        controlStream.on('closed', () => this.#onStreamClose());
     }
 
     /**
@@ -338,7 +332,7 @@ export class PlayQueueSession {
             return;
         }
 
-        // pyatv #2948 only treats `stopped` as the end once playback started.
+        // `stopped` only counts as the end once playback started; a receiver reports it while loading too.
         if (state === 'stopped' && this.#started) {
             this.#settle();
         }
@@ -562,9 +556,6 @@ export class PlayQueueSession {
             waiter();
         }
 
-        this.#eventStream.off('playQueue', this.#boundCommand);
-        this.#eventStream.off('closed', this.#boundClose);
-        this.#controlStream.off('closed', this.#boundClose);
         this.#context.logger.debug('[play-queue]', `Session for item ${this.#itemUUID ?? '?'} ended.`);
     }
 }
@@ -586,7 +577,7 @@ export function decodeNestedCommand(body: unknown): PlayQueueCommand | undefined
 
 /**
  * Picks the item's `mediaType`. On Apple TV `streaming` for HLS is unconfirmed; macOS sends it
- * and a live playlist stays in `loading` as `file` on third party receivers (pyatv #2941).
+ * and a live playlist stays in `loading` as `file` on third party receivers.
  */
 function mediaTypeFor(url: string): 'file' | 'streaming' {
     try {

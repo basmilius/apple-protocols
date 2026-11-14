@@ -207,7 +207,7 @@ export function StatePanel({deviceId}: PanelProps) {
                 <Row>
                     <ResultBlock label="Capabilities" tooltip="device.capabilities" run={() => call('device', 'capabilities')} disabled={!connected}/>
                     <ResultBlock label="Receiver info" tooltip="device.receiverInfo" run={() => call('device', 'receiverInfo')} disabled={!connected}/>
-                    <ResultBlock label="Receiver features" tooltip="airplayProtocol.receiverFeatures" run={() => call('airplayProtocol', 'receiverFeatures')} disabled={!connected}/>
+                    <ResultBlock label="Receiver features" tooltip="airplayProtocol.features" run={() => call('airplayProtocol', 'features')} disabled={!connected}/>
                 </Row>
             </Section>
 

@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events';
-import { type DataStream, Proto, type Protocol } from '@corewire/airplay';
+import { type DataChannel, Proto } from '@corewire/airplay';
 import { AirPlayClient } from './airplay-client';
 import type { AirPlayManager } from './airplay-manager';
 import { type AirPlayPlayer, DEFAULT_PLAYER_ID } from './airplay-player';
-import { PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { MRP_CHANNEL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
 
 /**
  * Snapshot of the current now-playing state, used for change detection.
@@ -91,12 +91,8 @@ export class AirPlayState extends EventEmitter<EventMap> {
     /**
      * @returns The DataStream for event subscription.
      */
-    get #dataStream(): DataStream {
-        return this.#protocol.dataStream;
-    }
-
-    get #protocol(): Protocol {
-        return this.#device[PROTOCOL];
+    get #dataStream(): DataChannel {
+        return this.#device[MRP_CHANNEL].dataStream;
     }
 
     /**

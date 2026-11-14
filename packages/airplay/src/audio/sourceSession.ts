@@ -1,4 +1,4 @@
-import type { AudioSource } from './audioSource';
+import type { AudioSource } from './source';
 
 /** Owns one use of a source. Stop settles readers even when a custom source cannot cancel its read. */
 export class AudioSourceSession implements AudioSource {

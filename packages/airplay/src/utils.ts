@@ -43,7 +43,7 @@ export function buildReply(seqno: bigint): Buffer {
     header.writeUInt32BE(32, 0); // size = header only, no payload
     header.write('rply', 4, 'ascii');
     header.fill(0, 8, 16);
-    header.fill(0, 16, 20); // command = 4 zero bytes (like pyatv)
+    header.fill(0, 16, 20); // command = 4 zero bytes
     header.writeBigUInt64BE(seqno, 20);
     header.writeUInt32BE(0, 28);
 

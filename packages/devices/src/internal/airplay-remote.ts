@@ -1,8 +1,8 @@
-import { type DataStream, DataStreamMessage, Proto, type Protocol } from '@corewire/airplay';
+import { type DataChannel, DataStreamMessage, Proto } from '@corewire/airplay';
 import { CommandError, ConnectionClosedError, TimeoutError, waitFor } from '@corewire/core';
 import { RTI } from '@corewire/core/encoding';
 import type { AirPlayManager } from './airplay-manager';
-import { PROTOCOL } from './const';
+import { MRP_CHANNEL } from './const';
 
 /**
  * Error thrown when a SendCommand request fails on the Apple TV side.
@@ -44,12 +44,8 @@ export class AirPlayRemote {
     /**
      * @returns The DataStream for sending HID events and commands.
      */
-    get #dataStream(): DataStream {
-        return this.#protocol.dataStream;
-    }
-
-    get #protocol(): Protocol {
-        return this.#device[PROTOCOL];
+    get #dataStream(): DataChannel {
+        return this.#device[MRP_CHANNEL].dataStream;
     }
 
     readonly #device: AirPlayManager;
@@ -439,7 +435,7 @@ export class AirPlayRemote {
         await this.#sendText('', true);
     }
 
-    #requestTextSession(stream: DataStream): Promise<{session: RTI.TextInputSession; version: bigint}> {
+    #requestTextSession(stream: DataChannel): Promise<{session: RTI.TextInputSession; version: bigint}> {
         return new Promise((resolve, reject) => {
             const cleanup = (): void => {
                 clearTimeout(timer);
@@ -551,7 +547,7 @@ export class AirPlayRemote {
      * @returns The command result message, or undefined if no result was returned.
      * @throws SendCommandError when the Apple TV reports a send error.
      */
-    async #sendCommandRaw(message: Parameters<DataStream['exchange']>[0]): Promise<Proto.SendCommandResultMessage | undefined> {
+    async #sendCommandRaw(message: Parameters<DataChannel['exchange']>[0]): Promise<Proto.SendCommandResultMessage | undefined> {
         const response = await this.#dataStream.exchange(message);
         return this.#checkCommandResult(response);
     }

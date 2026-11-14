@@ -1,5 +1,6 @@
 import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
 import { parseFeatures } from './features';
+import type { AirPlayTarget } from './types';
 
 export const AIRPLAY_SERVICE = '_airplay._tcp.local';
 
@@ -18,6 +19,19 @@ export async function discover(options: DiscoverOptions = {}): Promise<AirPlayDi
     const results = await new Discovery(AIRPLAY_SERVICE).find(options.useCache ?? true);
 
     return results.map(withFeatures);
+}
+
+/** The connect target for a discovered receiver. */
+export function toTarget(result: DiscoveryResult): AirPlayTarget {
+    const {features} = withFeatures(result);
+
+    return {
+        address: result.address,
+        port: result.service.port,
+        id: result.id,
+        txt: result.txt,
+        features
+    };
 }
 
 /** Adds the parsed feature mask of the `features` (or `ft`) TXT value. */

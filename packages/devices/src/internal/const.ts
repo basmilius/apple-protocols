@@ -1,12 +1,12 @@
 /**
- * Interval in milliseconds between periodic feedback requests to keep the AirPlay session alive.
- */
-export const FEEDBACK_INTERVAL = 2000;
-
-/**
- * Symbol used to access the underlying AirPlay Protocol instance from an AirPlayDevice.
+ * Symbol used to access the current AirPlay session of an AirPlayManager.
  */
 export const PROTOCOL: unique symbol = Symbol('com.basmilius.airplay:protocol');
+
+/**
+ * Symbol used by the AirPlay controllers to reach the MRP data channel and the logging context.
+ */
+export const MRP_CHANNEL: unique symbol = Symbol('com.basmilius.airplay:mrp-channel');
 
 /**
  * Symbol used to subscribe AirPlayState to DataStream events.

@@ -1,76 +1,51 @@
-import { Protocol } from '@corewire/airplay';
+import { pair, type PinPairing, toTarget } from '@corewire/airplay';
 import type { AccessoryCredentials } from '@corewire/core/pairing';
 import type { DeviceIdentity } from '@corewire/core/transport';
 import type { DiscoveryResult } from '@corewire/core/discovery';
 
 /**
- * Step-based pairing session for Apple TV devices.
- *
- * Provides a three-phase pairing flow suitable for external UI frameworks
- * (e.g., Homey's pairing wizard) where PIN entry happens asynchronously:
+ * Step-based pairing session for Apple TV devices, for a UI where the PIN arrives later
+ * (such as Homey's pairing wizard):
  *
  * ```ts
  * const session = tv.createPairingSession();
- * await session.start();              // Connects and triggers PIN dialog on TV
- * await session.pin('1234');           // Submits PIN, executes M1-M6
- * const credentials = await session.end();  // Returns credentials, cleans up
+ * await session.start();              // Connects and shows the PIN on the TV
+ * await session.pin('1234');           // Submits the PIN, runs M1-M6
+ * const credentials = await session.end();  // Returns the credentials, closes the connection
  * ```
  */
 export class PairingSession {
-    #protocol: Protocol | undefined;
+    readonly #discoveryResult: DiscoveryResult;
+    readonly #identity?: Partial<DeviceIdentity>;
     #credentials: AccessoryCredentials | undefined;
-    #discoveryResult: DiscoveryResult;
-    #identity?: Partial<DeviceIdentity>;
     #finished: boolean = false;
+    #pairing: PinPairing | undefined;
 
     constructor(discoveryResult: DiscoveryResult, identity?: Partial<DeviceIdentity>) {
         this.#discoveryResult = discoveryResult;
         this.#identity = identity;
     }
 
-    /**
-     * Connects to the device and triggers the PIN dialog.
-     * After this method returns, the Apple TV displays a 4-digit PIN on screen.
-     */
+    /** Connects to the device; once this resolves, the Apple TV shows a 4-digit PIN. */
     async start(): Promise<void> {
-        this.#protocol = new Protocol(this.#discoveryResult, this.#identity);
-        await this.#protocol.connect();
-        await this.#protocol.fetchInfo();
-        await this.#protocol.pairing.start();
-        await this.#protocol.pairing.pinStart();
+        this.#pairing = await pair(toTarget(this.#discoveryResult), {identity: this.#identity});
     }
 
     /**
-     * Submits the PIN and executes the M1-M6 key exchange.
+     * Submits the PIN and runs the M1-M6 key exchange. A failed attempt keeps the connection;
+     * call {@link abort} to give up.
      *
      * @param code - The 4-digit PIN displayed on the Apple TV screen.
      */
     async pin(code: string): Promise<void> {
-        if (!this.#protocol) {
+        if (!this.#pairing) {
             throw new Error('PairingSession.start() must be called before pin().');
         }
 
-        const internal = this.#protocol.pairing.internal;
-        const m1 = await internal.m1();
-        const m2 = await internal.m2(m1, code);
-        const m3 = await internal.m3(m2);
-        const m4 = await internal.m4(m3);
-        const m5 = await internal.m5(m4);
-        const credentials = await internal.m6(m4, m5);
-
-        if (!credentials) {
-            throw new Error('Pairing failed: could not obtain credentials.');
-        }
-
-        this.#credentials = credentials;
+        this.#credentials = await this.#pairing.pin(code);
     }
 
-    /**
-     * Finishes the pairing session, cleans up the protocol connection,
-     * and returns the obtained credentials.
-     *
-     * @returns Long-term credentials for future connections.
-     */
+    /** Closes the connection and returns the credentials for future connections. */
     async end(): Promise<AccessoryCredentials> {
         if (!this.#credentials) {
             throw new Error('PairingSession.pin() must be called before end().');
@@ -78,13 +53,11 @@ export class PairingSession {
 
         const credentials = this.#credentials;
         this.#cleanup();
+
         return credentials;
     }
 
-    /**
-     * Aborts the pairing session and cleans up without returning credentials.
-     * Use this when the user cancels pairing.
-     */
+    /** Closes the connection without credentials, for when the user cancels. */
     abort(): void {
         this.#cleanup();
     }
@@ -95,11 +68,6 @@ export class PairingSession {
         }
 
         this.#finished = true;
-
-        try {
-            this.#protocol?.disconnect();
-        } catch {
-            // Best-effort cleanup.
-        }
+        this.#pairing?.close();
     }
 }

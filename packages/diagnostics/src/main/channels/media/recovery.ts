@@ -211,10 +211,10 @@ export function registerRecoveryChannels(context: ChannelContext): void {
             throw new Error('This device is not connected, so there is nothing to drop.');
         }
 
-        const protocol = device.airplay[AIRPLAY_PROTOCOL];
+        const airplay = device.airplay[AIRPLAY_PROTOCOL];
         const kind = request.stream ?? 'data';
         if (!['control', 'data', 'event'].includes(kind)) throw new Error('Unknown stream to drop.');
-        const stream = kind === 'control' ? protocol.controlStream : kind === 'event' ? protocol.eventStream : protocol.dataStream;
+        const stream = kind === 'control' ? airplay?.control : kind === 'event' ? airplay?.remoteControl?.events : airplay?.remoteControl?.data;
 
         if (!stream?.destroy) {
             throw new Error('This device has no selected stream socket to drop.');
@@ -224,7 +224,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
         entry.lastEvent = 'socket destroyed';
         push(request.deviceId);
 
-        stream.destroy();
+        stream.destroy(new Error('Simulated drop.'));
     });
 
     handle('recovery:wake', async request => {

@@ -1,7 +1,6 @@
 import { dialog } from 'electron';
-import { Protocol } from '@corewire/airplay';
-import type { AccessoryKeys } from '@corewire/core/pairing';
-import { PtpMaster } from '@corewire/airplay';
+import { type AudioPlayback, connect, PtpMaster, toTarget } from '@corewire/airplay';
+import type { AccessoryCredentials } from '@corewire/core/pairing';
 import type { MediaController } from '@corewire/devices';
 import type { AudioSourceKind, AudioStatus, AudioTelemetry, PtpTelemetry } from '@shared/contract';
 import { handle } from '../../ipc';
@@ -11,9 +10,6 @@ import { buildSource, type BuiltSource } from './sources';
 
 /** Limit status pushes to four per second to avoid flooding the renderer. */
 const TELEMETRY_INTERVAL = 250;
-
-/** The receiver drops an idle audio session, the same cadence the SDK keeps for its own streams. */
-const FEEDBACK_INTERVAL = 2000;
 
 const DEFAULT_VOLUME_DB = -20;
 
@@ -34,10 +30,10 @@ type AudioState = {
     startedAt: number | null;
     error: string | null;
     built: BuiltSource | null;
-    /** Only set for the PTP experiment, which runs its own low-level protocol. */
-    ptpProtocol: Protocol | null;
+    /** Only set for the PTP experiment, which runs on an AirPlay session of its own. */
+    ptpAbort: AbortController | null;
+    ptpPlayback: AudioPlayback | null;
     ptpMaster: PtpMaster | null;
-    feedback: NodeJS.Timeout | null;
     telemetry: NodeJS.Timeout | null;
 };
 
@@ -62,9 +58,9 @@ export function registerAudioChannels(context: ChannelContext): void {
             startedAt: null,
             error: null,
             built: null,
-            ptpProtocol: null,
+            ptpAbort: null,
+            ptpPlayback: null,
             ptpMaster: null,
-            feedback: null,
             telemetry: null
         };
 
@@ -93,11 +89,11 @@ export function registerAudioChannels(context: ChannelContext): void {
         return device.media;
     };
 
-    /* The SDK streams over a protocol of its own, which is where the counters live. */
+    /* The SDK streams over a connection of its own, which is where the counters live. */
     const readTelemetry = (deviceId: string): AudioTelemetry | null => {
         const state = stateOf(deviceId);
-        const protocol = state.ptpProtocol ?? context.sessions.sessions.get(deviceId)?.device?.airplay.streamProtocol ?? null;
-        const stats = protocol?.audioStream?.stats ?? null;
+        const playback = state.ptpPlayback ?? context.sessions.sessions.get(deviceId)?.device?.airplay.audioPlayback ?? null;
+        const stats = playback?.stats ?? null;
 
         if (stats === null) {
             return null;
@@ -144,14 +140,10 @@ export function registerAudioChannels(context: ChannelContext): void {
             state.telemetry = null;
         }
 
-        if (state.feedback !== null) {
-            clearInterval(state.feedback);
-            state.feedback = null;
-        }
-
         state.built?.dispose();
         state.built = null;
-        state.ptpProtocol = null;
+        state.ptpAbort = null;
+        state.ptpPlayback = null;
         state.ptpMaster = null;
         state.playing = false;
         state.mode = 'idle';
@@ -247,8 +239,8 @@ export function registerAudioChannels(context: ChannelContext): void {
         const state = stateOf(request.deviceId);
         state.generation++;
 
-        if (state.ptpProtocol !== null) {
-            state.ptpProtocol.disconnect();
+        if (state.ptpAbort !== null) {
+            state.ptpAbort.abort();
         } else {
             mediaOf(request.deviceId).stopStreamAudio();
         }
@@ -270,62 +262,35 @@ export function registerAudioChannels(context: ChannelContext): void {
 }
 
 /**
- * Tests a separate {@link Protocol} with a PTP grandmaster.
- * The SDK disables PTP because it produces silent playback on PTP-capable receivers.
+ * Streams on an AirPlay session of its own with a PTP grandmaster, independent of the device's
+ * session. The SDK leaves PTP off because it produces silent playback on PTP-capable receivers.
  */
-async function streamOverPtp(session: DeviceSession, state: AudioState, built: BuiltSource, volumeDb: number, credentials: Parameters<Protocol['verify']['start']>[0] | undefined): Promise<void> {
+async function streamOverPtp(session: DeviceSession, state: AudioState, built: BuiltSource, volumeDb: number, credentials: AccessoryCredentials | undefined): Promise<void> {
     const service = session.discovered.services.airplay;
 
     if (!service) {
         throw new Error('This device advertises no AirPlay service.');
     }
 
-    const protocol = new Protocol(service);
+    const abort = new AbortController();
     const master = new PtpMaster(service.address);
 
-    protocol.usePtpMaster(master);
-    state.ptpProtocol = protocol;
+    state.ptpAbort = abort;
     state.ptpMaster = master;
 
-    const check = (): void => {
-        if (state.ptpProtocol !== protocol) throw new Error('Audio preparation cancelled.');
-    };
+    const parent = await connect(toTarget(service), {credentials, signal: abort.signal});
+
     try {
-        await protocol.connect();
-        check();
-        await protocol.fetchInfo();
-        check();
+        const playback = await parent.streamAudio(built.source, {volumeDb, ptpMaster: master, signal: abort.signal});
 
-        const keys = await handshake(protocol, credentials);
-        check();
+        if (state.ptpAbort === abort) {
+            state.ptpPlayback = playback;
+        }
 
-        protocol.controlStream.enableEncryption(keys.accessoryToControllerKey, keys.controllerToAccessoryKey);
-
-        await protocol.setupEventStreamForAudioStreaming(keys.sharedSecret, keys.pairingId);
-        check();
-
-        // A fresh AirPlay audio session starts silent.
-        await protocol.controlStream.setParameter('volume', String(volumeDb));
-        check();
-
-        state.feedback = setInterval(() => {
-            void protocol.feedback().catch(() => undefined);
-        }, FEEDBACK_INTERVAL);
-
-        await protocol.setupAudioStream(built.source);
+        await playback.finished;
     } finally {
-        protocol.disconnect();
+        void parent.close();
     }
-}
-
-async function handshake(protocol: Protocol, credentials: Parameters<Protocol['verify']['start']>[0] | undefined): Promise<AccessoryKeys> {
-    if (credentials) {
-        return await protocol.verify.start(credentials);
-    }
-
-    await protocol.pairing.start();
-
-    return await protocol.pairing.transient();
 }
 
 function ptpTelemetry(master: PtpMaster | null): PtpTelemetry | null {

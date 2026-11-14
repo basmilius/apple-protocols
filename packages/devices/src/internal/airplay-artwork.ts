@@ -1,7 +1,7 @@
-import { DataStreamMessage, type Protocol } from '@corewire/airplay';
-import type { AirPlayManager } from './airplay-manager';
+import { DataStreamMessage } from '@corewire/airplay';
+import type { AirPlayManager, MrpAccess } from './airplay-manager';
 import type { AirPlayState } from './airplay-state';
-import { PROTOCOL } from './const';
+import { MRP_CHANNEL } from './const';
 import { decodeArtworkAssetURL } from './artwork-url';
 import { fetchAppleMusicArtwork } from './apple-music-artwork';
 
@@ -58,8 +58,8 @@ export type ArtworkResult = {
  * 4. Fetches the playback queue if artwork is expected but not yet available
  */
 export class AirPlayArtwork {
-    get #protocol(): Protocol {
-        return this.#device[PROTOCOL];
+    get #protocol(): MrpAccess {
+        return this.#device[MRP_CHANNEL];
     }
 
     get #state(): AirPlayState {

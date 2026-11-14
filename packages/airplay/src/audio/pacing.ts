@@ -1,5 +1,5 @@
 import { type Logger, waitFor } from '@corewire/core';
-import { AUDIO_FRAMES_PER_PACKET } from './const';
+import { AUDIO_FRAMES_PER_PACKET } from '../const';
 
 /** Maximum number of extra packets to send when catching up from being behind schedule. */
 const MAX_PACKETS_COMPENSATE = 3;

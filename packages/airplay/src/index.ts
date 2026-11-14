@@ -1,5 +1,76 @@
 /// <reference types="node" preserve="true" />
 export {
+    AirPlaySession,
+    connect
+} from './session';
+
+export {
+    pair,
+    PinPairing
+} from './pairing';
+
+export type {
+    AirPlayTarget,
+    ConnectOptions,
+    PairOptions,
+    PlayUrlOptions,
+    RemoteControl,
+    RemoteControlOptions,
+    SessionCloseReason,
+    StreamAudioOptions
+} from './types';
+
+export {
+    ControlChannel
+} from './channels/control';
+
+export {
+    DataChannel
+} from './channels/data';
+
+export {
+    EventChannel,
+    type EventChannelEventMap
+} from './channels/event';
+
+export {
+    type PlaybackInfo,
+    UrlPlayback
+} from './playback/playback';
+
+export type {
+    PlayQueueCommand,
+    PlayQueueState
+} from './playback/playQueue';
+
+export {
+    AudioPlayback
+} from './audio/playback';
+
+export {
+    AudioMultiplexer
+} from './audio/multiplexer';
+
+export {
+    AudioStream,
+    type AudioStreamOptions,
+    type AudioStreamStats,
+    type AudioStreamTarget
+} from './audio/stream';
+
+export {
+    LatencyManager
+} from './audio/latency';
+
+export type {
+    AudioSource
+} from './audio/source';
+
+export {
+    AudioSourceSession
+} from './audio/sourceSession';
+
+export {
     AirPlayFeatureFlags,
     describeFlags,
     getPairingRequirement,
@@ -25,6 +96,7 @@ export {
     type AirPlayDiscoveryResult,
     discover,
     type DiscoverOptions,
+    toTarget,
     withFeatures
 } from './discovery';
 
@@ -45,18 +117,6 @@ export {
     type TimingStrategy
 } from './timing';
 
-export type { AudioSource } from './audioSource';
-export { AudioSourceSession } from './audioSourceSession';
-
-export { AudioMultiplexer } from './audioMultiplexer';
-export { AudioStream, type AudioStreamOptions, type AudioStreamStats } from './audioStream';
-export { ControlStream } from './controlStream';
-export { DataStream } from './dataStream';
-export { EventStream, type EventStreamEventMap } from './eventStream';
-export { LatencyManager } from './latencyManager';
-export { Pairing, Verify } from './pairing';
-export { type PlayQueueCommand, type PlayQueueState } from './playQueue';
-export { Protocol, type PlaybackInfo } from './protocol';
 export { parseMessages } from './utils';
 
 export * as DataStreamMessage from './dataStreamMessages';

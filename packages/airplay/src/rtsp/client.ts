@@ -59,13 +59,10 @@ export class RtspClient extends Connection<{}> {
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
-        this.onRtspClose = this.onRtspClose.bind(this);
-        this.onRtspData = this.onRtspData.bind(this);
-        this.onRtspError = this.onRtspError.bind(this);
-
-        this.on('closed', this.onRtspClose);
-        this.on('data', this.onRtspData);
-        this.on('error', this.onRtspError);
+        // A connection lives once, so these listeners never need removing.
+        this.on('closed', (reason, error) => this.#onClose(reason, error));
+        this.on('data', (data: Buffer) => this.#onData(data));
+        this.on('error', (error: Error) => this.#onError(error));
     }
 
     /**
@@ -208,7 +205,7 @@ export class RtspClient extends Connection<{}> {
      * Resets both buffers and rejects every pending request: with a {@link ConnectionTimeoutError}
      * after a timeout, with the error that broke the connection, or with a {@link ConnectionClosedError}.
      */
-    onRtspClose(reason: CloseReason, error?: Error): void {
+    #onClose(reason: CloseReason, error?: Error): void {
         this.#buffer = Buffer.alloc(0);
         this.#encryptedBuffer = Buffer.alloc(0);
 
@@ -233,7 +230,7 @@ export class RtspClient extends Connection<{}> {
      *
      * @param data - Raw TCP data received from the socket.
      */
-    onRtspData(data: Buffer): void {
+    #onData(data: Buffer): void {
         try {
             this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
 
@@ -316,7 +313,7 @@ export class RtspClient extends Connection<{}> {
      *
      * @param err - The error that occurred on the socket.
      */
-    onRtspError(err: Error): void {
+    #onError(err: Error): void {
         for (const [cseq, {reject}] of this.#requests) {
             reject(err);
             this.#requests.delete(cseq);

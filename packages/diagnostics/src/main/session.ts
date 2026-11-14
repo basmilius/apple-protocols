@@ -233,14 +233,11 @@ export class DeviceSession {
     }
 
     #watchStreams(device: Device): void {
-        const protocol = device.airplay[AIRPLAY_PROTOCOL];
+        const remote = device.airplay[AIRPLAY_PROTOCOL]?.remoteControl;
 
-        if (protocol.dataStream) {
-            this.#watch('dataStream', protocol.dataStream as unknown as EventEmitter, DATA_STREAM_EVENTS);
-        }
-
-        if (protocol.eventStream) {
-            this.#watch('eventStream', protocol.eventStream as unknown as EventEmitter, EVENT_STREAM_EVENTS);
+        if (remote) {
+            this.#watch('dataStream', remote.data as unknown as EventEmitter, DATA_STREAM_EVENTS);
+            this.#watch('eventStream', remote.events as unknown as EventEmitter, EVENT_STREAM_EVENTS);
         }
     }
 

@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import type { Context } from '@corewire/core/transport';
 import { waitFor } from '@corewire/core';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
-import type { AudioSource } from '../audioSource';
+import type { AudioSource } from '../audio/source';
 import type { TimingServer } from '../timing';
 import { EMPTY_METADATA, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
 import { AudioPacketHeader, PacketFifo } from './packets';

@@ -1,107 +1,128 @@
+import { ConnectionClosedError, PairingError } from '@corewire/core';
 import { type AccessoryCredentials, type AccessoryKeys, deriveControlKeys, PairSetup, type PairingTransport, PairVerify } from '@corewire/core/pairing';
-import { PairingError } from '@corewire/core';
-import type { ControlStream } from './controlStream';
-import type { Protocol } from './protocol';
+import { Context } from '@corewire/core/transport';
+import { ControlChannel } from './channels/control';
+import { DEFAULT_PORT } from './const';
+import { fetchInfo } from './info';
+import type { AirPlayTarget, PairOptions } from './types';
 
-/** Posts each pairing message as an octet-stream body to `path` on the control stream. */
-function rtspTransport(controlStream: ControlStream, path: string, hkp: () => 3 | 4): PairingTransport {
+/** `X-Apple-HKP` is 3 for a PIN pairing and pair-verify, 4 for a transient pairing. */
+type HkpMode = 3 | 4;
+
+/** Posts each pairing message as an octet-stream body; the HTTP status is not checked, the TLV carries errors. */
+function rtspTransport(control: ControlChannel, path: string, hkp: HkpMode): PairingTransport {
     return async (payload) => {
-        const response = await controlStream.post(path, payload, {
+        const response = await control.post(path, payload, {
             'Content-Type': 'application/octet-stream',
-            'X-Apple-HKP': hkp().toString()
+            'X-Apple-HKP': hkp.toString()
         });
 
         return Buffer.from(await response.arrayBuffer());
     };
 }
 
-/**
- * AirPlay pair-setup over `/pair-setup`. `X-Apple-HKP` is 3 for a PIN pairing and 4 for a
- * transient one, and `/pair-pin-start` has to go first in both cases.
- */
-export class Pairing {
-    get controlStream(): ControlStream {
-        return this.#controlStream;
-    }
+/** `/pair-pin-start` goes first for both a PIN and a transient pairing. */
+async function pinStart(control: ControlChannel, hkp: HkpMode): Promise<void> {
+    const response = await control.post('/pair-pin-start', null, {
+        'Content-Type': 'application/octet-stream',
+        'X-Apple-HKP': hkp.toString()
+    });
 
-    /** The HAP steps, for a caller that waits for the PIN between M1 and M2. */
-    get internal(): PairSetup {
-        return this.#internal;
-    }
-
-    readonly #controlStream: ControlStream;
-    readonly #internal: PairSetup;
-    #hkp: 3 | 4;
-
-    constructor(protocol: Protocol) {
-        this.#controlStream = protocol.controlStream;
-        this.#internal = new PairSetup(protocol.context, rtspTransport(this.#controlStream, '/pair-setup', () => this.#hkp));
-    }
-
-    async start(): Promise<void> {
-        await this.#internal.start();
-    }
-
-    /** @throws {PairingError} If the device refuses to start pairing or SRP fails. */
-    async pin(askPin: () => Promise<string>): Promise<AccessoryCredentials> {
-        await this.pinStart();
-
-        return this.#internal.pin(askPin);
-    }
-
-    /** Makes the device show its PIN, without running the exchange. */
-    async pinStart(): Promise<void> {
-        this.#hkp = 3;
-
-        await this.#pinStart();
-    }
-
-    /** @throws {PairingError} If the device refuses to start pairing. */
-    async transient(): Promise<AccessoryKeys> {
-        this.#hkp = 4;
-
-        await this.#pinStart();
-
-        return this.#internal.transient();
-    }
-
-    async #pinStart(): Promise<void> {
-        const response = await this.#controlStream.post('/pair-pin-start', null, {
-            'Content-Type': 'application/octet-stream',
-            'X-Apple-HKP': this.#hkp.toString()
-        });
-
-        if (response.status !== 200) {
-            throw new PairingError(`Cannot start pairing session. ${response.status} ${response.statusText} ${await response.text()}`);
-        }
+    if (response.status !== 200) {
+        throw new PairingError(`Cannot start pairing session. ${response.status} ${response.statusText} ${await response.text()}`);
     }
 }
 
-/** AirPlay pair-verify over `/pair-verify`, followed by the control stream keys. */
-export class Verify {
-    get controlStream(): ControlStream {
-        return this.#controlStream;
+/** Pair-verify over `/pair-verify`, followed by the control keys. */
+export async function verifyPairing(control: ControlChannel, context: Context, credentials: AccessoryCredentials): Promise<AccessoryKeys> {
+    const verify = new PairVerify(context, rtspTransport(control, '/pair-verify', 3));
+    const keys = await verify.start(credentials);
+
+    return {
+        ...deriveControlKeys(keys.sharedSecret),
+        pairingId: keys.pairingId,
+        sharedSecret: keys.sharedSecret
+    };
+}
+
+/** Pair-setup M1 to M4 with the transient flag, for receivers that need no PIN (HomePod). */
+export async function transientPairing(control: ControlChannel, context: Context): Promise<AccessoryKeys> {
+    const setup = new PairSetup(context, rtspTransport(control, '/pair-setup', 4));
+
+    await setup.start();
+    await pinStart(control, 4);
+
+    return await setup.transient();
+}
+
+/**
+ * Starts a PIN pairing: connects, fetches `/info` and asks the receiver to show its PIN. Finish
+ * with {@link PinPairing.pin}, which runs pair-setup M1 to M6 and returns the long-term credentials.
+ *
+ * @throws {PairingError} When the receiver refuses to start pairing.
+ */
+export async function pair(target: AirPlayTarget, options: PairOptions = {}): Promise<PinPairing> {
+    const context = options.context ?? new Context(target.id ?? target.address, options.identity);
+    const control = new ControlChannel(context, target.address, target.port ?? DEFAULT_PORT);
+    const interrupt = (): void => control.destroy();
+
+    options.signal?.addEventListener('abort', interrupt, {once: true, signal: control.signal});
+
+    try {
+        await control.connect();
+        await fetchInfo(control, context);
+
+        const setup = new PairSetup(context, rtspTransport(control, '/pair-setup', 3));
+
+        await setup.start();
+        await pinStart(control, 3);
+
+        return new PinPairing(control, setup);
+    } catch (err) {
+        control.destroy();
+
+        throw options.signal?.aborted ? new ConnectionClosedError('Pairing was interrupted.') : err;
+    }
+}
+
+/** A PIN pairing whose PIN the receiver shows now. One connection, used once. */
+export class PinPairing {
+    /** Aborts when the pairing connection closes. */
+    get signal(): AbortSignal {
+        return this.#control.signal;
     }
 
-    get internal(): PairVerify {
-        return this.#internal;
+    readonly #control: ControlChannel;
+    readonly #setup: PairSetup;
+
+    constructor(control: ControlChannel, setup: PairSetup) {
+        this.#control = control;
+        this.#setup = setup;
     }
 
-    readonly #controlStream: ControlStream;
-    readonly #internal: PairVerify;
+    /**
+     * Runs pair-setup M1 to M6 with the PIN from the screen. A wrong PIN leaves the connection
+     * open; call {@link close} when giving up.
+     *
+     * @throws {PairingError} When a step fails or the PIN is wrong.
+     */
+    async pin(code: string): Promise<AccessoryCredentials> {
+        const m1 = await this.#setup.m1();
+        const m2 = await this.#setup.m2(m1, code);
+        const m3 = await this.#setup.m3(m2);
+        const m4 = await this.#setup.m4(m3);
+        const m5 = await this.#setup.m5(m4);
+        const credentials = await this.#setup.m6(m4, m5);
 
-    constructor(protocol: Protocol) {
-        this.#controlStream = protocol.controlStream;
-        this.#internal = new PairVerify(protocol.context, rtspTransport(this.#controlStream, '/pair-verify', () => 3));
+        if (!credentials) {
+            throw new PairingError('Pairing failed: could not obtain credentials.');
+        }
+
+        return credentials;
     }
 
-    async start(credentials: AccessoryCredentials): Promise<AccessoryKeys> {
-        const keys = await this.#internal.start(credentials);
-
-        return {
-            ...deriveControlKeys(keys.sharedSecret),
-            pairingId: keys.pairingId,
-            sharedSecret: keys.sharedSecret
-        };
+    /** Closes the pairing connection. */
+    close(): void {
+        this.#control.destroy();
     }
 }

@@ -37,13 +37,12 @@ function targetsOf(session: DeviceSession): RawTargets {
         return {};
     }
 
-    const protocol = device.airplay[AIRPLAY_PROTOCOL];
+    const airplay = device.airplay[AIRPLAY_PROTOCOL];
     const companionLink = device instanceof AppleTV ? device.companionLink?.[COMPANION_LINK_PROTOCOL] : undefined;
 
     return {
-        dataStream: protocol.dataStream as unknown as RawTargets['dataStream'],
+        dataStream: airplay?.remoteControl?.data as unknown as RawTargets['dataStream'],
         companionLink: companionLink as unknown as RawTargets['companionLink'],
-        controlStream: protocol.controlStream as unknown as RawTargets['controlStream'],
-        protocol: protocol as unknown as RawTargets['protocol']
+        controlStream: airplay?.control as unknown as RawTargets['controlStream']
     };
 }

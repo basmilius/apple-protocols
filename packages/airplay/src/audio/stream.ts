@@ -4,12 +4,12 @@ import type { Context } from '@corewire/core/transport';
 import { EncryptionError, randomInt32, randomInt64, SetupError } from '@corewire/core';
 import { NTP, Plist } from '@corewire/core/encoding';
 import { Chacha20 } from '@corewire/core/crypto';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from './const';
-import type { AudioSource } from './audioSource';
-import { AudioSourceSession } from './audioSourceSession';
-import { LatencyManager } from './latencyManager';
-import type { Protocol } from './protocol';
-import { streamWithTiming } from './streamTiming';
+import type { ControlChannel } from '../channels/control';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from '../const';
+import { LatencyManager } from './latency';
+import { streamWithTiming } from './pacing';
+import type { AudioSource } from './source';
+import { AudioSourceSession } from './sourceSession';
 
 /** Latency in frames (0.25 seconds at 44,100 Hz). Used for silence padding at end of stream. */
 const LATENCY_FRAMES = 11025;
@@ -22,6 +22,18 @@ const SYNC_INTERVAL = 1000;
 
 /** Default number of previous frames to include as RFC 2198 redundancy (0 = disabled). */
 const DEFAULT_REDUNDANCY_COUNT = 0;
+
+/** The audio session an {@link AudioStream} runs on: its control channel, after the audio-session SETUP and RECORD. */
+export type AudioStreamTarget = {
+    readonly context: Context;
+    readonly control: ControlChannel;
+
+    /** Receiver address for the UDP sockets. */
+    readonly address: string;
+
+    /** `supportedAudioFormats` from `/info`, only logged. */
+    readonly supportedAudioFormats?: number;
+};
 
 export type AudioStreamOptions = {
     /** Previous frames to include as RFC 2198 redundancy. Defaults to 0, which disables redundancy. */
@@ -51,7 +63,7 @@ export const CompressionType = {
 
 /** SETUP `audioFormat` bits, named `{codec}_{sampleRate}_{bitDepth}_{channels}`. */
 export const AudioFormat = {
-    // PCM starts at bit 2; see openairplay/airplay2-receiver ap2/connections/audio.py (AirplayAudFmt).
+    // PCM starts at bit 2; bits 0 and 1 are not PCM formats.
     PCM_8000_16_1: 0x4,
     PCM_8000_16_2: 0x8,
     PCM_16000_16_1: 0x10,
@@ -129,8 +141,10 @@ const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, a
  * Call {@link setup}, then {@link prepare}, send frames and call {@link finish}, or use {@link stream} after setup.
  */
 export class AudioStream {
-    readonly #protocol: Protocol;
+    readonly #address: string;
     readonly #context: Context;
+    readonly #control: ControlChannel;
+    readonly #supportedFormats?: number;
     /** Configurable RFC 2198 redundancy count (0 = disabled). */
     #redundancyCount: number;
 
@@ -181,13 +195,11 @@ export class AudioStream {
         };
     }
 
-    /**
-     * @param protocol - The AirPlay protocol instance providing control stream and context.
-     * @param options - Optional configuration for redundancy and other settings.
-     */
-    constructor(protocol: Protocol, options?: AudioStreamOptions) {
-        this.#protocol = protocol;
-        this.#context = protocol.context;
+    constructor(target: AudioStreamTarget, options?: AudioStreamOptions) {
+        this.#address = target.address;
+        this.#context = target.context;
+        this.#control = target.control;
+        this.#supportedFormats = target.supportedAudioFormats;
         this.#redundancyCount = options?.redundancyCount ?? DEFAULT_REDUNDANCY_COUNT;
     }
 
@@ -229,7 +241,7 @@ export class AudioStream {
         const streamConnectionID = randomInt64();
 
         /* SETUP uses `ct` for the codec and `audioFormat` for its sample rate, bit depth and channel count. */
-        const supportedFormats = this.#protocol.receiverInfo?.supportedAudioFormats as number | undefined;
+        const supportedFormats = this.#supportedFormats;
         const ct = CompressionType.PCM;
         const audioFormat: number = AudioFormat.PCM_44100_16_2;
         const sampleRate = AUDIO_SAMPLE_RATE;
@@ -263,8 +275,8 @@ export class AudioStream {
         this.#context.logger.debug('[audio]', 'Sending audio stream SETUP...');
         this.#context.logger.debug('[audio]', 'shk length:', this.#sharedKey.length);
 
-        const response = await this.#protocol.controlStream.setup(
-            `/${this.#protocol.controlStream.sessionId}`,
+        const response = await this.#control.setup(
+            `/${this.#control.sessionId}`,
             Buffer.from(setupBody),
             {'Content-Type': 'application/x-apple-binary-plist'}
         );
@@ -292,7 +304,7 @@ export class AudioStream {
         }
 
         this.#context.logger.debug('[audio]', 'Sending RECORD...');
-        await this.#protocol.controlStream.record(`/${this.#protocol.controlStream.sessionId}`);
+        await this.#control.record(`/${this.#control.sessionId}`);
         if (this.#closed) throw new SetupError('Audio setup cancelled.');
         this.#context.logger.debug('[audio]', 'RECORD complete');
 
@@ -353,7 +365,7 @@ export class AudioStream {
         this.#streamContext = ctx;
 
         this.#context.logger.debug('[audio]', 'Sending FLUSH...');
-        await this.#protocol.controlStream.flush(`/${this.#protocol.controlStream.sessionId}`, {
+        await this.#control.flush(`/${this.#control.sessionId}`, {
             'Range': 'npt=0-',
             'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
         });
@@ -419,7 +431,7 @@ export class AudioStream {
         this.#stopSync();
 
         this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
-        await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
+        await this.#control.teardown(`/${this.#control.sessionId}`);
         this.#context.logger.debug('[audio]', 'TEARDOWN complete');
     }
 
@@ -457,7 +469,7 @@ export class AudioStream {
             this.#stopSync();
 
             this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
-            await this.#protocol.controlStream.teardown(`/${this.#protocol.controlStream.sessionId}`);
+            await this.#control.teardown(`/${this.#control.sessionId}`);
             this.#context.logger.debug('[audio]', 'TEARDOWN complete');
 
         } finally {
@@ -711,9 +723,9 @@ export class AudioStream {
 
             firstPacket = false;
 
-            this.#controlSocket.send(packet, this.#remoteControlPort, this.#protocol.discoveryResult.address, (err) => {
+            this.#controlSocket.send(packet, this.#remoteControlPort, this.#address, (err) => {
                 if (err) {
-                    this.#protocol.context.logger.warn('[audio]', 'Sync packet send failed', err);
+                    this.#context.logger.warn('[audio]', 'Sync packet send failed', err);
                 }
             });
         };
@@ -744,7 +756,7 @@ export class AudioStream {
      * @param rinfo - Remote address info of the sender.
      */
     #onControlMessage(data: Buffer, rinfo: { address: string; port: number }): void {
-        if (data.length < 8 || (data[0] >> 6) !== 2 || rinfo.address !== this.#protocol.discoveryResult.address || rinfo.port !== this.#remoteControlPort) {
+        if (data.length < 8 || (data[0] >> 6) !== 2 || rinfo.address !== this.#address || rinfo.port !== this.#remoteControlPort) {
             return;
         }
         const actualType = data[1] & 0x7F;

@@ -1,5 +1,6 @@
 import { DataStreamMessage, Proto } from '@corewire/airplay';
 import { FrameType } from '@corewire/companion-link';
+import { Plist } from '@corewire/core/encoding';
 import type { RawBuilderInfo, RawMessageRequest, RawParam, RawParamOption, RawTransport } from '@shared/contract';
 
 export type RawEntry = RawBuilderInfo & {
@@ -11,7 +12,6 @@ export type RawTargets = {
     readonly dataStream?: DataStreamTarget;
     readonly companionLink?: CompanionLinkTarget;
     readonly controlStream?: ControlStreamTarget;
-    readonly protocol?: ProtocolTarget;
 };
 
 type Args = Readonly<Record<string, unknown>>;
@@ -29,8 +29,6 @@ type CompanionLinkTarget = Record<string, (...args: never[]) => unknown> & {
 };
 
 type ControlStreamTarget = Record<string, (...args: never[]) => unknown>;
-
-type ProtocolTarget = Record<string, (...args: never[]) => unknown>;
 
 const string = (name: string, label: string, defaultValue = '', optional = false, hint?: string): RawParam => ({name, label, type: 'string', defaultValue, optional, hint});
 const number = (name: string, label: string, defaultValue = 0, hint?: string): RawParam => ({name, label, type: 'number', defaultValue, hint});
@@ -266,11 +264,24 @@ const CONTROL_STREAM_ENTRIES: readonly RawEntry[] = [
     ),
     controlStream('cs.setAudioMode', 'setAudioMode', 'Audio', 'Switches the audio mode of the session.', [string('mode', 'Mode', 'default')], (targets, args) => callOn(targets.controlStream, 'controlStream', 'setAudioMode', [asString(args, 'mode')])),
     controlStream('cs.flushBuffered', 'flushBuffered', 'Audio', 'Flushes the buffered audio for a URI.', [string('uri', 'URI', '*'), json('headers', 'Headers', '{}')], (targets, args) => callOn(targets.controlStream, 'controlStream', 'flushBuffered', [asString(args, 'uri'), asRecord(args, 'headers')])),
-    controlStream('cs.feedback', 'Protocol.feedback', 'Session', 'Sends the keepalive the receiver expects every two seconds.', [json('stats', 'Stats', '{}')], (targets, args) => callOn(targets.protocol, 'protocol', 'feedback', [asRecord(args, 'stats')])),
-    controlStream('cs.getPlaybackInfo', 'Protocol.getPlaybackInfo', 'Session', 'Reads the playback info of the URL playback session.', [], targets => callOn(targets.protocol, 'protocol', 'getPlaybackInfo', []))
+    controlStream('cs.feedback', 'feedback', 'Session', 'Sends the keepalive the receiver expects every two seconds.', [json('stats', 'Stats', '{}')], (targets, args) => callOn(targets.controlStream, 'controlStream', 'feedback', [asRecord(args, 'stats')])),
+    controlStream('cs.getPlaybackInfo', 'GET /playback-info', 'Session', 'Reads the playback info the receiver reports on the control stream.', [], async targets => await readPlaybackInfo(targets.controlStream))
 ];
 
-function callOn(target: ControlStreamTarget | ProtocolTarget | undefined, name: string, method: string, args: readonly unknown[]): unknown {
+/** Parses the `/playback-info` plist: empty when nothing plays, null when the receiver refuses. */
+async function readPlaybackInfo(target: ControlStreamTarget | undefined): Promise<unknown> {
+    const response = await callOn(target, 'controlStream', 'get', ['/playback-info']) as Response;
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const body = await response.arrayBuffer();
+
+    return body.byteLength === 0 ? {} : Plist.parse(body);
+}
+
+function callOn(target: ControlStreamTarget | undefined, name: string, method: string, args: readonly unknown[]): unknown {
     if (!target) {
         throw new Error(`This device has no ${name}. Connect over AirPlay first.`);
     }

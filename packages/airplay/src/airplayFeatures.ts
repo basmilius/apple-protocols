@@ -6,11 +6,10 @@ import { parseFeatures } from './features';
  *
  * Bit positions are derived from Apple's internal `APSFeaturesSetFeature()` calls in the
  * AirPlayReceiver framework (`sysInfo_createFeaturesInternal`). Flag names follow the
- * community convention (pyatv, emanuelecozzi.net) with camelCase normalization.
+ * common community naming, in camelCase.
  *
  * Sources:
  * - Apple AirPlayReceiver framework decompilation (sysInfo.c)
- * - pyatv AirPlayFlags enum (pyatv/protocols/airplay/utils.py)
  * - https://emanuelecozzi.net/docs/airplay2/features/
  */
 export const AirPlayFeatureFlags: Record<string, bigint> = {

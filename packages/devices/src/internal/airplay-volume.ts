@@ -1,8 +1,8 @@
-import { DataStreamMessage, Proto, type Protocol } from '@corewire/airplay';
+import { DataStreamMessage, Proto } from '@corewire/airplay';
 import { CommandError, waitFor } from '@corewire/core';
-import type { AirPlayManager } from './airplay-manager';
+import type { AirPlayManager, MrpAccess } from './airplay-manager';
 import type { AirPlayState } from './airplay-state';
-import { PROTOCOL } from './const';
+import { MRP_CHANNEL } from './const';
 
 /**
  * Volume adjustment step size as a fraction (0.05 = 5%).
@@ -20,8 +20,8 @@ const FADE_STEP_INTERVAL = 50;
  * relative volume (HID volume up/down keys) based on the device's reported capabilities.
  */
 export class AirPlayVolume {
-    get #protocol(): Protocol {
-        return this.#device[PROTOCOL];
+    get #protocol(): MrpAccess {
+        return this.#device[MRP_CHANNEL];
     }
 
     /**

@@ -1,211 +1,226 @@
 import { randomInt } from 'node:crypto';
-import { ConnectionClosedError, TimeoutError } from '@corewire/core';
-import { buildNonce, type Context, EncryptionAwareConnection, EncryptionState } from '@corewire/core/transport';
-import { OPack } from '@corewire/core/encoding';
+import { ConnectionClosedError, reporter, TimeoutError } from '@corewire/core';
 import { Chacha20 } from '@corewire/core/crypto';
+import { OPack } from '@corewire/core/encoding';
+import { buildNonce, type Connection, type Context, EncryptionAwareConnection } from '@corewire/core/transport';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
-/** Size of the frame header in bytes (1 byte type + 3 bytes payload length). */
+/** 1 byte frame type and a 3-byte big-endian payload length. */
 const HEADER_SIZE = 4;
 
-/** Maximum allowed buffer size (1 MB) before the connection is reset to prevent memory exhaustion. */
-const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+/** A peer that sends more than this without completing a frame is broken. */
+const MAX_BUFFER_SIZE = 1024 * 1024;
 
-/** Special queue key for pairing exchanges, which lack the `_x` correlation field. */
+/** Pairing replies carry no `_x`, so the one pending pairing exchange waits under this key. */
 const PAIRING_QUEUE_IDENTIFIER = -1;
 
-/** Default timeout in milliseconds for request/response exchanges. */
 const DEFAULT_EXCHANGE_TIMEOUT = 10000;
 
-/** A pending exchange entry: resolve callback, reject callback, and timeout handle. */
-type QueueEntry = [resolve: Function, reject: Function, timer: NodeJS.Timeout];
+const MESSAGE_TYPE_NAMES: Record<number, string> = {
+    [MessageType.Event]: 'event',
+    [MessageType.Request]: 'request',
+    [MessageType.Response]: 'response'
+};
+
+/** `event` carries every incoming frame with an `_i` that settled no exchange: its name and its `_c`. */
+export type StreamEventMap = {
+    readonly event: [name: string, content: unknown];
+};
+
+type Pending = {
+    readonly resolve: (frame: [number, unknown]) => void;
+    readonly reject: (error: Error) => void;
+    readonly timer: NodeJS.Timeout;
+};
 
 /**
- * Companion Link TCP stream with OPack framing and ChaCha20 encryption.
- *
- * Handles the wire protocol for sending and receiving OPack-encoded frames over
- * an encrypted TCP connection to the Apple TV. Provides a request/response exchange
- * pattern using auto-incrementing `_x` correlation IDs, and emits unsolicited events
- * for server-initiated messages.
- *
- * Frame format: `[type:1][payloadLength:3][payload:N][authTag:16?]`
- *
- * Nonce format (Companion Link): 12-byte LE counter at offset 0 (8-byte counter + 4 zero bytes).
+ * The Companion Link socket: OPack frames of `[type:1][length:3][payload][tag:16?]`, the header
+ * being the AAD once encryption is on. The nonce is the 64-bit little-endian message counter at
+ * offset 0 of 12 bytes. {@link exchange} waits for the reply with the same `_x`; every other frame
+ * with an `_i` becomes an `event`.
  */
-export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>> {
-    /** Accessor for the parent class's encryption state (keys and nonce counters). */
-    get #encryptionState(): EncryptionState {
-        return this._encryption;
-    }
-
-    /** Pending request/response exchanges keyed by `_x` or {@link PAIRING_QUEUE_IDENTIFIER}. */
-    readonly #queue: Map<number, QueueEntry> = new Map();
-
-    /** Accumulation buffer for incomplete incoming TCP frames. */
+export class Stream extends EncryptionAwareConnection<StreamEventMap> {
+    readonly #pending: Map<number, Pending> = new Map();
     #buffer: Buffer = Buffer.alloc(0);
+    #xid: number = randomInt(0, 2 ** 16);
 
-    /** Auto-incrementing exchange correlation counter. */
-    #xid: number;
-
-    /**
-     * @param context - The device context providing logger and identity.
-     * @param address - The IP address of the Apple TV.
-     * @param port - The Companion Link TCP port.
-     */
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
-        this.#xid = randomInt(0, 2 ** 16);
-
-        this.onStreamClose = this.onStreamClose.bind(this);
-        this.onStreamData = this.onStreamData.bind(this);
-        this.onStreamError = this.onStreamError.bind(this);
-
-        this.on('closed', this.onStreamClose);
-        this.on('data', this.onStreamData);
-        this.on('error', this.onStreamError);
+        // The generic event map hides the base events from the listener signatures.
+        const connection = this as unknown as Connection;
+        connection.on('closed', () => this.#onClosed());
+        connection.on('data', (data: Buffer) => this.#onData(data));
+        connection.on('error', (error: Error) => this.#rejectAll(error));
     }
 
     /**
-     * Disconnects the stream, cleaning up pending exchanges and the read buffer.
-     */
-    async disconnect(): Promise<void> {
-        this.#cleanup();
-        await super.disconnect();
-    }
-
-    /**
-     * Sends an OPack message and waits for the correlated response.
-     * Pairing frames use a shared queue key since they don't carry an `_x` field.
+     * Sends an OPack frame and resolves with the decoded reply. Pairing frames share one slot,
+     * because their replies carry no `_x`.
      *
-     * @param type - The frame type to send (see {@link FrameType}).
-     * @param obj - The OPack message object to encode and send.
-     * @param timeout - Maximum time to wait for a response in milliseconds.
-     * @returns A tuple of `[headerByte, decodedPayload]` from the response.
-     * @throws TimeoutError if no response arrives within the timeout.
+     * @throws {TimeoutError} When no reply arrives in time.
+     * @throws {ConnectionClosedError} When the stream ends first.
      */
-    async exchange(type: number, obj: Record<string, unknown>, timeout: number = DEFAULT_EXCHANGE_TIMEOUT): Promise<[number, unknown]> {
-        const _x = this.#xid;
-        const isPairing = PairingFrameTypes.includes(type);
-        const queueKey = isPairing ? PAIRING_QUEUE_IDENTIFIER : _x;
+    exchange(type: number, message: Record<string, unknown>, timeout: number = DEFAULT_EXCHANGE_TIMEOUT): Promise<[number, unknown]> {
+        if (this.signal.aborted) {
+            return Promise.reject(new ConnectionClosedError('Stream cleanup.'));
+        }
 
-        return new Promise<[number, unknown]>((resolve, reject) => {
+        // Taken before sendOPack advances the counter, so it is the `_x` the frame carries.
+        const key = PairingFrameTypes.includes(type) ? PAIRING_QUEUE_IDENTIFIER : this.#xid;
+
+        return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
-                this.#queue.delete(queueKey);
+                this.#pending.delete(key);
                 reject(new TimeoutError(`Exchange timed out for type ${type}`));
             }, timeout);
 
-            this.#queue.set(queueKey, [
-                (value: [number, unknown]) => { clearTimeout(timer); resolve(value); },
-                (err: Error) => { clearTimeout(timer); reject(err); },
+            this.#pending.set(key, {
+                resolve: frame => {
+                    clearTimeout(timer);
+                    resolve(frame);
+                },
+                reject: error => {
+                    clearTimeout(timer);
+                    reject(error);
+                },
                 timer
-            ]);
+            });
 
-            this.sendOPack(type, obj);
+            try {
+                this.sendOPack(type, message);
+            } catch (err) {
+                this.#pending.delete(key);
+                clearTimeout(timer);
+                reject(err);
+            }
         });
     }
 
     /**
-     * Sends a raw binary frame over the TCP connection.
-     * Encrypts the payload with ChaCha20-Poly1305 when encryption is active
-     * (except for NoOp frames which are always sent in plaintext).
+     * Encodes an object as OPack and sends it, with the next `_x` unless it carries one.
      *
-     * @param type - The frame type byte (see {@link FrameType}).
-     * @param payload - The raw payload buffer to send.
+     * @throws {ConnectionClosedError} When the stream has ended.
      */
+    sendOPack(type: number, message: Record<string, unknown>): void {
+        if (this.signal.aborted) {
+            throw new ConnectionClosedError('Cannot write to a disconnected connection.');
+        }
+
+        const xid = this.#xid++;
+        message._x ??= OPack.sizedInteger(xid, 8);
+
+        this.context.logger.raw('[companion-link]', 'Sending opack frame', type, this.isEncrypted, message);
+
+        if (reporter.tapsTraffic) {
+            this.context.logger.traffic('companionLink', 'out', summarize(type, message), message);
+        }
+
+        this.send(type, Buffer.from(OPack.encode(message)));
+    }
+
+    /** Writes one frame; encrypted once encryption is on, except NoOp, which stays plaintext. */
     send(type: number, payload: Buffer): void {
-        const encrypt = this.isEncrypted && type !== FrameType.NoOp;
-        let payloadLength = payload.byteLength;
+        const encryption = type === FrameType.NoOp ? undefined : this._encryption;
+        const header = Buffer.allocUnsafe(HEADER_SIZE);
 
-        if (encrypt) {
-            payloadLength += Chacha20.CHACHA20_AUTH_TAG_LENGTH;
-        }
-
-        const header = Buffer.allocUnsafe(4);
         header.writeUint8(type, 0);
-        header.writeUintBE(payloadLength, 1, 3);
-
-        let data: Buffer;
-
-        if (encrypt) {
-            const nonce = buildNonce(this.#encryptionState.writeCount++, 'counter-at-0');
-            const encrypted = Chacha20.encrypt(this.#encryptionState.writeKey, nonce, header, payload);
-            data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
-        } else {
-            data = Buffer.concat([header, payload]);
-        }
+        header.writeUintBE(payload.byteLength + (encryption ? Chacha20.CHACHA20_AUTH_TAG_LENGTH : 0), 1, 3);
 
         this.context.logger.raw('[companion-link]', 'Sending data frame', this.isEncrypted, type);
 
-        this.write(data);
-    }
+        if (!encryption) {
+            this.write(Buffer.concat([header, payload]));
 
-    /**
-     * Encodes an object as OPack, assigns an `_x` correlation ID, and sends it
-     * as a framed message. The `_x` is auto-assigned if not already present.
-     *
-     * @param type - The frame type byte (see {@link FrameType}).
-     * @param obj - The message object to OPack-encode and send.
-     */
-    sendOPack(type: number, obj: Record<string, unknown>): void {
-        const _x = this.#xid++;
-        obj._x ??= OPack.sizedInteger(_x, 8);
-
-        this.context.logger.raw('[companion-link]', 'Sending opack frame', type, this.isEncrypted, obj);
-        this.context.logger.traffic('companionLink', 'out', summarizeOPack(type, obj), obj);
-
-        this.send(type, Buffer.from(OPack.encode(obj)));
-    }
-
-    /**
-     * Clears the read buffer and rejects all pending exchanges with a
-     * {@link ConnectionClosedError}.
-     */
-    #cleanup(): void {
-        this.#buffer = Buffer.alloc(0);
-
-        const error = new ConnectionClosedError('Stream cleanup.');
-
-        for (const [, reject, timer] of this.#queue.values()) {
-            clearTimeout(timer);
-            reject(error);
+            return;
         }
 
-        this.#queue.clear();
+        const nonce = buildNonce(encryption.writeCount++, 'counter-at-0');
+        const encrypted = Chacha20.encrypt(encryption.writeKey, nonce, header, payload);
+
+        this.write(Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]));
+    }
+
+    #decrypt(frame: Buffer): Buffer {
+        const header = frame.subarray(0, HEADER_SIZE);
+        const payloadLength = header.readUintBE(1, 3);
+
+        if (payloadLength < Chacha20.CHACHA20_AUTH_TAG_LENGTH) {
+            throw new Error(`Encrypted frame payload too short: ${payloadLength} bytes (minimum 16 for auth tag)`);
+        }
+
+        const payload = frame.subarray(HEADER_SIZE, HEADER_SIZE + payloadLength);
+        const authTag = payload.subarray(payload.byteLength - Chacha20.CHACHA20_AUTH_TAG_LENGTH);
+        const ciphertext = payload.subarray(0, payload.byteLength - Chacha20.CHACHA20_AUTH_TAG_LENGTH);
+        const nonce = buildNonce(this._encryption.readCount++, 'counter-at-0');
+
+        return Buffer.concat([header, Chacha20.decrypt(this._encryption.readKey, nonce, header, ciphertext, authTag)]);
     }
 
     /**
-     * Handles the stream close event by cleaning up pending state.
+     * A reply settles its exchange, a pairing frame the pairing slot, anything else with an `_i`
+     * becomes an event.
      */
-    onStreamClose(): void {
-        this.#cleanup();
+    #handle(header: Buffer, payload: Buffer): void {
+        const type = header.readUint8();
+
+        if (!OPackFrameTypes.includes(type)) {
+            this.context.logger.warn('[companion-link]', 'Packet not handled, no opack frame.');
+
+            return;
+        }
+
+        const message = OPack.decode(payload) as Record<string, unknown>;
+
+        this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload: message});
+
+        if (reporter.tapsTraffic) {
+            this.context.logger.traffic('companionLink', 'in', summarize(type, message), message);
+        }
+
+        // The device can reuse the `_x` of an outstanding request in its own events.
+        if ('_x' in message && message._t === MessageType.Response && this.#settle(Number(message._x), header, message)) {
+            return;
+        }
+
+        // Other frames can arrive while pairing waits; only a pairing frame answers it.
+        if (PairingFrameTypes.includes(type) && this.#settle(PAIRING_QUEUE_IDENTIFIER, header, message)) {
+            return;
+        }
+
+        if (!('_i' in message)) {
+            this.context.logger.warn('[companion-link]', 'Unhandled message', message);
+
+            return;
+        }
+
+        this.emit('event', message._i as string, message._c);
     }
 
-    /**
-     * Handles incoming TCP data by appending it to the accumulation buffer,
-     * then parsing and dispatching complete frames in a loop.
-     * Resets the connection if the buffer exceeds {@link MAX_BUFFER_SIZE}.
-     *
-     * @param data - The raw data chunk received from the TCP socket.
-     */
-    async onStreamData(data: Buffer): Promise<void> {
+    #onClosed(): void {
+        this.#buffer = Buffer.alloc(0);
+        this.#rejectAll(new ConnectionClosedError('Stream cleanup.'));
+    }
+
+    #onData(data: Buffer): void {
         this.#buffer = Buffer.concat([this.#buffer, data]);
 
         if (this.#buffer.byteLength > MAX_BUFFER_SIZE) {
-            this.context.logger.error('[companion-link]', `Buffer exceeded max size (${this.#buffer.byteLength} bytes), resetting connection.`);
+            this.context.logger.error('[companion-link]', `Buffer exceeded max size (${this.#buffer.byteLength} bytes), closing the connection.`);
             this.#buffer = Buffer.alloc(0);
-            this.emit('error', new Error('Buffer overflow: exceeded maximum buffer size'));
+            this.destroy(new Error('Buffer overflow: exceeded maximum buffer size'));
+
             return;
         }
 
         try {
             while (this.#buffer.byteLength >= HEADER_SIZE) {
                 const header = this.#buffer.subarray(0, HEADER_SIZE);
-                const payloadLength = header.readUintBE(1, 3);
-                const totalLength = HEADER_SIZE + payloadLength;
+                const totalLength = HEADER_SIZE + header.readUintBE(1, 3);
 
                 if (this.#buffer.byteLength < totalLength) {
                     this.context.logger.warn('[companion-link]', `Data packet is too short needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
+
                     return;
                 }
 
@@ -220,116 +235,40 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
                     frame = this.#decrypt(frame);
                 }
 
-                const payload = frame.subarray(HEADER_SIZE);
-                this.#handle(header, payload);
+                this.#handle(header, frame.subarray(HEADER_SIZE));
             }
         } catch (err) {
+            // A frame that does not decrypt or decode fails the pending exchanges but keeps the stream.
             this.context.logger.error('[companion-link]', 'onStreamData()', err);
-            this.emit('error', err);
+            this.emit('error', err instanceof Error ? err : new Error(String(err)));
         }
     }
 
-    /**
-     * Handles stream errors by rejecting all pending exchanges with the error.
-     *
-     * @param err - The error that occurred on the TCP socket.
-     */
-    onStreamError(err: Error): void {
-        for (const [, reject, timer] of this.#queue.values()) {
-            clearTimeout(timer);
-            reject(err);
+    #rejectAll(error: Error): void {
+        for (const {reject} of this.#pending.values()) {
+            reject(error);
         }
 
-        this.#queue.clear();
+        this.#pending.clear();
     }
 
-    /**
-     * Decrypts an incoming encrypted frame using ChaCha20-Poly1305.
-     * Uses the Companion Link nonce format: 12-byte LE counter at offset 0.
-     *
-     * @param data - The full encrypted frame (header + ciphertext + auth tag).
-     * @returns The decrypted frame (header + plaintext).
-     */
-    #decrypt(data: Buffer): Buffer {
-        const header = data.subarray(0, 4);
-        const payloadLength = header.readUintBE(1, 3);
+    #settle(key: number, header: Buffer, message: unknown): boolean {
+        const pending = this.#pending.get(key);
 
-        if (payloadLength < 16) {
-            throw new Error(`Encrypted frame payload too short: ${payloadLength} bytes (minimum 16 for auth tag)`);
+        if (!pending) {
+            return false;
         }
 
-        const payload = data.subarray(4, 4 + payloadLength);
-        const authTag = payload.subarray(payload.byteLength - 16);
-        const ciphertext = payload.subarray(0, payload.byteLength - 16);
+        this.#pending.delete(key);
+        pending.resolve([header.readUint8(), message]);
 
-        const nonce = buildNonce(this.#encryptionState.readCount++, 'counter-at-0');
-        const decrypted = Chacha20.decrypt(this.#encryptionState.readKey, nonce, header, ciphertext, authTag);
-
-        return Buffer.concat([header, decrypted]);
-    }
-
-    /**
-     * Routes a decoded frame to the appropriate handler: pending exchange response,
-     * pairing response, or emitted event.
-     *
-     * Response matching uses the `_x` correlation ID and only matches frames with
-     * `_t: Response` to avoid confusing server-initiated events that happen to share
-     * the same `_x` value.
-     *
-     * @param header - The 4-byte frame header.
-     * @param payload - The raw payload buffer (OPack-encoded).
-     */
-    #handle(header: Buffer, payload: Buffer): void {
-        const type = header.readUint8();
-
-        if (!OPackFrameTypes.includes(type)) {
-            this.context.logger.warn('[companion-link]', 'Packet not handled, no opack frame.');
-            return;
-        }
-
-        payload = OPack.decode(payload);
-
-        this.context.logger.raw('[companion-link]', 'Decoded OPACK', {header, payload});
-        this.context.logger.traffic('companionLink', 'in', summarizeOPack(type, payload as unknown as Record<string, unknown>), payload);
-
-        /* Match `_x` only for Response frames. Server events can reuse an outstanding request's `_x`. */
-        if ('_x' in payload && payload['_t'] === MessageType.Response) {
-            const _x = Number(payload['_x']);
-
-            if (this.#queue.has(_x)) {
-                const [resolve] = this.#queue.get(_x)!;
-                resolve([header, payload]);
-                this.#queue.delete(_x);
-                return;
-            }
-        }
-
-        // Pairing responses have no _x; other frames can arrive while pairing is pending.
-        if (PairingFrameTypes.includes(type) && this.#queue.has(PAIRING_QUEUE_IDENTIFIER)) {
-            const [resolve] = this.#queue.get(PAIRING_QUEUE_IDENTIFIER)!;
-            resolve([header, payload]);
-            this.#queue.delete(PAIRING_QUEUE_IDENTIFIER);
-            return;
-        }
-
-        if ('_i' in payload) {
-            this.emit(payload['_i'] as string, payload['_c']);
-        } else {
-            this.context.logger.warn('[companion-link]', 'Unhandled message', payload);
-        }
+        return true;
     }
 }
 
-const MESSAGE_TYPE_NAMES: Record<number, string> = {
-    [MessageType.Event]: 'event',
-    [MessageType.Request]: 'request',
-    [MessageType.Response]: 'response'
-};
-
-function summarizeOPack(frameType: number, obj: Record<string, unknown>): string {
+function summarize(frameType: number, message: Record<string, unknown>): string {
     const frameName = Object.keys(FrameType).find(name => FrameType[name] === frameType) ?? `frame=${frameType}`;
-    const kind = MESSAGE_TYPE_NAMES[Number(obj['_t'])];
-    const parts = [frameName, kind, obj['_i'], '_x' in obj ? `x=${Number(obj['_x'])}` : undefined];
+    const parts = [frameName, MESSAGE_TYPE_NAMES[Number(message._t)], message._i, '_x' in message ? `x=${Number(message._x)}` : undefined];
 
     return parts.filter(part => part !== undefined).join(' ');
 }

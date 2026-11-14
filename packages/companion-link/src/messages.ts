@@ -3,7 +3,7 @@ import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 
 /** An OPack-encoded message to be sent over the Companion Link stream. */
-type OPackMessage = Record<string, unknown>;
+export type OPackMessage = Record<string, unknown>;
 
 /**
  * Creates a standard Companion Link request message.

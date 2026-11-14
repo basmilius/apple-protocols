@@ -6,7 +6,7 @@ import type { PairRequest, PairStage, PairStatus, ProtocolName } from '@shared/c
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';
 
-/** AirPlay uses {@link PairingSession}; Companion Link requires direct `Protocol.pairing` calls. */
+/** AirPlay uses {@link PairingSession}, Companion Link its own `pair()`. */
 class PairingAttempt {
     readonly deviceId: string;
     readonly protocol: ProtocolName;
@@ -15,12 +15,8 @@ class PairingAttempt {
     #stage: PairStage = 'idle';
     #error: string | null = null;
     #airplay: PairingSession | null = null;
-    #companion: CompanionLink.Protocol | null = null;
-    #pinResolve: ((pin: string) => void) | null = null;
-    #pinReject: ((reason: Error) => void) | null = null;
-    #companionCredentials: Promise<AccessoryCredentials> | null = null;
-    /** Buffers a PIN submitted before the M3 callback is ready. */
-    #pendingPin: string | null = null;
+    #companion: CompanionLink.PinPairing | null = null;
+    #abort: AbortController | null = null;
 
     constructor(deviceId: string, protocol: ProtocolName, serviceId: string) {
         this.deviceId = deviceId;
@@ -69,14 +65,11 @@ class PairingAttempt {
             return;
         }
 
-        const protocol = new CompanionLink.Protocol(service);
-        this.#companion = protocol;
-
-        await protocol.connect();
-        await protocol.pairing.start();
+        this.#abort = new AbortController();
+        this.#companion = await CompanionLink.pair(CompanionLink.toTarget(service), {signal: this.#abort.signal});
     }
 
-    /** Completes pairing; for Companion Link, resolves the waiting `pin()` callback. */
+    /** Completes pairing with the PIN the device shows. */
     async submit(pin: string): Promise<AccessoryCredentials> {
         if (this.protocol === 'airplay') {
             if (this.#airplay === null) {
@@ -88,50 +81,15 @@ class PairingAttempt {
             return await this.#airplay.end();
         }
 
-        if (this.#companionCredentials === null) {
-            throw new Error('Companion Link pairing has not been started.');
-        }
-
-        if (this.#pinResolve === null) {
-            this.#pendingPin = pin;
-        } else {
-            const resolve = this.#pinResolve;
-            this.#pinResolve = null;
-            resolve(pin);
-        }
-
-        return await this.#companionCredentials;
-    }
-
-    /** Kicks off the Companion Link M3-M6 exchange, which parks until {@link submit} feeds it a PIN. */
-    beginCompanionExchange(): void {
         if (this.#companion === null) {
             throw new Error('Companion Link pairing has not been started.');
         }
 
-        this.#companionCredentials = this.#companion.pairing.pin(
-            () =>
-                new Promise<string>((resolve, reject) => {
-                    if (this.#pendingPin !== null) {
-                        resolve(this.#pendingPin);
-                        this.#pendingPin = null;
-
-                        return;
-                    }
-
-                    this.#pinResolve = resolve;
-                    this.#pinReject = reject;
-                })
-        );
-
-        /* Prevent an unhandled rejection before submit() starts awaiting this promise. */
-        this.#companionCredentials.catch(() => undefined);
+        return await this.#companion.pin(pin);
     }
 
     abort(): void {
-        this.#pinReject?.(new Error('Pairing was cancelled.'));
-        this.#pinResolve = null;
-        this.#pinReject = null;
+        this.#abort?.abort();
 
         try {
             this.#airplay?.abort();
@@ -139,14 +97,11 @@ class PairingAttempt {
             /* Cancellation may happen before the pairing session connects. */
         }
 
-        try {
-            void this.#companion?.disconnect();
-        } catch {
-            /* An already-closed socket needs no further cancellation. */
-        }
+        this.#companion?.close();
 
         this.#airplay = null;
         this.#companion = null;
+        this.#abort = null;
     }
 }
 
@@ -190,10 +145,6 @@ export function registerPairingChannels(context: ChannelContext): void {
         try {
             await attempt.start(service);
             attempt.setStage('awaitingPin');
-
-            if (request.protocol === 'companionLink') {
-                attempt.beginCompanionExchange();
-            }
         } catch (error) {
             attempt.fail(error);
         }

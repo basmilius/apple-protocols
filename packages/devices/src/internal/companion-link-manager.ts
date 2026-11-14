@@ -1,15 +1,10 @@
 import { EventEmitter } from 'node:events';
-import { CredentialsError, waitFor } from '@corewire/core';
-import type { AccessoryCredentials, AccessoryKeys } from '@corewire/core/pairing';
+import { ConnectionClosedError, CredentialsError } from '@corewire/core';
+import type { AccessoryCredentials } from '@corewire/core/pairing';
 import type { DiscoveryResult } from '@corewire/core/discovery';
-import { type AttentionState, type ButtonPressType, type HidCommandKey, HidTouchPhase, type LaunchableApp, type MediaControlCommandKey, Protocol, type TextInputState, type UserAccount } from '@corewire/companion-link';
-import { CompanionLinkState, type MediaCapabilities } from './companion-link-state';
+import { type AttentionState, type ButtonPressType, type CompanionLinkSession, CompanionLinkState, connect, type HidCommandKey, type LaunchableApp, type MediaCapabilities, type MediaControlCommandKey, SetupClosedError, type SwipeDirection, type TextInputState, toTarget, type UserAccount } from '@corewire/companion-link';
 import { COMPANION_LINK_PROTOCOL } from './const';
 
-/**
- * Events emitted by CompanionLinkDevice.
- * Forwards state change events from CompanionLinkState for convenience.
- */
 type EventMap = {
     connected: [];
     disconnected: [unexpected: boolean];
@@ -22,41 +17,32 @@ type EventMap = {
 };
 
 /**
- * High-level abstraction for a Companion Link device (Apple TV).
- * Manages the OPack-based Companion Link protocol lifecycle: connect, pair-verify,
- * session setup, and provides access to HID buttons, app launching, user accounts,
- * media control, text input, touch, Siri, and system controls.
- * Requires credentials (obtained from pair-setup) to connect.
+ * The Companion Link side of an Apple TV: one session at a time, built from the stored discovery
+ * result and credentials on every connect. Nothing reconnects by itself. A disconnect this side
+ * asked for emits nothing; a session the device or the socket ended emits `disconnected(true)`.
+ *
+ * The state outlives the sessions: each session feeds the same one, a connect clears it, a
+ * disconnect leaves the last values readable.
  */
-/** The finger a gesture reports itself as; the HID touch stream is 1-based. */
-const TOUCH_FINGER = 1;
-
 export class CompanionLinkManager extends EventEmitter<EventMap> {
-    /**
-     * @returns The underlying Companion Link Protocol instance (accessed via symbol for internal use).
-     */
-    get [COMPANION_LINK_PROTOCOL](): Protocol {
-        return this.#protocol;
+    /** The current session, or the last one after it ended. */
+    get [COMPANION_LINK_PROTOCOL](): CompanionLinkSession | undefined {
+        return this.#session;
     }
 
-    /**
-     * The mDNS discovery result used to connect to this device.
-     */
+    /** The mDNS discovery result the next connect uses. */
     get discoveryResult(): DiscoveryResult {
         return this.#discoveryResult;
     }
 
-    /**
-     * Updates the discovery result, e.g. when the device's address changes.
-     */
+    /** Updates the discovery result, e.g. when the device's address changes. Takes effect on the next connect. */
     set discoveryResult(discoveryResult: DiscoveryResult) {
         this.#discoveryResult = discoveryResult;
     }
 
     /**
-     * The controller's active iCloud account (alternate DSID) to announce during the session handshake.
-     * Optional: when left unset, no `SwitchActiveUserAccountEvent` is sent — matching real controllers,
-     * where announcing the active account is optional.
+     * The controller's active iCloud account (alternate DSID) to announce during the startup.
+     * Optional: when left unset, no `SwitchActiveUserAccountEvent` is sent, as with real controllers.
      */
     get activeUserAccount(): string | undefined {
         return this.#activeUserAccount;
@@ -66,79 +52,64 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         this.#activeUserAccount = iCloudAltDSID;
     }
 
-    /**
-     * Whether the Companion Link stream is currently connected.
-     */
+    /** Whether the socket of the current session is connected; true until a graceful close finishes. */
     get isConnected(): boolean {
-        return this.#protocol?.stream?.isConnected ?? false;
+        return this.#session?.stream.isConnected ?? false;
     }
 
-    /**
-     * The state tracker for attention, media controls, now-playing, and text input.
-     */
     get state(): CompanionLinkState {
         return this.#state;
     }
 
-    /**
-     * Current text input session state (convenience accessor).
-     */
     get textInputState(): TextInputState {
         return this.#state.textInputState;
     }
 
+    readonly #state: CompanionLinkState = new CompanionLinkState();
+    #abort?: AbortController;
     #activeUserAccount?: string;
+    #connecting?: Promise<void>;
     #credentials?: AccessoryCredentials;
     #disconnect: boolean = false;
     #discoveryResult: DiscoveryResult;
-    #heartbeatInterval: NodeJS.Timeout | undefined;
-    #keys: AccessoryKeys;
-    #protocol!: Protocol;
-    #state!: CompanionLinkState;
-    #connecting?: Promise<void>;
-    #generation = 0;
+    #generation: number = 0;
+    #session?: CompanionLinkSession;
 
-    /**
-     * Creates a new CompanionLinkDevice.
-     *
-     * @param discoveryResult - The mDNS discovery result for the target device.
-     */
     constructor(discoveryResult: DiscoveryResult) {
         super();
+
         this.#discoveryResult = discoveryResult;
 
-        this.onClose = this.onClose.bind(this);
-        this.onError = this.onError.bind(this);
-        this.onTimeout = this.onTimeout.bind(this);
-        this.onAttentionStateChanged = this.onAttentionStateChanged.bind(this);
-        this.onMediaControlFlagsChanged = this.onMediaControlFlagsChanged.bind(this);
-        this.onNowPlayingInfoChanged = this.onNowPlayingInfoChanged.bind(this);
-        this.onSupportedActionsChanged = this.onSupportedActionsChanged.bind(this);
-        this.onTextInputChanged = this.onTextInputChanged.bind(this);
-        this.onVolumeAvailabilityChanged = this.onVolumeAvailabilityChanged.bind(this);
+        this.#state.on('attentionStateChanged', state => this.emit('attentionStateChanged', state));
+        this.#state.on('mediaControlFlagsChanged', (flags, capabilities) => this.emit('mediaControlFlagsChanged', flags, capabilities));
+        this.#state.on('nowPlayingInfoChanged', info => this.emit('nowPlayingInfoChanged', info));
+        this.#state.on('supportedActionsChanged', actions => this.emit('supportedActionsChanged', actions));
+        this.#state.on('textInputChanged', state => this.emit('textInputChanged', state));
+        this.#state.on('volumeAvailabilityChanged', available => this.emit('volumeAvailabilityChanged', available));
     }
 
-    // --- Lifecycle ---
-
     /**
-     * Connects to the Companion Link device, performs pair-verify, and sets up
-     * all protocol sessions (system info, TVRC, touch, text input).
-     * Emits 'connected' on success.
+     * Connects with the stored credentials and emits `connected`. Concurrent calls share one
+     * attempt, and a connected session is kept. A previous session is closed first.
      *
-     * @throws CredentialsError when no credentials are set.
+     * @throws {CredentialsError} When no credentials are set.
      */
     async connect(): Promise<void> {
         if (this.#connecting) {
             return this.#connecting;
         }
+
         if (this.isConnected && !this.#disconnect) {
             return;
         }
+
         if (!this.#credentials) {
             throw new CredentialsError('Credentials are required to connect to a Companion Link device.');
         }
+
         const operation = this.#connect();
         this.#connecting = operation;
+
         try {
             await operation;
         } finally {
@@ -148,517 +119,230 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         }
     }
 
-    async #connect(): Promise<void> {
-        const cleanup = this.disconnectSafely();
-        const generation = this.#generation;
-        await cleanup;
-        if (generation !== this.#generation) throw new Error('Companion Link connect cancelled.');
-        const protocol = new Protocol(this.#discoveryResult);
-        this.#protocol = protocol;
-        this.#disconnect = false;
-        protocol.stream.on('closed', this.onClose);
-        protocol.stream.on('error', this.onError);
-        const check = (): void => {
-            if (generation !== this.#generation || this.#disconnect) {
-                throw new Error('Companion Link connect cancelled.');
-            }
-        };
-        try {
-            await protocol.connect();
-            check();
-            this.#keys = await protocol.verify.start(this.#credentials!);
-            check();
-            await this.#setup(protocol, check);
-            check();
-            this.emit('connected');
-        } catch (error) {
-            if (generation === this.#generation) {
-                await this.disconnectSafely();
-            } else {
-                protocol.stream.destroy();
-            }
-            throw error;
-        }
-    }
-
     /**
-     * Gracefully disconnects from the device, clears heartbeat interval, and unsubscribes from events.
+     * Closes the session gracefully, or interrupts a connect in flight. Emits nothing: only a
+     * close this side did not ask for counts as a disconnect.
      */
     async disconnect(): Promise<void> {
         this.#disconnect = true;
         this.#generation++;
 
-        if (this.#heartbeatInterval) {
-            clearInterval(this.#heartbeatInterval);
-            this.#heartbeatInterval = undefined;
-        }
-
-        this.#state?.unsubscribe();
-
-        /* Keep the protocol reference across await; concurrent connect() may replace it. */
-        const protocol = this.#protocol;
-        protocol?.stream.off('closed', this.onClose);
-        protocol?.stream.off('error', this.onError);
         if (this.#connecting) {
-            protocol?.stream.destroy();
-        } else {
-            await protocol?.disconnect();
-        }
-    }
-
-    /**
-     * Disconnects gracefully, swallowing any errors during cleanup.
-     */
-    async disconnectSafely(): Promise<void> {
-        try {
-            await this.disconnect();
-        } catch {}
-    }
-
-    /**
-     * Sets the pairing credentials required for pair-verify authentication.
-     * Must be called before connect().
-     *
-     * @param credentials - The accessory credentials from pair-setup.
-     */
-    async setCredentials(credentials: AccessoryCredentials): Promise<void> {
-        this.#credentials = credentials;
-    }
-
-    // --- Fetchers ---
-
-    /**
-     * Fetches the current attention state of the device (active, idle, screensaver, etc.).
-     *
-     * @returns The current attention state.
-     */
-    async getAttentionState(): Promise<AttentionState> {
-        return await this.#protocol.getAttentionState();
-    }
-
-    /**
-     * Fetches the list of apps that can be launched on the device.
-     *
-     * @returns Array of launchable app descriptors.
-     */
-    async getLaunchableApps(): Promise<LaunchableApp[]> {
-        return await this.#protocol.getLaunchableApps();
-    }
-
-    /**
-     * Fetches the list of user accounts configured on the device.
-     *
-     * @returns Array of user account descriptors.
-     */
-    async getUserAccounts(): Promise<UserAccount[]> {
-        return await this.#protocol.getUserAccounts();
-    }
-
-    /**
-     * Fetches the current now-playing information from the device.
-     *
-     * @returns The now-playing info payload.
-     */
-    async fetchNowPlayingInfo(): Promise<any> {
-        return await this.#protocol.fetchNowPlayingInfo();
-    }
-
-    /**
-     * Fetches the currently supported actions from the device.
-     *
-     * @returns The supported actions payload.
-     */
-    async fetchSupportedActions(): Promise<any> {
-        return await this.#protocol.fetchSupportedActions();
-    }
-
-    /**
-     * Fetches the current media control status (available controls bitmask).
-     *
-     * @returns The media control status payload.
-     */
-    async fetchMediaControlStatus(): Promise<any> {
-        return await this.#protocol.fetchMediaControlStatus();
-    }
-
-    // --- Commands ---
-
-    /**
-     * Launches an app on the device by its bundle identifier.
-     */
-    async launchApp(bundleId: string): Promise<void> {
-        await this.#protocol.launchApp(bundleId);
-    }
-
-    /**
-     * Opens a URL on the device (universal link or app-specific URL scheme).
-     */
-    async launchUrl(url: string): Promise<void> {
-        await this.#protocol.launchUrl(url);
-    }
-
-    /**
-     * Sends a media control command (play, pause, next, etc.) via the Companion Link protocol.
-     *
-     * @param command - The media control command key.
-     * @param content - Optional additional content for the command.
-     */
-    async mediaControlCommand(command: MediaControlCommandKey, content?: Record<string, unknown>): Promise<void> {
-        await this.#protocol.mediaControlCommand(command, content);
-    }
-
-    /**
-     * Sends a HID button press via the Companion Link protocol.
-     *
-     * @param command - The HID command key (e.g. 'up', 'select', 'menu').
-     * @param type - Optional press type (short, long, double).
-     * @param holdDelayMs - Optional hold duration in milliseconds for long presses.
-     */
-    async pressButton(command: HidCommandKey, type?: ButtonPressType, holdDelayMs?: number): Promise<void> {
-        await this.#protocol.pressButton(command, type, holdDelayMs);
-    }
-
-    /**
-     * Switches to a different user account on the device.
-     *
-     * @param accountId - The ID of the user account to switch to.
-     */
-    async switchUserAccount(accountId: string): Promise<void> {
-        await this.#protocol.switchUserAccount(accountId);
-    }
-
-    /**
-     * Announces the controller's active iCloud account to the device, as a real iOS Remote does during
-     * the handshake.
-     *
-     * @param iCloudAltDSID - The controller's active iCloud account identifier (alternate DSID).
-     */
-    async switchActiveUserAccount(iCloudAltDSID: string): Promise<void> {
-        await this.#protocol.switchActiveUserAccount(iCloudAltDSID);
-    }
-
-    // --- Text Input ---
-
-    /**
-     * Sets the text input field to the given text, replacing any existing content.
-     *
-     * @param text - The text to set.
-     */
-    async textSet(text: string): Promise<void> {
-        await this.#protocol.textInputCommand(text, true);
-    }
-
-    /**
-     * Appends text to the current text input field content.
-     *
-     * @param text - The text to append.
-     */
-    async textAppend(text: string): Promise<void> {
-        await this.#protocol.textInputCommand(text, false);
-    }
-
-    /**
-     * Clears the text input field.
-     */
-    async textClear(): Promise<void> {
-        await this.#protocol.textInputCommand('', true);
-    }
-
-    // --- Touch ---
-
-    /**
-     * Sends a `_touchC` touch event. Kept for protocol work: tvOS registers no handler for it, so
-     * {@link sendHidTouchEvent} is what reaches the device.
-     *
-     * @param finger - Finger index (0-based).
-     * @param phase - Touch phase (0 = Began, 1 = Moved, 2 = Ended).
-     * @param x - Horizontal position.
-     * @param y - Vertical position.
-     */
-    async sendTouchEvent(finger: number, phase: number, x: number, y: number): Promise<void> {
-        await this.#protocol.sendTouchEvent(finger, phase, x, y);
-    }
-
-    /**
-     * Sends a HID touch event, the form the Apple TV's HID daemon listens for.
-     *
-     * @param finger - Finger index (1-based).
-     * @param phase - HID touch phase (see `HidTouchPhase`).
-     * @param x - Horizontal position (0-1000).
-     * @param y - Vertical position (0-1000).
-     */
-    sendHidTouchEvent(finger: number, phase: number, x: number, y: number): void {
-        this.#protocol.sendHidTouchEvent(finger, phase, x, y);
-    }
-
-    /**
-     * Taps the touch surface, which selects whatever has focus.
-     *
-     * The Apple TV's HID touch device reports contact and position, nothing else, so a touch that
-     * lands and lifts again moves no focus and clicks nothing. A tap is the Select button, which is
-     * what a real remote sends for it.
-     *
-     * @param holdMs - How long to hold the button, in milliseconds. Omit for a plain tap.
-     */
-    async tap(holdMs?: number): Promise<void> {
-        if (holdMs === undefined) {
-            await this.pressButton('Select', 'SingleTap');
+            this.#abort?.abort();
 
             return;
         }
 
-        await this.pressButton('Select', 'Hold', holdMs);
+        await this.#session?.close();
     }
 
-    /**
-     * Simulates a swipe gesture in the given direction.
-     *
-     * @param direction - Swipe direction.
-     * @param duration - Swipe duration in milliseconds (defaults to 200).
-     */
-    async swipe(direction: 'up' | 'down' | 'left' | 'right', duration: number = 200): Promise<void> {
-        const coords: Record<string, [number, number, number, number]> = {
-            up: [500, 700, 500, 300],
-            down: [500, 300, 500, 700],
-            left: [700, 500, 300, 500],
-            right: [300, 500, 700, 500]
-        };
+    /** {@link disconnect}, swallowing errors. */
+    async disconnectSafely(): Promise<void> {
+        try {
+            await this.disconnect();
+        } catch {
+        }
+    }
 
-        const [startX, startY, endX, endY] = coords[direction];
-        const steps = Math.max(4, Math.floor(duration / 50));
-        const deltaX = (endX - startX) / steps;
-        const deltaY = (endY - startY) / steps;
-        const stepDuration = duration / steps;
+    /** The credentials the next connect uses for pair-verify. */
+    async setCredentials(credentials: AccessoryCredentials): Promise<void> {
+        this.#credentials = credentials;
+    }
 
-        this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Began, startX, startY);
+    async getAttentionState(): Promise<AttentionState> {
+        return await this.#requireSession().power.fetch();
+    }
 
-        for (let i = 1; i <= steps; i++) {
-            await waitFor(stepDuration);
-            this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Moved, Math.round(startX + deltaX * i), Math.round(startY + deltaY * i));
+    async getLaunchableApps(): Promise<LaunchableApp[]> {
+        return await this.#requireSession().apps.list();
+    }
+
+    async getUserAccounts(): Promise<UserAccount[]> {
+        return await this.#requireSession().accounts.list();
+    }
+
+    async fetchNowPlayingInfo(): Promise<any> {
+        return await this.#requireSession().media.fetchNowPlayingInfo();
+    }
+
+    async fetchSupportedActions(): Promise<any> {
+        return await this.#requireSession().media.fetchSupportedActions();
+    }
+
+    async fetchMediaControlStatus(): Promise<any> {
+        return await this.#requireSession().media.fetchControlStatus();
+    }
+
+    async launchApp(bundleId: string): Promise<void> {
+        await this.#requireSession().apps.launch(bundleId);
+    }
+
+    /** Opens a URL on the device (universal link or app-specific URL scheme). */
+    async launchUrl(url: string): Promise<void> {
+        await this.#requireSession().apps.openUrl(url);
+    }
+
+    async mediaControlCommand(command: MediaControlCommandKey, content?: Record<string, unknown>): Promise<void> {
+        await this.#requireSession().media.command(command, content);
+    }
+
+    async pressButton(command: HidCommandKey, type?: ButtonPressType, holdDelayMs?: number): Promise<void> {
+        await this.#requireSession().hid.press(command, type, holdDelayMs);
+    }
+
+    async switchUserAccount(accountId: string): Promise<void> {
+        await this.#requireSession().accounts.switch(accountId);
+    }
+
+    /** Announces the controller's active iCloud account (alternate DSID) to the device now. */
+    async switchActiveUserAccount(iCloudAltDSID: string): Promise<void> {
+        await this.#requireSession().accounts.switchActive(iCloudAltDSID);
+    }
+
+    /** Replaces the text of the focused field. */
+    async textSet(text: string): Promise<void> {
+        await this.#requireSession().text.set(text);
+    }
+
+    async textAppend(text: string): Promise<void> {
+        await this.#requireSession().text.append(text);
+    }
+
+    async textClear(): Promise<void> {
+        await this.#requireSession().text.clear();
+    }
+
+    /** Sends a `_touchC` event; tvOS ignores it, {@link sendHidTouchEvent} is what reaches the device. */
+    async sendTouchEvent(finger: number, phase: number, x: number, y: number): Promise<void> {
+        this.#requireSession().touch.send(finger, phase, x, y);
+    }
+
+    /** Sends a `_hidT` touch event: finger 1-based, coordinates 0 to 1000. */
+    sendHidTouchEvent(finger: number, phase: number, x: number, y: number): void {
+        this.#requireSession().touch.sendHid(finger, phase, x, y);
+    }
+
+    /** Selects what has focus, the way a tap on the touch surface does; held when `holdMs` is given. */
+    async tap(holdMs?: number): Promise<void> {
+        await this.#requireSession().touch.tap(holdMs);
+    }
+
+    /** @param duration Milliseconds; 200 when omitted. */
+    async swipe(direction: SwipeDirection, duration: number = 200): Promise<void> {
+        await this.#requireSession().touch.swipe(direction, duration);
+    }
+
+    async toggleCaptions(): Promise<void> {
+        await this.#requireSession().system.toggleCaptions();
+    }
+
+    /** Light mode when true, dark mode when false. */
+    async toggleSystemAppearance(light: boolean): Promise<void> {
+        await this.#requireSession().system.setAppearance(light);
+    }
+
+    async toggleReduceLoudSounds(enabled: boolean): Promise<void> {
+        await this.#requireSession().system.setReduceLoudSounds(enabled);
+    }
+
+    async toggleFindingMode(enabled: boolean): Promise<void> {
+        await this.#requireSession().system.setFindingMode(enabled);
+    }
+
+    async fetchUpNext(paginationToken?: string): Promise<any> {
+        return await this.#requireSession().system.fetchUpNext(paginationToken);
+    }
+
+    async addToUpNext(identifier: string, kind: string): Promise<void> {
+        await this.#requireSession().system.addToUpNext(identifier, kind);
+    }
+
+    async removeFromUpNext(identifier: string, kind: string): Promise<void> {
+        await this.#requireSession().system.removeFromUpNext(identifier, kind);
+    }
+
+    async markAsWatched(identifier: string, kind: string): Promise<void> {
+        await this.#requireSession().system.markAsWatched(identifier, kind);
+    }
+
+    async siriStart(): Promise<void> {
+        await this.#requireSession().system.siriStart();
+    }
+
+    async siriStop(): Promise<void> {
+        await this.#requireSession().system.siriStop();
+    }
+
+    async #connect(): Promise<void> {
+        const cleanup = this.disconnectSafely();
+        const generation = this.#generation;
+
+        await cleanup;
+
+        if (generation !== this.#generation) {
+            throw new Error('Companion Link connect cancelled.');
         }
 
-        this.sendHidTouchEvent(TOUCH_FINGER, HidTouchPhase.Ended, endX, endY);
-    }
+        const abort = new AbortController();
+        this.#abort = abort;
+        this.#disconnect = false;
+        this.#state.clear();
 
-    // --- System Controls ---
-
-    /**
-     * Toggles closed captions on the device.
-     */
-    async toggleCaptions(): Promise<void> {
-        await this.#protocol.toggleCaptions();
-    }
-
-    /**
-     * Toggles the system appearance between light and dark mode.
-     *
-     * @param light - True for light mode, false for dark mode.
-     */
-    async toggleSystemAppearance(light: boolean): Promise<void> {
-        await this.#protocol.toggleSystemAppearance(light);
-    }
-
-    /**
-     * Enables or disables the "Reduce Loud Sounds" setting.
-     *
-     * @param enabled - Whether to enable the setting.
-     */
-    async toggleReduceLoudSounds(enabled: boolean): Promise<void> {
-        await this.#protocol.toggleReduceLoudSounds(enabled);
-    }
-
-    /**
-     * Enables or disables finding mode (Find My integration).
-     *
-     * @param enabled - Whether to enable finding mode.
-     */
-    async toggleFindingMode(enabled: boolean): Promise<void> {
-        await this.#protocol.toggleFindingMode(enabled);
-    }
-
-    // --- Up Next ---
-
-    /**
-     * Fetches the "Up Next" queue from the device.
-     *
-     * @param paginationToken - Optional token for paginated results.
-     * @returns The Up Next queue payload.
-     */
-    async fetchUpNext(paginationToken?: string): Promise<any> {
-        return await this.#protocol.fetchUpNext(paginationToken);
-    }
-
-    /**
-     * Adds an item to the "Up Next" queue.
-     *
-     * @param identifier - Content item identifier.
-     * @param kind - Content kind descriptor.
-     */
-    async addToUpNext(identifier: string, kind: string): Promise<void> {
-        await this.#protocol.addToUpNext(identifier, kind);
-    }
-
-    /**
-     * Removes an item from the "Up Next" queue.
-     *
-     * @param identifier - Content item identifier.
-     * @param kind - Content kind descriptor.
-     */
-    async removeFromUpNext(identifier: string, kind: string): Promise<void> {
-        await this.#protocol.removeFromUpNext(identifier, kind);
-    }
-
-    /**
-     * Marks a content item as watched.
-     *
-     * @param identifier - Content item identifier.
-     * @param kind - Content kind descriptor.
-     */
-    async markAsWatched(identifier: string, kind: string): Promise<void> {
-        await this.#protocol.markAsWatched(identifier, kind);
-    }
-
-    // --- Siri ---
-
-    /**
-     * Starts a Siri session on the device.
-     */
-    async siriStart(): Promise<void> {
-        await this.#protocol.siriStart();
-    }
-
-    /**
-     * Stops the active Siri session on the device.
-     */
-    async siriStop(): Promise<void> {
-        await this.#protocol.siriStop();
-    }
-
-    // --- Internals ---
-
-    /**
-     * Sets up encryption, protocol sessions (system info, TVRC, touch, text input),
-     * heartbeat interval, and state tracking. Called after successful pair-verify.
-     */
-    async #setup(protocol: Protocol, check: () => void): Promise<void> {
-        const keys = this.#keys;
-
-        protocol.stream.enableEncryption(
-            keys.accessoryToControllerKey,
-            keys.controllerToAccessoryKey
-        );
+        let session: CompanionLinkSession | undefined;
 
         try {
-            await protocol.systemInfo(this.#credentials!.pairingId);
-            check();
-            await protocol.sessionStart();
-            check();
-            await protocol.tvrcSessionStart();
-            check();
+            session = await connect(toTarget(this.#discoveryResult), {
+                credentials: this.#credentials,
+                activeUserAccount: this.#activeUserAccount,
+                state: this.#state,
+                signal: abort.signal
+            });
 
-            // A real iOS Remote announces its active iCloud account here; optional, so only when configured.
-            if (this.#activeUserAccount) {
-                await protocol.switchActiveUserAccount(this.#activeUserAccount);
-                check();
+            if (generation !== this.#generation || this.#disconnect) {
+                throw new Error('Companion Link connect cancelled.');
             }
 
-            await protocol.touchStart();
-            check();
-            await protocol.tiStart();
-            check();
+            const current = session;
+            this.#session = current;
 
-            this.#heartbeatInterval = setInterval(() => {
-                try {
-                    protocol.noOp();
-                } catch (err) {
-                    protocol.context.logger.error('Heartbeat failed', err);
-                }
-            }, 15000);
+            current.on('closed', () => this.#onClosed(current));
+        } catch (error) {
+            abort.abort();
 
-            // Remove old forwarding listeners to prevent leaks on reconnect.
-            if (this.#state) {
-                this.#state.off('attentionStateChanged', this.onAttentionStateChanged);
-                this.#state.off('mediaControlFlagsChanged', this.onMediaControlFlagsChanged);
-                this.#state.off('nowPlayingInfoChanged', this.onNowPlayingInfoChanged);
-                this.#state.off('supportedActionsChanged', this.onSupportedActionsChanged);
-                this.#state.off('textInputChanged', this.onTextInputChanged);
-                this.#state.off('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
+            // A device that drops the socket during the handshake counts as a disconnect, as one after it does.
+            if (error instanceof SetupClosedError && generation === this.#generation && !this.#disconnect) {
+                this.#disconnect = true;
+                this.disconnectSafely();
+                this.emit('disconnected', true);
+            } else if (generation === this.#generation) {
+                await this.disconnectSafely();
             }
 
-            this.#state = new CompanionLinkState(protocol);
-            this.#state.on('attentionStateChanged', this.onAttentionStateChanged);
-            this.#state.on('mediaControlFlagsChanged', this.onMediaControlFlagsChanged);
-            this.#state.on('nowPlayingInfoChanged', this.onNowPlayingInfoChanged);
-            this.#state.on('supportedActionsChanged', this.onSupportedActionsChanged);
-            this.#state.on('textInputChanged', this.onTextInputChanged);
-            this.#state.on('volumeAvailabilityChanged', this.onVolumeAvailabilityChanged);
-            this.#state.subscribe();
-            await this.#state.fetchInitialState();
-            check();
-        } catch (err) {
-            clearInterval(this.#heartbeatInterval);
-            this.#heartbeatInterval = undefined;
-            throw err;
+            throw error;
         }
+
+        this.emit('connected');
     }
 
-    /** @internal */
-    onAttentionStateChanged(state: AttentionState): void {
-        this.emit('attentionStateChanged', state);
-    }
-
-    /** @internal */
-    onMediaControlFlagsChanged(flags: number, capabilities: MediaCapabilities): void {
-        this.emit('mediaControlFlagsChanged', flags, capabilities);
-    }
-
-    /** @internal */
-    onNowPlayingInfoChanged(info: Record<string, unknown> | null): void {
-        this.emit('nowPlayingInfoChanged', info);
-    }
-
-    /** @internal */
-    onSupportedActionsChanged(actions: Record<string, unknown>): void {
-        this.emit('supportedActionsChanged', actions);
-    }
-
-    /** @internal */
-    onTextInputChanged(state: TextInputState): void {
-        this.emit('textInputChanged', state);
-    }
-
-    /** @internal */
-    onVolumeAvailabilityChanged(available: boolean): void {
-        this.emit('volumeAvailabilityChanged', available);
-    }
-
-    /**
-     * Handles the stream close event. Emits 'disconnected' with unexpected=true if not intentional.
-     */
-    onClose(): void {
-        this.#protocol.context.logger.net('onClose() called on companion link device.');
-
-        if (!this.#disconnect) {
-            this.#disconnect = true;
-            this.disconnectSafely();
-            this.emit('disconnected', true);
-        } else {
-            this.emit('disconnected', false);
+    /** A close nobody asked for: the device, the socket or a broken frame ended the session. */
+    #onClosed(session: CompanionLinkSession): void {
+        if (this.#session !== session || this.#disconnect) {
+            return;
         }
+
+        session.context.logger.net('onClose() called on companion link device.');
+
+        this.#disconnect = true;
+        this.disconnectSafely();
+        this.emit('disconnected', true);
     }
 
-    /**
-     * Handles stream error events by logging them.
-     */
-    onError(err: Error): void {
-        this.#protocol.context.logger.error('Companion Link error', err);
-    }
+    /** The current session, or the last one, whose requests then fail with ConnectionClosedError. */
+    #requireSession(): CompanionLinkSession {
+        if (!this.#session) {
+            throw new ConnectionClosedError('Companion Link is not connected.');
+        }
 
-    /**
-     * Handles stream timeout events by destroying the stream.
-     */
-    onTimeout(): void {
-        this.#protocol.context.logger.error('Companion Link timeout');
-        this.#protocol.stream.destroy();
+        return this.#session;
     }
 }

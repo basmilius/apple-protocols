@@ -1,5 +1,5 @@
 import { Messages, Proto } from '@corewire/airplay/mrp';
-import { FrameType } from '@corewire/companion-link';
+import { type CompanionLinkSession, FrameType } from '@corewire/companion-link';
 import { Plist } from '@corewire/core/encoding';
 import type { RawBuilderInfo, RawMessageRequest, RawParam, RawParamOption, RawTransport } from '@shared/contract';
 
@@ -24,9 +24,7 @@ type DataStreamTarget = {
     exchange(message: never, timeout?: number): Promise<unknown>;
 };
 
-type CompanionLinkTarget = Record<string, (...args: never[]) => unknown> & {
-    stream: { exchange(type: number, object: Record<string, unknown>, timeout?: number): Promise<[number, unknown]> };
-};
+type CompanionLinkTarget = CompanionLinkSession;
 
 type ControlStreamTarget = Record<string, (...args: never[]) => unknown>;
 
@@ -217,26 +215,26 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
 ];
 
 const COMPANION_LINK_ENTRIES: readonly RawEntry[] = [
-    companionLink('cl.sleepDevice', 'sleepDevice', 'Power', 'Puts the Apple TV to sleep.', [], target => target.sleepDevice()),
-    companionLink('cl.isAwake', 'isAwake', 'Power', 'Reports whether the Apple TV is awake.', [], target => target.isAwake()),
-    companionLink('cl.playMedia', 'playMedia', 'Media', 'Plays a media item described by a raw OPack object.', [json('item', 'Item', '{}', 'The OPack dictionary the Apple TV expects for this item.')], (target, args) => target.playMedia(asRecord(args, 'item') as never)),
-    companionLink('cl.fetchTopShelfItems', 'fetchTopShelfItems', 'Media', 'Reads the top shelf items the Apple TV is showing.', [], target => target.fetchTopShelfItems()),
-    companionLink('cl.getSiriRemoteInfo', 'getSiriRemoteInfo', 'System', 'Reads what the Apple TV knows about the paired Siri Remote.', [], target => target.getSiriRemoteInfo()),
-    companionLink('cl.getCaptionSetting', 'getCaptionSetting', 'System', 'Reads the closed captioning setting.', [], target => target.getCaptionSetting()),
-    companionLink('cl.setCaptionSetting', 'setCaptionSetting', 'System', 'Turns closed captioning on or off.', [boolean('enabled', 'Enabled', true)], (target, args) => target.setCaptionSetting(asBoolean(args, 'enabled') as never)),
-    companionLink('cl.gameControllerStart', 'gameControllerStart', 'Game controller', 'Opens a game controller session.', [], target => target.gameControllerStart()),
-    companionLink('cl.gameControllerStop', 'gameControllerStop', 'Game controller', 'Closes the game controller session.', [], target => target.gameControllerStop()),
-    companionLink('cl.sendGameControllerEvent', 'sendGameControllerEvent', 'Game controller', 'Sends one analog stick position and button state.', [number('x', 'X (-1 to 1)', 0), number('y', 'Y (-1 to 1)', 0), boolean('isDown', 'Button down', false)], (target, args) =>
-        target.sendGameControllerEvent(asNumber(args, 'x') as never, asNumber(args, 'y') as never, asBoolean(args, 'isDown') as never)
+    companionLink('cl.sleepDevice', 'power.sleep', 'Power', 'Puts the Apple TV to sleep.', [], target => target.power.sleep()),
+    companionLink('cl.isAwake', 'power.isAwake', 'Power', 'Reports whether the Apple TV is awake.', [], target => target.power.isAwake()),
+    companionLink('cl.playMedia', 'media.play', 'Media', 'Plays a media item described by a raw OPack object.', [json('item', 'Item', '{}', 'The OPack dictionary the Apple TV expects for this item.')], (target, args) => target.media.play(asRecord(args, 'item'))),
+    companionLink('cl.fetchTopShelfItems', 'apps.topShelf', 'Media', 'Reads the top shelf items the Apple TV is showing.', [], target => target.apps.topShelf()),
+    companionLink('cl.getSiriRemoteInfo', 'system.siriRemoteInfo', 'System', 'Reads what the Apple TV knows about the paired Siri Remote.', [], target => target.system.siriRemoteInfo()),
+    companionLink('cl.getCaptionSetting', 'system.getCaptionSetting', 'System', 'Reads the closed captioning setting.', [], target => target.system.getCaptionSetting()),
+    companionLink('cl.setCaptionSetting', 'system.setCaptionSetting', 'System', 'Turns closed captioning on or off.', [boolean('enabled', 'Enabled', true)], (target, args) => target.system.setCaptionSetting(asBoolean(args, 'enabled'))),
+    companionLink('cl.gameControllerStart', 'hid.gameControllerStart', 'Game controller', 'Opens a game controller session.', [], target => target.hid.gameControllerStart()),
+    companionLink('cl.gameControllerStop', 'hid.gameControllerStop', 'Game controller', 'Closes the game controller session.', [], target => target.hid.gameControllerStop()),
+    companionLink('cl.sendGameControllerEvent', 'hid.sendGameControllerEvent', 'Game controller', 'Sends one analog stick position and button state.', [number('x', 'X (-1 to 1)', 0), number('y', 'Y (-1 to 1)', 0), boolean('isDown', 'Button down', false)], (target, args) =>
+        target.hid.sendGameControllerEvent(asNumber(args, 'x'), asNumber(args, 'y'), asBoolean(args, 'isDown'))
     ),
-    companionLink('cl.sendHidTouchEvent', 'sendHidTouchEvent', 'Input', 'Sends one raw touch sample on the virtual trackpad.', [number('finger', 'Finger', 1), number('phase', 'Phase', 1), number('x', 'X', 0), number('y', 'Y', 0)], (target, args) =>
-        target.sendHidTouchEvent(asNumber(args, 'finger', 1) as never, asNumber(args, 'phase', 1) as never, asNumber(args, 'x') as never, asNumber(args, 'y') as never)
+    companionLink('cl.sendHidTouchEvent', 'touch.sendHid', 'Input', 'Sends one raw touch sample on the virtual trackpad.', [number('finger', 'Finger', 1), number('phase', 'Phase', 1), number('x', 'X', 0), number('y', 'Y', 0)], (target, args) =>
+        target.touch.sendHid(asNumber(args, 'finger', 1), asNumber(args, 'phase', 1), asNumber(args, 'x'), asNumber(args, 'y'))
     ),
-    companionLink('cl.requestAppSignIn', 'requestAppSignIn', 'Accounts', 'Starts the app sign-in proxy flow.', [string('bundleId', 'Bundle identifier'), string('requestType', 'Request type', 'appleID')], (target, args) => target.requestAppSignIn(asString(args, 'bundleId') as never, asString(args, 'requestType') as never)),
-    companionLink('cl.requestTVProvider', 'requestTVProvider', 'Accounts', 'Starts a TV provider authentication flow.', [string('providerUrl', 'Provider URL'), string('providerName', 'Provider name')], (target, args) => target.requestTVProvider(asString(args, 'providerUrl') as never, asString(args, 'providerName') as never)),
-    companionLink('cl.requestRestrictedAccess', 'requestRestrictedAccess', 'Accounts', 'Asks for a parental controls approval.', [string('restrictionType', 'Restriction type')], (target, args) => target.requestRestrictedAccess(asString(args, 'restrictionType') as never)),
-    companionLink('cl.registerInterests', 'registerInterests', 'Interests', 'Subscribes to event names of your choosing.', [stringList('events', 'Interests', ['_iMC', 'SystemStatus', 'TVSystemStatus'])], (target, args) => target.registerInterests(asList(args, 'events') as never)),
-    companionLink('cl.deregisterInterests', 'deregisterInterests', 'Interests', 'Unsubscribes from event names.', [stringList('events', 'Interests', ['_iMC'])], (target, args) => target.deregisterInterests(asList(args, 'events') as never)),
+    companionLink('cl.requestAppSignIn', 'accounts.requestAppSignIn', 'Accounts', 'Starts the app sign-in proxy flow.', [string('bundleId', 'Bundle identifier'), string('requestType', 'Request type', 'appleID')], (target, args) => target.accounts.requestAppSignIn(asString(args, 'bundleId'), asString(args, 'requestType'))),
+    companionLink('cl.requestTVProvider', 'accounts.requestTVProvider', 'Accounts', 'Starts a TV provider authentication flow.', [string('providerUrl', 'Provider URL'), string('providerName', 'Provider name')], (target, args) => target.accounts.requestTVProvider(asString(args, 'providerUrl'), asString(args, 'providerName'))),
+    companionLink('cl.requestRestrictedAccess', 'accounts.requestRestrictedAccess', 'Accounts', 'Asks for a parental controls approval.', [string('restrictionType', 'Restriction type')], (target, args) => target.accounts.requestRestrictedAccess(asString(args, 'restrictionType'))),
+    companionLink('cl.registerInterests', 'interests.register', 'Interests', 'Subscribes to event names of your choosing.', [stringList('events', 'Interests', ['_iMC', 'SystemStatus', 'TVSystemStatus'])], (target, args) => target.interests.register(asList(args, 'events'))),
+    companionLink('cl.deregisterInterests', 'interests.deregister', 'Interests', 'Unsubscribes from event names.', [stringList('events', 'Interests', ['_iMC'])], (target, args) => target.interests.deregister(asList(args, 'events'))),
     {
         id: 'cl.exchange',
         title: 'stream.exchange',

@@ -7,9 +7,13 @@ export default defineConfig({
     titleTemplate: ':title | corewire',
     description: 'TypeScript packages that control Apple TVs and HomePods over AirPlay 2, the Media Remote Protocol, RAOP and Companion Link, on Node.js and Bun without native dependencies.',
     cleanUrls: true,
+    sitemap: {
+        hostname: 'https://corewire.dev'
+    },
     vite: {
         plugins: [
             llmstxt({
+                domain: 'https://corewire.dev',
                 generateLLMsTxt: true,
                 generateLLMsFullTxt: true,
                 generateLLMFriendlyDocsForEachPage: true,

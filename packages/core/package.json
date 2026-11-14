@@ -30,8 +30,7 @@
         "LICENSE"
     ],
     "publishConfig": {
-        "access": "public",
-        "provenance": false
+        "access": "public"
     },
     "scripts": {
         "build": "tsgo --noEmit && tsdown",

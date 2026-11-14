@@ -16,3 +16,5 @@ jobs:
             - uses: oven-sh/setup-bun@v2
             - run: bun install --frozen-lockfile
             - run: bash build.sh
+            - run: bun run packages/core/test/pairing-server.ts
+            - run: bun run packages/diagnostics/test/proxy-smoke.ts

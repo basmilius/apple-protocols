@@ -1,133 +1,142 @@
 # Apple Protocols
 
-TypeScript monorepo voor Apple device protocollen (AirPlay 2, MRP, Companion Link, RAOP). Bun workspace.
+TypeScript monorepo voor Apple device protocollen (AirPlay 2, MRP, RAOP, Companion Link) onder de npm-scope `@corewire`. Bun workspace. De repository houdt voorlopig zijn naam.
 
 ## Build
 
 ```bash
-bash build.sh        # Bouwt alle packages in dependency-volgorde
+bash build.sh        # Bouwt alle packages in dependency-volgorde, diagnostics als laatste
 ```
 
-Elke package gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `tsgo --noEmit` + `electron-vite build`; `bun run pack` draait electron-builder (macOS arm64/x64, Linux arm64/x64, Windows x64).
+Elke library gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `tsgo --noEmit` + `electron-vite build`; `bun run pack` draait electron-builder (macOS arm64/x64, Linux arm64/x64, Windows x64).
+
+Na een wijziging zijn dit de controles, ook in CI:
+
+```bash
+rm -rf packages/*/dist && bash build.sh
+bun run packages/core/test/pairing-server.ts          # pair-setup en pair-verify in geheugen
+bun run packages/diagnostics/test/proxy-smoke.ts      # proxy-onderdelen aanmaken zonder sockets
+```
 
 ### Protobuf genereren
 
 ```bash
-bun --cwd packages/airplay gen:proto   # buf generate → packages/airplay/src/proto/
+bun --cwd packages/airplay gen:proto   # buf generate → packages/airplay/src/mrp/proto/
 ```
 
-117 `.proto` bestanden in `packages/airplay/proto/`, tooling: `@bufbuild/buf` + `@bufbuild/protoc-gen-es` + `@bufbuild/protobuf`.
+155 `.proto` bestanden in `packages/airplay/proto/`, tooling: `@bufbuild/buf` + `@bufbuild/protoc-gen-es` + `@bufbuild/protobuf`.
 
-## Validatie tegen Homey app
+## Validatie tegen de Homey app
 
-Na elke wijziging moet de Homey app (`~/Development/Projects/homey/com.basmilius.apple`) blijven bouwen. `diagnostics` is alleen een consumer en hoeft niet gekopieerd te worden:
+De Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is de belangrijkste consumer en importeert alleen `@corewire/devices` en `@corewire/audio-source`. Zolang de app nog op `@basmilius/apple-sdk` draait, valideer je met diagnostics. Importeert de app `@corewire`, dan moet hij na elke wijziging blijven bouwen:
 
 ```bash
-# 1. Build apple-protocols
+# 1. Build
 bash build.sh
 
-# 2. Kopieer dist naar Homey node_modules
-for pkg in apple-airplay apple-audio-source apple-common apple-companion-link apple-encoding apple-encryption apple-raop apple-rtsp apple-sdk; do
-  cp -r "packages/${pkg#apple-}/dist" ~/Development/Projects/homey/com.basmilius.apple/node_modules/@basmilius/${pkg}/dist
+# 2. Kopieer de dist van devices, audio-source en hun dependencies naar Homey
+for pkg in core airplay companion-link devices audio-source; do
+  rm -rf ~/Development/Projects/homey/com.basmilius.apple/node_modules/@corewire/${pkg}/dist
+  cp -r "packages/${pkg}/dist" ~/Development/Projects/homey/com.basmilius.apple/node_modules/@corewire/${pkg}/dist
 done
 
-# 3. Type-check Homey app
-cd ~/Development/Projects/homey/com.basmilius.apple && bun run build
+# 3. Type-check de Homey app
+bun --cwd ~/Development/Projects/homey/com.basmilius.apple run build
 ```
 
-Als stap 3 faalt, is er een breaking change in de public API.
+Faalt stap 3, dan is er een breaking change in de publieke API. `audio-source` bundelt een `decode-worker.mjs` en gedeelde decoderchunks: kopieer altijd de hele `dist`. `diagnostics` is alleen een consumer en hoeft niet mee.
 
 ## Packages (build-volgorde)
 
-| Package                           | Pad                       | Doel                                                                          |
-|-----------------------------------|---------------------------|-------------------------------------------------------------------------------|
-| `@basmilius/apple-encoding`       | `packages/encoding`       | Plist, OPack, TLV8, DAAP, NTP                                                 |
-| `@basmilius/apple-encryption`     | `packages/encryption`     | Ed25519, Curve25519, ChaCha20, HKDF, SRP                                      |
-| `@basmilius/apple-common`         | `packages/common`         | Discovery, pairing (HAP M1-M6 + verify), storage, context, mDNS               |
-| `@basmilius/apple-audio-source`   | `packages/audio-source`   | Audio decoders: MP3, OGG, WAV, PCM, FFmpeg, URL, SineWave, Live               |
-| `@basmilius/apple-rtsp`           | `packages/rtsp`           | RTSP client (request/response, encryption)                                    |
-| `@basmilius/apple-airplay`        | `packages/airplay`        | AirPlay 2 protocol: control/data/audio/event streams, 117 protobuf definities |
-| `@basmilius/apple-companion-link` | `packages/companion-link` | Companion Link: HID, apps, accounts, power, OPack framing                     |
-| `@basmilius/apple-raop`           | `packages/raop`           | RAOP audio streaming via RTSP                                                 |
-| `@basmilius/apple-sdk`            | `packages/sdk`            | High-level SDK: AppleTV, HomePod, controllers, discovery, pairing             |
-| `@basmilius/apple-diagnostics`    | `packages/diagnostics`    | Electron app voor protocol-diagnostiek (React 19 + Tailwind 4, UI naar Ruimte)  |
+| Package                    | Pad                       | Doel                                                                                                     |
+|----------------------------|---------------------------|----------------------------------------------------------------------------------------------------------|
+| `@corewire/core`           | `packages/core`           | Protocolneutrale kern: codecs, crypto, transport, pairing, mDNS, foutklassen, logger                     |
+| `@corewire/airplay`        | `packages/airplay`        | AirPlay 2 sessie en kanalen, URL-playback, audiostream, timing; MRP op `/mrp`, RAOP op `/raop`, RTSP op `/rtsp` |
+| `@corewire/companion-link` | `packages/companion-link` | Companion Link sessie met groepen: HID, touch, text, power, apps, accounts, media, system, interests       |
+| `@corewire/audio-source`   | `packages/audio-source`   | Audiobronnen en decoders: MP3, OGG, WAV, FLAC, QOA, PCM, FFmpeg, URL, SineWave, Live                      |
+| `@corewire/devices`        | `packages/devices`        | `AppleTV` en `HomePod` met herstel, capabilities, credentials, discovery; Apple Music op `/catalog`      |
+| `@corewire/diagnostics`    | `packages/diagnostics`    | Privé Electron app voor protocoldiagnostiek, met de proxy en de opslag erin (React 19 + Tailwind 4)      |
+
+Subpaths van core: `@corewire/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport`. De hoofdingang heeft de foutklassen, `reporter`/`Logger` en kleine helpers.
 
 ## Dependency graph
 
 ```
-encoding          (geen interne deps)
-encryption        (geen interne deps)
-common            → encoding, encryption
-audio-source      → common
-rtsp              → common, encoding
-airplay           → common, encoding, encryption, rtsp
-companion-link    → common, encoding, encryption
-raop              → common, encoding, encryption, rtsp
-sdk               → airplay, audio-source, common, companion-link, encoding, raop
-diagnostics       → sdk + alle protocol packages
+core              (geen interne deps)
+airplay           → core
+companion-link    → core
+audio-source      → core (plus het type AudioSource uit airplay, alleen als devDependency)
+devices           → core, airplay, companion-link
+diagnostics       → devices + alle protocol packages
 ```
 
-Alle interne deps gebruiken `workspace:*`. Bij release vervangt CI dit met de release-versie via `sed`.
+Een protocolpackage hangt alleen van `core` af, nooit van een ander protocol. `devices` is de enige plek waar twee protocollen samenkomen. Alle interne deps gebruiken `workspace:*`. Bij release vervangt CI dit met de release-versie via `sed`.
 
 ## Architectuur
 
 ```
-sdk (AppleTV, HomePod)
-  ├── internal/airplay-* (AirPlayManager, Remote, State, Volume, Client, Player)
-  │     └── @basmilius/apple-airplay (Protocol, DataStream, ControlStream, AudioStream, EventStream)
-  │           └── @basmilius/apple-common (pairing, mDNS, storage)
-  │                 ├── @basmilius/apple-encoding
-  │                 └── @basmilius/apple-encryption
-  ├── internal/companion-link-* (CompanionLinkManager)
-  │     └── @basmilius/apple-companion-link
-  └── device/
-        ├── AppleTV = AirPlay + CompanionLink (remote control + media + apps + text input)
-        ├── HomePod = AirPlay only (media + volume)
-        └── HomePodMini = HomePod (zelfde, ander device model)
+devices (AppleTV, HomePod)
+  ├── lifecycle/                link per protocol, retry-schema, re-resolve, status
+  ├── een map per capability    remote, nowPlaying, playback, volume, power, text, apps, ...
+  ├── @corewire/airplay         connect() → AirPlaySession
+  │     ├── ControlChannel (RTSP), EventChannel, DataChannel
+  │     ├── /mrp                MediaRemote.open(session), MediaRemoteState (model zonder I/O)
+  │     ├── playUrl() / streamAudio()   eigen verbindingen binnen de package
+  │     └── timing/             NTP TimingServer, PTP master
+  └── @corewire/companion-link  connect() → CompanionLinkSession
+        └── @corewire/core      pairing, transport, discovery, encoding, crypto
 ```
+
+- `AppleTV` = AirPlay + Companion Link (remote, media, apps, accounts, power, text, touch, system). `HomePod` = alleen AirPlay. Er is geen `HomePodMini`; gebruik `device.model`.
+- Een device wordt gemaakt van een doel (`{address, port?, txt?, id?}`) plus opties. Logger, credentials en timing gaan mee als optie; geen `configure()`, geen setters achteraf.
+- Ontwerp en afwijkingen: `docs/reports/package-structure.tsx` (goedgekeurd ontwerp) en `docs/parity/devices-api.md` (de devices API, sectie 0 voor wat anders werd).
 
 ## Patronen
 
-### Message sending (MRP via AirPlay DataStream)
-Berichten worden gebouwd in `packages/airplay/src/dataStreamMessages.ts` en verstuurd via `DataStream.exchange()` (request/response) of `DataStream.send()` (fire-and-forget). Elk bericht is een `ProtocolMessage` wrapper met een protobuf extension.
+### Sessies
+`connect(target, options)` in `airplay` en `companion-link` geeft een sessie die klaar is: TCP, pair-verify (of transient pairing), encryptie en de startup. Een sessie leeft één keer en eindigt één keer met `closed(reason, error?)`, reden `local | remote | timeout | error`. Zijn `signal` (AbortSignal) gaat dan af en neemt timers, listeners, openstaande requests en kindkanalen mee. Een request op een gesloten sessie faalt met `ConnectionClosedError`, een request zonder antwoord met `TimeoutError`.
+
+### Message sending (MRP via het AirPlay datakanaal)
+Berichten worden gebouwd in `packages/airplay/src/mrp/messages.ts` en verstuurd via `DataChannel.exchange()` (request/response) of `DataChannel.send()` (fire-and-forget). Elk bericht is een `ProtocolMessage` wrapper met een protobuf extension. Beantwoordt een device een berichttype niet, dan hoort het een `send()` te zijn.
 
 ### State tracking
-`packages/sdk/src/internal/airplay-state.ts` luistert naar DataStream events en houdt now-playing, volume, keyboard, en output device state bij. `NowPlayingSnapshot` vergelijking voorkomt dubbele events. Consumers luisteren naar State events.
+`MediaRemoteState` (`packages/airplay/src/mrp/state.ts`) is een model zonder I/O: je voedt het met `apply(name, message)`, live vanuit het datakanaal of uit opgenomen berichten via `decodeMessage()`. Het emit alleen afgeleide events (`nowPlayingChanged`, `volumeChanged`, `keyboardChanged`, `outputDevicesChanged`, ...). `CompanionLinkState` werkt hetzelfde. `devices` houdt per device één langlevend model en vergelijkt publieke waarden met wat het laatst aankondigde, zodat een herverbinding geen dubbele events geeft.
 
-### Now playing hierarchie
-`AirPlayState` → `Client` (per bundleIdentifier) → `Player` (per playerPath). Client proxied getters naar de actieve Player. Player extrapoleert `elapsedTime` via Cocoa-timestamp + playbackRate.
+### Now playing hiërarchie
+`MediaRemoteState` → `Client` (per bundleIdentifier) → `Player` (per playerPath). Client proxied getters naar de actieve Player. Player extrapoleert `elapsedTime` via Cocoa-timestamp + playbackRate. `devices` maakt daar een `NowPlaying` momentopname met eigen types van (`'playing' | 'paused' | ...`, `'off' | 'one' | 'all'`).
 
 ### HID events
-Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, Consumer (0x0c) voor media. Gebouwd via `sendHIDEvent()`. `AirPlayRemote` biedt high-level methoden (`up/down/play/pause/volumeUp` etc.) en primitieven (`pressAndRelease`, `longPress`, `doublePress`).
+Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, Consumer (0x0c) voor media. `MediaRemote.hid` (`packages/airplay/src/mrp/hid.ts`) heeft de toetsen en de primitieven `press`, `longPress` en `doublePress`. `device.remote.press(key, {mode})` kiest het protocol: een tap via AirPlay HID als de toets daar bestaat, hold en double via Companion Link als die verbonden is.
 
 ### Pairing
-`AccessoryPair` (M1-M6 pair-setup) en `AccessoryVerify` (Curve25519 pair-verify) in `packages/common/src/pairing.ts`. Twee modi: PIN-pairing (M1-M6 → `AccessoryCredentials`) en transient (M1-M4 → `AccessoryKeys`). Gebruikt door zowel AirPlay (`/pair-setup`, `/pair-verify`) als Companion Link (OPack frames).
+`PairSetup` (M1 tot M6, of M1 tot M4 transient) en `PairVerify` (Curve25519) in `packages/core/src/pairing/client.ts`, de accessoirekant (`PairSetupServer`, `PairVerifyServer`) in `server.ts`. Een protocol levert alleen een `PairingTransport`: een functie die één bericht verstuurt en het antwoord teruggeeft (HTTP-body bij AirPlay, OPack-frame bij Companion Link). `pair(target)` in `airplay` en `companion-link` start een PIN-pairing; `AppleTV.pair(target)` geeft een `Pairing` die `Credentials` oplevert. `Credentials` heeft één tekstvorm, `Credentials.parse()` leest ook de hex- en base64-objecten die Homey en de oude opslag bewaren.
 
 ### Connection management
-- `Connection<TEventMap>`: TCP socket wrapper, ingebouwde retry (3 pogingen, 3s interval), `keepAlive(true, 10s)`
-- `EncryptionAwareConnection`: voegt `enableEncryption(readKey, writeKey)` toe met `EncryptionState` (keys + counters)
-- `ConnectionRecovery`: exponential backoff (base=1s, max=30s, maxAttempts=3), optioneel `reconnectInterval`
-- Bound handlers als `readonly #bound*` velden voor correcte `off()` bij reconnect
+- `Connection<TEventMap>` (`core/transport`): TCP socket wrapper, verbindt één keer zonder retry, `keepAlive(true, 10s)`, eindigt via één `closed`-event met een reden.
+- `EncryptionAwareConnection`: voegt `enableEncryption(readKey, writeKey)` toe met `EncryptionState` (keys + counters); `buildNonce(counter, format)` maakt de nonce per protocol.
+- Herstel zit alleen in `devices` (`packages/devices/src/lifecycle/`): per protocol een link met retries na 1, 2 en 4 s, daarna voor een Apple TV 15 pogingen elke 2 minuten en daarna elke 15 minuten, voor een HomePod elke 15 minuten. Nooit opgeven. Elke retry zoekt het device eerst opnieuw (unicast DNS-SD met een wake knock, dan de `resolve`-optie of een multicast scan).
+- Het device meldt één `status`-event met `disconnected | connecting | connected | degraded | recovering | offline`, een reden en de stand per protocol. `degraded`: AirPlay werkt, Companion Link nog niet.
 
 ### Discovery (mDNS)
-`Discovery` klasse met factory methods: `.airplay()`, `.companionLink()`, `.raop()`. Zelfgebouwde DNS encoder/decoder (geen deps). Meerdere UDP sockets per netwerk-interface. `wake(address)` knocks op 4 poorten.
+`Discovery` in `core/discovery` zoekt op een willekeurig servicetype; zelfgebouwde DNS encoder/decoder (geen deps), meerdere UDP sockets per netwerkinterface. `MdnsResponder` adverteert (gebruikt door de proxy). Elke protocolpackage heeft zijn eigen `discover()` en servicenaam; `discover()` uit `devices` voegt AirPlay, Companion Link en RAOP per host samen. `Discovery.wake(address, ports)` knocks op de poorten uit `WAKE_PORTS` (devices).
 
 ### Storage
-`abstract Storage` → `JsonStorage` (schrijft naar `~/.config/apple-protocols/storage.json`) of `MemoryStorage` (in-memory). Credentials worden base64-geserialiseerd.
+Opslag hoort bij de app, niet bij de libraries. Diagnostics heeft `JsonStorage` in `packages/diagnostics/src/main/storage.ts` en schrijft naar `~/.config/apple-protocols/storage.json`. Nieuwe pairings gaan in de `Credentials`-tekstvorm; bestaande entries worden gelezen zoals ze zijn.
 
 ## Diagnostics app
 
-`packages/diagnostics`: `src/main` (Electron main), `src/preload`, `src/renderer` (React), `src/shared` (IPC contract). De `@basmilius/apple-*` deps staan bewust in `devDependencies`: electron-vite externaliseert `dependencies`, en dan werkt de alias naar `../*/src` niet.
+`packages/diagnostics`: `src/main` (Electron main), `src/preload`, `src/renderer` (React), `src/shared` (IPC contract). De `@corewire/*` deps staan bewust in `devDependencies`: electron-vite externaliseert `dependencies`, en dan werkt de alias naar `../*/src` niet.
 
-- Meerdere devices tegelijk: `SessionManager` (`src/main/session.ts`) houdt een `Map<deviceId, DeviceSession>`, met één gedeelde `TimingServer` en een save-queue om `JsonStorage`.
-- `device:call { deviceId, root, path, args }` roept een pad aan op een allowlisted root (`device`, `airplay`, `airplayState`, `companionLink`, `airplayProtocol`, `companionLinkProtocol`). Zonder `args` leest het een getter. Setters kan het niet.
-- Contract per domein: `contract.ts` (core), `contract.media.ts` (pair, audio, raop, raw, recovery), `contract.tools.ts` (tool, storage, mdns). Handlers in `src/main/channels/<domein>`. Een kanaal toevoegen: map + kanaallijst in het contractbestand, handler in de channels-module.
+- Meerdere devices tegelijk: `SessionManager` (`src/main/session.ts`) houdt per device een `DeviceSession` bij, met één gedeelde `TimingServer` en een save-queue om `JsonStorage`.
+- Diagnostics draait alleen op de publieke API's. `device:call { deviceId, root, path, args }` roept een pad aan op een van de roots `device` (het `AppleTV`/`HomePod` object), `airplay`, `mediaRemote` en `companionLink` (de sessies uit `device.sessions`). Zonder `args` leest het een getter. Setters kan het niet.
+- Contract per domein: `contract.ts` (core), `contract.media.ts` (pair, audio, raop, raw, recovery, catalog), `contract.tools.ts` (tool, storage, mdns, proxy). Handlers in `src/main/channels/<domein>`. Een kanaal toevoegen: map + kanaallijst in het contractbestand, handler in de channels-module.
+- De proxy staat in `src/main/proxy/` (AirPlay en Companion Link, met een `ProxyStore` voor zijn identiteit), met een paneel en de kanalen `proxy:status|start|stop`. Zijn verkeer komt in de traffic-buffer als protocol `proxy` onder het device waar hij naartoe relayt. `src/main/discovery.ts` houdt een eigen kopie van de discovery-merge, omdat de panelen de ruwe resultaten tonen.
 - Een paneel toevoegen: map onder `src/renderer/panels/<id>/` plus een regel in `registry.sdk.ts`, `registry.media.ts` of `registry.tools.ts`. Een devicepaneel krijgt ook een plek in `PANEL_SECTIONS` (`registry.ts`): Device, Control, Streaming of Inspect.
 - Gedeelde bouwstenen staan in `src/renderer/ui/` (onder meer `Section`, `KeyValue`, `StatusPill`, `StatusBar`, `ICONS`) en `panels/sdk-shared` (`EventFeed`, `PanelLink`, `NotConnected`, `ResultBlock`).
-- Logs komen via `reporter.setSink()` (common) met `deviceId` binnen, zonder console-patching.
+- Logs komen via `reporter.setSink()` (core) met `deviceId` binnen, zonder console-patching.
 - Statistieken staan in `src/main/statistics.ts`: tellers per device in intervallen van 2 seconden, met 30 minuten historie. `statistics:history` levert de grafieken en totalen. De tellers staan los van de begrensde log- en verkeersbuffers en worden ook bijgehouden als het paneel gesloten is; een herstart van main wist de historie.
-- Agent-bridge in `src/main/agent/` (`server.ts`, `guard.ts`, `resume.ts`), CLI in `cli/diag.ts`, gedeelde types in `src/shared/agent.ts`. `handle()` registreert elke handler ook voor `invoke()` in `ipc.ts`, dus een nieuw kanaal is vanzelf beschikbaar voor de agent. De bridge staat aan in dev, of met `--agent` / `DIAGNOSTICS_AGENT=1`.
-- Shell (`src/renderer/shell`) staat op `Workspace` van `@adecore/ui`: device switcher in de top row, sidebar met de panelen van het gekozen device, rail met logconsole en tools als side panel. Er is één paneel tegelijk zichtbaar; `state/layout.ts` onthoudt per device welk. De sidebar-indeling staat in `PANEL_SECTIONS` (`panels/registry.ts`), een nieuw device-paneel moet daar ook in.
+- Agent-bridge in `src/main/agent/` (`server.ts`, `guard.ts`, `resume.ts`, `actions.ts`), CLI in `cli/diag.ts`, gedeelde types in `src/shared/agent.ts`. `handle()` registreert elke handler ook voor `invoke()` in `ipc.ts`, dus een nieuw kanaal is vanzelf beschikbaar voor de agent. De bridge staat aan in dev, of met `--agent` / `DIAGNOSTICS_AGENT=1`.
+- Shell (`src/renderer/shell`) staat op `Workspace` van `@adecore/ui`: device switcher in de top row, sidebar met de panelen van het gekozen device, rail met logconsole en tools als side panel. Er is één paneel tegelijk zichtbaar; `state/layout.ts` onthoudt per device welk.
 
 ## Debuggen tegen een echt device (agent-loop)
 
@@ -136,13 +145,16 @@ De diagnostics app heeft een agent-bridge: een HTTP-server op loopback die alle 
 ```bash
 bun run diag wait-ready                          # wacht op de app en op het herverbinden van devices
 bun run diag devices --scan                      # <device> is daarna een id of een stuk van de naam
-bun run diag connect woonkamer
+bun run diag connect woonkamer-tv
 bun run diag mark                                # onthoud de cursors van nu
-bun run diag call woonkamer device remote.up     # of: invoke <channel> '<json>'
+bun run diag call woonkamer-tv device remote.press up
+bun run diag call woonkamer-tv device remote.press select '{"mode":"hold"}'
+bun run diag call woonkamer-tv device status     # zonder args: een getter lezen
+bun run diag call woonkamer-tv mediaRemote state.volume
 bun run diag traffic --since-mark --decoded      # wat ging er over de lijn
 bun run diag events --since-mark --source dataStream
 bun run diag logs --since-mark --group error
-bun run diag wait events --name volumeDidChange --timeout 10
+bun run diag wait events --name volume.change --timeout 10
 ```
 
 Verbinden, stap voor stap:
@@ -157,11 +169,22 @@ Loopt het vast, lees dan eerst het verkeer in plaats van de code: `traffic --lim
 
 Het recept: `mark`, actie uitvoeren, `traffic`/`events`/`logs --since-mark` lezen, code aanpassen, `wait-ready`, herhalen. Een wijziging in `packages/*/src` herstart main vanzelf; de bridge verbindt de devices die via `connect` verbonden waren opnieuw. Cursors beginnen na een herstart weer bij 0, `--since-mark` vangt dat op.
 
+Herstel en proxy:
+
+```bash
+bun run diag invoke recovery:status '{"deviceId":"<id>"}'                         # status van het device, per protocol
+bun run diag invoke recovery:simulateDrop '{"deviceId":"<id>","stream":"data"}'   # control, data, event of companionLink
+bun run diag proxy status                                                          # draaiende proxies, met PIN en aantallen
+bun run diag proxy start woonkamer-tv airplay --confirm                            # alleen na akkoord van de gebruiker
+bun run diag proxy stop airplay
+```
+
 - Uitvoer is compact. `--decoded` toont de gedecodeerde berichten, `--json` het hele record, `--grep`, `--limit` en `--protocol`/`--direction`/`--source`/`--name`/`--group` filteren. Binaire waarden zijn afgekapt op 64 bytes, `--bytes <n>` of `--full` haalt dat weg. Filter altijd eerst, artwork alleen al is honderden kilobytes.
-- Traffic is plaintext (na decryptie, voor encryptie) en komt van `logger.traffic()` in `DataStream`, `EventStream`, Companion Link `stream.ts` en `RtspClient` (dus ook de AirPlay control stream en RAOP). RTP-audiopakketten zitten er niet in. Een nieuw tap-punt is een `logger.traffic()`-aanroep; zonder sink (Homey) doet die niets.
-- Agent calls gebruiken de expliciete actielijst in `src/main/agent/actions.ts`. Directe protocolmethoden zijn alleen via de app beschikbaar. `raw:send` valideert de catalogusargumenten en vereist `--confirm`. SDK-volume is 0–1, RAOP is 0–100 procent, audio streaming gebruikt -144–0 dB. Ongeldige argumenten worden ook met confirm geweigerd.
+- Eventbronnen: `device` (het `status`-event), `state` (capability-events als `nowPlaying.change`, `volume.change`, `power.change`, `text.change`), `airplayState` (het MRP-model), `dataStream`, `eventStream` en `companionLink`.
+- Traffic is plaintext (na decryptie, voor encryptie) en komt van `logger.traffic()` in `DataChannel`, `EventChannel`, Companion Link `stream.ts` en `RtspClient` (dus ook het AirPlay controlkanaal en RAOP), plus de proxy. RTP-audiopakketten zitten er niet in. Een nieuw tap-punt is een `logger.traffic()`-aanroep; zonder sink (Homey) doet die niets.
+- Agent calls gebruiken de expliciete actielijst in `src/main/agent/actions.ts`: acties op de root `device` (`remote.press`, `volume.*`, `playback.*`, `power.*`, `text.*`, `apps.*`, `accounts.*`, `touch.*`) en een vaste lijst getters per root. Directe protocolmethoden zijn alleen via de app beschikbaar. `raw:send` valideert de catalogusargumenten en vereist `--confirm`. SDK-volume is 0 tot 1, RAOP is 0 tot 100 procent, audio streaming gebruikt -144 tot 0 dB. Ongeldige argumenten worden ook met confirm geweigerd.
 - Het Performance-paneel en `diag invoke performance:status` tonen eventloop p95/p99/max, piek sinds reset, RSS/heap/external en de retentie per capturebuffer. `performance:reset` wist de meetpiek. Audio toont de FFmpeg-buffer en pauzestatus; de pauzedrempel is één seconde PCM, met maximaal één extra stdout-chunk.
-- Grenzen (`src/main/agent/guard.ts`): volume boven 0.5 en kanalen die credentials weggooien (`pair:forget`, `storage:remove*`) worden geweigerd tot de gebruiker akkoord is, daarna met `--confirm`. `storage:read` met `reveal` en `audio:pickFile` kunnen nooit. PIN-pairing vraagt de gebruiker: die leest de code van het scherm.
+- Grenzen (`src/main/agent/guard.ts`): volume boven 0.5, `volume.up`, `proxy:start` en kanalen die credentials weggooien (`pair:forget`, `storage:remove*`) worden geweigerd tot de gebruiker akkoord is, daarna met `--confirm`. `storage:read` met `reveal` en `audio:pickFile` kunnen nooit. PIN-pairing vraagt de gebruiker: die leest de code van het scherm.
 - Het device staat bij iemand thuis. Geen acties in een lus zonder reden, en zet terug wat je veranderde (volume, power, afspelen).
 
 ## Event systeem
@@ -174,35 +197,37 @@ type EventMap = {
 class Foo extends EventEmitter<EventMap> { ... }
 ```
 
-EventMaps zijn lokaal gedefinieerd per klasse, niet hergebruikt/geexporteerd (uitzondering: `RaopClient`).
+EventMaps zijn lokaal gedefinieerd per klasse. Een EventMap die consumers nodig hebben, wordt geëxporteerd (`MediaRemoteStateEventMap`, `CompanionLinkStateEventMap`, `DataChannelEventMap`, `EventChannelEventMap`, de `EventMap` van `RaopClient` op `/raop`). Elke laag heeft zijn eigen events: een kanaal geeft berichten, een model maakt er statuswijzigingen van, het device geeft `status` en zijn capability-events. Geen laag geeft een event van een andere laag ongewijzigd door.
 
 ## Error hierarchie
 
 ```
-AppleProtocolError                (packages/common/src/errors.ts)
+AppleProtocolError                (packages/core/src/errors.ts)
 ├── ConnectionError
 │   ├── ConnectionTimeoutError
 │   └── ConnectionClosedError
+│       └── SetupClosedError      (packages/companion-link/src/session.ts)
 ├── PairingError
 │   ├── AuthenticationError
 │   └── CredentialsError
 ├── CommandError
-│   └── SendCommandError          (packages/sdk/src/internal/airplay-remote.ts)
+│   └── SendCommandError          (packages/airplay/src/mrp/commands.ts)
 ├── SetupError
 ├── DiscoveryError
 ├── EncryptionError
 ├── InvalidResponseError
 ├── TimeoutError
-└── PlaybackError
+├── PlaybackError
+└── UnavailableError              (packages/devices/src/errors.ts)
 ```
 
-Standalone: `TLV8PairingError` (encoding), `DecryptionError` (encryption).
+Standalone: `TLV8PairingError` (`core/src/encoding/tlv8.ts`), `DecryptionError` (`core/src/crypto/chacha20.ts`).
 
 ## Logging
 
-Eigen twee-laags systeem in `packages/common/src/reporter.ts`:
-- `Reporter` (singleton `reporter`): beheert debug-groepen (`debug`, `error`, `info`, `net`, `raw`, `warn`), `.all()` / `.none()` / `.enable(group)` / `.disable(group)`
-- `Logger` (per device via `Context`): methoden `debug()`, `error()`, `info()`, `net()`, `raw()`, `warn()` met ANSI-kleuren
+Eigen twee-laags systeem in `packages/core/src/reporter.ts`:
+- `Reporter` (singleton `reporter`): beheert debug-groepen (`debug`, `error`, `info`, `net`, `raw`, `warn`), `.all()` / `.none()` / `.enable(group)` / `.disable(group)`, plus `setSink()` en `setTrafficSink()`
+- `Logger` (per device via `Context` uit `core/transport`): methoden `debug()`, `error()`, `info()`, `net()`, `raw()`, `warn()`, `traffic()` met ANSI-kleuren. Een optionele `LogSink` stuurt de entries per device door; `devices` gebruikt dat voor de `log`-optie.
 - Productie-library code gebruikt alleen het Logger-systeem, nooit `console.log` direct
 
 ## TypeScript configuratie
@@ -210,24 +235,26 @@ Eigen twee-laags systeem in `packages/common/src/reporter.ts`:
 Alle packages delen deze instellingen:
 - `target: esnext`, `module: esnext`, `moduleResolution: bundler`
 - `strict: false`, `isolatedModules: true`, `skipLibCheck: true`
-- `isolatedDeclarations: true` (behalve `common` en `sdk`)
-- Path alias: `@basmilius/apple-*` → `../*/src` (dev-tijd cross-package imports)
-- Output: ESM (`.mjs` + `.d.mts`), `./dist/index.mjs` per library; audio-source bundelt ook `decode-worker.mjs` en de gedeelde decoderchunks (kopieer de hele dist)
+- `isolatedDeclarations: true` (behalve `devices`)
+- Path aliases voor dev-tijd cross-package imports: `@corewire/core/*` → `../core/src/*`, `@corewire/airplay/*` → `../airplay/src/*`, `@corewire/*` → `../*/src`
+- Output: ESM (`.mjs` + `.d.mts`) per ingang in `dist`; audio-source bundelt ook `decode-worker.mjs` en de gedeelde decoderchunks
 
 ## Code conventions
 
 - Zie `.editorconfig`: 4 spaties, single quotes, semicolons, LF, geen trailing comma's
 - Private class fields met `#` prefix
 - Arrow functions waar mogelijk
+- Functieleden van een type of interface schrijf je als method signature (`open(signal: AbortSignal): Promise<T>;`), niet als property met een arrow type. `readonly` vervalt op die leden. Een callback als parameter mag een arrow type blijven.
+- Listeners op een sessie of kanaal ruim je op via het `AbortSignal` van de sessie, niet met `#bound*` velden en handmatig `off()`
 - `waitFor(ms)` voor delays in HID press/release
 - Error klassen zetten altijd `this.name` in de constructor
-- Bound event handlers als `readonly #bound*` class fields
-- Alle exports via `packages/*/src/index.ts`
+- Geen verwijzingen naar pyatv, andere projecten of externe sites in code comments. Houd het feit en de reden, laat de bron weg.
+- Alle exports via `packages/*/src/index.ts` of de `index.ts` van een subpath
 
 ## Protocolvalkuilen
 
-### EventStream key swap is bewust
-`eventStream.ts` roept `enableEncryption(writeKey, readKey)` aan. De argumenten zijn bewust omgedraaid. De HKDF info-strings zijn benoemd vanuit het perspectief van de Apple TV:
+### EventChannel key swap is bewust
+`packages/airplay/src/channels/event.ts` leidt de keys omgedraaid af. De HKDF info-strings zijn benoemd vanuit het perspectief van de Apple TV:
 - `Events-Write-Encryption-Key` = wat de Apple TV naar ons **schrijft** → wij gebruiken dit als **read** (decrypt) key
 - `Events-Read-Encryption-Key` = wat de Apple TV van ons **leest** → wij gebruiken dit als **write** (encrypt) key
 
@@ -235,26 +262,26 @@ Bevestigd via pyatv (`ap2_session.py`: *"Read/Write info reversed here as connec
 
 ### Nonce formaten per protocol
 - **Companion Link**: 12-byte LE counter op offset 0 (de counter is 8 bytes, trailing 4 bytes zijn zero)
-- **AirPlay** (DataStream/EventStream): 4 zero bytes + 8-byte LE counter op offset 4
+- **AirPlay** (DataChannel/EventChannel): 4 zero bytes + 8-byte LE counter op offset 4
 
-Beide formaten zijn bevestigd correct via pyatv's `Chacha20Cipher` (12-byte nonce_length) en `Chacha20Cipher8byteNonce` (4-byte pad + 8-byte counter).
+Beide formaten zijn bevestigd correct via pyatv's `Chacha20Cipher` (12-byte nonce_length) en `Chacha20Cipher8byteNonce` (4-byte pad + 8-byte counter). In code maakt `buildNonce(counter, format)` (`core/transport`) ze.
 
 ### Encrypted/plaintext buffer scheiding
-DataStream, EventStream en RtspClient gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Bij gedeeltelijke TCP-frames voorkomt dit dat nieuwe ciphertext bij plaintext terechtkomt. De ChaCha20-decoder zou die plaintext anders als frame-header lezen, met corruptie of een deadlock als gevolg.
+`EncryptedChannel` (`packages/airplay/src/channels/encrypted.ts`, basis van DataChannel en EventChannel) en `RtspClient` (`packages/airplay/src/rtsp/client.ts`) gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Bij gedeeltelijke TCP-frames voorkomt dit dat nieuwe ciphertext bij plaintext terechtkomt. De ChaCha20-decoder zou die plaintext anders als frame-header lezen, met corruptie of een deadlock als gevolg.
 
 ### AirPlay receive-frames zijn niet begrensd op 1024 bytes
 De encoder verstuurt chunks van 1024 bytes, maar receivers sturen ook grotere ChaCha20-blokken. Gebruik bij ontvangst de 2-byte LE lengte en de buffergrens van de stream; een 1024-byte parsergrens verbreekt de verbinding met Apple TV en HomePod. De lengte is AAD en de auth tag blijft verplicht.
 
 ### NTP timestamps moeten wall-clock zijn
-`NTP.now()` in `encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.
+`NTP.now()` in `packages/core/src/encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.
 
 ## CI/CD
 
-`.github/workflows/checks.yml` draait `bash build.sh` op pull requests en pushes naar main, inclusief proxycontrole en diagnostics. `.github/workflows/released.yml` (trigger: GitHub Release) Vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt alles, publiceert naar npm. De proxy is een private CLI; `bun --cwd packages/proxy check` controleert types en bundeling, `build` maakt de native binaries in dist.
+`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics), de pairing-test van core en de proxy smoke test. `.github/workflows/released.yml` (trigger: GitHub Release) vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt de vijf libraries en publiceert `core`, `airplay`, `companion-link`, `audio-source` en `devices` met `npm publish --provenance --access public`. Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
 
 ## Tests en tooling
 
-- Geautomatiseerde tests zijn uitgesteld tot een apart, grondig testtraject. Voeg voorlopig geen tests toe. Valideer wijzigingen met de builds en diagnostics.
-- Handmatige device-tests lopen via diagnostics; per package staan ook testscripts.
+- Geautomatiseerde tests zijn uitgesteld tot een apart, grondig testtraject. Voeg voorlopig geen tests toe. Valideer wijzigingen met de builds, de twee testscripts hierboven en diagnostics.
+- Handmatige device-tests lopen via diagnostics. Voor vergelijkingen met de productieversie: `tools/parity/capture.sh` en `tools/parity/compare.ts` (zie `docs/parity/HANDOFF.md`).
 - Geen linter of formatter; stijlregels staan in `.editorconfig`.
 - Geen Docker of `.env`-bestanden.

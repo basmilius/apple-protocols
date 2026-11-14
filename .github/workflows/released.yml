@@ -27,9 +27,12 @@ jobs:
                     node-version: '25'
                     registry-url: 'https://registry.npmjs.org'
 
+            # Trusted publishing (OIDC) needs npm 11.5.1 or newer.
+            -   name: 📦️ Update npm
+                run: npm install --global npm@latest
+
             -   name: ✏️ Tag v${{ env.RELEASE_VERSION }}
                 run: |
-                    # Temporary solution for the commented out lines below.
                     sed -i 's/0.0.0/${{ env.RELEASE_VERSION }}/g' packages/*/package.json
                     sed -i 's/workspace:\*/${{ env.RELEASE_VERSION }}/g' packages/*/package.json
 
@@ -38,24 +41,17 @@ jobs:
 
             -   name: 🔨 Build
                 run: |
-                    bun --cwd packages/encoding build
-                    bun --cwd packages/encryption build
-                    bun --cwd packages/common build
-                    bun --cwd packages/audio-source build
-                    bun --cwd packages/rtsp build
+                    bun --cwd packages/core build
                     bun --cwd packages/airplay build
                     bun --cwd packages/companion-link build
-                    bun --cwd packages/raop build
-                    bun --cwd packages/sdk build
+                    bun --cwd packages/audio-source build
+                    bun --cwd packages/devices build
 
+            # No NPM_TOKEN: npm authenticates through the trusted publisher configured per package on npmjs.com.
             -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
                 run: |
-                    (cd packages/encoding && npm publish --access public)
-                    (cd packages/encryption && npm publish --access public)
-                    (cd packages/common && npm publish --access public)
-                    (cd packages/audio-source && npm publish --access public)
-                    (cd packages/rtsp && npm publish --access public)
-                    (cd packages/airplay && npm publish --access public)
-                    (cd packages/companion-link && npm publish --access public)
-                    (cd packages/raop && npm publish --access public)
-                    (cd packages/sdk && npm publish --access public)
+                    (cd packages/core && npm publish --provenance --access public)
+                    (cd packages/airplay && npm publish --provenance --access public)
+                    (cd packages/companion-link && npm publish --provenance --access public)
+                    (cd packages/audio-source && npm publish --provenance --access public)
+                    (cd packages/devices && npm publish --provenance --access public)

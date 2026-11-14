@@ -37,6 +37,14 @@ export default (
             mediaprotocollen ging. Met HomeKit erbij krijgt elk protocol een eigen publiek, en dan is een package per protocol de juiste grens.
         </Callout>
 
+        <Callout>
+            Na de bouw bijgewerkt waar die afweek. DAAP, RTI en de NTP-tijdstempels bleven in <code>core</code>. <code>timing/</code> staat
+            bovenaan in <code>airplay</code>. MRP heeft één statemodel in plaats van een los <code>nowPlaying</code>. De gedeelde timing server
+            start bij de eerste verbinding. Het device kent zes toestanden, met <code>disconnected</code> erbij. De ontdubbeling van de audiokern
+            van AirPlay en RAOP is uitgesteld, want die is zonder luisteren niet te controleren. De details staan in{' '}
+            <code>docs/parity/devices-api.md</code>, sectie 0.
+        </Callout>
+
         <Section title="Welke grenzen kloppen en welke niet" toc="Grenzen">
             <Intro>Een packagegrens verdient zijn plek als iemand de package los wil installeren. Dat geldt voor een protocol, niet voor een hulplaag.</Intro>
             <Rows>
@@ -163,7 +171,7 @@ diagnostics   ───▶  alles`}</Code>
                 <tbody>
                     <tr>
                         <td><code>/encoding</code></td>
-                        <td>TLV8, Plist, OPack, NSKeyedArchiver</td>
+                        <td>TLV8, Plist, OPack, NSKeyedArchiver, DAAP, RTI, NTP-tijdstempels</td>
                         <td>TLV8 door alle drie, de rest door AirPlay en Companion Link</td>
                     </tr>
                     <tr>
@@ -178,7 +186,7 @@ diagnostics   ───▶  alles`}</Code>
                     </tr>
                     <tr>
                         <td><code>/pairing</code></td>
-                        <td>Pair-setup en pair-verify, als controller en als accessoire, plus <code>Credentials</code></td>
+                        <td>Pair-setup en pair-verify, als controller en als accessoire. <code>Credentials</code> met zijn tekstvorm staat in <code>devices</code></td>
                         <td>alle drie</td>
                     </tr>
                     <tr>
@@ -196,10 +204,11 @@ diagnostics   ───▶  alles`}</Code>
             <Rows>
                 <Row title="Wat de kern verlaat">
                     <code>airplayFeatures</code>, de audioconstanten, <code>TimingServer</code>, de PTP-master, <code>AudioSource</code> en de
-                    servicenamen gaan naar <code>airplay</code>. DAAP, RTI en de NTP-tijdstempels ook, want alleen AirPlay gebruikt ze. De
-                    modelnummers van Apple TV en HomePod gaan naar <code>devices</code>. <code>ConnectionRecovery</code> gaat naar{' '}
-                    <code>devices</code>. <code>Storage</code> en <code>prompt</code> gaan naar diagnostics. <code>Context</code> lost op in de opties
-                    van een sessie, en <code>uuid</code> wordt <code>crypto.randomUUID()</code>.
+                    servicenamen gaan naar <code>airplay</code>. DAAP, RTI en de NTP-tijdstempels blijven in <code>core/encoding</code>. Een formaat
+                    dat op zichzelf staat, hoort daar, ook met één gebruiker. De modelnummers van Apple TV en HomePod gaan naar <code>devices</code>.{' '}
+                    <code>ConnectionRecovery</code> verdwijnt, het herstel zit in de levenscyclus van <code>devices</code>. <code>Storage</code> en{' '}
+                    <code>prompt</code> gaan naar diagnostics. <code>Context</code> blijft in <code>core/transport</code> als gewoon object dat mee naar
+                    beneden gaat, en <code>uuid</code> wordt <code>crypto.randomUUID()</code>.
                 </Row>
                 <Row title="Pairing kent het frame niet">
                     AirPlay stuurt de TLV8 van pair-setup in een HTTP-body, Companion Link in een OPack-frame, HomeKit weer in HTTP. De stappen M1 tot
@@ -293,19 +302,23 @@ diagnostics   ───▶  alles`}</Code>
                 <tbody>
                     <tr>
                         <td><code>@corewire/airplay</code></td>
-                        <td>De sessie met control-, event- en datakanaal, URL-playback, de audiostream, feature flags, <code>TimingServer</code>, het type <code>AudioSource</code>, <code>discover()</code></td>
+                        <td>De sessie met control-, event- en datakanaal, URL-playback, de audiostream, feature flags, <code>TimingServer</code> en de PTP-master uit <code>timing/</code>, het type <code>AudioSource</code>, <code>discover()</code></td>
                     </tr>
                     <tr>
                         <td><code>@corewire/airplay/mrp</code></td>
-                        <td>Protobuf, berichten, now-playing-state per client en player, commando's, HID, volume, output devices</td>
+                        <td>Protobuf, berichten, één statemodel (<code>MediaRemoteState</code>) met clients en players, commando's, HID, volume, output devices</td>
                     </tr>
                     <tr>
                         <td><code>@corewire/airplay/raop</code></td>
                         <td>De RAOP-sessie en stream</td>
                     </tr>
                     <tr>
+                        <td><code>@corewire/airplay/rtsp</code></td>
+                        <td>De RTSP-client en -codec</td>
+                    </tr>
+                    <tr>
                         <td>intern</td>
-                        <td>RTSP, de RTP-kern (pakketten, retransmit, sync, buffer), NTP en PTP, DAAP</td>
+                        <td>De RTP-kern (pakketten, retransmit, sync, buffer)</td>
                     </tr>
                 </tbody>
             </table>
@@ -332,8 +345,8 @@ import { MediaRemote } from '@corewire/airplay/mrp';
 const session = await connect({address: '192.168.1.20', port: 7000}, {credentials});
 const remote = await MediaRemote.open(session);
 
-remote.nowPlaying.on('change', item => console.log(item.title));
-await remote.hid.press('select');
+remote.state.on('nowPlayingChanged', (client, player) => console.log(player?.title));
+await remote.hid.select();
 
 session.on('closed', reason => console.log(reason));`}</Code>
             <Rows>
@@ -354,8 +367,9 @@ session.on('closed', reason => console.log(reason));`}</Code>
                     <code>airplay</code> en blijft daar.
                 </Row>
                 <Row title="Companion Link groepeert zijn methoden">
-                    <code>connect()</code> uit <code>@corewire/companion-link</code> geeft een sessie met <code>hid</code>, <code>apps</code>,{' '}
-                    <code>accounts</code>, <code>power</code>, <code>text</code> en <code>touch</code>. De ruim zestig methoden die nu plat op{' '}
+                    <code>connect()</code> uit <code>@corewire/companion-link</code> geeft een sessie met <code>hid</code>, <code>touch</code>,{' '}
+                    <code>text</code>, <code>power</code>, <code>apps</code>, <code>accounts</code>, <code>media</code>, <code>system</code> en{' '}
+                    <code>interests</code>. De ruim zestig methoden die nu plat op{' '}
                     <code>Protocol</code> staan en in <code>CompanionLinkManager</code> nog een keer, krijgen zo een groep en één plek.
                 </Row>
                 <Row title="Het protocol spreekt zijn eigen eenheden">
@@ -422,7 +436,7 @@ omlaag: argumenten bij het aanmaken      omhoog: events`}</Code>
                         <li>Per actie het protocol kiezen (tekstinvoer via Companion Link, anders via MRP)</li>
                         <li>Now playing als momentopname met eigen types</li>
                         <li>Pairing, met credentials als één tekstwaarde</li>
-                        <li>De gedeelde timing server starten bij de eerste audiostream</li>
+                        <li>De gedeelde timing server starten bij de eerste verbinding, want de SETUP van remote control kondigt hem al aan</li>
                     </ul>
                 </Column>
                 <Column title="Niet">
@@ -445,7 +459,7 @@ const tv = new AppleTV({address: '192.168.1.20'}, {
 });
 
 tv.on('status', status => {
-    // status.state: 'connecting' | 'connected' | 'degraded' | 'recovering' | 'offline'
+    // status.state: 'disconnected' | 'connecting' | 'connected' | 'degraded' | 'recovering' | 'offline'
     // status.reason zegt waarom, status.companionLink en status.airplay per protocol
 });
 
@@ -460,7 +474,9 @@ await tv.volume.set(0.3);`}</Code>
             <Rows>
                 <Row title="Herstel zit in het device">
                     <code>connect()</code> houdt het device verbonden tot <code>disconnect()</code>. De status <code>degraded</code> betekent dat
-                    AirPlay werkt en Companion Link nog niet. Het device blijft dan zelf zoeken en haakt Companion Link aan zodra hij er is. Nu moet
+                    AirPlay werkt en Companion Link nog niet. Het device blijft dan zelf zoeken en haakt Companion Link aan zodra hij er is. Een zesde
+                    toestand, <code>disconnected</code>, geldt vóór <code>connect()</code> en na <code>disconnect()</code>, want <code>offline</code>{' '}
+                    betekent dat het device nog probeert. Nu moet
                     Homey het device afbreken en opnieuw opbouwen, omdat de sdk Companion Link alleen in de constructor kan binden.
                 </Row>
                 <Row title="Capabilities zijn er altijd">

@@ -6,7 +6,8 @@ State on 2026-11-14, branch `refactor/corewire` (not pushed). `main` equals `ori
 
 1. `docs/reports/package-structure.tsx`: the approved design (Dutch). Packages, what `core` may contain, how a protocol works, how code is wired, what `devices` does and does not do.
 2. `docs/parity/behavior-inventory.md`: 311 items of production behavior with ids. This is the checklist every rewrite is audited against.
-3. `CLAUDE.md`: still describes the old package names. Its patterns and protocol pitfalls remain valid.
+3. `CLAUDE.md`: the packages, patterns, protocol pitfalls and the diagnostics agent loop of the new structure.
+4. `docs/parity/devices-api.md`: the `@corewire/devices` API as built; section 0 lists where it differs from the design.
 
 ## Decisions by the owner (Bas)
 
@@ -29,10 +30,13 @@ State on 2026-11-14, branch `refactor/corewire` (not pushed). `main` equals `ori
 | `98d54d6` | MRP: `@corewire/airplay/mrp`, `MediaRemote.open(session)`, state as a socket-free model (`state.apply(...)`) |
 | `59ebd8f` | Companion Link: `connect()` returns a session with groups (`hid`, `touch`, `text`, `power`, `apps`, `accounts`, `media`, `system`, `interests`, `state`); `pair()` |
 | `e45656b`, `3e5a268` | Two small fixes (mDNS regex, channel leak on abort during SETUP) |
+| `6866b5e` | Remaining step 1: the new `@corewire/devices` API with built-in recovery |
+| `990df3c` | Remaining step 2: diagnostics on the public APIs, with the proxy and storage inside |
+| (step 3 commit) | Remaining step 3: CI and release workflow for the five `@corewire` packages, README, CLAUDE.md, report updated where the build deviated |
 
 After every step the outgoing traffic was compared with the baseline on real devices and matched: connect (Apple TV with credentials, HomePod with transient pairing), remote keys, lists, power state, volume, playback queue, pause/play, URL playback, audio streaming, power off/on, app launch. Simulated drops of the control, data and event stream each end the session at once.
 
-The public API of `@corewire/devices` was deliberately kept as it was through all of this, so diagnostics kept working. It is the next thing to redesign.
+The public API of `@corewire/devices` was kept as it was through the protocol steps, so diagnostics kept working; remaining steps 1 and 2 then redesigned it and moved diagnostics onto it. Both were device-tested against the baseline the same way.
 
 ## How to test against the baseline
 
@@ -45,7 +49,7 @@ The public API of `@corewire/devices` was deliberately kept as it was through al
 
 ## Remaining work, in order
 
-### 1. The new `@corewire/devices` API
+### 1. The new `@corewire/devices` API (done, `6866b5e`)
 Design: report sections "Wat @corewire/devices wel en niet doet", "Hoe de code aan elkaar hangt", "Wat er uit de Homey-app verdwijnt". Inventory sections 3, 6 and 7.
 
 - Devices `AppleTV` and `HomePod` (no `HomePodMini` class, use `model`). Constructed from a plain target (`{address}` plus optional port/TXT/id); the device finds its services itself (unicast mDNS for Companion Link) and re-resolves on recovery. No fabricated discovery results, no setters after construction.
@@ -60,15 +64,15 @@ Design: report sections "Wat @corewire/devices wel en niet doet", "Hoe de code a
 - Open points from earlier steps to settle here: the MRP model still emits message-named events (`setState`, `deviceInfo`) to keep diagnostics identical, which contradicts "each layer its own events"; `StateController.isKeyboardActive` always returns `true` (ST-27); now-playing state is only cleared at the next connect (LC-09); `recovering`/`recoveryFailed` were declared but never emitted (LC-26).
 - The exact `disconnected(true|false)` semantics the Homey app relies on (AP-HS-02, AP-HS-28, LC-11, LC-18, HY-06) disappear with the new `status` event; the Homey migration must be written against the new semantics, and the audit must show nothing depends on the old ones.
 
-### 2. Diagnostics on the public APIs, with the proxy and storage inside
+### 2. Diagnostics on the public APIs, with the proxy and storage inside (done, `990df3c`)
 - `device:call` roots become the device and `device.sessions`; no string paths into internals. Update `src/main/agent/actions.ts`, panels and snapshots; keep every user-visible feature. `actions.ts` reads `airplayState.keyboardInfo`, a getter that does not exist (broken before the rebuild).
 - Move `packages/proxy` into `packages/diagnostics/src/main/proxy/` with a panel, `proxy:*` channels and `diag proxy status|start|stop`; `proxy:start` needs confirmation. The branch `experimental/reworked-api` contains an earlier version of this move inside the old layout; use it as reference, do not check it out.
 - The mDNS responder (advertising) moves from the proxy into `core/discovery`; the pairing servers stay in `core/pairing`.
 - `Storage`/`JsonStorage`/`MemoryStorage` move from `@corewire/core/storage` into diagnostics; the temporary subpath disappears. `Context` in `core/transport` stays as the plain object that is handed down.
 - Leftovers noted by agents: unused builders in `companion-link/src/messages.ts` (`ping`, `publishPresence`, `fetchSiriStatus`, `systemInfoUpdate`, `buildRtiClearPayload`, `buildRtiInputPayload`); `siriRemoteInfo` parses `Buffer.from(...).buffer` (possible wrong offset, inherited); raw `exchange` with a preset `_x` registers under the wrong key; `raop/raop.ts` still takes a `DiscoveryResult`; `raop/const.ts` sends the metadata strings `'Streaming with apple-raop'`/`'apple-raop'` to the device (behavior, untouched); import order in rewritten import blocks is not alphabetical everywhere.
 
-### 3. CI, README, CLAUDE.md
-- `.github/workflows/checks.yml` and `released.yml` for the new package list; the release workflow publishes five packages under `@corewire`.
+### 3. CI, README, CLAUDE.md (done, step 3 commit)
+- `.github/workflows/checks.yml` and `released.yml` for the new package list; the release workflow publishes five packages under `@corewire`. Checks run `build.sh`, the core pairing test and the proxy smoke test. The release publishes with `npm publish --provenance` over OIDC and no `NPM_TOKEN`; `provenance: false` is gone from the `publishConfig` of the five packages. It only works once the trust is set up (step 6).
 - Rewrite `CLAUDE.md` and `README.md` for the new structure. Remove the old-name instructions (Homey copy loop, package table, dependency graph).
 - Update the report where the build deviated from it (codecs DAAP/NTP/RTI stay in core; `timing/` sits at the top level of airplay; MRP has one state model instead of a separate `nowPlaying`).
 
@@ -83,4 +87,4 @@ Bas wants npm trusted publishing for `@corewire`: publish a placeholder version 
 
 ## House rules for agents
 
-Give every sub-agent: the design report, the inventory with the ids relevant to its step, the baseline worktree path as read-only reference, the rule that it reports per touched inventory id `kept | changed | dropped` and lists every runtime behavior change, the commit rules above, `rm -rf packages/*/dist && bash build.sh` plus `bun run packages/core/test/pairing-server.ts` and `bun run packages/proxy/test/smoke.ts` as the done condition, and the project rules from `CLAUDE.md` (code-style skill, Edit tool, no tests added, no dev server started by the agent).
+Give every sub-agent: the design report, the inventory with the ids relevant to its step, the baseline worktree path as read-only reference, the rule that it reports per touched inventory id `kept | changed | dropped` and lists every runtime behavior change, the commit rules above, `rm -rf packages/*/dist && bash build.sh` plus `bun run packages/core/test/pairing-server.ts` and `bun run packages/diagnostics/test/proxy-smoke.ts` as the done condition, and the project rules from `CLAUDE.md` (code-style skill, Edit tool, no tests added, no dev server started by the agent).

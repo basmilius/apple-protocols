@@ -1,11 +1,12 @@
 /// <reference types="node" preserve="true" />
 export { BufferAudioSource } from './bufferAudioSource';
-export { Ffmpeg } from './ffmpeg';
-export { File } from './file';
-export { Live } from './live';
-export { Mp3 } from './mp3';
-export { Ogg } from './ogg';
-export { Pcm } from './pcm';
-export { SineWave } from './sineWave';
-export { Url } from './url';
-export { Wav } from './wav';
+export type { FetchOptions } from './fetchAudio';
+export { FfmpegSource, type FfmpegSourceOptions } from './ffmpeg';
+export { FileSource } from './file';
+export { LiveSource, type LiveSourceOptions } from './live';
+export { Mp3Source } from './mp3';
+export { OggSource } from './ogg';
+export { PcmSource, type PcmSourceOptions } from './pcm';
+export { SineWaveSource, type SineWaveSourceOptions } from './sineWave';
+export { UrlSource, type UrlSourceOptions } from './url';
+export { WavSource } from './wav';

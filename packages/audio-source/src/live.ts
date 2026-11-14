@@ -4,8 +4,13 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './co
 /** Default ring buffer duration in seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;
 
+export type LiveSourceOptions = {
+    /** Capacity of the ring buffer in seconds of audio; 2 when omitted. */
+    readonly bufferDuration?: number;
+};
+
 /** Live PCM ring buffer. Drops the oldest data when producers outpace the consumer. */
-export class Live implements AudioSource {
+export class LiveSource implements AudioSource {
     /** Duration is always Infinity for live sources. */
     readonly duration: number = Infinity;
 
@@ -39,12 +44,9 @@ export class Live implements AudioSource {
     /** Number of bytes the pending consumer is waiting for. */
     #pendingBytes: number = 0;
 
-    /**
-     * Creates a live audio source with a ring buffer.
-     *
-     * @param bufferDuration Buffer capacity in seconds of audio.
-     */
-    constructor(bufferDuration: number = DEFAULT_BUFFER_DURATION) {
+    constructor(options: LiveSourceOptions = {}) {
+        const bufferDuration = options.bufferDuration ?? DEFAULT_BUFFER_DURATION;
+
         if (!Number.isFinite(bufferDuration) || bufferDuration <= 0 || bufferDuration * AUDIO_SAMPLE_RATE < 1) {
             throw new RangeError('Live buffer duration must hold at least one audio frame.');
         }

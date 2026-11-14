@@ -1,38 +1,28 @@
 import { PlaybackError } from '@corewire/core';
 import { BufferAudioSource } from './bufferAudioSource';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, durationOf } from './const';
 import { decode } from './decoder';
-import { fetchAudio } from './fetchAudio';
+import { fetchAudio, type FetchOptions } from './fetchAudio';
 
-/**
- * Audio source that fetches audio from a URL, automatically detecting
- * and decoding the formats supported by the shared audio decoder.
- */
-export class Url extends BufferAudioSource {
-    /**
-     * Creates a URL audio source from a pre-decoded PCM buffer.
-     * Use {@link fromUrl} to create instances with automatic fetching and decoding.
-     *
-     * @param buffer - Pre-decoded PCM audio data.
-     * @param duration - Total duration of the audio in seconds.
-     */
-    constructor(buffer: Buffer, duration: number) {
-        super(buffer, duration);
+export type UrlSourceOptions = FetchOptions & {
+    /** `pcm` for raw signed 16-bit big-endian stereo PCM at 44100 Hz; `encoded` (default) detects and decodes the format. */
+    readonly format?: 'encoded' | 'pcm';
+};
+
+/** Audio from a URL in any format the shared decoder knows, downloaded and decoded up front. */
+export class UrlSource extends BufferAudioSource {
+    private constructor(pcm: Buffer) {
+        super(pcm, durationOf(pcm));
     }
 
-    /**
-     * Fetches and decodes audio. Raw PCM requires an explicit format option.
-     *
-     * @param url - URL pointing to an audio file.
-     * @returns A new Url audio source with the decoded PCM data.
-     */
-    static async fromUrl(url: string, options: {format?: 'encoded' | 'pcm'; signal?: AbortSignal; maxBytes?: number; timeoutMs?: number} = {}): Promise<Url> {
-        let pcmBuffer: Buffer;
+    /** @throws {PlaybackError} When the download or the decoding fails. */
+    static async fromUrl(url: string, options: UrlSourceOptions = {}): Promise<UrlSource> {
+        let pcm: Buffer;
 
         try {
             const buffer = await fetchAudio(url, options);
-            pcmBuffer = options.format === 'pcm' ? buffer : await decode(buffer, {signal: options.signal});
-            if (pcmBuffer.length % (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) !== 0) {
+            pcm = options.format === 'pcm' ? buffer : await decode(buffer, {signal: options.signal});
+            if (pcm.length % (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) !== 0) {
                 throw new Error('PCM data does not contain complete stereo frames');
             }
         } catch (err) {
@@ -41,8 +31,6 @@ export class Url extends BufferAudioSource {
             throw error;
         }
 
-        const duration = pcmBuffer.length / (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) / AUDIO_SAMPLE_RATE;
-
-        return new Url(pcmBuffer, duration);
+        return new UrlSource(pcm);
     }
 }

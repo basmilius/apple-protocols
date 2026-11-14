@@ -1,49 +1,25 @@
 import { BufferAudioSource } from './bufferAudioSource';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
+import { durationOf } from './const';
 import { decode, isWav } from './decoder';
-import { fetchAudio } from './fetchAudio';
+import { fetchAudio, type FetchOptions } from './fetchAudio';
 
-/**
- * Audio source for WAV data. Decodes WAV (including WAVE_FORMAT_EXTENSIBLE)
- * to signed 16-bit big-endian PCM and serves the resulting buffer.
- */
-export class Wav extends BufferAudioSource {
-    /**
-     * Creates a WAV audio source from a pre-decoded PCM buffer.
-     * Use {@link fromBuffer} or {@link fromUrl} to create instances
-     * with automatic decoding.
-     *
-     * @param buffer - Pre-decoded PCM audio data.
-     * @param duration - Total duration of the audio in seconds.
-     */
-    constructor(buffer: Buffer, duration: number) {
-        super(buffer, duration);
+/** WAV, including WAVE_FORMAT_EXTENSIBLE, decoded up front to signed 16-bit big-endian PCM. */
+export class WavSource extends BufferAudioSource {
+    private constructor(pcm: Buffer) {
+        super(pcm, durationOf(pcm));
     }
 
-    /**
-     * Creates a Wav audio source from a raw WAV buffer by decoding
-     * it to signed 16-bit big-endian PCM.
-     *
-     * @param wavBuffer - Raw WAV data to decode.
-     * @throws Error if the buffer does not contain valid WAV data.
-     */
-    static async fromBuffer(wavBuffer: Buffer): Promise<Wav> {
-        if (!isWav(wavBuffer)) {
+    /** @throws {Error} When the data is not WAV. */
+    static async fromBuffer(data: Buffer): Promise<WavSource> {
+        if (!isWav(data)) {
             throw new Error('Invalid WAV file');
         }
 
-        const pcmBuffer = await decode(wavBuffer);
-        const duration = pcmBuffer.length / (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) / AUDIO_SAMPLE_RATE;
-
-        return new Wav(pcmBuffer, duration);
+        return new WavSource(await decode(data));
     }
 
-    /**
-     * Fetches a WAV file from a URL and decodes it to PCM.
-     *
-     * @param url - URL pointing to a WAV file.
-     */
-    static async fromUrl(url: string): Promise<Wav> {
-        return Wav.fromBuffer(await fetchAudio(url));
+    /** Downloads and decodes a WAV file. */
+    static async fromUrl(url: string, options: FetchOptions = {}): Promise<WavSource> {
+        return WavSource.fromBuffer(await fetchAudio(url, options));
     }
 }

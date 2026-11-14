@@ -9,8 +9,16 @@ const STDERR_LIMIT = 4096;
 
 type Reader = {bytes: number; resolve: (value: Buffer | null) => void; reject: (error: Error) => void};
 
+export type FfmpegSourceOptions = {
+    /** A file path or anything else ffmpeg accepts as input. */
+    readonly path: string;
+
+    /** Length of the audio in seconds, as the source reports it; ffmpeg does not tell up front. */
+    readonly duration: number;
+};
+
 /** FFmpeg decodes to 44100 Hz signed 16-bit big-endian stereo PCM. Requires ffmpeg on PATH. */
-export class Ffmpeg implements AudioSource {
+export class FfmpegSource implements AudioSource {
     readonly duration: number;
     readonly #filePath: string;
     readonly #chunks: Buffer[] = [];
@@ -24,13 +32,13 @@ export class Ffmpeg implements AudioSource {
     #ffmpeg: ChildProcess | null = null;
     #stopping?: Promise<void>;
 
-    constructor(filePath: string, duration: number, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
-        if (!Number.isFinite(sampleRate) || sampleRate <= 0 || !Number.isSafeInteger(channels) || channels <= 0 || bytesPerChannel !== 2) {
-            throw new RangeError('FFmpeg requires a positive sample rate and channel count, and 16-bit samples.');
+    constructor(options: FfmpegSourceOptions) {
+        if (!Number.isFinite(options.duration) || options.duration < 0) {
+            throw new RangeError('FFmpeg duration must be finite and non-negative.');
         }
-        if (!Number.isFinite(duration) || duration < 0) throw new RangeError('FFmpeg duration must be finite and non-negative.');
-        this.#filePath = filePath;
-        this.duration = duration;
+
+        this.#filePath = options.path;
+        this.duration = options.duration;
     }
 
     get stats(): {bufferedBytes: number; peakBufferedBytes: number; bufferLimit: number; paused: boolean} {

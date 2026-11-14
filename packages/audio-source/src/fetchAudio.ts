@@ -1,6 +1,18 @@
 import { PlaybackError } from '@corewire/core';
 
-export async function fetchAudio(url: string, options: {signal?: AbortSignal; maxBytes?: number; timeoutMs?: number} = {}): Promise<Buffer> {
+/** Limits of an audio download. */
+export type FetchOptions = {
+    /** Cancels the download. */
+    readonly signal?: AbortSignal;
+
+    /** Largest download in bytes; 64 MiB when omitted. */
+    readonly maxBytes?: number;
+
+    /** Longest download in milliseconds; 30 seconds when omitted. */
+    readonly timeoutMs?: number;
+};
+
+export async function fetchAudio(url: string, options: FetchOptions = {}): Promise<Buffer> {
     const maxBytes = options.maxBytes ?? 64 * 1024 * 1024;
     const timeoutMs = options.timeoutMs ?? 30000;
     if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {

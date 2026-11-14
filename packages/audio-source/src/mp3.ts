@@ -1,50 +1,25 @@
 import { BufferAudioSource } from './bufferAudioSource';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
+import { durationOf } from './const';
 import { decode, isMp3 } from './decoder';
-import { fetchAudio } from './fetchAudio';
+import { fetchAudio, type FetchOptions } from './fetchAudio';
 
-/**
- * Audio source for MP3 data. Decodes MP3 to signed 16-bit big-endian
- * PCM using a WASM-based decoder and serves the resulting buffer.
- */
-export class Mp3 extends BufferAudioSource {
-    /**
-     * Creates an MP3 audio source from a pre-decoded PCM buffer.
-     * Use {@link fromBuffer} or {@link fromUrl} to create instances
-     * with automatic decoding.
-     *
-     * @param buffer - Pre-decoded PCM audio data.
-     * @param duration - Total duration of the audio in seconds.
-     */
-    constructor(buffer: Buffer, duration: number) {
-        super(buffer, duration);
+/** MP3, decoded up front to signed 16-bit big-endian PCM by a WASM decoder. */
+export class Mp3Source extends BufferAudioSource {
+    private constructor(pcm: Buffer) {
+        super(pcm, durationOf(pcm));
     }
 
-    /**
-     * Creates an Mp3 audio source from a raw MP3 buffer by decoding
-     * it to signed 16-bit big-endian PCM.
-     *
-     * @param mp3Buffer - Raw MP3 data to decode.
-     * @throws Error if the buffer does not contain valid MP3 data.
-     */
-    static async fromBuffer(mp3Buffer: Buffer): Promise<Mp3> {
-        if (!isMp3(mp3Buffer)) {
+    /** @throws {Error} When the data is not MP3. */
+    static async fromBuffer(data: Buffer): Promise<Mp3Source> {
+        if (!isMp3(data)) {
             throw new Error('Invalid MP3 file');
         }
 
-        const pcmBuffer = await decode(mp3Buffer);
-        const duration = pcmBuffer.length / (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) / AUDIO_SAMPLE_RATE;
-
-        return new Mp3(pcmBuffer, duration);
+        return new Mp3Source(await decode(data));
     }
 
-    /**
-     * Fetches an MP3 file from a URL and decodes it to PCM.
-     *
-     * @param url - URL pointing to an MP3 file.
-     * @throws Error if the fetched data is not valid MP3.
-     */
-    static async fromUrl(url: string): Promise<Mp3> {
-        return Mp3.fromBuffer(await fetchAudio(url));
+    /** Downloads and decodes an MP3. */
+    static async fromUrl(url: string, options: FetchOptions = {}): Promise<Mp3Source> {
+        return Mp3Source.fromBuffer(await fetchAudio(url, options));
     }
 }

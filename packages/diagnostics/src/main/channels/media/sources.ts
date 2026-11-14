@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { Ffmpeg, File, Live, Mp3, Ogg, Pcm, SineWave, Url, Wav } from '@corewire/audio-source';
+import { FfmpegSource, FileSource, LiveSource, Mp3Source, OggSource, PcmSource, SineWaveSource, UrlSource, WavSource } from '@corewire/audio-source';
 import type { AudioSource } from '@corewire/airplay';
 import type { AudioSourceSpec } from '@shared/contract';
 
@@ -8,14 +8,14 @@ const SAMPLE_RATE = 44100;
 const CHANNELS = 2;
 const BYTES_PER_CHANNEL = 2;
 
-/** How often the generated tone is topped up into a {@link Live} ring buffer. */
+/** How often the generated tone is topped up into a {@link LiveSource} ring buffer. */
 const LIVE_CHUNK_MS = 200;
 
 export type BuiltSource = {
     readonly source: AudioSource;
     readonly description: string;
     bufferStats(): {bufferedBytes: number; peakBufferedBytes: number; bufferLimit: number; paused: boolean} | null;
-    /** Stops whatever keeps feeding the source, for {@link Live}. */
+    /** Stops whatever keeps feeding the source, for {@link LiveSource}. */
     dispose(): void;
 };
 
@@ -28,30 +28,30 @@ export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
     }
     switch (spec.kind) {
         case 'url':
-            return plain(await Url.fromUrl(demand(spec.url, 'url')), `Url ${spec.url}`);
+            return plain(await UrlSource.fromUrl(demand(spec.url, 'url')), `Url ${spec.url}`);
 
         case 'file':
-            return plain(await File.fromPath(demand(spec.path, 'path')), `File ${spec.path}`);
+            return plain(await FileSource.fromPath(demand(spec.path, 'path')), `File ${spec.path}`);
 
         case 'wav':
-            return plain(await decoded(spec, Wav), `Wav ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, WavSource), `Wav ${describeOrigin(spec)}`);
 
         case 'mp3':
-            return plain(await decoded(spec, Mp3), `Mp3 ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, Mp3Source), `Mp3 ${describeOrigin(spec)}`);
 
         case 'ogg':
-            return plain(await decoded(spec, Ogg), `Ogg ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, OggSource), `Ogg ${describeOrigin(spec)}`);
 
         case 'pcm': {
             const buffer = await readFile(demand(spec.path, 'path'));
-            return plain(new Pcm(buffer, spec.sampleRate ?? SAMPLE_RATE), `Pcm ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
+            return plain(new PcmSource(buffer, {sampleRate: spec.sampleRate ?? SAMPLE_RATE}), `Pcm ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
         }
 
         case 'sineWave':
-            return plain(new SineWave(spec.duration, spec.frequency), `SineWave ${spec.frequency} Hz for ${spec.duration}s`);
+            return plain(new SineWaveSource({duration: spec.duration, frequency: spec.frequency}), `SineWave ${spec.frequency} Hz for ${spec.duration}s`);
 
         case 'ffmpeg':
-            return plain(new Ffmpeg(demand(spec.path, 'path'), spec.duration), `Ffmpeg ${spec.path}`);
+            return plain(new FfmpegSource({path: demand(spec.path, 'path'), duration: spec.duration}), `Ffmpeg ${spec.path}`);
 
         case 'live':
             return live(spec);
@@ -66,9 +66,9 @@ type FromBuffer = {
     fromUrl(url: string): Promise<AudioSource>;
 };
 
-/** Feeds a generated tone into {@link Live} to test the ring buffer without a capture device. */
+/** Feeds a generated tone into {@link LiveSource} to test the ring buffer without a capture device. */
 function live(spec: Extract<AudioSourceSpec, { kind: 'live' }>): BuiltSource {
-    const source = new Live(spec.bufferDuration ?? 2);
+    const source = new LiveSource({bufferDuration: spec.bufferDuration ?? 2});
     const frameBytes = CHANNELS * BYTES_PER_CHANNEL;
     const chunkFrames = Math.floor((SAMPLE_RATE * LIVE_CHUNK_MS) / 1000);
     const endsAt = Date.now() + spec.duration * 1000;
@@ -120,7 +120,7 @@ function describeOrigin(spec: Extract<AudioSourceSpec, { from: 'url' | 'file' }>
 }
 
 function plain(source: AudioSource, description: string): BuiltSource {
-    return {source, description, bufferStats: () => source instanceof Ffmpeg ? source.stats : null, dispose: () => {void source.stop().catch(() => {});}};
+    return {source, description, bufferStats: () => source instanceof FfmpegSource ? source.stats : null, dispose: () => {void source.stop().catch(() => {});}};
 }
 
 function demand(value: string | undefined, name: string): string {

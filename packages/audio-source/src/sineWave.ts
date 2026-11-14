@@ -2,25 +2,37 @@ import { BufferAudioSource } from './bufferAudioSource';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { convertPcm } from './decoder/pcm';
 
+export type SineWaveSourceOptions = {
+    /** Length of the tone in seconds. */
+    readonly duration: number;
+
+    /** In Hz; 440 (A4) when omitted. */
+    readonly frequency?: number;
+
+    /** Rate the tone is generated at before it is resampled to 44100 Hz; 44100 when omitted. */
+    readonly sampleRate?: number;
+
+    /** Channels the tone is generated with before it is mixed to stereo; 2 when omitted. */
+    readonly channels?: number;
+};
+
 /**
  * Audio source that generates a pure sine wave tone. Useful for
  * testing and diagnostics. The generated signal includes a short
  * fade-in and fade-out envelope (50ms) to avoid click artifacts.
  */
-export class SineWave extends BufferAudioSource {
-    /**
-     * Creates a sine wave audio source with the specified parameters.
-     *
-     * @param durationSeconds - Duration of the tone in seconds.
-     * @param frequency - Frequency of the sine wave in Hz (default 440 Hz / A4).
-     * @param sampleRate - Sample rate in Hz.
-     * @param bytesPerChannel - Number of bytes per sample per channel.
-     */
-    constructor(durationSeconds: number, frequency: number = 440, sampleRate: number = AUDIO_SAMPLE_RATE, channels: number = AUDIO_CHANNELS, bytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL) {
-        if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || !Number.isFinite(frequency) || frequency <= 0 || !Number.isFinite(sampleRate) || sampleRate <= 0 || !Number.isSafeInteger(channels) || channels <= 0 || bytesPerChannel !== 2) {
+export class SineWaveSource extends BufferAudioSource {
+    constructor(options: SineWaveSourceOptions) {
+        const durationSeconds = options.duration;
+        const frequency = options.frequency ?? 440;
+        const sampleRate = options.sampleRate ?? AUDIO_SAMPLE_RATE;
+        const channels = options.channels ?? AUDIO_CHANNELS;
+        const bytesPerChannel = AUDIO_BYTES_PER_CHANNEL;
+
+        if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || !Number.isFinite(frequency) || frequency <= 0 || !Number.isFinite(sampleRate) || sampleRate <= 0 || !Number.isSafeInteger(channels) || channels <= 0) {
             throw new RangeError('Invalid sine wave format or duration.');
         }
-        let buffer = SineWave.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
+        let buffer = SineWaveSource.#generateSineWave(sampleRate, channels, bytesPerChannel, durationSeconds, frequency);
         if (sampleRate !== AUDIO_SAMPLE_RATE || channels !== AUDIO_CHANNELS) {
             buffer = convertPcm(buffer, {inputChannels: channels, inputSampleRate: sampleRate, inputBitsPerSample: 16, inputEndian: 'big'});
         }

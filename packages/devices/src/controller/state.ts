@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { Proto } from '@corewire/airplay';
+import type { Proto } from '@corewire/airplay/mrp';
 import type { AirPlayClient, AirPlayManager, AirPlayPlayer, AirPlayState } from '../internal';
 import type { StateEventMap } from '../types';
 

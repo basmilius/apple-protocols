@@ -25,7 +25,8 @@ export {
 } from './channels/control';
 
 export {
-    DataChannel
+    DataChannel,
+    type DataChannelEventMap
 } from './channels/data';
 
 export {
@@ -116,8 +117,3 @@ export {
     TimingServer,
     type TimingStrategy
 } from './timing';
-
-export { parseMessages } from './utils';
-
-export * as DataStreamMessage from './dataStreamMessages';
-export * as Proto from './proto';

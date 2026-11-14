@@ -1,4 +1,4 @@
-import type { Proto } from '@corewire/airplay';
+import type { Proto } from '@corewire/airplay/mrp';
 import type { AirPlayManager } from '../internal';
 
 /**

@@ -1,4 +1,4 @@
-import { DataStreamMessage, Proto } from '@corewire/airplay';
+import { Messages, Proto } from '@corewire/airplay/mrp';
 import { FrameType } from '@corewire/companion-link';
 import { Plist } from '@corewire/core/encoding';
 import type { RawBuilderInfo, RawMessageRequest, RawParam, RawParamOption, RawTransport } from '@shared/contract';
@@ -16,7 +16,7 @@ export type RawTargets = {
 
 type Args = Readonly<Record<string, unknown>>;
 
-/** What `DataStreamMessage.*` hands back: a ProtocolMessage, alone or paired with its extension. */
+/** What `Messages.*` hands back: a ProtocolMessage, alone or paired with its extension. */
 type Message = unknown;
 
 type DataStreamTarget = {
@@ -124,7 +124,7 @@ function controlStream(id: string, title: string, category: string, description:
 
 const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
     dataStream('protocol', 'protocol', 'Protocol', 'A bare ProtocolMessage with a type and an error code, no extension attached.', [choice('type', 'Type', Proto.ProtocolMessage_Type, Proto.ProtocolMessage_Type.UNKNOWN_MESSAGE), choice('errorCode', 'Error code', Proto.ErrorCode_Enum, Proto.ErrorCode_Enum.NoError)], args =>
-        DataStreamMessage.protocol(asNumber(args, 'type'), asNumber(args, 'errorCode'))
+        Messages.protocol(asNumber(args, 'type'), asNumber(args, 'errorCode'))
     ),
     dataStream(
         'clientUpdatesConfig',
@@ -140,7 +140,7 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
             boolean('systemEndpointUpdates', 'System endpoint updates', true)
         ],
         args =>
-            DataStreamMessage.clientUpdatesConfig(
+            Messages.clientUpdatesConfig(
                 asBoolean(args, 'artworkUpdates'),
                 asBoolean(args, 'nowPlayingUpdates'),
                 asBoolean(args, 'volumeUpdates'),
@@ -149,71 +149,71 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
                 asBoolean(args, 'systemEndpointUpdates')
             )
     ),
-    dataStream('configureConnection', 'configureConnection', 'Session', 'Attaches this connection to a multi-room group. Nothing in the SDK calls it.', [string('groupId', 'Group identifier')], args => DataStreamMessage.configureConnection(asString(args, 'groupId'))),
+    dataStream('configureConnection', 'configureConnection', 'Session', 'Attaches this connection to a multi-room group. Nothing in the SDK calls it.', [string('groupId', 'Group identifier')], args => Messages.configureConnection(asString(args, 'groupId'))),
     dataStream('setConnectionState', 'setConnectionState', 'Session', 'Reports whether this client considers itself connected.', [choice('state', 'State', Proto.SetConnectionStateMessage_ConnectionState, Proto.SetConnectionStateMessage_ConnectionState.Connected)], args =>
-        DataStreamMessage.setConnectionState(asNumber(args, 'state'))
+        Messages.setConnectionState(asNumber(args, 'state'))
     ),
-    dataStream('setReadyState', 'setReadyState', 'Session', 'Tells the device this client is ready to receive state.', [], () => DataStreamMessage.setReadyState()),
-    dataStream('requestGroupSession', 'requestGroupSession', 'Session', 'Asks for a group session. Nothing in the SDK calls it.', [], () => DataStreamMessage.requestGroupSession()),
-    dataStream('getState', 'getState', 'State', 'Requests the full now playing state.', [], () => DataStreamMessage.getState()),
-    dataStream('notification', 'notification', 'State', 'Sends a free-form notification string. Nothing in the SDK calls it.', [string('notification', 'Notification')], args => DataStreamMessage.notification(asString(args, 'notification'))),
+    dataStream('setReadyState', 'setReadyState', 'Session', 'Tells the device this client is ready to receive state.', [], () => Messages.setReadyState()),
+    dataStream('requestGroupSession', 'requestGroupSession', 'Session', 'Asks for a group session. Nothing in the SDK calls it.', [], () => Messages.requestGroupSession()),
+    dataStream('getState', 'getState', 'State', 'Requests the full now playing state.', [], () => Messages.getState()),
+    dataStream('notification', 'notification', 'State', 'Sends a free-form notification string. Nothing in the SDK calls it.', [string('notification', 'Notification')], args => Messages.notification(asString(args, 'notification'))),
     dataStream(
         'playbackQueueRequest',
         'playbackQueueRequest',
         'State',
         'Requests a window of the playback queue, which is also how artwork and lyrics arrive.',
         [number('location', 'Location', 0), number('length', 'Length', 10), number('artworkWidth', 'Artwork width', 600), number('artworkHeight', 'Artwork height', -1)],
-        args => DataStreamMessage.playbackQueueRequest(asNumber(args, 'location'), asNumber(args, 'length', 10), asNumber(args, 'artworkWidth', 600), asNumber(args, 'artworkHeight', -1))
+        args => Messages.playbackQueueRequest(asNumber(args, 'location'), asNumber(args, 'length', 10), asNumber(args, 'artworkWidth', 600), asNumber(args, 'artworkHeight', -1))
     ),
-    dataStream('sendCommand', 'sendCommand', 'Playback', 'Sends a transport command with no options.', [choice('command', 'Command', Proto.Command, Proto.Command.Play)], args => DataStreamMessage.sendCommand(asNumber(args, 'command'))),
+    dataStream('sendCommand', 'sendCommand', 'Playback', 'Sends a transport command with no options.', [choice('command', 'Command', Proto.Command, Proto.Command.Play)], args => Messages.sendCommand(asNumber(args, 'command'))),
     dataStream('sendCommandWithSkipInterval', 'sendCommandWithSkipInterval', 'Playback', 'A skip command with its interval in seconds.', [choice('command', 'Command', Proto.Command, Proto.Command.SkipForward), number('skipInterval', 'Skip interval (s)', 15)], args =>
-        DataStreamMessage.sendCommandWithSkipInterval(asNumber(args, 'command'), asNumber(args, 'skipInterval', 15))
+        Messages.sendCommandWithSkipInterval(asNumber(args, 'command'), asNumber(args, 'skipInterval', 15))
     ),
     dataStream('sendCommandWithPlaybackPosition', 'sendCommandWithPlaybackPosition', 'Playback', 'A seek command with an absolute position in seconds.', [choice('command', 'Command', Proto.Command, Proto.Command.SeekToPlaybackPosition), number('playbackPosition', 'Position (s)', 0)], args =>
-        DataStreamMessage.sendCommandWithPlaybackPosition(asNumber(args, 'command'), asNumber(args, 'playbackPosition'))
+        Messages.sendCommandWithPlaybackPosition(asNumber(args, 'command'), asNumber(args, 'playbackPosition'))
     ),
     dataStream('sendCommandWithPlaybackRate', 'sendCommandWithPlaybackRate', 'Playback', 'A rate change, where 0 pauses and 1 resumes.', [choice('command', 'Command', Proto.Command, Proto.Command.ChangePlaybackRate), number('playbackRate', 'Playback rate', 1)], args =>
-        DataStreamMessage.sendCommandWithPlaybackRate(asNumber(args, 'command'), asNumber(args, 'playbackRate', 1))
+        Messages.sendCommandWithPlaybackRate(asNumber(args, 'command'), asNumber(args, 'playbackRate', 1))
     ),
     dataStream('sendCommandWithShuffleMode', 'sendCommandWithShuffleMode', 'Playback', 'A shuffle mode change.', [choice('command', 'Command', Proto.Command, Proto.Command.ChangeShuffleMode), choice('shuffleMode', 'Shuffle mode', Proto.ShuffleMode_Enum, Proto.ShuffleMode_Enum.Off)], args =>
-        DataStreamMessage.sendCommandWithShuffleMode(asNumber(args, 'command'), asNumber(args, 'shuffleMode'))
+        Messages.sendCommandWithShuffleMode(asNumber(args, 'command'), asNumber(args, 'shuffleMode'))
     ),
     dataStream('sendCommandWithRepeatMode', 'sendCommandWithRepeatMode', 'Playback', 'A repeat mode change.', [choice('command', 'Command', Proto.Command, Proto.Command.ChangeRepeatMode), choice('repeatMode', 'Repeat mode', Proto.RepeatMode_Enum, Proto.RepeatMode_Enum.Off)], args =>
-        DataStreamMessage.sendCommandWithRepeatMode(asNumber(args, 'command'), asNumber(args, 'repeatMode'))
+        Messages.sendCommandWithRepeatMode(asNumber(args, 'command'), asNumber(args, 'repeatMode'))
     ),
-    dataStream('sendCommandWithSleepTimer', 'sendCommandWithSleepTimer', 'Playback', 'Arms the sleep timer.', [number('seconds', 'Seconds', 900), number('stopMode', 'Stop mode', 0)], args => DataStreamMessage.sendCommandWithSleepTimer(asNumber(args, 'seconds', 900), asNumber(args, 'stopMode'))),
-    dataStream('audioFade', 'audioFade', 'Playback', 'Requests an audio fade of the given type.', [number('fadeType', 'Fade type', 0)], args => DataStreamMessage.audioFade(asNumber(args, 'fadeType'))),
-    dataStream('playbackSessionMigrateBegin', 'playbackSessionMigrateBegin', 'Playback', 'Opens a playback session migration. Nothing in the SDK calls it.', [], () => DataStreamMessage.playbackSessionMigrateBegin()),
-    dataStream('playbackSessionMigrateEnd', 'playbackSessionMigrateEnd', 'Playback', 'Closes a playback session migration. Nothing in the SDK calls it.', [], () => DataStreamMessage.playbackSessionMigrateEnd()),
-    dataStream('getVolume', 'getVolume', 'Volume', 'Reads the volume of one output device.', [string('outputDeviceUID', 'Output device UID')], args => DataStreamMessage.getVolume(asString(args, 'outputDeviceUID'))),
-    dataStream('getVolumeMuted', 'getVolumeMuted', 'Volume', 'Reads the mute state of one output device. Nothing in the SDK calls it.', [string('outputDeviceUID', 'Output device UID')], args => DataStreamMessage.getVolumeMuted(asString(args, 'outputDeviceUID'))),
-    dataStream('setVolume', 'setVolume', 'Volume', 'Sets the volume of one output device, 0 to 1.', [string('outputDeviceUID', 'Output device UID'), number('volume', 'Volume (0-1)', 0.3)], args => DataStreamMessage.setVolume(asString(args, 'outputDeviceUID'), asNumber(args, 'volume'))),
-    dataStream('setVolumeMuted', 'setVolumeMuted', 'Volume', 'Mutes or unmutes one output device.', [string('outputDeviceUID', 'Output device UID'), boolean('isMuted', 'Muted', true)], args => DataStreamMessage.setVolumeMuted(asString(args, 'outputDeviceUID'), asBoolean(args, 'isMuted'))),
+    dataStream('sendCommandWithSleepTimer', 'sendCommandWithSleepTimer', 'Playback', 'Arms the sleep timer.', [number('seconds', 'Seconds', 900), number('stopMode', 'Stop mode', 0)], args => Messages.sendCommandWithSleepTimer(asNumber(args, 'seconds', 900), asNumber(args, 'stopMode'))),
+    dataStream('audioFade', 'audioFade', 'Playback', 'Requests an audio fade of the given type.', [number('fadeType', 'Fade type', 0)], args => Messages.audioFade(asNumber(args, 'fadeType'))),
+    dataStream('playbackSessionMigrateBegin', 'playbackSessionMigrateBegin', 'Playback', 'Opens a playback session migration. Nothing in the SDK calls it.', [], () => Messages.playbackSessionMigrateBegin()),
+    dataStream('playbackSessionMigrateEnd', 'playbackSessionMigrateEnd', 'Playback', 'Closes a playback session migration. Nothing in the SDK calls it.', [], () => Messages.playbackSessionMigrateEnd()),
+    dataStream('getVolume', 'getVolume', 'Volume', 'Reads the volume of one output device.', [string('outputDeviceUID', 'Output device UID')], args => Messages.getVolume(asString(args, 'outputDeviceUID'))),
+    dataStream('getVolumeMuted', 'getVolumeMuted', 'Volume', 'Reads the mute state of one output device. Nothing in the SDK calls it.', [string('outputDeviceUID', 'Output device UID')], args => Messages.getVolumeMuted(asString(args, 'outputDeviceUID'))),
+    dataStream('setVolume', 'setVolume', 'Volume', 'Sets the volume of one output device, 0 to 1.', [string('outputDeviceUID', 'Output device UID'), number('volume', 'Volume (0-1)', 0.3)], args => Messages.setVolume(asString(args, 'outputDeviceUID'), asNumber(args, 'volume'))),
+    dataStream('setVolumeMuted', 'setVolumeMuted', 'Volume', 'Mutes or unmutes one output device.', [string('outputDeviceUID', 'Output device UID'), boolean('isMuted', 'Muted', true)], args => Messages.setVolumeMuted(asString(args, 'outputDeviceUID'), asBoolean(args, 'isMuted'))),
     dataStream('adjustVolume', 'adjustVolume', 'Volume', 'Steps the volume up or down.', [choice('adjustment', 'Adjustment', Proto.AdjustVolumeMessage_Adjustment, Proto.AdjustVolumeMessage_Adjustment.IncrementSmall), string('outputDeviceUID', 'Output device UID')], args =>
-        DataStreamMessage.adjustVolume(asNumber(args, 'adjustment'), asString(args, 'outputDeviceUID'))
+        Messages.adjustVolume(asNumber(args, 'adjustment'), asString(args, 'outputDeviceUID'))
     ),
     dataStream('modifyOutputContext', 'modifyOutputContext', 'Multiroom', 'Adds, removes or replaces the devices in the output context.', [stringList('addingDevices', 'Adding'), stringList('removingDevices', 'Removing'), stringList('settingDevices', 'Setting')], args =>
-        DataStreamMessage.modifyOutputContext(asList(args, 'addingDevices'), asList(args, 'removingDevices'), asList(args, 'settingDevices'))
+        Messages.modifyOutputContext(asList(args, 'addingDevices'), asList(args, 'removingDevices'), asList(args, 'settingDevices'))
     ),
-    dataStream('setDiscoveryMode', 'setDiscoveryMode', 'Multiroom', 'Changes the discovery mode. Nothing in the SDK calls it.', [number('mode', 'Mode', 0)], args => DataStreamMessage.setDiscoveryMode(asNumber(args, 'mode'))),
-    dataStream('getKeyboardSession', 'getKeyboardSession', 'Input', 'Requests the current keyboard session.', [], () => DataStreamMessage.getKeyboardSession()),
-    dataStream('textInput', 'textInput', 'Input', 'Sends text into the focused field.', [string('text', 'Text'), choice('actionType', 'Action type', Proto.ActionType_Enum, Proto.ActionType_Enum.Unknown)], args => DataStreamMessage.textInput(asString(args, 'text'), asNumber(args, 'actionType'))),
+    dataStream('setDiscoveryMode', 'setDiscoveryMode', 'Multiroom', 'Changes the discovery mode. Nothing in the SDK calls it.', [number('mode', 'Mode', 0)], args => Messages.setDiscoveryMode(asNumber(args, 'mode'))),
+    dataStream('getKeyboardSession', 'getKeyboardSession', 'Input', 'Requests the current keyboard session.', [], () => Messages.getKeyboardSession()),
+    dataStream('textInput', 'textInput', 'Input', 'Sends text into the focused field.', [string('text', 'Text'), choice('actionType', 'Action type', Proto.ActionType_Enum, Proto.ActionType_Enum.Unknown)], args => Messages.textInput(asString(args, 'text'), asNumber(args, 'actionType'))),
     dataStream('sendButtonEvent', 'sendButtonEvent', 'Input', 'A raw HID button event. Nothing in the SDK calls it.', [number('usagePage', 'Usage page', 0x0c), number('usage', 'Usage', 0xb0), boolean('buttonDown', 'Button down', true)], args =>
-        DataStreamMessage.sendButtonEvent(asNumber(args, 'usagePage'), asNumber(args, 'usage'), asBoolean(args, 'buttonDown'))
+        Messages.sendButtonEvent(asNumber(args, 'usagePage'), asNumber(args, 'usage'), asBoolean(args, 'buttonDown'))
     ),
     dataStream('sendHIDEvent', 'sendHIDEvent', 'Input', 'A HID usage page event, which is how remote control navigation is sent.', [number('usePage', 'Usage page', 0x01), number('usage', 'Usage', 0x8d), boolean('down', 'Down', true)], args =>
-        DataStreamMessage.sendHIDEvent(asNumber(args, 'usePage'), asNumber(args, 'usage'), asBoolean(args, 'down'))
+        Messages.sendHIDEvent(asNumber(args, 'usePage'), asNumber(args, 'usage'), asBoolean(args, 'down'))
     ),
     dataStream('registerHIDDevice', 'registerHIDDevice', 'Input', 'Claims a virtual touch device and answers with the identifier a touch event has to carry.', [number('screenWidth', 'Screen width', 1000), number('screenHeight', 'Screen height', 1000), boolean('absolute', 'Absolute', true), boolean('integratedDisplay', 'Integrated display', false)], args =>
-        DataStreamMessage.registerHIDDevice(asNumber(args, 'screenWidth', 1000), asNumber(args, 'screenHeight', 1000), asBoolean(args, 'absolute'), asBoolean(args, 'integratedDisplay'))
+        Messages.registerHIDDevice(asNumber(args, 'screenWidth', 1000), asNumber(args, 'screenHeight', 1000), asBoolean(args, 'absolute'), asBoolean(args, 'integratedDisplay'))
     ),
     dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1), number('deviceId', 'Device id', 1)], args =>
-        DataStreamMessage.sendVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'finger', 1), asNumber(args, 'deviceId', 1))
+        Messages.sendVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'finger', 1), asNumber(args, 'deviceId', 1))
     ),
     dataStream('sendPackedVirtualTouchEvent', 'sendPackedVirtualTouchEvent', 'Input', 'The packed form of a virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('deviceId', 'Device id', 1), number('finger', 'Finger', 1)], args =>
-        DataStreamMessage.sendPackedVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'deviceId', 1), asNumber(args, 'finger', 1))
+        Messages.sendPackedVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'deviceId', 1), asNumber(args, 'finger', 1))
     ),
-    dataStream('wakeDevice', 'wakeDevice', 'Power', 'Wakes the device over the data stream.', [], () => DataStreamMessage.wakeDevice())
+    dataStream('wakeDevice', 'wakeDevice', 'Power', 'Wakes the device over the data stream.', [], () => Messages.wakeDevice())
 ];
 
 const COMPANION_LINK_ENTRIES: readonly RawEntry[] = [

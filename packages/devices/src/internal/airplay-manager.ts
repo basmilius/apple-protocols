@@ -1,14 +1,12 @@
 import { EventEmitter } from 'node:events';
-import { AirPlayFeatureFlags, type AirPlaySession, type AudioPlayback, type AudioSource, connect, type DataChannel, DataStreamMessage, Proto, type TimingServer, toTarget, type UrlPlayback } from '@corewire/airplay';
+import { AirPlayFeatureFlags, type AirPlaySession, type AudioPlayback, type AudioSource, connect, type TimingServer, toTarget, type UrlPlayback } from '@corewire/airplay';
+import { MediaRemote, MediaRemoteState, type Messages, type Proto } from '@corewire/airplay/mrp';
 import { ConnectionClosedError } from '@corewire/core';
 import type { DiscoveryResult } from '@corewire/core/discovery';
 import type { AccessoryCredentials } from '@corewire/core/pairing';
 import { Context, type DeviceIdentity } from '@corewire/core/transport';
-import { AirPlayArtwork } from './airplay-artwork';
-import { AirPlayRemote } from './airplay-remote';
-import { AirPlayState } from './airplay-state';
-import { AirPlayVolume } from './airplay-volume';
-import { MRP_CHANNEL, PROTOCOL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { AirPlayArtwork, AirPlayRemote, AirPlayVolume } from './airplay-controls';
+import { PROTOCOL } from './const';
 
 /**
  * Events emitted by AirPlayManager.
@@ -20,30 +18,18 @@ type EventMap = {
     disconnected: [unexpected: boolean];
 };
 
-/** What the AirPlay controllers need from the manager: the MRP data channel and the logging context. */
-export type MrpAccess = {
-    readonly context: Context;
-
-    /** Undefined before the first connect and after a disconnect. */
-    readonly dataStream: DataChannel | undefined;
-};
-
 /**
- * Keeps one AirPlay session to an Apple TV or HomePod, with remote control open, and the
+ * Keeps one AirPlay session to an Apple TV or HomePod, with a {@link MediaRemote} on it, and the
  * Remote, State, Volume and Artwork controllers on top. Pair-verify with credentials, transient
  * pairing without. Every connect builds a new session; nothing reconnects by itself.
+ *
+ * The state outlives the sessions: each MediaRemote feeds the same one, a connect clears it, a
+ * disconnect leaves the last values readable.
  */
 export class AirPlayManager extends EventEmitter<EventMap> {
     /** The current AirPlay session; the last one stays readable after a disconnect. */
     get [PROTOCOL](): AirPlaySession | undefined {
         return this.#session;
-    }
-
-    get [MRP_CHANNEL](): MrpAccess {
-        return {
-            context: this.#context,
-            dataStream: this.#data
-        };
     }
 
     /** The running {@link streamAudio} stream, or undefined when nothing streams. Diagnostics reads its `stats`. */
@@ -97,7 +83,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         return this.#ready && !this.#disconnect
             && !!session?.isOpen
             && session.control.isConnected
-            && !!this.#data?.isConnected
+            && !!this.#remote?.channel.isConnected
             && !!session.remoteControl?.events.isConnected;
     }
 
@@ -111,10 +97,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     get remote(): AirPlayRemote {
-        return this.#remote;
+        return this.#controls;
     }
 
-    get state(): AirPlayState {
+    get state(): MediaRemoteState {
         return this.#state;
     }
 
@@ -132,24 +118,22 @@ export class AirPlayManager extends EventEmitter<EventMap> {
     }
 
     readonly #artwork: AirPlayArtwork;
+    readonly #controls: AirPlayRemote;
     readonly #identity?: Partial<DeviceIdentity>;
-    readonly #remote: AirPlayRemote;
-    readonly #state: AirPlayState;
+    readonly #state: MediaRemoteState = new MediaRemoteState();
     readonly #volume: AirPlayVolume;
-    readonly #nowPlayingListener = (_client: unknown, player: {artworkId?: string | null} | null): void => this.#onNowPlayingChanged(player);
     #abort?: AbortController;
     #audio?: AudioPlayback;
     #audioAbort?: AbortController;
     #connecting?: Promise<void>;
     #context: Context;
     #credentials?: AccessoryCredentials;
-    #data?: DataChannel;
     #disconnect: boolean = true;
     #discoveryResult: DiscoveryResult;
-    #lastArtworkId: string | null = null;
     #playUrl?: UrlPlayback;
     #playUrlAbort?: AbortController;
     #ready: boolean = false;
+    #remote?: MediaRemote;
     #session?: AirPlaySession;
     #timingServer?: TimingServer;
 
@@ -163,14 +147,13 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#discoveryResult = discoveryResult;
         this.#identity = identity;
         this.#context = new Context(discoveryResult.id, identity);
-        this.#artwork = new AirPlayArtwork(this);
-        this.#remote = new AirPlayRemote(this);
-        this.#state = new AirPlayState(this);
-        this.#volume = new AirPlayVolume(this);
+        this.#artwork = new AirPlayArtwork(() => this.#remote, this.#state);
+        this.#controls = new AirPlayRemote(() => this.#requireRemote());
+        this.#volume = new AirPlayVolume(() => this.#requireRemote());
     }
 
     /**
-     * Connects, verifies or pairs transiently, opens remote control and emits `connected`.
+     * Connects, verifies or pairs transiently, opens the MediaRemote and emits `connected`.
      * Concurrent calls share one attempt. On a live session this first disconnects, which emits
      * `disconnected(false)`; a failed attempt emits `disconnected(false)` too.
      */
@@ -196,6 +179,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
         this.#disconnect = false;
         this.#ready = false;
+        this.#remote = undefined;
         this.#state.clear();
 
         const abort = new AbortController();
@@ -229,22 +213,10 @@ export class AirPlayManager extends EventEmitter<EventMap> {
                 }
             });
 
-            this.#unsubscribe();
-
-            await current.openRemoteControl({
-                subscribe: data => {
-                    if (!this.#disconnect && this.#session === current) {
-                        this.#data = data;
-                        this.#subscribe();
-                    }
-                }
-            });
+            const remote = await MediaRemote.open(current, {state: this.#state});
             assertCurrent();
 
-            // Fetch the playback queue when the artwork ID changes or artwork is missing.
-            this.#lastArtworkId = null;
-            this.#state.on('nowPlayingChanged', this.#nowPlayingListener);
-
+            this.#remote = remote;
             this.#ready = true;
         } catch (error) {
             if (this.#abort === abort) {
@@ -279,28 +251,22 @@ export class AirPlayManager extends EventEmitter<EventMap> {
      * @throws Error when no output device is active.
      */
     async setConversationDetectionEnabled(enabled: boolean): Promise<void> {
-        const outputDeviceUID = this.#state.outputDeviceUID;
-
-        if (!outputDeviceUID) {
-            throw new Error('No output device active.');
-        }
-
-        await this.#data.send(DataStreamMessage.setConversationDetectionEnabled(enabled, outputDeviceUID));
+        await this.#requireRemote().outputDevices.setConversationDetectionEnabled(enabled);
     }
 
     /** Adds devices to the current multi-room output context. */
     async addOutputDevices(deviceUIDs: string[]): Promise<void> {
-        await this.#data.exchange(DataStreamMessage.modifyOutputContext(deviceUIDs));
+        await this.#requireRemote().outputDevices.add(deviceUIDs);
     }
 
     /** Removes devices from the current multi-room output context. */
     async removeOutputDevices(deviceUIDs: string[]): Promise<void> {
-        await this.#data.exchange(DataStreamMessage.modifyOutputContext([], deviceUIDs));
+        await this.#requireRemote().outputDevices.remove(deviceUIDs);
     }
 
     /** Replaces the multi-room output context with the given devices. */
     async setOutputDevices(deviceUIDs: string[]): Promise<void> {
-        await this.#data.exchange(DataStreamMessage.modifyOutputContext([], [], deviceUIDs));
+        await this.#requireRemote().outputDevices.set(deviceUIDs);
     }
 
     /**
@@ -423,11 +389,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
     /** Sets the audio listening mode on the device (HomePod), e.g. 'Default', 'Vivid', 'LateNight'. */
     async setListeningMode(mode: string): Promise<void> {
-        const uid = this.state.outputDeviceUID;
-
-        if (uid) {
-            await this.#data.send(DataStreamMessage.setListeningMode(mode, uid));
-        }
+        await this.#requireRemote().outputDevices.setListeningMode(mode);
     }
 
     /** Sets the audio routing mode on the receiver, e.g. 'default', 'moviePlayback', 'spoken'. */
@@ -437,48 +399,27 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
     /** Triggers an audio fade on the device (0 = fade out, 1 = fade in). */
     async audioFade(fadeType: number): Promise<void> {
-        await this.#data.send(DataStreamMessage.audioFade(fadeType));
+        await this.#requireRemote().volume.audioFade(fadeType);
     }
 
     /** Wakes the device from sleep. */
     async wake(): Promise<void> {
-        await this.#data.send(DataStreamMessage.wakeDevice());
+        await this.#requireRemote().wake();
     }
 
     /** Requests the playback queue from the device, up to `length` items. */
     async requestPlaybackQueue(length: number): Promise<void> {
-        await this.#data.exchange(DataStreamMessage.playbackQueueRequest(0, length));
+        await this.#requireRemote().playbackQueue.request(length);
     }
 
     /** Requests assets for the captured item; a track change invalidates the result. */
-    async requestContentItemAssets(options: Partial<DataStreamMessage.PlaybackQueueAssetOptions> = {}, width: number = 600, height: number = -1): Promise<Proto.ContentItem | null> {
-        const player = this.#state.nowPlayingClient?.activePlayer;
-        const identifier = player?.currentItem?.identifier;
-
-        if (!identifier) {
-            return null;
-        }
-
-        // TVMusic returns sparse metadata for identifier-only requests; request the current queue window.
-        const response = await this.#data.exchange(DataStreamMessage.playbackQueueRequest(0, 1, width, height, {
-            ...options,
-            playerPath: player.playbackQueue?.resolvedPlayerPath
-        }));
-
-        if (response.errorCode) {
-            throw new Error(`Content item request failed: ${response.errorDescription || response.errorCode}`);
-        }
-
-        if (this.#state.nowPlayingClient?.activePlayer !== player || player.currentItem?.identifier !== identifier) {
-            return null;
-        }
-
-        return player.currentItem;
+    async requestContentItemAssets(options: Partial<Messages.PlaybackQueueAssetOptions> = {}, width: number = 600, height: number = -1): Promise<Proto.ContentItem | null> {
+        return await this.#requireRemote().playbackQueue.requestAssets(options, width, height);
     }
 
-    /** Sends a raw MRP command. */
+    /** Sends a SEND_COMMAND to the now-playing app. */
     async sendCommand(command: Proto.Command, options?: Proto.CommandOptions): Promise<void> {
-        await this.#data.exchange(DataStreamMessage.sendCommand(command, options));
+        await this.#requireRemote().commands.send(command, options);
     }
 
     /** The credentials the next connect uses for pair-verify; without them it pairs transiently. */
@@ -500,8 +441,6 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#abort = undefined;
         this.#cleanupPlayUrl();
         this.#cleanupStream();
-        this.#unsubscribe();
-        this.#data = undefined;
         this.#artwork.clear();
 
         try {
@@ -511,27 +450,12 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         }
     }
 
-    /** Fetches the playback queue on a track change, so artwork arrives. */
-    #onNowPlayingChanged(player: {artworkId?: string | null} | null): void {
-        const artworkId = player?.artworkId ?? null;
-
-        if (artworkId !== this.#lastArtworkId) {
-            this.#lastArtworkId = artworkId;
-            this.requestPlaybackQueue(1).catch(() => {
-            });
+    /** The MediaRemote of the current session, or of the last one after a disconnect. */
+    #requireRemote(): MediaRemote {
+        if (!this.#remote) {
+            throw new ConnectionClosedError('AirPlay is not connected.');
         }
-    }
 
-    #subscribe(): void {
-        this.#state[STATE_SUBSCRIBE_SYMBOL]();
-    }
-
-    #unsubscribe(): void {
-        try {
-            this.#state.off('nowPlayingChanged', this.#nowPlayingListener);
-            this.#state[STATE_UNSUBSCRIBE_SYMBOL]();
-        } catch (err) {
-            this.#context.logger.error('State unsubscribe error', err);
-        }
+        return this.#remote;
     }
 }

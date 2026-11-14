@@ -1,14 +1,12 @@
 import { EventEmitter } from 'node:events';
-import { type DataChannel, Proto } from '@corewire/airplay';
-import { AirPlayClient } from './airplay-client';
-import type { AirPlayManager } from './airplay-manager';
-import { type AirPlayPlayer, DEFAULT_PLAYER_ID } from './airplay-player';
-import { MRP_CHANNEL, STATE_SUBSCRIBE_SYMBOL, STATE_UNSUBSCRIBE_SYMBOL } from './const';
+import { Client } from './client';
+import type { MrpMessage } from './codec';
+import { DEFAULT_PLAYER_ID, type Player } from './player';
+import * as Proto from './proto';
 
 /**
- * Snapshot of the current now-playing state, used for change detection.
- * Compared field-by-field to avoid emitting redundant 'nowPlayingChanged' events
- * when nothing meaningful has changed.
+ * What `nowPlayingChanged` compares, field by field, so it does not fire when nothing a listener
+ * shows has changed. Elapsed time is left out: it moves on its own.
  */
 type NowPlayingSnapshot = {
     bundleIdentifier: string | null;
@@ -37,19 +35,17 @@ type NowPlayingSnapshot = {
 };
 
 /**
- * Events emitted by AirPlayState.
- *
- * Low-level events mirror DataStream protocol messages 1:1.
- * High-level events (activePlayerChanged, artworkChanged, etc.) provide
- * pre-resolved Client/Player references for convenience.
+ * A message the state applied is announced under its own name, once the state it carries is in
+ * place; a message it rejects, such as a SET_STATE without a client, is not. The derived events
+ * (`nowPlayingChanged`, `activePlayerChanged`, ...) come with the resolved client and player.
  */
-type EventMap = {
-    readonly clients: [Record<string, AirPlayClient>];
+export type MediaRemoteStateEventMap = {
+    readonly clients: [Record<string, Client>];
     readonly configureConnection: [Proto.ConfigureConnectionMessage];
     readonly deviceInfo: [Proto.DeviceInfoMessage];
     readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
     readonly keyboard: [Proto.KeyboardMessage];
-    readonly nowPlayingChanged: [client: AirPlayClient | null, player: AirPlayPlayer | null];
+    readonly nowPlayingChanged: [client: Client | null, player: Player | null];
     readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
     readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
     readonly removeClient: [Proto.RemoveClientMessage];
@@ -70,35 +66,26 @@ type EventMap = {
     readonly volumeDidChange: [number];
     readonly volumeMutedDidChange: [boolean];
 
-    // Granular high-level events (like Apple's NowPlayingController delegate callbacks)
-    readonly activePlayerChanged: [client: AirPlayClient | null, player: AirPlayPlayer | null];
-    readonly artworkChanged: [client: AirPlayClient, player: AirPlayPlayer];
+    readonly activePlayerChanged: [client: Client | null, player: Player | null];
+    readonly artworkChanged: [client: Client, player: Player];
     readonly lyricsEvent: [event: Proto.LyricsEvent, playerPath: Proto.PlayerPath | undefined];
-    readonly playbackQueueChanged: [client: AirPlayClient, player: AirPlayPlayer];
-    readonly playbackStateChanged: [client: AirPlayClient, player: AirPlayPlayer, oldState: Proto.PlaybackState_Enum, newState: Proto.PlaybackState_Enum];
-    readonly supportedCommandsChanged: [client: AirPlayClient, player: AirPlayPlayer, commands: Proto.CommandInfo[]];
+    readonly playbackQueueChanged: [client: Client, player: Player];
+    readonly playbackStateChanged: [client: Client, player: Player, oldState: Proto.PlaybackState_Enum, newState: Proto.PlaybackState_Enum];
+    readonly supportedCommandsChanged: [client: Client, player: Player, commands: Proto.CommandInfo[]];
     readonly clusterChanged: [clusterID: string | null, isLeader: boolean];
     readonly playerClientParticipantsUpdate: [Proto.PlayerClientParticipantsUpdateMessage];
 };
 
 /**
- * Tracks the complete state of an AirPlay device: clients, players, now-playing,
- * volume, keyboard, output devices, and cluster info.
- * Listens to DataStream protocol messages and emits both low-level (1:1 with protocol)
- * and high-level (deduplicated, resolved) events.
+ * The MRP state of a receiver as a model: clients and their players, what plays now, volume,
+ * keyboard, output devices and cluster. It derives everything from the messages it is given with
+ * {@link apply} and does no I/O, so recorded traffic feeds it as well as a live data channel.
  */
-export class AirPlayState extends EventEmitter<EventMap> {
-    /**
-     * @returns The DataStream for event subscription.
-     */
-    get #dataStream(): DataChannel {
-        return this.#device[MRP_CHANNEL].dataStream;
-    }
-
+export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     /**
      * All known clients (apps) keyed by bundle identifier.
      */
-    get clients(): Record<string, AirPlayClient> {
+    get clients(): Record<string, Client> {
         return this.#clients;
     }
 
@@ -128,7 +115,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
     /**
      * The currently active now-playing client, or null if nothing is playing.
      */
-    get nowPlayingClient(): AirPlayClient | null {
+    get nowPlayingClient(): Client | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
 
@@ -216,8 +203,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
         return this.#volumeMuted;
     }
 
-    readonly #device: AirPlayManager;
-    #clients: Record<string, AirPlayClient>;
+    #clients: Record<string, Client>;
     #keyboardAttributes: Proto.TextEditingAttributes | null;
     #keyboardState: Proto.KeyboardState_Enum;
     #nowPlayingClientBundleIdentifier: string | null;
@@ -235,114 +221,77 @@ export class AirPlayState extends EventEmitter<EventMap> {
     #volumeCapabilities: Proto.VolumeCapabilities_Enum;
     #volumeMuted: boolean;
 
-    /**
-     * Creates a new AirPlayState tracker.
-     *
-     * @param device - The AirPlay device to track state for.
-     */
-    constructor(device: AirPlayManager) {
+    constructor() {
         super();
 
-        this.#device = device;
         this.clear();
-
-        this.onConfigureConnection = this.onConfigureConnection.bind(this);
-        this.onKeyboard = this.onKeyboard.bind(this);
-        this.onDeviceInfo = this.onDeviceInfo.bind(this);
-        this.onDeviceInfoUpdate = this.onDeviceInfoUpdate.bind(this);
-        this.onOriginClientProperties = this.onOriginClientProperties.bind(this);
-        this.onPlayerClientProperties = this.onPlayerClientProperties.bind(this);
-        this.onRemoveClient = this.onRemoveClient.bind(this);
-        this.onRemovePlayer = this.onRemovePlayer.bind(this);
-        this.onSendCommandResult = this.onSendCommandResult.bind(this);
-        this.onSendLyricsEvent = this.onSendLyricsEvent.bind(this);
-        this.onSetArtwork = this.onSetArtwork.bind(this);
-        this.onSetDefaultSupportedCommands = this.onSetDefaultSupportedCommands.bind(this);
-        this.onSetNowPlayingClient = this.onSetNowPlayingClient.bind(this);
-        this.onSetNowPlayingPlayer = this.onSetNowPlayingPlayer.bind(this);
-        this.onSetState = this.onSetState.bind(this);
-        this.onUpdateClient = this.onUpdateClient.bind(this);
-        this.onUpdateContentItem = this.onUpdateContentItem.bind(this);
-        this.onUpdateContentItemArtwork = this.onUpdateContentItemArtwork.bind(this);
-        this.onUpdatePlayer = this.onUpdatePlayer.bind(this);
-        this.onPlayerClientParticipantsUpdate = this.onPlayerClientParticipantsUpdate.bind(this);
-        this.onUpdateOutputDevice = this.onUpdateOutputDevice.bind(this);
-        this.onVolumeControlAvailability = this.onVolumeControlAvailability.bind(this);
-        this.onVolumeControlCapabilitiesDidChange = this.onVolumeControlCapabilitiesDidChange.bind(this);
-        this.onVolumeDidChange = this.onVolumeDidChange.bind(this);
-        this.onVolumeMutedDidChange = this.onVolumeMutedDidChange.bind(this);
     }
 
     /**
-     * Subscribes to all DataStream events to track device state. Called internally via symbol.
+     * Applies one decoded message. Messages the state does not track are ignored.
+     *
+     * @example
+     * const decoded = decodeMessage(protocolMessage);
+     * decoded && state.apply(...decoded);
      */
-    [STATE_SUBSCRIBE_SYMBOL](): void {
-        this.#dataStream.on('configureConnection', this.onConfigureConnection);
-        this.#dataStream.on('keyboard', this.onKeyboard);
-        this.#dataStream.on('deviceInfo', this.onDeviceInfo);
-        this.#dataStream.on('deviceInfoUpdate', this.onDeviceInfoUpdate);
-        this.#dataStream.on('originClientProperties', this.onOriginClientProperties);
-        this.#dataStream.on('playerClientProperties', this.onPlayerClientProperties);
-        this.#dataStream.on('removeClient', this.onRemoveClient);
-        this.#dataStream.on('removePlayer', this.onRemovePlayer);
-        this.#dataStream.on('sendCommandResult', this.onSendCommandResult);
-        this.#dataStream.on('sendLyricsEvent', this.onSendLyricsEvent);
-        this.#dataStream.on('setArtwork', this.onSetArtwork);
-        this.#dataStream.on('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
-        this.#dataStream.on('setNowPlayingClient', this.onSetNowPlayingClient);
-        this.#dataStream.on('setNowPlayingPlayer', this.onSetNowPlayingPlayer);
-        this.#dataStream.on('setState', this.onSetState);
-        this.#dataStream.on('updateClient', this.onUpdateClient);
-        this.#dataStream.on('updateContentItem', this.onUpdateContentItem);
-        this.#dataStream.on('updateContentItemArtwork', this.onUpdateContentItemArtwork);
-        this.#dataStream.on('updatePlayer', this.onUpdatePlayer);
-        this.#dataStream.on('playerClientParticipantsUpdate', this.onPlayerClientParticipantsUpdate);
-        this.#dataStream.on('updateOutputDevice', this.onUpdateOutputDevice);
-        this.#dataStream.on('volumeControlAvailability', this.onVolumeControlAvailability);
-        this.#dataStream.on('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
-        this.#dataStream.on('volumeDidChange', this.onVolumeDidChange);
-        this.#dataStream.on('volumeMutedDidChange', this.onVolumeMutedDidChange);
-    }
-
-    /**
-     * Unsubscribes from all DataStream events. Called internally via symbol.
-     */
-    [STATE_UNSUBSCRIBE_SYMBOL](): void {
-        const dataStream = this.#dataStream;
-
-        if (!dataStream) {
-            return;
+    apply(...[name, message]: MrpMessage): void {
+        switch (name) {
+            case 'configureConnection':
+                return this.#onConfigureConnection(message);
+            case 'keyboard':
+                return this.#onKeyboard(message);
+            case 'deviceInfo':
+                return this.#onDeviceInfo(message);
+            case 'deviceInfoUpdate':
+                return this.#onDeviceInfoUpdate(message);
+            case 'originClientProperties':
+                return this.#onOriginClientProperties(message);
+            case 'playerClientProperties':
+                return this.#onPlayerClientProperties(message);
+            case 'removeClient':
+                return this.#onRemoveClient(message);
+            case 'removePlayer':
+                return this.#onRemovePlayer(message);
+            case 'sendCommandResult':
+                return this.#onSendCommandResult(message);
+            case 'sendLyricsEvent':
+                return this.#onSendLyricsEvent(message);
+            case 'setArtwork':
+                return this.#onSetArtwork(message);
+            case 'setDefaultSupportedCommands':
+                return this.#onSetDefaultSupportedCommands(message);
+            case 'setNowPlayingClient':
+                return this.#onSetNowPlayingClient(message);
+            case 'setNowPlayingPlayer':
+                return this.#onSetNowPlayingPlayer(message);
+            case 'setState':
+                return this.#onSetState(message);
+            case 'updateClient':
+                return this.#onUpdateClient(message);
+            case 'updateContentItem':
+                return this.#onUpdateContentItem(message);
+            case 'updateContentItemArtwork':
+                return this.#onUpdateContentItemArtwork(message);
+            case 'updatePlayer':
+                return this.#onUpdatePlayer(message);
+            case 'playerClientParticipantsUpdate':
+                return this.#onPlayerClientParticipantsUpdate(message);
+            case 'updateOutputDevice':
+                return this.#onUpdateOutputDevice(message);
+            case 'volumeControlAvailability':
+                return this.#onVolumeControlAvailability(message);
+            case 'volumeControlCapabilitiesDidChange':
+                return this.#onVolumeControlCapabilitiesDidChange(message);
+            case 'volumeDidChange':
+                return this.#onVolumeDidChange(message);
+            case 'volumeMutedDidChange':
+                return this.#onVolumeMutedDidChange(message);
         }
-
-        dataStream.off('configureConnection', this.onConfigureConnection);
-        dataStream.off('keyboard', this.onKeyboard);
-        dataStream.off('deviceInfo', this.onDeviceInfo);
-        dataStream.off('deviceInfoUpdate', this.onDeviceInfoUpdate);
-        dataStream.off('originClientProperties', this.onOriginClientProperties);
-        dataStream.off('playerClientProperties', this.onPlayerClientProperties);
-        dataStream.off('removeClient', this.onRemoveClient);
-        dataStream.off('removePlayer', this.onRemovePlayer);
-        dataStream.off('sendCommandResult', this.onSendCommandResult);
-        dataStream.off('sendLyricsEvent', this.onSendLyricsEvent);
-        dataStream.off('setArtwork', this.onSetArtwork);
-        dataStream.off('setDefaultSupportedCommands', this.onSetDefaultSupportedCommands);
-        dataStream.off('setNowPlayingClient', this.onSetNowPlayingClient);
-        dataStream.off('setNowPlayingPlayer', this.onSetNowPlayingPlayer);
-        dataStream.off('setState', this.onSetState);
-        dataStream.off('updateClient', this.onUpdateClient);
-        dataStream.off('updateContentItem', this.onUpdateContentItem);
-        dataStream.off('updateContentItemArtwork', this.onUpdateContentItemArtwork);
-        dataStream.off('updatePlayer', this.onUpdatePlayer);
-        dataStream.off('playerClientParticipantsUpdate', this.onPlayerClientParticipantsUpdate);
-        dataStream.off('updateOutputDevice', this.onUpdateOutputDevice);
-        dataStream.off('volumeControlAvailability', this.onVolumeControlAvailability);
-        dataStream.off('volumeControlCapabilitiesDidChange', this.onVolumeControlCapabilitiesDidChange);
-        dataStream.off('volumeDidChange', this.onVolumeDidChange);
-        dataStream.off('volumeMutedDidChange', this.onVolumeMutedDidChange);
     }
 
     /**
-     * Resets all state to initial/default values. Called on connect and reconnect.
+     * Resets every value to its initial one. A state that outlives a session is cleared when the
+     * next one connects, not when the last one ends.
      */
     clear(): void {
         this.#clients = {};
@@ -369,7 +318,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The configure connection message.
      */
-    onConfigureConnection(message: Proto.ConfigureConnectionMessage): void {
+    #onConfigureConnection(message: Proto.ConfigureConnectionMessage): void {
         this.emit('configureConnection', message);
     }
 
@@ -378,7 +327,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The keyboard message with state and attributes.
      */
-    onKeyboard(message: Proto.KeyboardMessage): void {
+    #onKeyboard(message: Proto.KeyboardMessage): void {
         this.#keyboardState = message.state;
         this.#keyboardAttributes = message.attributes ?? null;
 
@@ -390,7 +339,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The device info message.
      */
-    onDeviceInfo(message: Proto.DeviceInfoMessage): void {
+    #onDeviceInfo(message: Proto.DeviceInfoMessage): void {
         this.#updateDeviceInfo(message);
         this.emit('deviceInfo', message);
     }
@@ -400,7 +349,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The device info update message.
      */
-    onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
+    #onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
         this.#updateDeviceInfo(message);
         this.emit('deviceInfoUpdate', message);
     }
@@ -410,7 +359,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The origin client properties message.
      */
-    onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): void {
+    #onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): void {
         this.emit('originClientProperties', message);
     }
 
@@ -419,7 +368,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The player client properties message.
      */
-    onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): void {
+    #onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): void {
         this.emit('playerClientProperties', message);
     }
 
@@ -429,7 +378,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The remove client message.
      */
-    onRemoveClient(message: Proto.RemoveClientMessage): void {
+    #onRemoveClient(message: Proto.RemoveClientMessage): void {
         if (!message.client?.bundleIdentifier) {
             return;
         }
@@ -460,7 +409,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The send command result message.
      */
-    onSendCommandResult(message: Proto.SendCommandResultMessage): void {
+    #onSendCommandResult(message: Proto.SendCommandResultMessage): void {
         this.emit('sendCommandResult', message);
     }
 
@@ -469,7 +418,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The lyrics event message.
      */
-    onSendLyricsEvent(message: Proto.SendLyricsEventMessage): void {
+    #onSendLyricsEvent(message: Proto.SendLyricsEventMessage): void {
         if (message.event) {
             this.emit('lyricsEvent', message.event, message.playerPath);
         }
@@ -480,7 +429,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The set artwork message.
      */
-    onSetArtwork(message: Proto.SetArtworkMessage): void {
+    #onSetArtwork(message: Proto.SetArtworkMessage): void {
         if (message.jpegData?.byteLength > 0) {
             this.#artworkJpegData = message.jpegData;
         }
@@ -501,7 +450,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The set default supported commands message.
      */
-    onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
+    #onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.supportedCommands) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
             client.setDefaultSupportedCommands(message.supportedCommands.supportedCommands);
@@ -516,7 +465,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The set now-playing client message.
      */
-    onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
+    #onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
         const oldBundleId = this.#nowPlayingClientBundleIdentifier;
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
 
@@ -539,7 +488,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The set now-playing player message.
      */
-    onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
+    #onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
             const oldActiveId = client.activePlayer?.identifier;
@@ -562,7 +511,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The set state message.
      */
-    onSetState(message: Proto.SetStateMessage): void {
+    #onSetState(message: Proto.SetStateMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
         if (!bundleIdentifier) {
@@ -615,7 +564,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The update content item message.
      */
-    onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
+    #onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
         if (!bundleIdentifier) {
@@ -642,7 +591,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The update content item artwork message.
      */
-    onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
+    #onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
         if (bundleIdentifier) {
@@ -674,7 +623,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The update player message.
      */
-    onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
+    #onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
             client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
@@ -689,7 +638,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The remove player message.
      */
-    onRemovePlayer(message: Proto.RemovePlayerMessage): void {
+    #onRemovePlayer(message: Proto.RemovePlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#clients[message.playerPath.client.bundleIdentifier];
 
@@ -711,7 +660,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The update client message.
      */
-    onUpdateClient(message: Proto.UpdateClientMessage): void {
+    #onUpdateClient(message: Proto.UpdateClientMessage): void {
         if (!message.client?.bundleIdentifier) {
             return;
         }
@@ -723,21 +672,21 @@ export class AirPlayState extends EventEmitter<EventMap> {
     }
 
     /**
-     * Handles output device list updates. Prefers cluster-aware devices when available.
-     *
-     * @param message - The update output device message.
-     */
-    /**
      * Handles playback queue participant updates (e.g. SharePlay users).
      *
      * @param message - The participants update message.
      */
-    onPlayerClientParticipantsUpdate(message: Proto.PlayerClientParticipantsUpdateMessage): void {
+    #onPlayerClientParticipantsUpdate(message: Proto.PlayerClientParticipantsUpdateMessage): void {
         this.#participants = message.participants ?? [];
         this.emit('playerClientParticipantsUpdate', message);
     }
 
-    onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
+    /**
+     * Handles output device list updates. Prefers cluster-aware devices when available.
+     *
+     * @param message - The update output device message.
+     */
+    #onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
         this.#outputDevices = message.clusterAwareOutputDevices?.length > 0
             ? message.clusterAwareOutputDevices
             : message.outputDevices;
@@ -750,7 +699,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The volume control availability message.
      */
-    onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): void {
+    #onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): void {
         this.#volumeAvailable = message.volumeControlAvailable;
         this.#volumeCapabilities = message.volumeCapabilities;
 
@@ -762,7 +711,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The volume capabilities change message.
      */
-    onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
+    #onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
         if (!message.capabilities) {
             return;
         }
@@ -778,7 +727,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The volume change message.
      */
-    onVolumeDidChange(message: Proto.VolumeDidChangeMessage): void {
+    #onVolumeDidChange(message: Proto.VolumeDidChangeMessage): void {
         this.#volume = message.volume;
 
         this.emit('volumeDidChange', message.volume);
@@ -789,14 +738,15 @@ export class AirPlayState extends EventEmitter<EventMap> {
      *
      * @param message - The volume muted change message.
      */
-    onVolumeMutedDidChange(message: Proto.VolumeMutedDidChangeMessage): void {
+    #onVolumeMutedDidChange(message: Proto.VolumeMutedDidChangeMessage): void {
         this.#volumeMuted = message.isMuted;
 
         this.emit('volumeMutedDidChange', this.#volumeMuted);
     }
 
     /**
-     * Extracts output device UID and cluster information from a device info message.
+     * Extracts output device UID and cluster information from a device info message. The cluster
+     * ID comes first, so volume commands address a clustered HomePod pair as one device.
      *
      * @param message - The device info message.
      */
@@ -823,7 +773,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
      * @param displayName - The app's display name.
      * @returns The existing or newly created Client.
      */
-    #client(bundleIdentifier: string, displayName: string): AirPlayClient {
+    #client(bundleIdentifier: string, displayName: string): Client {
         if (bundleIdentifier in this.#clients) {
             const client = this.#clients[bundleIdentifier];
 
@@ -833,7 +783,7 @@ export class AirPlayState extends EventEmitter<EventMap> {
 
             return client;
         } else {
-            const client = new AirPlayClient(bundleIdentifier, displayName);
+            const client = new Client(bundleIdentifier, displayName);
             this.#clients[bundleIdentifier] = client;
 
             this.emit('clients', this.#clients);

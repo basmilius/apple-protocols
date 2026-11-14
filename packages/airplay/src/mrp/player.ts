@@ -1,5 +1,5 @@
-import { Proto } from '@corewire/airplay';
-import { type AdditionalMetadata, decodeAdditionalMetadata } from './additional-metadata';
+import { type AdditionalMetadata, decodeAdditionalMetadata } from './additionalMetadata';
+import * as Proto from './proto';
 
 /**
  * Offset in seconds between the Cocoa epoch (2001-01-01) and the Unix epoch (1970-01-01).
@@ -48,7 +48,7 @@ export { DEFAULT_PLAYER_ID };
  * Tracks now-playing metadata, playback state, and provides elapsed time extrapolation
  * based on Cocoa timestamps and playback rate.
  */
-export class AirPlayPlayer {
+export class Player {
     /**
      * Unique identifier for this player (e.g. a player path).
      */

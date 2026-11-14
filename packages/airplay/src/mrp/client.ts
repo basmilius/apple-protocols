@@ -1,5 +1,5 @@
-import { Proto } from '@corewire/airplay';
-import { AirPlayPlayer, DEFAULT_PLAYER_ID } from './airplay-player';
+import { DEFAULT_PLAYER_ID, Player } from './player';
+import * as Proto from './proto';
 
 /**
  * Represents a now-playing app (client) on the Apple TV.
@@ -7,7 +7,7 @@ import { AirPlayPlayer, DEFAULT_PLAYER_ID } from './airplay-player';
  * Proxies now-playing getters to the active player, merging player-specific and
  * default supported commands.
  */
-export class AirPlayClient {
+export class Client {
     /**
      * Bundle identifier of the app (e.g. "com.apple.TVMusic").
      */
@@ -25,14 +25,14 @@ export class AirPlayClient {
     /**
      * Map of all known players for this client, keyed by player identifier.
      */
-    get players(): Map<string, AirPlayPlayer> {
+    get players(): Map<string, Player> {
         return this.#players;
     }
 
     /**
      * The currently active player, or null if none is active. Falls back to the default player.
      */
-    get activePlayer(): AirPlayPlayer | null {
+    get activePlayer(): Player | null {
         return this.#players.get(this.#activePlayerId ?? DEFAULT_PLAYER_ID) ?? null;
     }
 
@@ -265,7 +265,7 @@ export class AirPlayClient {
 
     readonly #bundleIdentifier: string;
     #displayName: string;
-    #players: Map<string, AirPlayPlayer> = new Map();
+    #players: Map<string, Player> = new Map();
     #activePlayerId: string | null = null;
     #defaultSupportedCommands: Proto.CommandInfo[] = [];
 
@@ -287,11 +287,11 @@ export class AirPlayClient {
      * @param displayName - Human-readable player name (defaults to identifier).
      * @returns The existing or newly created Player.
      */
-    getOrCreatePlayer(identifier: string, displayName?: string): AirPlayPlayer {
+    getOrCreatePlayer(identifier: string, displayName?: string): Player {
         let player = this.#players.get(identifier);
 
         if (!player) {
-            player = new AirPlayPlayer(identifier, displayName ?? identifier);
+            player = new Player(identifier, displayName ?? identifier);
             this.#players.set(identifier, player);
         }
 

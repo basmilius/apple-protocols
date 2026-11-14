@@ -8,7 +8,7 @@ import * as Proto from './proto';
  * Creates a base ProtocolMessage with a given type and error code.
  *
  * Assigns random UUIDs for both identifier and uniqueIdentifier fields,
- * which are used for request/response matching in the DataStream.
+ * which are used for request/response matching on the data channel.
  *
  * @param type - The protobuf message type enum value.
  * @param errorCode - Error code to include (defaults to NoError).

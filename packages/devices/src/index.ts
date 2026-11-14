@@ -1,6 +1,6 @@
 export type { AppleMusicLyricsOptions } from './internal/apple-music-lyrics';
 /// <reference types="node" preserve="true" />
-export type { AnimatedArtworkResult } from './internal/airplay-artwork';
+export type { AnimatedArtworkResult } from './internal';
 export type { LyricsResult } from './controller/media';
 // --- Devices ---
 export { AbstractDevice, AppleTV, type AppleTVOptions, HomePod, HomePodMini } from './device';
@@ -66,7 +66,8 @@ export type {
 export { SendCommandError } from './types';
 
 // --- Re-exports from protocol packages ---
-export { AIRPLAY_SERVICE, type AudioSource, Proto, TimingServer } from '@corewire/airplay';
+export { AIRPLAY_SERVICE, type AudioSource, TimingServer } from '@corewire/airplay';
+export { Proto } from '@corewire/airplay/mrp';
 export { RAOP_SERVICE } from '@corewire/airplay/raop';
 export { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
 export { type DebugGroup, reporter, type ReporterEntry, type ReporterSink, type ReporterSinkOptions, type TrafficDirection, type TrafficEntry, type TrafficProtocol, type TrafficSink } from '@corewire/core';

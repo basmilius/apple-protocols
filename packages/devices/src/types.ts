@@ -1,4 +1,4 @@
-import type { Proto } from '@corewire/airplay';
+import type { Proto } from '@corewire/airplay/mrp';
 import type { AttentionState, TextInputState } from '@corewire/companion-link';
 import type { AirPlayClient, AirPlayPlayer } from './internal';
 
@@ -116,6 +116,5 @@ export type {
     AirPlayPlayer
 };
 
-export { type ArtworkResult } from './internal/airplay-artwork';
+export { type ArtworkResult, SendCommandError } from '@corewire/airplay/mrp';
 export { type MediaCapabilities } from './internal/companion-link-state';
-export { SendCommandError } from './internal/airplay-remote';

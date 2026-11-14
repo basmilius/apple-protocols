@@ -1,10 +1,6 @@
-export { AirPlayArtwork, type AnimatedArtworkResult, type ArtworkResult } from './airplay-artwork';
-export { AirPlayClient } from './airplay-client';
+export { type AnimatedArtworkResult, type ArtworkResult, Client as AirPlayClient, MediaRemoteState as AirPlayState, Player as AirPlayPlayer } from '@corewire/airplay/mrp';
+export { AirPlayArtwork, AirPlayRemote, AirPlayVolume } from './airplay-controls';
 export { AirPlayManager } from './airplay-manager';
-export { AirPlayPlayer } from './airplay-player';
-export { AirPlayRemote } from './airplay-remote';
-export { AirPlayState } from './airplay-state';
-export { AirPlayVolume } from './airplay-volume';
 export { CompanionLinkManager } from './companion-link-manager';
 export { CompanionLinkState } from './companion-link-state';
 export { PROTOCOL as AIRPLAY_PROTOCOL, COMPANION_LINK_PROTOCOL } from './const';

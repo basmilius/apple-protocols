@@ -2,7 +2,7 @@ import { connect, createServer, type Server, type Socket } from 'node:net';
 import type { Context } from '@corewire/core/transport';
 import { deriveEncryptionKeys } from '@corewire/core/crypto';
 import { parseRequest, parseResponse } from '@corewire/airplay/rtsp';
-import { parseMessages } from '@corewire/airplay';
+import { parseMessages } from '@corewire/airplay/mrp';
 import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
 import type { ProxyTap } from '../core/tap';
 

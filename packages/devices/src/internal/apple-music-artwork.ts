@@ -1,4 +1,4 @@
-import type { AnimatedArtworkResult } from './airplay-artwork';
+import type { AnimatedArtworkResult } from '@corewire/airplay/mrp';
 
 /** Public album pages expose the same motionDetail formats used by Music.app. */
 export function parseAppleMusicArtwork(html: string, albumId: string): AnimatedArtworkResult[] {

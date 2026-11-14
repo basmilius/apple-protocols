@@ -13,12 +13,11 @@ import { ControlChannel } from './channels/control';
 import { DataChannel } from './channels/data';
 import { EventChannel } from './channels/event';
 import { DEFAULT_PORT, FEEDBACK_INTERVAL } from './const';
-import * as DataStreamMessage from './dataStreamMessages';
 import { encodeFeatures } from './features';
 import { fetchInfo, type ReceiverInfo } from './info';
+import * as Proto from './mrp/proto';
 import { transientPairing, verifyPairing } from './pairing';
 import { UrlPlayback } from './playback/playback';
-import * as Proto from './proto';
 import { type PtpMaster, selectTimingStrategy } from './timing';
 import type { AirPlayTarget, ConnectOptions, PlayUrlOptions, RemoteControl, RemoteControlOptions, SessionCloseReason, StreamAudioOptions } from './types';
 
@@ -146,6 +145,11 @@ export class AirPlaySession extends EventEmitter<EventMap> {
         return !this.signal.aborted;
     }
 
+    /** Our pairing identifier, from the credentials or the transient pairing. */
+    get pairingId(): Buffer {
+        return this.#keys.pairingId;
+    }
+
     /** The remote control channels once {@link openRemoteControl} succeeded. */
     get remoteControl(): RemoteControl | undefined {
         return this.#remote;
@@ -219,12 +223,11 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
     /**
      * Opens remote control: the SETUP with the remote control features, the event channel and
-     * RECORD, the SETUP of the MRP data channel and its connection, the keepalive, then the MRP
-     * startup (DEVICE_INFO, connection state, client updates, GET_STATE). A failed step ends the
-     * session with reason `local`.
+     * RECORD, the SETUP of the MRP data channel and its connection, then the keepalive. The MRP
+     * startup on the data channel is up to the caller, usually `MediaRemote.open()`. A failed step
+     * ends the session with reason `local`.
      *
      * @throws {SetupError} When a SETUP fails.
-     * @throws {TimeoutError} When DEVICE_INFO gets no reply.
      * @throws {ConnectionClosedError} When the session ends during setup.
      */
     async openRemoteControl(options: RemoteControlOptions = {}): Promise<RemoteControl> {
@@ -256,19 +259,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
             this.#startKeepalive();
 
-            await data.exchange(DataStreamMessage.deviceInfo(this.#keys.pairingId, this.#context.identity));
-            data.send(DataStreamMessage.setConnectionState());
-            data.send(DataStreamMessage.clientUpdatesConfig(true, true, true, true));
-            // The device answers with unidentified SET_STATE pushes, never with a reply to this identifier.
-            data.send(DataStreamMessage.getState());
-            this.#checkpoint();
-
-            if (!this.#control.isConnected || !data.isConnected || !events.isConnected) {
-                throw new ConnectionClosedError('An AirPlay stream closed during setup.');
-            }
-
             this.#remote = {data, events};
-            this.#context.logger.info('Protocol ready.');
 
             return this.#remote;
         } catch (err) {

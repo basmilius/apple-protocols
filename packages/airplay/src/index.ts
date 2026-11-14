@@ -14,15 +14,11 @@ export type {
     ConnectOptions,
     PairOptions,
     PlayUrlOptions,
-    RemoteControl,
+    RemoteControlChannels,
     RemoteControlOptions,
     SessionCloseReason,
     StreamAudioOptions
 } from './types';
-
-export {
-    ControlChannel
-} from './channels/control';
 
 export {
     DataChannel,
@@ -48,28 +44,13 @@ export {
     AudioPlayback
 } from './audio/playback';
 
-export {
-    AudioMultiplexer
-} from './audio/multiplexer';
-
-export {
-    AudioStream,
-    type AudioStreamOptions,
-    type AudioStreamStats,
-    type AudioStreamTarget
+export type {
+    AudioStreamStats
 } from './audio/stream';
-
-export {
-    LatencyManager
-} from './audio/latency';
 
 export type {
     AudioSource
 } from './audio/source';
-
-export {
-    AudioSourceSession
-} from './audio/sourceSession';
 
 export {
     AirPlayFeatureFlags,
@@ -79,8 +60,6 @@ export {
     hasFeatureFlag,
     isPasswordRequired,
     isRemoteControlSupported,
-    SENDER_FEATURES_AUDIO,
-    SENDER_FEATURES_REMOTE_CONTROL,
     type AirPlayFeatureFlagName,
     type PairingRequirement
 } from './airplayFeatures';
@@ -88,7 +67,6 @@ export {
 export {
     AUDIO_BYTES_PER_CHANNEL,
     AUDIO_CHANNELS,
-    AUDIO_FRAMES_PER_PACKET,
     AUDIO_SAMPLE_RATE
 } from './const';
 
@@ -112,7 +90,5 @@ export {
 
 export {
     PtpMaster,
-    selectTimingStrategy,
-    TimingServer,
-    type TimingStrategy
+    TimingServer
 } from './timing';

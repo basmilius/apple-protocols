@@ -1,26 +1,29 @@
 /// <reference types="node" preserve="true" />
 export {
+    connect,
+    RaopSession
+} from './session';
+
+export {
+    discover,
+    RAOP_SERVICE,
+    toTarget
+} from './discovery';
+
+export {
     EncryptionType,
     MetadataType
 } from './types';
 
 export type {
     MediaMetadata,
-    PlaybackInfo,
-    RaopListener,
-    RaopTarget,
-    Settings,
-    StreamContext,
-    StreamProtocol
+    RaopConnectOptions,
+    RaopEventMap,
+    RaopPlayback,
+    RaopPlaybackInfo,
+    RaopStreamOptions,
+    RaopTarget
 } from './types';
-
-export {
-    AudioPacketHeader,
-    PacketFifo,
-    SyncPacket,
-    decodeRetransmitRequest,
-    type RetransmitRequest
-} from './packets';
 
 export {
     getAudioProperties,
@@ -28,11 +31,3 @@ export {
     getMetadataTypes,
     pctToDbfs
 } from './utils';
-
-export { discover, RAOP_SERVICE } from './discovery';
-export { ControlClient } from './controlClient';
-export { RaopRtspClient as RtspClient } from './rtspClient';
-export { Statistics } from './statistics';
-export { StreamClient } from './streamClient';
-
-export { RaopClient, type EventMap, type StreamOptions } from './raop';

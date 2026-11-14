@@ -52,6 +52,20 @@ export type UrlPlaybackChannels = {
  * Owns its session: {@link stop} and the end of playback close it.
  */
 export class UrlPlayback {
+    /**
+     * Resolves when playback ends, then closes the connection; rejects with a {@link PlaybackError}
+     * when the receiver reports a playback error. A play queue session follows its events.
+     * Otherwise the first read starts polling `/playback-info`: playback starts with the first
+     * answer that has a duration and ends after {@link PLAYBACK_IDLE_THRESHOLD} answers in a row
+     * without one, or when the receiver stops answering. A consumer that never reads this sends
+     * no polls.
+     */
+    get ended(): Promise<void> {
+        this.#ended ??= this.#waitForEnd();
+
+        return this.#ended;
+    }
+
     /** Aborts when the playback's connection closes. */
     get signal(): AbortSignal {
         return this.#session.signal;
@@ -60,6 +74,7 @@ export class UrlPlayback {
     readonly #channels: UrlPlaybackChannels;
     readonly #session: AirPlaySession;
     readonly #playQueue?: PlayQueueSession;
+    #ended?: Promise<void>;
 
     private constructor(channels: UrlPlaybackChannels, playQueue?: PlayQueueSession) {
         this.#channels = channels;
@@ -122,15 +137,7 @@ export class UrlPlayback {
         }
     }
 
-    /**
-     * Resolves when playback ends, then closes the connection. A play queue session follows its
-     * events. Otherwise this polls `/playback-info`: playback starts with the first answer that has
-     * a duration and ends after {@link PLAYBACK_IDLE_THRESHOLD} answers in a row without one, or
-     * when the receiver stops answering.
-     *
-     * @throws {PlaybackError} When the receiver reports a playback error.
-     */
-    async waitForEnd(): Promise<void> {
+    async #waitForEnd(): Promise<void> {
         try {
             if (this.#playQueue) {
                 await this.#playQueue.waitForEnd();

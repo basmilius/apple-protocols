@@ -308,7 +308,7 @@ async function streamOverPtp(session: DeviceSession, state: AudioState, built: B
             state.ptpPlayback = playback;
         }
 
-        await playback.finished;
+        await playback.ended;
     } finally {
         void parent.close();
     }

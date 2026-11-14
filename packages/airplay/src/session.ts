@@ -20,7 +20,7 @@ import * as Proto from './mrp/proto';
 import { transientPairing, verifyPairing } from './pairing';
 import { UrlPlayback } from './playback/playback';
 import { type PtpMaster, selectTimingStrategy } from './timing';
-import type { AirPlayTarget, ConnectOptions, PlayUrlOptions, RemoteControl, RemoteControlOptions, SessionCloseReason, StreamAudioOptions } from './types';
+import type { AirPlayTarget, ConnectOptions, PlayUrlOptions, RemoteControlChannels, RemoteControlOptions, SessionCloseReason, StreamAudioOptions } from './types';
 import { getMacAddress, randomInt64 } from './utils';
 
 /**
@@ -156,7 +156,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
     }
 
     /** The remote control channels once {@link openRemoteControl} succeeded. */
-    get remoteControl(): RemoteControl | undefined {
+    get remoteControl(): RemoteControlChannels | undefined {
         return this.#remote;
     }
 
@@ -192,7 +192,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
     #closeReason?: SessionCloseReason;
     #info: ReceiverInfo;
     #keepalive?: NodeJS.Timeout;
-    #remote?: RemoteControl;
+    #remote?: RemoteControlChannels;
     #remoteOpening: boolean = false;
 
     /** Use {@link connect}; a session starts from a finished handshake. */
@@ -235,7 +235,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
      * @throws {SetupError} When a SETUP fails.
      * @throws {ConnectionClosedError} When the session ends during setup.
      */
-    async openRemoteControl(options: RemoteControlOptions = {}): Promise<RemoteControl> {
+    async openRemoteControl(options: RemoteControlOptions = {}): Promise<RemoteControlChannels> {
         this.#assertOpen();
 
         if (this.#remote || this.#remoteOpening) {
@@ -302,7 +302,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
     /**
      * Streams PCM audio on a connection of its own. Resolves once the audio stream is set up;
-     * {@link AudioPlayback.finished} settles when the source ran out and the stream is torn down.
+     * {@link AudioPlayback.ended} settles when the source ran out and the stream is torn down.
      * The source is stopped in every case.
      *
      * @throws {SetupError} When a SETUP fails.
@@ -669,11 +669,11 @@ export class AirPlaySession extends EventEmitter<EventMap> {
             return;
         }
 
-        let lastSuccess = Date.now();
+        let lastSuccess = performance.now();
         let lastError: Error | undefined;
 
         this.#keepalive = setInterval(async () => {
-            if (Date.now() - lastSuccess >= KEEPALIVE_DEADLINE) {
+            if (performance.now() - lastSuccess >= KEEPALIVE_DEADLINE) {
                 this.#end('timeout', lastError ?? new TimeoutError(`No successful feedback for ${KEEPALIVE_DEADLINE} ms.`));
 
                 return;
@@ -681,7 +681,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
             try {
                 await this.#control.feedback();
-                lastSuccess = Date.now();
+                lastSuccess = performance.now();
                 lastError = undefined;
             } catch (err) {
                 if (this.signal.aborted) {
@@ -689,7 +689,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
                 }
 
                 lastError = err instanceof Error ? err : new Error(String(err));
-                this.#context.logger.warn('[protocol]', `Feedback failed (${Math.round((Date.now() - lastSuccess) / 1000)} s since the last success).`, err);
+                this.#context.logger.warn('[protocol]', `Feedback failed (${Math.round((performance.now() - lastSuccess) / 1000)} s since the last success).`, err);
             }
         }, FEEDBACK_INTERVAL);
     }

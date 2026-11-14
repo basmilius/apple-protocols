@@ -99,7 +99,7 @@ export class MediaControl {
 
         running.playback = new MediaPlayback('url', async () => {
             try {
-                await playback.waitForEnd();
+                await playback.ended;
             } finally {
                 if (this.#url === running) {
                     this.#url = undefined;
@@ -137,7 +137,7 @@ export class MediaControl {
             throw new ConnectionClosedError('Audio stream cancelled.');
         }
 
-        const finished = playback.finished.finally(() => {
+        const finished = playback.ended.finally(() => {
             if (this.#audio === running) {
                 this.#audio = undefined;
             }

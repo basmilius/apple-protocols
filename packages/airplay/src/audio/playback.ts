@@ -11,8 +11,8 @@ export class AudioPlayback {
      * Settles when streaming is over: resolves once the source ran out and TEARDOWN went out,
      * rejects when the stream failed or was stopped halfway.
      */
-    get finished(): Promise<void> {
-        return this.#finished;
+    get ended(): Promise<void> {
+        return this.#ended;
     }
 
     /** Aborts when the stream's connection closes. */
@@ -24,7 +24,7 @@ export class AudioPlayback {
         return this.#stream.stats;
     }
 
-    readonly #finished: Promise<void>;
+    readonly #ended: Promise<void>;
     readonly #session: AirPlaySession;
     readonly #source: AudioSourceSession;
     readonly #stream: AudioStream;
@@ -33,10 +33,10 @@ export class AudioPlayback {
         this.#session = session;
         this.#source = source;
         this.#stream = stream;
-        this.#finished = this.#run();
+        this.#ended = this.#run();
 
-        // Nobody may be waiting yet when streaming fails; `finished` still rejects for whoever looks.
-        this.#finished.catch(() => undefined);
+        // Nobody may be waiting yet when streaming fails; `ended` still rejects for whoever looks.
+        this.#ended.catch(() => undefined);
     }
 
     /** Stops the source and closes the connection, without TEARDOWN. */

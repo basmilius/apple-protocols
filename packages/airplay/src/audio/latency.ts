@@ -98,7 +98,7 @@ export class LatencyManager {
     reportGlitch(): void {
         this.#consecutiveSuccesses = 0;
 
-        const now = Date.now();
+        const now = performance.now();
         this.#glitchTimestamps.push(now);
 
         const windowStart = now - GLITCH_WINDOW_MS;

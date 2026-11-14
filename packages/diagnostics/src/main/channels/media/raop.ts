@@ -1,5 +1,5 @@
 import type { DiscoveryResult } from '@corewire/core/discovery';
-import { discover as discoverRaop, pctToDbfs, RaopClient } from '@corewire/airplay/raop';
+import { connect as connectRaop, discover as discoverRaop, pctToDbfs, type RaopPlayback, type RaopSession, toTarget } from '@corewire/airplay/raop';
 import type { RaopServiceInfo, RaopStatus } from '@shared/contract';
 import { modelOf } from '../../discovery';
 import { handle } from '../../ipc';
@@ -11,7 +11,8 @@ import { buildSource, type BuiltSource } from './sources';
 type RaopState = {
     generation: number;
     connecting: boolean;
-    client: RaopClient | null;
+    client: RaopSession | null;
+    playback: RaopPlayback | null;
     service: DiscoveryResult | null;
     streaming: boolean;
     source: string | null;
@@ -37,6 +38,7 @@ export function registerRaopChannels(context: ChannelContext): void {
             generation: 0,
             connecting: false,
             client: null,
+            playback: null,
             service: null,
             streaming: false,
             source: null,
@@ -72,7 +74,7 @@ export function registerRaopChannels(context: ChannelContext): void {
         context.send('raop:status', statusOf(deviceId));
     };
 
-    const clientOf = (deviceId: string): RaopClient => {
+    const clientOf = (deviceId: string): RaopSession => {
         const client = stateOf(deviceId).client;
 
         if (client === null) {
@@ -108,7 +110,7 @@ export function registerRaopChannels(context: ChannelContext): void {
         }
 
         const timingServer = await context.sessions.timingServer();
-        const client = await RaopClient.create({address: service.address, port: service.service.port, id: service.id, txt: service.txt}, timingServer);
+        const client = await connectRaop(toTarget(service), {timing: timingServer});
         if (generation !== state.generation) {await client.close(); throw new Error('RAOP connect cancelled.');}
 
         client.on('playing', info => {
@@ -165,7 +167,15 @@ export function registerRaopChannels(context: ChannelContext): void {
             duration: request.metadata?.duration ?? 0
         };
 
-        client.stream(built.source, {metadata, volume: request.volume}).then(
+        const playback = await client.stream(built.source, {metadata, volumeDb: request.volume === undefined ? undefined : pctToDbfs(request.volume)}).catch(error => {
+            built.dispose();
+            if (generation === state.generation) {state.streaming = false; state.built = null; state.error = error instanceof Error ? error.message : String(error); push(request.deviceId);}
+            throw error;
+        });
+
+        state.playback = playback;
+
+        playback.ended.then(
             () => {
                 built.dispose();
                 if (generation !== state.generation) return;
@@ -188,13 +198,15 @@ export function registerRaopChannels(context: ChannelContext): void {
 
     handle('raop:setVolume', async request => {
         validateVolume(request.volume);
-        await clientOf(request.deviceId).setVolume(pctToDbfs(request.volume));
+        await clientOf(request.deviceId).setVolumeDb(pctToDbfs(request.volume));
     });
 
     handle('raop:stop', request => {
         const state = stateOf(request.deviceId);
         state.generation++;
-        clientOf(request.deviceId).stop();
+        clientOf(request.deviceId);
+        state.playback?.stop();
+        state.playback = null;
         state.built?.dispose();
         state.built = null;
         state.streaming = false;
@@ -207,6 +219,7 @@ export function registerRaopChannels(context: ChannelContext): void {
         state.generation++;
         state.built?.dispose();
         state.built = null;
+        state.playback = null;
         state.streaming = false;
 
         if (state.client !== null) {

@@ -5,20 +5,20 @@ import type { Context } from '@corewire/core/transport';
 import type { AudioSource } from '../audio/source';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
 import type { TimingServer } from '../timing';
-import { EMPTY_METADATA, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
+import { EMPTY_METADATA, MAX_PACKETS_COMPENSATE, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
 import { ControlClient } from './controlClient';
 import { AudioPacketHeader, PacketFifo } from './packets';
-import { RaopRtspClient as RtspClient } from './rtspClient';
+import { RaopRtspClient } from './rtspClient';
 import { Statistics } from './statistics';
-import { EncryptionType, type MediaMetadata, MetadataType, type PlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
-import { getAudioProperties, getEncryptionTypes, getMetadataTypes, pctToDbfs } from './utils';
+import { EncryptionType, type MediaMetadata, MetadataType, type RaopPlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
+import { getAudioProperties, getEncryptionTypes, getMetadataTypes } from './utils';
 
 /**
  * Event map for the StreamClient, emitted during the audio streaming lifecycle.
  */
 export type EventMap = {
     /** Emitted when audio playback starts, providing current playback info. */
-    readonly playing: [playbackInfo: PlaybackInfo];
+    readonly playing: [playbackInfo: RaopPlaybackInfo];
     /** Emitted when audio playback stops (either naturally or via stop()). */
     readonly stopped: [];
 };
@@ -42,9 +42,9 @@ export class StreamClient extends EventEmitter<EventMap> {
      * Current playback info snapshot, substituting fallback metadata
      * if the caller provided no metadata.
      */
-    get playbackInfo(): PlaybackInfo {
+    get playbackInfo(): RaopPlaybackInfo {
         return {
-            metadata: this.#isMetadataEmpty(this.#metadata) ? MISSING_METADATA : this.#metadata,
+            metadata: this.#isMetadataEmpty(this.#metadata) ? this.#missingMetadata : this.#metadata,
             position: this.#streamContext.position
         };
     }
@@ -65,7 +65,7 @@ export class StreamClient extends EventEmitter<EventMap> {
     /** Application context for logging. */
     readonly #context: Context;
     /** RAOP RTSP client for protocol commands. */
-    readonly #rtsp: RtspClient;
+    readonly #rtsp: RaopRtspClient;
     /** Shared mutable streaming state. */
     readonly #streamContext: StreamContext;
     /** Port configuration settings. */
@@ -76,6 +76,8 @@ export class StreamClient extends EventEmitter<EventMap> {
     readonly #packetBacklog: PacketFifo;
     /** NTP timing server for clock synchronization with the receiver. */
     readonly #timingServer: TimingServer;
+    /** Shown on the receiver when a stream comes without metadata. */
+    readonly #missingMetadata: MediaMetadata;
 
     /** UDP control channel client, created during initialization. */
     #controlClient?: ControlClient;
@@ -101,8 +103,9 @@ export class StreamClient extends EventEmitter<EventMap> {
      * @param protocol - Protocol handler for transport operations.
      * @param settings - Port configuration settings.
      * @param timingServer - NTP timing server.
+     * @param missingMetadata - Shown on the receiver when a stream comes without metadata.
      */
-    constructor(context: Context, rtsp: RtspClient, streamContext: StreamContext, protocol: StreamProtocol, settings: Settings, timingServer: TimingServer) {
+    constructor(context: Context, rtsp: RaopRtspClient, streamContext: StreamContext, protocol: StreamProtocol, settings: Settings, timingServer: TimingServer, missingMetadata: MediaMetadata) {
         super();
 
         this.#context = context;
@@ -112,6 +115,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         this.#settings = settings;
         this.#packetBacklog = new PacketFifo(PACKET_BACKLOG_SIZE);
         this.#timingServer = timingServer;
+        this.#missingMetadata = missingMetadata;
     }
 
     /**
@@ -185,9 +189,10 @@ export class StreamClient extends EventEmitter<EventMap> {
      * Streams PCM after setting up metadata, volume and RTSP RECORD.
      * On completion or error, clears the backlog, tears down RTSP, closes UDP and emits `stopped`.
      *
-     * @param volume - Initial percentage, 0-100, converted to dBFS.
+     * @param volumeDb - Initial volume in dBFS, -144 to 0; the receiver keeps its own when omitted.
+     * @param onStreaming - Runs once the setup is done and the audio starts to flow.
      */
-    async sendAudio(source: AudioSource, metadata: MediaMetadata = EMPTY_METADATA, volume?: number): Promise<void> {
+    async sendAudio(source: AudioSource, metadata: MediaMetadata = EMPTY_METADATA, volumeDb?: number, onStreaming?: () => void): Promise<void> {
         if (!this.#controlClient) {
             throw new Error('Not initialized');
         }
@@ -256,9 +261,11 @@ export class StreamClient extends EventEmitter<EventMap> {
                 }
             });
 
-            if (volume !== undefined) {
-                await this.setVolume(pctToDbfs(volume));
+            if (volumeDb !== undefined) {
+                await this.setVolume(volumeDb);
             }
+
+            onStreaming?.();
 
             await this.#streamData(source, transport);
         } catch (err) {

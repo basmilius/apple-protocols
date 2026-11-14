@@ -75,7 +75,7 @@ export class PlayQueueSession {
         let position = playing.position;
 
         if (position !== undefined && isPlaying) {
-            position += playing.rate * (Date.now() - playing.receivedAt) / 1000;
+            position += playing.rate * (performance.now() - playing.receivedAt) / 1000;
 
             if (playing.duration !== undefined) {
                 position = Math.min(position, playing.duration);
@@ -321,14 +321,14 @@ export class PlayQueueSession {
                 position: toSeconds(params.position),
                 duration: toSeconds(params.duration),
                 rate: toSeconds(params.rate) ?? 1,
-                receivedAt: Date.now()
+                receivedAt: performance.now()
             };
 
             return;
         }
 
         if (state === 'paused' && this.#playing) {
-            this.#playing = {...this.#playing, position, receivedAt: Date.now()};
+            this.#playing = {...this.#playing, position, receivedAt: performance.now()};
             return;
         }
 

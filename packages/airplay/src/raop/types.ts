@@ -1,11 +1,13 @@
 import type { Socket as UdpSocket } from 'node:dgram';
+import type { CloseReason, Context } from '@corewire/core/transport';
+import type { TimingServer } from '../timing';
 
 /** Where a RAOP receiver is. */
 export type RaopTarget = {
     readonly address: string;
 
-    /** RTSP port of the RAOP service. */
-    readonly port: number;
+    /** RTSP port of the RAOP service; 7000 when omitted. */
+    readonly port?: number;
 
     /** Tags the logs, usually the mDNS name. Defaults to the address. */
     readonly id?: string;
@@ -34,7 +36,7 @@ export type MediaMetadata = {
  * Snapshot of the current playback state, combining metadata
  * with the stream position.
  */
-export type PlaybackInfo = {
+export type RaopPlaybackInfo = {
     /** Metadata for the currently playing track. */
     readonly metadata: MediaMetadata;
     /** Current playback position in audio frames. */
@@ -164,19 +166,51 @@ export enum MetadataType {
     Progress = 1 << 2
 }
 
-/**
- * Listener interface for RAOP playback lifecycle events.
- */
-export interface RaopListener {
-    /**
-     * Called when audio playback starts or metadata changes.
-     *
-     * @param playbackInfo - Current playback state information.
-     */
-    playing(playbackInfo: PlaybackInfo): void;
+/** How {@link connect} reaches the receiver and what a stream shows by default. */
+export type RaopConnectOptions = {
+    /** NTP timing server the receiver synchronizes with; SETUP announces its port. */
+    readonly timing: TimingServer;
 
+    /** Logger to use. Built from {@link RaopTarget.id} when omitted. */
+    readonly context?: Context;
+
+    /** Shown on the receiver while a stream comes without metadata; each field falls back to the library default. */
+    readonly metadata?: Partial<Pick<MediaMetadata, 'title' | 'artist' | 'album'>>;
+
+    /** Answers a digest challenge on ANNOUNCE from a receiver with a password. */
+    readonly password?: string;
+
+    /** Ends the session, or interrupts the handshake, when aborted. */
+    readonly signal?: AbortSignal;
+};
+
+export type RaopStreamOptions = {
+    /** Track metadata to show on the receiver; the defaults of {@link RaopConnectOptions.metadata} when omitted. */
+    readonly metadata?: MediaMetadata;
+
+    /** Volume in dBFS, -144 (silent) to 0, sent after FLUSH. The receiver keeps its own when omitted. */
+    readonly volumeDb?: number;
+};
+
+/** A running RAOP stream. */
+export type RaopPlayback = {
     /**
-     * Called when audio playback stops.
+     * Settles when streaming is over: resolves once the source ran out and TEARDOWN went out,
+     * rejects when the stream failed.
      */
-    stopped(): void;
-}
+    readonly ended: Promise<void>;
+
+    /** Stops the source; the stream winds down and sends TEARDOWN. */
+    stop(): void;
+};
+
+export type RaopEventMap = {
+    /** The session ended, see {@link CloseReason}. */
+    closed: [reason: CloseReason, error?: Error];
+
+    /** A stream started, with the metadata it shows. */
+    playing: [playbackInfo: RaopPlaybackInfo];
+
+    /** A stream ended. */
+    stopped: [];
+};

@@ -49,7 +49,7 @@ export type PairOptions = Pick<ConnectOptions, 'context' | 'identity' | 'signal'
 export type SessionCloseReason = CloseReason;
 
 /** The two channels of remote control. The session owns them and ends when either one does. */
-export type RemoteControl = {
+export type RemoteControlChannels = {
     /** MRP messages. */
     readonly data: DataChannel;
 

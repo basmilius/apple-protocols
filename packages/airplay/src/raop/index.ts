@@ -28,6 +28,7 @@ export {
     pctToDbfs
 } from './utils';
 
+export { discover, RAOP_SERVICE } from './discovery';
 export { ControlClient } from './controlClient';
 export { RaopRtspClient as RtspClient } from './rtspClient';
 export { Statistics } from './statistics';

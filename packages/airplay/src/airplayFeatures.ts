@@ -1,4 +1,4 @@
-import { parseFeatures } from '@corewire/core/discovery';
+import { parseFeatures } from './features';
 
 /**
  * AirPlay feature flags as a bitmask of bigint values. Each flag corresponds to a specific

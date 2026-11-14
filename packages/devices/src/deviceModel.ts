@@ -21,7 +21,7 @@ export enum DeviceModel {
 }
 
 /** High-level device categories derived from the specific device model. */
-export enum DeviceType {
+export enum DeviceFamily {
     Unknown = 0,
     AppleTV = 1,
     HomePod = 2,
@@ -77,19 +77,19 @@ const MODEL_NAMES: Record<DeviceModel, string> = {
 };
 
 /** Maps each device model to its high-level device type category. */
-const MODEL_TYPES: Record<DeviceModel, DeviceType> = {
-    [DeviceModel.Unknown]: DeviceType.Unknown,
-    [DeviceModel.AppleTVGen2]: DeviceType.AppleTV,
-    [DeviceModel.AppleTVGen3]: DeviceType.AppleTV,
-    [DeviceModel.AppleTVHD]: DeviceType.AppleTV,
-    [DeviceModel.AppleTV4K]: DeviceType.AppleTV,
-    [DeviceModel.AppleTV4KGen2]: DeviceType.AppleTV,
-    [DeviceModel.AppleTV4KGen3]: DeviceType.AppleTV,
-    [DeviceModel.HomePod]: DeviceType.HomePod,
-    [DeviceModel.HomePodMini]: DeviceType.HomePod,
-    [DeviceModel.HomePodGen2]: DeviceType.HomePod,
-    [DeviceModel.AirPortExpress]: DeviceType.AirPort,
-    [DeviceModel.AirPortExpressGen2]: DeviceType.AirPort,
+const MODEL_TYPES: Record<DeviceModel, DeviceFamily> = {
+    [DeviceModel.Unknown]: DeviceFamily.Unknown,
+    [DeviceModel.AppleTVGen2]: DeviceFamily.AppleTV,
+    [DeviceModel.AppleTVGen3]: DeviceFamily.AppleTV,
+    [DeviceModel.AppleTVHD]: DeviceFamily.AppleTV,
+    [DeviceModel.AppleTV4K]: DeviceFamily.AppleTV,
+    [DeviceModel.AppleTV4KGen2]: DeviceFamily.AppleTV,
+    [DeviceModel.AppleTV4KGen3]: DeviceFamily.AppleTV,
+    [DeviceModel.HomePod]: DeviceFamily.HomePod,
+    [DeviceModel.HomePodMini]: DeviceFamily.HomePod,
+    [DeviceModel.HomePodGen2]: DeviceFamily.HomePod,
+    [DeviceModel.AirPortExpress]: DeviceFamily.AirPort,
+    [DeviceModel.AirPortExpressGen2]: DeviceFamily.AirPort,
 };
 
 /**
@@ -118,8 +118,8 @@ export function getDeviceModelName(model: DeviceModel): string {
  * @param model - The device model to categorize.
  * @returns The device type (AppleTV, HomePod, AirPort, or Unknown).
  */
-export function getDeviceType(model: DeviceModel): DeviceType {
-    return MODEL_TYPES[model] ?? DeviceType.Unknown;
+export function getDeviceFamily(model: DeviceModel): DeviceFamily {
+    return MODEL_TYPES[model] ?? DeviceFamily.Unknown;
 }
 
 /**
@@ -128,7 +128,7 @@ export function getDeviceType(model: DeviceModel): DeviceType {
  * @returns True if the model is any Apple TV generation.
  */
 export function isAppleTV(model: DeviceModel): boolean {
-    return getDeviceType(model) === DeviceType.AppleTV;
+    return getDeviceFamily(model) === DeviceFamily.AppleTV;
 }
 
 /**
@@ -137,7 +137,7 @@ export function isAppleTV(model: DeviceModel): boolean {
  * @returns True if the model is any HomePod variant.
  */
 export function isHomePod(model: DeviceModel): boolean {
-    return getDeviceType(model) === DeviceType.HomePod;
+    return getDeviceFamily(model) === DeviceFamily.HomePod;
 }
 
 /**
@@ -146,5 +146,5 @@ export function isHomePod(model: DeviceModel): boolean {
  * @returns True if the model is any AirPort Express generation.
  */
 export function isAirPort(model: DeviceModel): boolean {
-    return getDeviceType(model) === DeviceType.AirPort;
+    return getDeviceFamily(model) === DeviceFamily.AirPort;
 }

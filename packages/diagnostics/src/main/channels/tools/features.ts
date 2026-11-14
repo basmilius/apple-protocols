@@ -4,17 +4,17 @@ import {
     getPairingRequirement,
     getProtocolVersion,
     isPasswordRequired,
-    isRemoteControlSupported
+    isRemoteControlSupported,
+    parseFeatures
 } from '@corewire/airplay';
 import {
+    getDeviceFamily,
     getDeviceModelName,
-    getDeviceType,
     isAirPort,
     isAppleTV,
     isHomePod,
-    lookupDeviceModel,
-    parseFeatures
-} from '@corewire/core/discovery';
+    lookupDeviceModel
+} from '@corewire/devices';
 import { readString } from './bytes';
 import type { ToolDefinition } from './registry';
 
@@ -84,7 +84,7 @@ export const FEATURE_TOOLS: readonly ToolDefinition[] = [
                 identifier,
                 model,
                 name: getDeviceModelName(model),
-                type: getDeviceType(model),
+                type: getDeviceFamily(model),
                 isAppleTV: isAppleTV(model),
                 isHomePod: isHomePod(model),
                 isAirPort: isAirPort(model)

@@ -2,24 +2,6 @@ import { fromBinary } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 
 /**
- * Builds a 12-byte ChaCha20 nonce for AirPlay stream encryption.
- *
- * The nonce format is: 4 zero bytes + 8-byte little-endian counter at offset 4.
- * This matches the AirPlay DataStream/EventStream nonce format (distinct from
- * the Companion Link format which uses 12-byte LE counter at offset 0).
- *
- * @param counter - Monotonically increasing counter value.
- * @returns 12-byte nonce buffer.
- */
-export function nonce(counter: number): Buffer {
-    const nonceArray = new Uint8Array(12);
-    const view = new DataView(nonceArray.buffer);
-    view.setBigUint64(4, BigInt(counter), true);
-
-    return Buffer.from(nonceArray);
-}
-
-/**
  * Builds a 32-byte DataStream frame header with the 'sync'/'comm' command format.
  *
  * Layout (32 bytes):

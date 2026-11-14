@@ -86,7 +86,7 @@ export class CommandError extends AppleProtocolError {
     }
 }
 
-/** Thrown when a protocol setup step fails (e.g. RTSP SETUP, AirPlay stream setup). */
+/** Thrown when a protocol setup step fails (e.g. an RTSP SETUP). */
 export class SetupError extends AppleProtocolError {
     /** @param message - Human-readable description of the setup failure. */
     constructor(message: string) {

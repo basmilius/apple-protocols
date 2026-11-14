@@ -4,7 +4,7 @@
  */
 
 import { Context } from '../src/transport';
-import { AccessoryPair, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer, generateAccessoryIdentity } from '../src/pairing';
+import { generateAccessoryIdentity, PairSetup, PairSetupServer, PairVerify, PairVerifyServer } from '../src/pairing';
 
 function assert(condition: boolean, message: string): void {
     if (!condition) {
@@ -17,8 +17,8 @@ async function main(): Promise<void> {
     const identity = generateAccessoryIdentity();
     const pin = '1234';
 
-    const pairServer = new AccessoryPairServer(context, identity, pin);
-    const pairClient = new AccessoryPair(context, (_step, data) => pairServer.handle(data));
+    const pairServer = new PairSetupServer(context, identity, pin);
+    const pairClient = new PairSetup(context, (payload) => pairServer.handle(payload));
 
     await pairClient.start();
     const credentials = await pairClient.pin(async () => pin);
@@ -36,8 +36,8 @@ async function main(): Promise<void> {
             ? pairServer.controller.longTermPublicKey
             : undefined;
 
-    const verifyServer = new AccessoryVerifyServer(context, identity, resolveController);
-    const verifyClient = new AccessoryVerify(context, (_step, data) => verifyServer.handle(data));
+    const verifyServer = new PairVerifyServer(context, identity, resolveController);
+    const verifyClient = new PairVerify(context, (payload) => verifyServer.handle(payload));
 
     const keys = await verifyClient.start(credentials);
 

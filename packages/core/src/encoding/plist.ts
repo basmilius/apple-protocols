@@ -1,6 +1,6 @@
 /**
  * Binary plist parsing and serialization.
- * Apple's binary plist format is used extensively in AirPlay, RAOP, and pairing protocols.
+ * Apple's binary plist format is the body format of many Apple protocols.
  */
 export { serialize } from '@plist/binary.serialize';
 

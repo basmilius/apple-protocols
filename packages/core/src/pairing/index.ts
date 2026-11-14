@@ -1,17 +1,30 @@
 /// <reference types="node" preserve="true" />
 export {
-    AIRPLAY_TRANSIENT_PIN
+    deriveControlKeys
+} from './cipher';
+
+export {
+    PairSetup,
+    PairVerify
+} from './client';
+
+export {
+    TRANSIENT_PAIRING_PIN
 } from './const';
 
 export {
-    type AccessoryCredentials,
-    type AccessoryIdentity,
-    type AccessoryKeys,
-    AccessoryPair,
-    AccessoryPairServer,
-    AccessoryVerify,
-    AccessoryVerifyServer,
-    type ControllerResolver,
     generateAccessoryIdentity,
-    type PairedController
-} from './pairing';
+    PairSetupServer,
+    PairVerifyServer
+} from './server';
+
+export type {
+    AccessoryCredentials,
+    AccessoryIdentity,
+    AccessoryKeys,
+    ControllerResolver,
+    PairedController,
+    PairingOptions,
+    PairingStep,
+    PairingTransport
+} from './types';

@@ -138,8 +138,8 @@ export class PlayQueueSession {
         this.#end.catch(() => undefined);
 
         eventStream.on('playQueue', this.#boundCommand);
-        eventStream.on('close', this.#boundClose);
-        controlStream.on('close', this.#boundClose);
+        eventStream.on('closed', this.#boundClose);
+        controlStream.on('closed', this.#boundClose);
     }
 
     /**
@@ -563,8 +563,8 @@ export class PlayQueueSession {
         }
 
         this.#eventStream.off('playQueue', this.#boundCommand);
-        this.#eventStream.off('close', this.#boundClose);
-        this.#controlStream.off('close', this.#boundClose);
+        this.#eventStream.off('closed', this.#boundClose);
+        this.#controlStream.off('closed', this.#boundClose);
         this.#context.logger.debug('[play-queue]', `Session for item ${this.#itemUUID ?? '?'} ended.`);
     }
 }

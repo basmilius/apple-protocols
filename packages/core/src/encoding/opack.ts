@@ -15,7 +15,7 @@ type UnpackResult = {
 /**
  * OPack wire-format tag bytes. Each tag identifies the type and sometimes
  * the inline length of the value that follows. Apple uses OPack for
- * Companion Link and other device-to-device communication.
+ * device-to-device communication.
  */
 const TAG = {
     TRUE: 0x01,
@@ -176,8 +176,7 @@ export function sizedInteger(value: number, size: number): SizedInteger {
 
 /**
  * Decodes an OPack-encoded byte array into a JavaScript value.
- * OPack is Apple's compact binary serialization format used in
- * Companion Link and other protocols.
+ * OPack is Apple's compact binary serialization format.
  *
  * @param data - The raw OPack-encoded bytes.
  * @returns The decoded JavaScript value (object, array, string, number, boolean, null, or Uint8Array).

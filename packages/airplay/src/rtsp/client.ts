@@ -1,4 +1,4 @@
-import { Connection, type Context } from '@corewire/core/transport';
+import { type CloseReason, Connection, type Context } from '@corewire/core/transport';
 import { ConnectionClosedError, ConnectionTimeoutError, HTTP_TIMEOUT, InvalidResponseError, reporter, TimeoutError } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
 import { type Method, parseResponse } from './encoding';
@@ -62,12 +62,10 @@ export class RtspClient extends Connection<{}> {
         this.onRtspClose = this.onRtspClose.bind(this);
         this.onRtspData = this.onRtspData.bind(this);
         this.onRtspError = this.onRtspError.bind(this);
-        this.onRtspTimeout = this.onRtspTimeout.bind(this);
 
-        this.on('close', this.onRtspClose);
+        this.on('closed', this.onRtspClose);
         this.on('data', this.onRtspData);
         this.on('error', this.onRtspError);
-        this.on('timeout', this.onRtspTimeout);
     }
 
     /**
@@ -207,21 +205,19 @@ export class RtspClient extends Connection<{}> {
     }
 
     /**
-     * Handles TCP connection close events.
-     *
-     * Resets both internal buffers and rejects all pending requests with a
-     * {@link ConnectionClosedError}.
+     * Resets both buffers and rejects every pending request: with a {@link ConnectionTimeoutError}
+     * after a timeout, with the error that broke the connection, or with a {@link ConnectionClosedError}.
      */
-    onRtspClose(): void {
+    onRtspClose(reason: CloseReason, error?: Error): void {
         this.#buffer = Buffer.alloc(0);
         this.#encryptedBuffer = Buffer.alloc(0);
 
         for (const [cseq, {reject}] of this.#requests) {
-            reject(new ConnectionClosedError('Connection closed.'));
+            reject(reason === 'timeout' ? new ConnectionTimeoutError() : error ?? new ConnectionClosedError('Connection closed.'));
             this.#requests.delete(cseq);
         }
 
-        this.context.logger.net('[rtsp]', 'onRtspClose()');
+        this.context.logger.net('[rtsp]', 'onRtspClose()', reason);
     }
 
     /**
@@ -295,8 +291,7 @@ export class RtspClient extends Connection<{}> {
             this.#encryptedBuffer = Buffer.alloc(0);
             this.#buffer = Buffer.alloc(0);
             this.context.logger.error('[rtsp]', 'onRtspData()', err);
-            this.destroy();
-            this.emit('error', err as Error);
+            this.destroy(err instanceof Error ? err : new Error(String(err)));
         }
     }
 
@@ -328,21 +323,6 @@ export class RtspClient extends Connection<{}> {
         }
 
         this.context.logger.error('[rtsp]', 'onRtspError()', err);
-    }
-
-    /**
-     * Handles socket timeout events by rejecting all pending requests with a
-     * {@link ConnectionTimeoutError}.
-     */
-    onRtspTimeout(): void {
-        const err = new ConnectionTimeoutError();
-
-        for (const [cseq, {reject}] of this.#requests) {
-            reject(err);
-            this.#requests.delete(cseq);
-        }
-
-        this.context.logger.net('[rtsp]', 'onRtspTimeout()');
     }
 }
 

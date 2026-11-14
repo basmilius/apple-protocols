@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'node:events';
 import { ConnectionRecovery } from '@corewire/core/transport';
 import { Discovery } from '@corewire/core/discovery';
-import { AIRPLAY_PROTOCOL } from '@corewire/devices';
+import { AIRPLAY_PROTOCOL, WAKE_PORTS } from '@corewire/devices';
 import type { DeviceEvent, RecoveryOptionsInfo, RecoveryStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';
@@ -234,7 +234,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
             throw new Error(`Device '${request.deviceId}' is not in the last discovery result. Scan first.`);
         }
 
-        await Discovery.wake(discovered.address);
+        await Discovery.wake(discovered.address, WAKE_PORTS);
 
         const entry = entryOf(request.deviceId);
         entry.lastEvent = `wake knocked on ${discovered.address}`;

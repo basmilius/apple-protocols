@@ -4,378 +4,231 @@ import { SOCKET_TIMEOUT } from '../const';
 import { ConnectionClosedError, ConnectionError, ConnectionTimeoutError } from '../errors';
 import type { EventMap } from '../types';
 import type { Context } from './context';
-import type { ConnectionState } from './types';
+import type { CloseReason, ConnectionState } from './types';
 
-/** No-op promise handler used as a fallback when no connect promise is active. */
-const NOOP_PROMISE_HANDLER = {
-    resolve: () => {
-    },
-    reject: (_: Error) => {
-    }
-} as const;
-
-/** Event map for the base Connection class socket events. */
 type ConnectionEventMap = {
-    close: [hadError: boolean];
+    closed: [reason: CloseReason, error?: Error];
     connect: [];
     data: [data: Buffer];
-    end: [];
-    error: [err: Error];
-    timeout: [];
+    error: [error: Error];
 };
 
 /**
- * TCP socket connection wrapper with built-in retry logic and typed events.
+ * One TCP socket to a device, with keep-alive and no-delay. Subclasses extend the event map with
+ * protocol events.
  *
- * Manages a single TCP socket to an Apple device, providing automatic reconnection
- * on failure (configurable attempts and interval), keep-alive, and no-delay settings.
- * Subclasses can extend the event map with protocol-specific events.
- *
- * Default retry behavior: 3 attempts with 3-second intervals between retries.
+ * A connection connects once and ends once. Every way it ends, `disconnect()` and `destroy()`
+ * included, emits `closed` with the reason and aborts {@link signal}. Reconnecting takes a new
+ * connection, because a fresh socket carries no pairing and no encryption keys. `error` reports
+ * problems that do not end the connection by themselves, such as a write after the socket closed.
  */
 export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<ConnectionEventMap & TEventMap> {
-    /** The remote IP address this connection targets. */
     get address(): string {
         return this.#address;
     }
 
-    /** The shared context carrying device identity and logger. */
     get context(): Context {
         return this.#context;
     }
 
-    /** The remote port this connection targets. */
     get port(): number {
         return this.#port;
     }
 
-    /** Whether the connection is currently established and open. */
     get isConnected(): boolean {
         return this.#state === 'connected';
     }
 
-    /** The local IP address of the socket, or '0.0.0.0' if not connected. */
+    /** Local IP address of the socket, or '0.0.0.0' when not connected. */
     get localAddress(): string {
         return this.#socket?.localAddress ?? '0.0.0.0';
     }
 
-    /** The current connection state, derived from both internal state and socket readyState. */
     get state(): ConnectionState {
-        if (this.#state === 'closing' || this.#state === 'failed') {
-            return this.#state;
-        }
+        return this.#state;
+    }
 
-        if (!this.#socket) {
-            return 'disconnected';
-        }
-
-        switch (this.#socket.readyState) {
-            case 'opening':
-                return 'connecting';
-
-            case 'open':
-                return 'connected';
-
-            default:
-                return this.#state;
-        }
+    /** Aborts with a {@link ConnectionClosedError} when the connection ends. */
+    get signal(): AbortSignal {
+        return this.#controller.signal;
     }
 
     readonly #address: string;
     readonly #port: number;
     readonly #context: Context;
-    #debug: boolean = false;
-    #retryAttempt: number = 0;
-    #retryAttempts: number = 3;
-    #retryEnabled: boolean = true;
-    #retryInterval: number = 3000;
-    #retryTimeout?: NodeJS.Timeout;
-    #socket?: Socket;
-    #state: ConnectionState;
-
-    readonly #disconnectResolvers = new Set<() => void>();
-
+    readonly #controller: AbortController = new AbortController();
     #connectPromise?: {
         resolve: () => void;
-        reject: (err: Error) => void;
+        reject: (error: Error) => void;
     };
+    #debug: boolean = false;
+    #socket?: Socket;
+    #state: ConnectionState = 'disconnected';
 
-    /**
-     * @param address - The remote IP address to connect to.
-     * @param port - The remote port to connect to.
-     */
     constructor(context: Context, address: string, port: number) {
         super();
 
         this.#address = address;
         this.#port = port;
         this.#context = context;
-        this.#state = 'disconnected';
-
-        this.onClose = this.onClose.bind(this);
-        this.onConnect = this.onConnect.bind(this);
-        this.onData = this.onData.bind(this);
-        this.onEnd = this.onEnd.bind(this);
-        this.onError = this.onError.bind(this);
-        this.onTimeout = this.onTimeout.bind(this);
     }
 
     /**
-     * Establishes a TCP connection to the remote address. If already connected,
-     * returns immediately. Enables retry logic for the duration of this connection.
+     * Opens the socket. Returns at once when already connected.
      *
-     * @throws {ConnectionError} If already connecting or all retry attempts are exhausted.
+     * @throws {ConnectionTimeoutError} If the socket does not open within the socket timeout.
+     * @throws {ConnectionError} If the socket cannot open, or the connection is busy or has ended.
      */
     async connect(): Promise<void> {
         if (this.#state === 'connected') {
             return;
         }
 
-        if (this.#connectPromise || this.#retryTimeout || this.#state === 'connecting' || this.#state === 'closing') {
+        if (this.signal.aborted) {
+            throw new ConnectionClosedError('This connection has ended, create a new one.');
+        }
+
+        if (this.#state !== 'disconnected') {
             throw new ConnectionError('A connection is already being established.');
         }
 
-        this.#retryEnabled = true;
-        this.#retryAttempt = 0;
+        this.#state = 'connecting';
 
-        return this.#attemptConnect();
-    }
-
-    /** Cancels connection attempts and destroys the socket without graceful shutdown. */
-    destroy(): void {
-        this.#retryEnabled = false;
-        if (this.#retryTimeout) {
-            clearTimeout(this.#retryTimeout);
-            this.#retryTimeout = undefined;
-        }
-        this.#connectPromise?.reject(new ConnectionClosedError());
-        this.#connectPromise = undefined;
-        this.#cleanup();
-    }
-
-    /**
-     * Gracefully disconnects by ending the socket and waiting for the 'close' event.
-     * Disables retry logic so the connection does not automatically reconnect.
-     */
-    async disconnect(): Promise<void> {
-        if (this.#retryTimeout) {
-            clearTimeout(this.#retryTimeout);
-            this.#retryTimeout = undefined;
-        }
-
-        this.#retryEnabled = false;
-        this.#connectPromise?.reject(new ConnectionClosedError());
-        this.#connectPromise = undefined;
-
-        if (!this.#socket || this.#state === 'disconnected') {
-            return;
-        }
-
-        /* A closed socket will not emit another close event. */
-        if (this.#socket.destroyed || this.#socket.readyState === 'closed') {
-            this.#cleanup();
-            return;
-        }
-
-        return new Promise(resolve => {
-            this.#disconnectResolvers.add(resolve);
-            this.#state = 'closing';
-            const socket = this.#socket;
-            socket.once('close', () => {
-                if (this.#socket === socket) this.#cleanup();
-                this.#disconnectResolvers.delete(resolve);
-                resolve();
-            });
-            if (this.#socket.connecting) {
-                this.#socket.destroy();
-            } else {
-                this.#socket.end();
-            }
+        const connected = new Promise<void>((resolve, reject) => {
+            this.#connectPromise = {resolve, reject};
         });
+
+        const socket = new Socket();
+        this.#socket = socket;
+
+        socket.setNoDelay(true);
+        socket.setTimeout(SOCKET_TIMEOUT);
+
+        socket.on('close', () => this.#onClose());
+        socket.on('connect', () => this.#onConnect());
+        socket.on('data', (data: Buffer) => this.#onData(data));
+        socket.on('error', (error: Error) => this.#onError(error));
+        socket.on('timeout', () => this.#onTimeout());
+
+        this.#context.logger.net(`Connecting to ${this.#address}:${this.#port}...`);
+
+        socket.connect({
+            host: this.#address,
+            port: this.#port
+        });
+
+        return connected;
     }
 
     /**
-     * Enables or disables debug logging for incoming data (hex + ASCII dumps).
+     * Ends the connection right away without a graceful shutdown. Passing an error ends it with
+     * reason `error`, for a subclass that cannot continue after a broken frame.
      */
+    destroy(error?: Error): void {
+        if (this.#state === 'disconnected' && !this.#socket) {
+            return;
+        }
+
+        this.#end(error ? 'error' : 'local', error);
+    }
+
+    /** Ends the socket gracefully and resolves once it is closed. */
+    async disconnect(): Promise<void> {
+        const socket = this.#socket;
+
+        if (!socket || this.signal.aborted) {
+            return;
+        }
+
+        if (socket.connecting || socket.destroyed) {
+            this.#end('local');
+
+            return;
+        }
+
+        const closed = new Promise<void>(resolve => this.signal.addEventListener('abort', () => resolve(), {once: true}));
+
+        if (this.#state !== 'closing') {
+            this.#state = 'closing';
+            socket.end();
+        }
+
+        await closed;
+    }
+
+    /** Toggles hex and ASCII dumps of incoming data. */
     debug(enabled: boolean): this {
         this.#debug = enabled;
 
         return this;
     }
 
-    /**
-     * Configures the retry behavior for connection attempts.
-     *
-     * @param attempts - Maximum number of retry attempts.
-     * @param interval - Delay in milliseconds between retry attempts.
-     */
-    retry(attempts: number, interval: number = 3000): this {
-        this.#retryAttempts = attempts;
-        this.#retryInterval = interval;
-
-        return this;
-    }
-
-    /**
-     * Writes data to the underlying TCP socket.
-     * Emits an error event if the socket is not writable.
-     */
+    /** Writes to the socket, or emits `error` when the socket is not writable. */
     write(data: Buffer | Uint8Array): void {
-        if (!this.#socket || this.state !== 'connected' || !this.#socket.writable) {
-            this.#emitInternal('error', new ConnectionClosedError('Cannot write to a disconnected connection.'));
+        if (!this.#socket || this.#state !== 'connected' || !this.#socket.writable) {
+            this.#reportError(new ConnectionClosedError('Cannot write to a disconnected connection.'));
+
             return;
         }
 
-        this.#socket.write(data, err => {
-            if (!err) {
+        this.#socket.write(data, error => {
+            // A write that fails because the socket broke is reported by `closed` already.
+            if (!error || this.signal.aborted) {
                 return;
             }
 
             this.#context.logger.error('Failed to write data to socket.');
-            this.#emitInternal('error', err);
+            this.#reportError(error);
         });
     }
 
-    /**
-     * Creates a new socket and attempts to connect. The returned promise resolves
-     * on successful connect or rejects after all retries are exhausted.
-     */
-    async #attemptConnect(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.#state = 'connecting';
-            this.#connectPromise = {resolve, reject};
-
-            this.#socket?.removeAllListeners();
-            this.#socket?.destroy();
-            this.#socket = undefined;
-
-            this.#socket = new Socket();
-            this.#socket.setNoDelay(true);
-            this.#socket.setTimeout(SOCKET_TIMEOUT);
-
-            const socket = this.#socket;
-            socket.on('close', value => {if (this.#socket === socket) this.onClose(value);});
-            socket.on('connect', () => {if (this.#socket === socket) this.onConnect();});
-            socket.on('data', (value: Buffer) => {if (this.#socket === socket) this.onData(value);});
-            socket.on('end', () => {if (this.#socket === socket) this.onEnd();});
-            socket.on('error', value => {if (this.#socket === socket) this.onError(value);});
-            socket.on('timeout', () => {if (this.#socket === socket) this.onTimeout();});
-
-            this.#context.logger.net(`Connecting to ${this.#address}:${this.#port}...`);
-
-            this.#socket.connect({
-                host: this.#address,
-                port: this.#port
-            });
-        });
-    }
-
-    /** Removes all socket listeners, destroys the socket, and resets connection state. */
-    #cleanup(): void {
-        for (const resolve of this.#disconnectResolvers) resolve();
-        this.#disconnectResolvers.clear();
-        if (this.#retryTimeout) {
-            clearTimeout(this.#retryTimeout);
-            this.#retryTimeout = undefined;
-        }
-
-        if (this.#socket) {
-            this.#socket.removeAllListeners();
-            this.#socket.destroy();
-            this.#socket = undefined;
-        }
-
-        this.#state = 'disconnected';
-        this.#connectPromise = undefined;
-    }
-
-    /**
-     * Schedules a retry attempt after a failed connection. If all attempts are exhausted,
-     * transitions to 'failed' state and rejects the original connect promise.
-     *
-     * @param err - The error that triggered the retry.
-     */
-    #scheduleRetry(err: Error): void {
-        if (!this.#retryEnabled || this.#retryAttempt >= this.#retryAttempts) {
-            this.#state = 'failed';
-            this.#connectPromise?.reject(err);
-            this.#connectPromise = undefined;
+    /** The single exit: closes the socket, settles a pending connect, aborts the signal and emits `closed`. */
+    #end(reason: CloseReason, error?: Error): void {
+        if (this.signal.aborted) {
             return;
         }
 
-        if (this.#retryTimeout) {
-            clearTimeout(this.#retryTimeout);
-            this.#retryTimeout = undefined;
-        }
-
-        this.#retryAttempt++;
-        this.#context.logger.net(`Retry attempt ${this.#retryAttempt} / ${this.#retryAttempts} in ${this.#retryInterval}ms...`);
-
-        const {resolve, reject} = this.#connectPromise ?? NOOP_PROMISE_HANDLER;
-        this.#cleanup();
-        this.#connectPromise = {resolve, reject};
-
-        this.#retryTimeout = setTimeout(async () => {
-            this.#retryTimeout = undefined;
-
-            try {
-                /* Restore handlers so exhausted retries reject the original connect promise. */
-                this.#connectPromise = {resolve, reject};
-                await this.#attemptConnect();
-                resolve();
-            } catch (retryErr) {
-                /* Forward rejection to the original connect() call so it cannot hang after retries. */
-                reject(retryErr instanceof Error ? retryErr : new ConnectionError(String(retryErr)));
-            }
-        }, this.#retryInterval);
-    }
-
-    /**
-     * Handles the socket 'close' event. If the connection was active and closed
-     * unexpectedly with an error, triggers a retry.
-     *
-     * @param hadError - Whether the close was caused by an error.
-     */
-    onClose(hadError: boolean): void {
         const socket = this.#socket;
-        const wasConnected = this.#state === 'connected';
+        this.#socket = undefined;
+        this.#state = reason === 'error' || reason === 'timeout' ? 'failed' : 'disconnected';
 
-        if (this.#state !== 'closing') {
-            this.#state = 'disconnected';
-            this.#context.logger.net(`Connection closed (${hadError ? 'with error' : 'normally'}).`);
+        if (socket) {
+            socket.removeAllListeners();
+            socket.on('error', () => {
+            });
+            socket.destroy();
         }
 
-        this.#emitInternal('close', hadError);
+        this.#context.logger.net(`Connection closed (${reason}${error ? `: ${error.message}` : ''}).`);
 
-        if (this.#socket === socket && wasConnected && this.#retryEnabled && hadError) {
-            this.#scheduleRetry(new ConnectionClosedError());
+        this.#controller.abort(new ConnectionClosedError(`Connection closed (${reason}).`));
+
+        if (this.#connectPromise) {
+            this.#connectPromise.reject(error ?? new ConnectionClosedError('Connection closed before it was established.'));
+            this.#connectPromise = undefined;
         }
+
+        this.#emitInternal('closed', reason, error);
     }
 
-    /**
-     * Handles successful TCP connection. Enables keep-alive (10s interval),
-     * disables the connection timeout, resets retry counter, and resolves the connect promise.
-     */
-    onConnect(): void {
+    #onClose(): void {
+        this.#end(this.#state === 'closing' ? 'local' : 'remote');
+    }
+
+    #onConnect(): void {
         this.#state = 'connected';
-        this.#retryAttempt = 0;
 
         this.#socket.setKeepAlive(true, 10000);
         this.#socket.setTimeout(0);
 
         const pending = this.#connectPromise;
+        this.#connectPromise = undefined;
+
         this.#emitInternal('connect');
         pending?.resolve();
-        if (this.#connectPromise === pending) this.#connectPromise = undefined;
     }
 
-    /**
-     * Handles incoming data from the socket. When debug mode is enabled,
-     * logs a hex and ASCII dump of the first 64 bytes.
-     *
-     * @param data - The received data buffer.
-     */
-    onData(data: Buffer): void {
+    #onData(data: Buffer): void {
         if (this.#debug) {
             const cutoff = Math.min(data.byteLength, 64);
             this.#context.logger.debug(`Received ${data.byteLength} bytes of data.`);
@@ -386,118 +239,35 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         this.#emitInternal('data', data);
     }
 
-    /** Handles the socket 'end' event (remote end sent FIN). */
-    onEnd(): void {
-        this.#emitInternal('end');
-    }
+    #onError(error: Error): void {
+        this.#context.logger.error(`Connection error: ${error.message}`);
 
-    /**
-     * Handles socket errors. If connecting, schedules a retry; otherwise marks
-     * the connection as failed. Warns if no error listener is registered.
-     *
-     * @param err - The socket error.
-     */
-    onError(err: Error): void {
-        const socket = this.#socket;
-        this.#context.logger.error(`Connection error: ${err.message}`);
-
-        if (this.listenerCount('error') > 0) {
-            this.#emitInternal('error', err);
-        } else {
-            this.#context.logger.warn('No error handler registered. This is likely a bug.', this.constructor.name, 'onError');
-        }
-
-        if (this.#socket !== socket) return;
         if (this.#state === 'connecting') {
-            this.#scheduleRetry(err);
+            this.#end('error', new ConnectionError(`Cannot connect to ${this.#address}:${this.#port}: ${error.message}`));
+
+            return;
         }
-        /* Let onClose change connected state; it uses wasConnected to decide whether to retry. */
+
+        this.#end('error', error);
     }
 
-    /**
-     * Handles socket timeout. If connecting, schedules a retry;
-     * otherwise destroys the socket and marks the connection as failed.
-     */
-    onTimeout(): void {
-        const socket = this.#socket;
+    /** Only fires while connecting; the idle timeout is switched off once the socket opens. */
+    #onTimeout(): void {
         this.#context.logger.error('Connection timed out.');
+        this.#end('timeout', new ConnectionTimeoutError());
+    }
 
-        const err = new ConnectionTimeoutError();
-
-        this.#emitInternal('timeout');
-        if (this.#socket !== socket) return;
-
-        if (this.#state === 'connecting') {
-            this.#scheduleRetry(err);
+    /** Emits `error` when someone listens, because an unhandled `error` event would throw. */
+    #reportError(error: Error): void {
+        if (this.listenerCount('error') > 0) {
+            this.#emitInternal('error', error);
         } else {
-            this.#state = 'failed';
-            this.#socket?.destroy();
+            this.#context.logger.warn('No error handler registered.', this.constructor.name, error.message);
         }
     }
 
-    /**
-     * Type-safe internal emit that narrows the event to ConnectionEventMap keys.
-     * Needed because the merged TEventMap makes the standard emit signature too broad.
-     *
-     * @param event - The event name to emit.
-     * @param args - The event arguments.
-     * @returns Whether any listeners were called.
-     */
+    /** The merged event map makes the inherited emit signature too broad to call directly. */
     #emitInternal<K extends keyof ConnectionEventMap>(event: K, ...args: ConnectionEventMap[K]): boolean {
-        return (this.emit as (...a: any[]) => boolean)(event, ...args);
-    }
-}
-
-/**
- * Connection subclass that adds optional ChaCha20-Poly1305 encryption.
- * Once encryption is enabled, subclasses use the {@link EncryptionState}
- * to encrypt outgoing data and decrypt incoming data with per-message nonce counters.
- */
-export class EncryptionAwareConnection<TEventMap extends EventMap> extends Connection<TEventMap> {
-    /** Whether encryption has been enabled on this connection. */
-    get isEncrypted(): boolean {
-        return !!this._encryption;
-    }
-
-    /** The current encryption state, or undefined if encryption is not enabled. */
-    _encryption?: EncryptionState;
-
-    /**
-     * Enables ChaCha20-Poly1305 encryption for this connection.
-     * After calling this, all subsequent data must be encrypted/decrypted
-     * using the provided keys.
-     *
-     * @param readKey - The 32-byte key for decrypting incoming data.
-     * @param writeKey - The 32-byte key for encrypting outgoing data.
-     */
-    enableEncryption(readKey: Buffer, writeKey: Buffer): void {
-        this._encryption = new EncryptionState(readKey, writeKey);
-    }
-}
-
-/**
- * Holds the symmetric encryption keys and nonce counters for a single
- * encrypted connection. Each message increments the corresponding counter
- * to ensure unique nonces for ChaCha20-Poly1305.
- */
-export class EncryptionState {
-    /** The 32-byte key used to decrypt incoming data. */
-    readKey: Buffer;
-    /** Monotonically increasing counter used as part of the read nonce. */
-    readCount: number;
-    /** The 32-byte key used to encrypt outgoing data. */
-    writeKey: Buffer;
-    /** Monotonically increasing counter used as part of the write nonce. */
-    writeCount: number;
-
-    /**
-     * @param readKey - The 32-byte decryption key.
-     * @param writeKey - The 32-byte encryption key.
-     */
-    constructor(readKey: Buffer, writeKey: Buffer) {
-        this.readCount = 0;
-        this.readKey = readKey;
-        this.writeCount = 0;
-        this.writeKey = writeKey;
+        return (this.emit as (...args: unknown[]) => boolean)(event, ...args);
     }
 }

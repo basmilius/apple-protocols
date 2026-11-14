@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { type AccessoryCredentials, type AccessoryIdentity, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer } from '@corewire/core/pairing';
+import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
 import { Context } from '@corewire/core/transport';
 import { deriveEncryptionKeys } from '@corewire/core/crypto';
 import type { DiscoveryResult } from '@corewire/core/discovery';
@@ -86,8 +86,8 @@ export class AirPlayProxy implements ProtocolProxy {
 class AirPlaySession {
     readonly #context: Context;
     readonly #options: AirPlayProxyOptions;
-    readonly #pairServer: AccessoryPairServer;
-    readonly #verifyServer: AccessoryVerifyServer;
+    readonly #pairServer: PairSetupServer;
+    readonly #verifyServer: PairVerifyServer;
     readonly #deviceHeaders: Record<string, string>;
 
     #controller?: ControlConnection;
@@ -106,8 +106,8 @@ class AirPlaySession {
     constructor(context: Context, options: AirPlayProxyOptions, identity: AccessoryIdentity) {
         this.#context = context;
         this.#options = options;
-        this.#pairServer = new AccessoryPairServer(context, identity, options.pin);
-        this.#verifyServer = new AccessoryVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
+        this.#pairServer = new PairSetupServer(context, identity, options.pin);
+        this.#verifyServer = new PairVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
         this.#deviceHeaders = {
             'Active-Remote': generateActiveRemoteId(),
             'DACP-ID': generateDacpId(),
@@ -309,7 +309,7 @@ class AirPlaySession {
             this.#teardown();
         });
 
-        const verify = new AccessoryVerify(this.#context, async (_step, tlv) => {
+        const verify = new PairVerify(this.#context, async (tlv) => {
             const response = await this.#deviceExchange(this.#buildDeviceRequest('/pair-verify', tlv));
             return response.kind === 'response' ? response.body : Buffer.alloc(0);
         });

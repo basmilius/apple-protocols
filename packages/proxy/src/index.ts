@@ -1,6 +1,8 @@
 import { join } from 'node:path';
 import type { AccessoryCredentials } from '@corewire/core/pairing';
-import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import type { DiscoveryResult } from '@corewire/core/discovery';
+import { discover as discoverAirPlay } from '@corewire/airplay';
+import { discover as discoverCompanionLink } from '@corewire/companion-link';
 import { JsonStorage, type ProtocolType } from '@corewire/core/storage';
 import { reporter } from '@corewire/core';
 import enquirer from 'enquirer';
@@ -38,14 +40,14 @@ type ProxyConfig = {
 const CONFIGS: Record<string, ProxyConfig> = {
     'companion-link': {
         label: 'Companion Link',
-        discover: () => Discovery.companionLink().find(),
+        discover: () => discoverCompanionLink(),
         credentialKey: 'companionLink',
         listenPort: 49152,
         create: (options) => new CompanionLinkProxy(options)
     },
     'airplay': {
         label: 'AirPlay',
-        discover: () => Discovery.airplay().find(),
+        discover: () => discoverAirPlay(),
         credentialKey: 'airplay',
         listenPort: 7000,
         create: (options) => new AirPlayProxy(options)

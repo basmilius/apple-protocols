@@ -1,8 +1,6 @@
 /// <reference types="node" preserve="true" />
 export {
-    Connection,
-    EncryptionAwareConnection,
-    EncryptionState
+    Connection
 } from './connection';
 
 export {
@@ -11,14 +9,18 @@ export {
 } from './context';
 
 export {
+    buildNonce,
+    EncryptionAwareConnection,
+    EncryptionState,
+    type NonceFormat
+} from './encryption';
+
+export {
     ConnectionRecovery,
     type ConnectionRecoveryOptions
 } from './recovery';
 
-export {
-    ENCRYPTION
-} from './symbols';
-
 export type {
+    CloseReason,
     ConnectionState
 } from './types';

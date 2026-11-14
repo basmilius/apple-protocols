@@ -64,7 +64,7 @@ type SrvRecord = {
 /**
  * Encodes a domain name into DNS wire format (length-prefixed labels terminated by 0x00).
  *
- * @param name - The domain name to encode (e.g. "_airplay._tcp.local").
+ * @param name - The domain name to encode (e.g. "_hap._tcp.local").
  * @returns A buffer containing the encoded QNAME.
  */
 const encodeQName = (name: string): Buffer => {
@@ -88,8 +88,8 @@ const encodeQName = (name: string): Buffer => {
 
 /**
  * Splits a service name into DNS labels, handling instance names that may contain dots.
- * For example, "Living Room._airplay._tcp.local" splits into
- * ["Living Room", "_airplay", "_tcp", "local"].
+ * For example, "Living Room._hap._tcp.local" splits into
+ * ["Living Room", "_hap", "_tcp", "local"].
  *
  * @param name - The full service name.
  * @returns An array of DNS labels.
@@ -148,7 +148,7 @@ const encodeDnsQuestion = (name: string, qtype: number, unicastResponse: boolean
  * Creates one or more DNS query packets for the given service types.
  * Services are batched into groups of {@link SERVICES_PER_MSG} per packet.
  *
- * @param services - The mDNS service types to query (e.g. '_airplay._tcp.local').
+ * @param services - The mDNS service types to query (e.g. '_hap._tcp.local').
  * @param qtype - The DNS query type. Defaults to PTR.
  * @param unicastResponse - Whether to set the QU (unicast response) bit.
  * @returns An array of encoded DNS query packets.
@@ -529,18 +529,12 @@ class ServiceCollector {
 
 // --- Scanners ---
 
-/** Well-known ports used to wake sleeping Apple devices via TCP SYN. */
-export const WAKE_PORTS: number[] = [7000, 3689, 49152, 32498];
-
 /**
- * Sends TCP connection attempts ("knocks") to well-known Apple service ports
- * to wake a sleeping device before querying it.
- *
- * @param address - The IP address of the device to wake.
- * @returns A promise that resolves when all knock attempts complete (success or failure).
+ * Sends a TCP connection attempt ("knock") to each port to wake a sleeping device before querying
+ * it. Which ports wake a device is the caller's knowledge. Resolves once every attempt settled.
  */
-export function knock(address: string): Promise<void> {
-    const promises = WAKE_PORTS.map(port => new Promise<void>((resolve) => {
+export function knock(address: string, ports: readonly number[]): Promise<void> {
+    const promises = ports.map(port => new Promise<void>((resolve) => {
         const socket = createConnection({ host: address, port, timeout: 500 });
         socket.on('connect', () => { socket.destroy(); resolve(); });
         socket.on('error', () => { socket.destroy(); resolve(); });
@@ -551,16 +545,17 @@ export function knock(address: string): Promise<void> {
 }
 
 /**
- * Performs unicast DNS-SD queries to specific hosts. First wakes the devices
- * via TCP knocking, then repeatedly sends DNS queries via UDP to port 5353 on
- * each host, collecting responses for the specified duration.
+ * Performs unicast DNS-SD queries to specific hosts. First knocks on `wakePorts` of each host,
+ * then repeatedly sends DNS queries via UDP to port 5353 on each host, collecting responses for
+ * the specified duration.
  *
  * @param hosts - IP addresses of the specific devices to query.
  * @param services - mDNS service types to discover.
  * @param timeout - Discovery duration in seconds. Defaults to 4.
+ * @param wakePorts - Ports to knock on before querying; none by default.
  * @returns An array of resolved mDNS services.
  */
-export function unicast(hosts: string[], services: string[], timeout: number = 4): Promise<MdnsService[]> {
+export function unicast(hosts: string[], services: string[], timeout: number = 4, wakePorts: readonly number[] = []): Promise<MdnsService[]> {
     const expectedCount = hosts.length * services.length;
 
     return new Promise((resolve) => {
@@ -598,7 +593,7 @@ export function unicast(hosts: string[], services: string[], timeout: number = 4
         socket.on('error', () => {});
 
         for (const host of hosts) {
-            knock(host);
+            knock(host, wakePorts);
         }
 
         const sendQueries = () => {

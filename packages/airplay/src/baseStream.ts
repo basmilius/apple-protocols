@@ -3,23 +3,13 @@ import type { EventMap } from '@corewire/core';
 import { chacha20Decrypt, chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
 /**
- * Default events emitted by all AirPlay streams.
- */
-type DefaultEventMap = {
-    close: [];
-    connect: [];
-    error: [Error];
-    timeout: [];
-};
-
-/**
  * Base class for AirPlay encrypted TCP streams (DataStream, EventStream).
  *
  * Extends {@link EncryptionAwareConnection} with AirPlay-specific ChaCha20
  * encryption that uses length-prefixed frames and a 12-byte nonce with a
  * 4-byte zero prefix followed by an 8-byte little-endian counter.
  */
-export class BaseStream<TEventMap extends EventMap = {}> extends EncryptionAwareConnection<DefaultEventMap & TEventMap> {
+export class BaseStream<TEventMap extends EventMap = {}> extends EncryptionAwareConnection<TEventMap> {
     /**
      * Decrypts incoming data using AirPlay's ChaCha20 frame format.
      *

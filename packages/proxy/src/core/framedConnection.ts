@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
-import { type Context, EncryptionState } from '@corewire/core/transport';
+import { buildNonce, type Context, EncryptionState } from '@corewire/core/transport';
 import { Chacha20 } from '@corewire/core/crypto';
 
 /** Size of the frame header in bytes (1 byte type + 3 bytes payload length, big-endian). */
@@ -118,9 +118,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         let data: Buffer;
 
         if (encrypt) {
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#encryption.writeCount++), 0);
-
+            const nonce = buildNonce(this.#encryption.writeCount++, 'counter-at-0');
             const encrypted = Chacha20.encrypt(this.#encryption.writeKey, nonce, header, payload);
             data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
         } else {
@@ -254,8 +252,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         const authTag = body.subarray(body.byteLength - AUTH_TAG_LENGTH);
         const ciphertext = body.subarray(0, body.byteLength - AUTH_TAG_LENGTH);
 
-        const nonce = Buffer.alloc(12);
-        nonce.writeBigUInt64LE(BigInt(this.#encryption.readCount++), 0);
+        const nonce = buildNonce(this.#encryption.readCount++, 'counter-at-0');
 
         return Chacha20.decrypt(this.#encryption.readKey, nonce, header, ciphertext, authTag);
     }

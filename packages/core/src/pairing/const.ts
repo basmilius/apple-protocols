@@ -1,2 +1,2 @@
-/** Default PIN used for transient (non-persistent) AirPlay pairing sessions. */
-export const AIRPLAY_TRANSIENT_PIN = '3939';
+/** The fixed setup code of a HAP transient pair-setup. */
+export const TRANSIENT_PAIRING_PIN = '3939';

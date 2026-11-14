@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { ConnectionClosedError, TimeoutError } from '@corewire/core';
-import { type Context, EncryptionAwareConnection, EncryptionState } from '@corewire/core/transport';
+import { buildNonce, type Context, EncryptionAwareConnection, EncryptionState } from '@corewire/core/transport';
 import { OPack } from '@corewire/core/encoding';
 import { Chacha20 } from '@corewire/core/crypto';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
@@ -61,7 +61,7 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
         this.onStreamData = this.onStreamData.bind(this);
         this.onStreamError = this.onStreamError.bind(this);
 
-        this.on('close', this.onStreamClose);
+        this.on('closed', this.onStreamClose);
         this.on('data', this.onStreamData);
         this.on('error', this.onStreamError);
     }
@@ -128,9 +128,7 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
         let data: Buffer;
 
         if (encrypt) {
-            const nonce = Buffer.alloc(12);
-            nonce.writeBigUInt64LE(BigInt(this.#encryptionState.writeCount++), 0);
-
+            const nonce = buildNonce(this.#encryptionState.writeCount++, 'counter-at-0');
             const encrypted = Chacha20.encrypt(this.#encryptionState.writeKey, nonce, header, payload);
             data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
         } else {
@@ -264,9 +262,7 @@ export class Stream extends EncryptionAwareConnection<Record<string, [unknown]>>
         const authTag = payload.subarray(payload.byteLength - 16);
         const ciphertext = payload.subarray(0, payload.byteLength - 16);
 
-        const nonce = Buffer.alloc(12);
-        nonce.writeBigUint64LE(BigInt(this.#encryptionState.readCount++), 0);
-
+        const nonce = buildNonce(this.#encryptionState.readCount++, 'counter-at-0');
         const decrypted = Chacha20.decrypt(this.#encryptionState.readKey, nonce, header, ciphertext, authTag);
 
         return Buffer.concat([header, decrypted]);

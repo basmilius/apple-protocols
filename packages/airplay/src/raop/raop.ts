@@ -7,6 +7,7 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO
 import type { AudioSource } from '../audioSource';
 import { AudioSourceSession } from '../audioSourceSession';
 import { TimingServer } from '../timing';
+import { RAOP_SERVICE } from './discovery';
 import type { MediaMetadata, PlaybackInfo, Settings, StreamContext, StreamProtocol } from './types';
 import { RaopRtspClient as RtspClient } from './rtspClient';
 import { StreamClient } from './streamClient';
@@ -193,7 +194,7 @@ export class RaopClient extends EventEmitter<EventMap> {
      * @returns A fully initialized and connected RaopClient.
      */
     static async discover(deviceId: string, timingServer: TimingServer): Promise<RaopClient> {
-        const discovery = Discovery.raop();
+        const discovery = new Discovery(RAOP_SERVICE);
         const result = await discovery.findUntil(deviceId);
 
         return RaopClient.create(result, timingServer);

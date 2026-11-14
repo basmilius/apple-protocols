@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
-import type { Context } from '@corewire/core/transport';
+import { buildNonce, type Context } from '@corewire/core/transport';
 import { Chacha20 } from '@corewire/core/crypto';
 import { parseRequest, parseResponse, type RtspRequest } from '@corewire/airplay/rtsp';
 
@@ -24,19 +24,7 @@ type ControlConnectionEvents = {
     error: [error: Error];
 };
 
-/**
- * Builds the 12-byte ChaCha20 nonce for the AirPlay control stream: an 8-byte little-endian counter at
- * offset 4 (matching `airplay/src/utils.ts`).
- *
- * @param counter - The per-direction frame counter.
- * @returns The 12-byte nonce.
- */
-function nonce(counter: number): Buffer {
-    const value = Buffer.alloc(12);
-    value.writeBigUInt64LE(BigInt(counter), 4);
-
-    return value;
-}
+const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
 
 /**
  * AirPlay RTSP over an existing TCP socket, plaintext until {@link enableEncryption}.

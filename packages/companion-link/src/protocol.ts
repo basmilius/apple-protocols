@@ -81,7 +81,7 @@ export class Protocol {
                 this.#textSession = undefined;
             }
         });
-        this.#stream.on('close', () => { this.#textGeneration++; });
+        this.#stream.on('closed', () => { this.#textGeneration++; });
     }
 
     // --- Lifecycle ---

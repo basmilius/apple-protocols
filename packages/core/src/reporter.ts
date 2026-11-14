@@ -39,8 +39,8 @@ export type ReporterSinkOptions = {
     readonly groups?: readonly DebugGroup[];
 };
 
-/** The framed channels whose messages can be tapped. */
-export type TrafficProtocol = 'companionLink' | 'dataStream' | 'eventStream' | 'rtsp';
+/** The label of the channel a tapped message crossed; each protocol package picks its own. */
+export type TrafficProtocol = string;
 
 export type TrafficDirection = 'in' | 'out';
 

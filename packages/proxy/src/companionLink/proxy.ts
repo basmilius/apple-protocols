@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { type AccessoryCredentials, type AccessoryIdentity, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer } from '@corewire/core/pairing';
+import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
 import { Context } from '@corewire/core/transport';
 import { deriveEncryptionKeys } from '@corewire/core/crypto';
 import type { DiscoveryResult } from '@corewire/core/discovery';
@@ -93,8 +93,8 @@ export class CompanionLinkProxy implements ProtocolProxy {
 class ProxySession {
     readonly #context: Context;
     readonly #options: CompanionLinkProxyOptions;
-    readonly #pairServer: AccessoryPairServer;
-    readonly #verifyServer: AccessoryVerifyServer;
+    readonly #pairServer: PairSetupServer;
+    readonly #verifyServer: PairVerifyServer;
 
     #controller?: FramedConnection;
     #device?: FramedConnection;
@@ -109,8 +109,8 @@ class ProxySession {
     constructor(context: Context, options: CompanionLinkProxyOptions, identity: ReturnType<ProxyStore['accessoryIdentity']>) {
         this.#context = context;
         this.#options = options;
-        this.#pairServer = new AccessoryPairServer(context, identity, options.pin);
-        this.#verifyServer = new AccessoryVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
+        this.#pairServer = new PairSetupServer(context, identity, options.pin);
+        this.#verifyServer = new PairVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
     }
 
     /**
@@ -190,7 +190,7 @@ class ProxySession {
             this.#teardown();
         });
 
-        const verify = new AccessoryVerify(this.#context, (step, tlv) => {
+        const verify = new PairVerify(this.#context, (tlv, step) => {
             const frameType = step === 'm1' ? FrameType.PairVerifyStart : FrameType.PairVerifyNext;
             return this.#deviceExchange(frameType, tlv);
         });

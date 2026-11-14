@@ -1,3 +1,26 @@
+/**
+ * Parses the `features` TXT value of an mDNS record: one hex value, or two comma-separated 32-bit
+ * hex values (low,high) that form a 64-bit mask.
+ *
+ * @throws If the value has neither form.
+ */
+export function parseFeatures(features: string): bigint {
+    const parts = features.split(',').map(part => part.trim());
+
+    if (parts.length === 1) {
+        return BigInt(parts[0]);
+    }
+
+    if (parts.length === 2) {
+        const low = BigInt(parts[0]);
+        const high = BigInt(parts[1]);
+
+        return (high << 32n) | low;
+    }
+
+    throw new Error(`Invalid features format: ${features}`);
+}
+
 /** Decodes Apple's full, little-endian feature vector from /info. */
 export function parseReceiverFeatures(info: Record<string, unknown>): bigint {
     if (typeof info.featuresEx === 'string') {

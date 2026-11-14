@@ -21,6 +21,18 @@ export {
 } from './const';
 
 export {
+    AIRPLAY_SERVICE,
+    type AirPlayDiscoveryResult,
+    discover,
+    type DiscoverOptions,
+    withFeatures
+} from './discovery';
+
+export {
+    parseFeatures
+} from './features';
+
+export {
     generateActiveRemoteId,
     generateDacpId,
     generateSessionId

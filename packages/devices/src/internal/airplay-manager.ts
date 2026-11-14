@@ -224,7 +224,6 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         this.#protocol = protocol;
         this.#observeClose(protocol.controlStream, protocol);
         protocol.controlStream.on('error', this.onError);
-        protocol.controlStream.on('timeout', this.onTimeout);
 
         const assertCurrent = (): void => {
             if (this.#protocol !== protocol || this.#disconnect) {
@@ -282,7 +281,6 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             detach();
         }
         this.#protocol?.controlStream.off('error', this.onError);
-        this.#protocol?.controlStream.off('timeout', this.onTimeout);
 
         if (this.#feedbackInterval) {
             clearInterval(this.#feedbackInterval);
@@ -291,9 +289,7 @@ export class AirPlayManager extends EventEmitter<EventMap> {
 
         this.#prevDataStream?.off('setConnectionState', this.onConnectionState);
         this.#prevDataStream?.off('error', this.onStreamError);
-        this.#prevDataStream?.off('timeout', this.onTimeout);
         this.#prevEventStream?.off('error', this.onStreamError);
-        this.#prevEventStream?.off('timeout', this.onTimeout);
         this.#prevDataStream = undefined;
         this.#prevEventStream = undefined;
 
@@ -673,8 +669,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
                 this.onClose();
             }
         };
-        stream.on('close', onClose);
-        this.#closeListeners.push(() => stream.off('close', onClose));
+        stream.on('closed', onClose);
+        this.#closeListeners.push(() => stream.off('closed', onClose));
     }
 
     /**
@@ -755,10 +751,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
         try {
             // Old subscriptions must be removed before binding the new streams.
             this.#prevDataStream?.off('error', this.onStreamError);
-            this.#prevDataStream?.off('timeout', this.onTimeout);
             this.#prevDataStream?.off('setConnectionState', this.onConnectionState);
             this.#prevEventStream?.off('error', this.onStreamError);
-            this.#prevEventStream?.off('timeout', this.onTimeout);
 
             await protocol.setupEventStream(keys.sharedSecret, keys.pairingId);
             if (this.#disconnect || protocol !== this.#protocol) {
@@ -776,10 +770,8 @@ export class AirPlayManager extends EventEmitter<EventMap> {
             this.#observeClose(protocol.dataStream, protocol);
 
             protocol.dataStream.on('error', this.onStreamError);
-            protocol.dataStream.on('timeout', this.onTimeout);
             protocol.dataStream.on('setConnectionState', this.onConnectionState);
             protocol.eventStream.on('error', this.onStreamError);
-            protocol.eventStream.on('timeout', this.onTimeout);
 
             this.#prevDataStream = protocol.dataStream;
             this.#prevEventStream = protocol.eventStream;

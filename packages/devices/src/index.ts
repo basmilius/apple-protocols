@@ -40,7 +40,8 @@ export {
 } from './internal';
 
 // --- Discovery ---
-export { discover, createDevice, type DiscoveredDevice, type DiscoverOptions } from './discover';
+export { discover, discoverAll, createDevice, type CombinedDiscoveryResult, type DiscoveredDevice, type DiscoverOptions, mdnsUnicast, WAKE_PORTS } from './discover';
+export { DeviceFamily, DeviceModel, getDeviceFamily, getDeviceModelName, isAirPort, isAppleTV, isHomePod, lookupDeviceModel } from './deviceModel';
 
 // --- Configuration ---
 export { configure, type SdkConfig } from './configure';
@@ -65,8 +66,10 @@ export type {
 export { SendCommandError } from './types';
 
 // --- Re-exports from protocol packages ---
-export { type AudioSource, Proto, TimingServer } from '@corewire/airplay';
+export { AIRPLAY_SERVICE, type AudioSource, Proto, TimingServer } from '@corewire/airplay';
+export { RAOP_SERVICE } from '@corewire/airplay/raop';
+export { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
 export { type DebugGroup, reporter, type ReporterEntry, type ReporterSink, type ReporterSinkOptions, type TrafficDirection, type TrafficEntry, type TrafficProtocol, type TrafficSink } from '@corewire/core';
-export { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, mdnsMulticast, type MdnsService, mdnsUnicast, RAOP_SERVICE } from '@corewire/core/discovery';
+export { mdnsMulticast, type MdnsService } from '@corewire/core/discovery';
 export { JsonStorage, MemoryStorage, type ProtocolType, Storage } from '@corewire/core/storage';
 export { ConnectionRecovery } from '@corewire/core/transport';

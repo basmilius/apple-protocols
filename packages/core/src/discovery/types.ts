@@ -118,22 +118,8 @@ export type Result = {
     readonly [key: string]: unknown;
 };
 
-/** Extended discovery result with device identifier, TXT record properties, and parsed feature flags. */
+/** A discovered service instance with its host id and TXT record. Protocol packages extend it. */
 export type DiscoveryResult = {
     readonly id: string;
     readonly txt: Record<string, string>;
-    readonly features?: bigint;
 } & Result;
-
-/**
- * Aggregated discovery result combining AirPlay, Companion Link, and RAOP
- * service information for a single physical device.
- */
-export type CombinedDiscoveryResult = {
-    readonly id: string;
-    readonly name: string;
-    readonly address: string;
-    airplay?: DiscoveryResult;
-    companionLink?: DiscoveryResult;
-    raop?: DiscoveryResult;
-};

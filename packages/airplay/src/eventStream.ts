@@ -43,7 +43,7 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
         this.onStreamData = this.onStreamData.bind(this);
         this.onStreamError = this.onStreamError.bind(this);
 
-        this.on('close', this.onStreamClose);
+        this.on('closed', this.onStreamClose);
         this.on('data', this.onStreamData);
         this.on('error', this.onStreamError);
     }
@@ -222,8 +222,7 @@ export class EventStream extends BaseStream<EventStreamEventMap> {
             this.#encryptedBuffer = Buffer.alloc(0);
             this.#buffer = Buffer.alloc(0);
             this.context.logger.error('[event]', 'onStreamData()', err);
-            this.destroy();
-            this.emit('error', err);
+            this.destroy(err instanceof Error ? err : new Error(String(err)));
         }
     }
 }

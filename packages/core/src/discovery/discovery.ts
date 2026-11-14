@@ -1,105 +1,43 @@
 import { DiscoveryError } from '../errors';
 import { Logger } from '../reporter';
 import { waitFor } from '../utils';
-import { AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE } from './const';
-import { parseFeatures } from './features';
 import { knock, multicast, unicast, type MdnsService } from './mdns';
-import type { CombinedDiscoveryResult, DiscoveryResult } from './types';
+import type { DiscoveryResult } from './types';
 
-/** A cached set of discovery results with an expiration timestamp. */
 type CacheEntry = {
     results: DiscoveryResult[];
     expiresAt: number;
 };
 
-/** Cache time-to-live in milliseconds. */
 const CACHE_TTL = 30_000;
-
-/**
- * Converts a raw mDNS service record into a {@link DiscoveryResult}.
- *
- * @param service - The mDNS service record.
- * @returns A normalized discovery result.
- */
-const toDiscoveryResult = (service: MdnsService): DiscoveryResult => {
-    const txt = service.properties;
-    const featuresStr = txt.features ?? txt.ft;
-    const model = txt.model ?? txt.am ?? '';
-    const protocol = service.type.includes('._tcp') ? 'tcp' as const : 'udp' as const;
-
-    const hostname = service.name.replace(/\s+/g, '-');
-
-    return {
-        id: `${hostname}.local`,
-        fqdn: `${hostname}.local`,
-        address: service.address,
-        modelName: model,
-        familyName: null,
-        txt,
-        features: featuresStr ? tryParseFeatures(featuresStr) : undefined,
-        service: {
-            port: service.port,
-            protocol,
-            type: service.type
-        },
-        packet: null as any
-    };
-};
-
-/**
- * Safely parses a features string, returning undefined on failure.
- *
- * @param features - The features string to parse.
- * @returns The parsed feature bitmask, or undefined if parsing fails.
- */
-const tryParseFeatures = (features: string): bigint | undefined => {
-    try {
-        return parseFeatures(features);
-    } catch {
-        return undefined;
-    }
-};
 
 const logger = new Logger('discovery');
 
 /**
- * mDNS service discovery for Apple devices on the local network.
+ * mDNS service discovery for any service type. Which service type a protocol advertises, and what
+ * its TXT record means, is the knowledge of that protocol's package.
  *
- * Supports discovering AirPlay, Companion Link, and RAOP services via multicast DNS.
- * Results are cached for 30 seconds to avoid excessive network traffic.
- * Use the static factory methods {@link Discovery.airplay}, {@link Discovery.companionLink},
- * and {@link Discovery.raop} for convenience.
+ * Results are cached for 30 seconds per service type, and concurrent scans for the same set of
+ * types share one multicast query. The cache is shared by all instances on purpose: protocol
+ * packages and `@corewire/devices` scan through separate instances but should not flood the
+ * network with one query each.
  */
 export class Discovery {
-    /** Shared cache of discovery results, keyed by service type. */
     static #cache: Map<string, CacheEntry> = new Map();
     static #scans = new Map<string, Promise<Map<string, DiscoveryResult[]>>>();
 
+    get service(): string {
+        return this.#service;
+    }
+
     readonly #service: string;
 
-    /**
-     * @param service - The mDNS service type to discover (e.g. '_airplay._tcp.local').
-     */
+    /** @param service - The mDNS service type, e.g. '_hap._tcp.local'. */
     constructor(service: string) {
         this.#service = service;
     }
 
-    /**
-     * Discovers devices advertising this service type via mDNS multicast.
-     * Returns cached results if available and not expired.
-     *
-     * @param useCache - Whether to use cached results. Defaults to true.
-     * @returns An array of discovered devices.
-     */
     async find(useCache: boolean = true): Promise<DiscoveryResult[]> {
-        if (useCache) {
-            const cached = Discovery.#cache.get(this.#service);
-
-            if (cached && cached.expiresAt > Date.now()) {
-                return cached.results;
-            }
-        }
-
         const now = Date.now();
 
         for (const [key, entry] of Discovery.#cache) {
@@ -111,49 +49,11 @@ export class Discovery {
         return (await Discovery.findServices([this.#service], useCache)).get(this.#service)!;
     }
 
-    /** One multicast scan and one in-flight operation for a group of service types. */
-    static async findServices(services: readonly string[], useCache = true): Promise<Map<string, DiscoveryResult[]>> {
-        const result = new Map<string, DiscoveryResult[]>();
-        const missing = [...new Set(services)].filter(service => {
-            const cached = Discovery.#cache.get(service);
-            if (useCache && cached && cached.expiresAt > Date.now()) {
-                result.set(service, cached.results);
-                return false;
-            }
-            return true;
-        }).sort();
-        if (missing.length === 0) {
-            return result;
-        }
-        const key = missing.join(',');
-        let scan = Discovery.#scans.get(key);
-        if (!scan) {
-            scan = multicast(missing, 4).then(records => {
-                const found = new Map<string, DiscoveryResult[]>();
-                for (const service of missing) {
-                    const results = records.filter(record => record.type === service || `${record.type}.local` === service).map(toDiscoveryResult);
-                    found.set(service, results);
-                    Discovery.#cache.set(service, {results, expiresAt: Date.now() + CACHE_TTL});
-                }
-                return found;
-            }).finally(() => Discovery.#scans.delete(key));
-            Discovery.#scans.set(key, scan);
-        }
-        for (const [service, records] of await scan) {
-            result.set(service, records);
-        }
-        return result;
-    }
-
     /**
-     * Repeatedly searches for a specific device by ID until found or retries are exhausted.
-     * Does not use the cache to ensure fresh results on each attempt.
+     * Scans again until a device with this id answers. Skips the cache on every attempt.
      *
-     * @param id - The device ID to search for.
-     * @param tries - Maximum number of discovery attempts. Defaults to 10.
-     * @param timeout - Delay in milliseconds between attempts. Defaults to 1000.
-     * @returns The discovered device.
-     * @throws {DiscoveryError} If the device is not found after all attempts.
+     * @param timeout - Delay in milliseconds between attempts.
+     * @throws {DiscoveryError} If the device does not answer within `tries` attempts.
      */
     async findUntil(id: string, tries: number = 10, timeout: number = 1000): Promise<DiscoveryResult> {
         while (tries > 0) {
@@ -175,97 +75,90 @@ export class Discovery {
     }
 
     /**
-     * Discovers a device at a specific IP address via unicast DNS-SD.
-     * Bypasses the cache entirely since it targets a known host.
+     * Queries one host with unicast DNS-SD, bypassing the cache.
      *
-     * @param address - The IP address of the device to query.
-     * @param timeout - Discovery duration in seconds. Defaults to 4.
-     * @returns The discovered device, or null if not found.
+     * @param timeout - Discovery duration in seconds.
+     * @param wakePorts - Ports to knock on first, to wake a sleeping device.
      */
-    async findByAddress(address: string, timeout: number = 4): Promise<DiscoveryResult | null> {
-        const services = await unicast([address], [this.#service], timeout);
-        const match = services.find(s => s.address === address);
+    async findByAddress(address: string, timeout: number = 4, wakePorts: readonly number[] = []): Promise<DiscoveryResult | null> {
+        const services = await unicast([address], [this.#service], timeout, wakePorts);
+        const match = services.find(service => service.address === address);
 
         return match ? toDiscoveryResult(match) : null;
     }
 
-    /** Clears all cached discovery results across all service types. */
+    /** One multicast scan, and one in-flight operation, for a group of service types. */
+    static async findServices(services: readonly string[], useCache: boolean = true): Promise<Map<string, DiscoveryResult[]>> {
+        const result = new Map<string, DiscoveryResult[]>();
+        const missing = [...new Set(services)].filter(service => {
+            const cached = Discovery.#cache.get(service);
+
+            if (useCache && cached && cached.expiresAt > Date.now()) {
+                result.set(service, cached.results);
+
+                return false;
+            }
+
+            return true;
+        }).sort();
+
+        if (missing.length === 0) {
+            return result;
+        }
+
+        const key = missing.join(',');
+        let scan = Discovery.#scans.get(key);
+
+        if (!scan) {
+            scan = multicast(missing, 4).then(records => {
+                const found = new Map<string, DiscoveryResult[]>();
+
+                for (const service of missing) {
+                    const results = records.filter(record => record.type === service || `${record.type}.local` === service).map(toDiscoveryResult);
+                    found.set(service, results);
+                    Discovery.#cache.set(service, {results, expiresAt: Date.now() + CACHE_TTL});
+                }
+
+                return found;
+            }).finally(() => Discovery.#scans.delete(key));
+
+            Discovery.#scans.set(key, scan);
+        }
+
+        for (const [service, records] of await scan) {
+            result.set(service, records);
+        }
+
+        return result;
+    }
+
     static clearCache(): void {
         Discovery.#cache.clear();
     }
 
-    /**
-     * Attempts to wake a sleeping Apple device by knocking on well-known ports.
-     * Sends TCP connection attempts to ports 7000, 3689, 49152, and 32498.
-     *
-     * @param address - The IP address of the device to wake.
-     */
-    static wake(address: string): Promise<void> {
-        return knock(address);
+    /** Knocks on each port to wake a sleeping device. */
+    static wake(address: string, ports: readonly number[]): Promise<void> {
+        return knock(address, ports);
     }
+}
 
-    /**
-     * Discovers all Apple devices on the network across all supported service types
-     * (AirPlay, Companion Link, RAOP) and merges them by device ID.
-     *
-     * @returns An array of combined results, each representing a single physical device
-     *          with its available service endpoints.
-     */
-    static async discoverAll(): Promise<CombinedDiscoveryResult[]> {
-        const allServices = await multicast([AIRPLAY_SERVICE, COMPANION_LINK_SERVICE, RAOP_SERVICE], 4);
-        const devices = new Map<string, CombinedDiscoveryResult>();
+function toDiscoveryResult(service: MdnsService): DiscoveryResult {
+    const txt = service.properties;
+    const hostname = service.name.replace(/\s+/g, '-');
 
-        for (const service of allServices) {
-            const result = toDiscoveryResult(service);
-            const existing = devices.get(result.id);
-
-            if (existing) {
-                if (service.type === AIRPLAY_SERVICE) {
-                    existing.airplay = result;
-                } else if (service.type === COMPANION_LINK_SERVICE) {
-                    existing.companionLink = result;
-                } else if (service.type === RAOP_SERVICE) {
-                    existing.raop = result;
-                }
-            } else {
-                devices.set(result.id, {
-                    id: result.id,
-                    name: result.fqdn,
-                    address: result.address,
-                    airplay: service.type === AIRPLAY_SERVICE ? result : undefined,
-                    companionLink: service.type === COMPANION_LINK_SERVICE ? result : undefined,
-                    raop: service.type === RAOP_SERVICE ? result : undefined
-                });
-            }
-        }
-
-        return [...devices.values()];
-    }
-
-    /**
-     * Creates a Discovery instance for AirPlay services.
-     *
-     * @returns A new Discovery instance targeting `_airplay._tcp.local`.
-     */
-    static airplay(): Discovery {
-        return new Discovery(AIRPLAY_SERVICE);
-    }
-
-    /**
-     * Creates a Discovery instance for Companion Link services.
-     *
-     * @returns A new Discovery instance targeting `_companion-link._tcp.local`.
-     */
-    static companionLink(): Discovery {
-        return new Discovery(COMPANION_LINK_SERVICE);
-    }
-
-    /**
-     * Creates a Discovery instance for RAOP services.
-     *
-     * @returns A new Discovery instance targeting `_raop._tcp.local`.
-     */
-    static raop(): Discovery {
-        return new Discovery(RAOP_SERVICE);
-    }
+    return {
+        id: `${hostname}.local`,
+        fqdn: `${hostname}.local`,
+        address: service.address,
+        // Apple services advertise the model as `model` or `am`.
+        modelName: txt.model ?? txt.am ?? '',
+        familyName: null,
+        txt,
+        service: {
+            port: service.port,
+            protocol: service.type.includes('._tcp') ? 'tcp' : 'udp',
+            type: service.type
+        },
+        packet: null as any
+    };
 }

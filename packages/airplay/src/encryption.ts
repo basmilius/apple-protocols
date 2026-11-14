@@ -1,6 +1,7 @@
-import type { EncryptionState } from '@corewire/core/transport';
+import { buildNonce, type EncryptionState } from '@corewire/core/transport';
 import { Chacha20 } from '@corewire/core/crypto';
-import { nonce } from './utils';
+
+const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
 
 /**
  * Decrypts AirPlay ChaCha20-Poly1305 encrypted data.

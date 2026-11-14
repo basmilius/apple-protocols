@@ -156,9 +156,8 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
         const protocol = new Protocol(this.#discoveryResult);
         this.#protocol = protocol;
         this.#disconnect = false;
-        protocol.stream.on('close', this.onClose);
+        protocol.stream.on('closed', this.onClose);
         protocol.stream.on('error', this.onError);
-        protocol.stream.on('timeout', this.onTimeout);
         const check = (): void => {
             if (generation !== this.#generation || this.#disconnect) {
                 throw new Error('Companion Link connect cancelled.');
@@ -198,9 +197,8 @@ export class CompanionLinkManager extends EventEmitter<EventMap> {
 
         /* Keep the protocol reference across await; concurrent connect() may replace it. */
         const protocol = this.#protocol;
-        protocol?.stream.off('close', this.onClose);
+        protocol?.stream.off('closed', this.onClose);
         protocol?.stream.off('error', this.onError);
-        protocol?.stream.off('timeout', this.onTimeout);
         if (this.#connecting) {
             protocol?.stream.destroy();
         } else {

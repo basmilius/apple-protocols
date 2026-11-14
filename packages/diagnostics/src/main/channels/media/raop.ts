@@ -1,5 +1,5 @@
-import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
-import { pctToDbfs, RaopClient } from '@corewire/airplay/raop';
+import type { DiscoveryResult } from '@corewire/core/discovery';
+import { discover as discoverRaop, pctToDbfs, RaopClient } from '@corewire/airplay/raop';
 import type { RaopServiceInfo, RaopStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import { serialize } from '../../serialize';
@@ -82,7 +82,7 @@ export function registerRaopChannels(context: ChannelContext): void {
     };
 
     handle('raop:services', async request => {
-        services = await Discovery.raop().find(request?.rescan !== true);
+        services = await discoverRaop({useCache: request?.rescan !== true});
 
         return services.map(describe);
     });
@@ -98,7 +98,7 @@ export function registerRaopChannels(context: ChannelContext): void {
             await state.client.close();
             state.client = null;
         }
-        if (services.length === 0) services = await Discovery.raop().find(true);
+        if (services.length === 0) services = await discoverRaop({useCache: true});
         const discovered = context.sessions.discoveredDevice(request.deviceId);
         const service = request.serviceId ? services.find(candidate => candidate.id === request.serviceId) : services.find(candidate => candidate.address === discovered?.address);
 

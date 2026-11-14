@@ -108,8 +108,8 @@ export type {
     AccessoryCredentials
 } from '@corewire/core/pairing';
 export type {
-    DiscoveryResult
-} from '@corewire/core/discovery';
+    AirPlayDiscoveryResult as DiscoveryResult
+} from '@corewire/airplay';
 
 export type {
     AirPlayClient,

@@ -1,5 +1,5 @@
 import { reporter, type TrafficEntry } from '@corewire/devices';
-import type { TrafficRecord } from '@shared/contract';
+import type { TrafficProtocol, TrafficRecord } from '@shared/contract';
 import { Ring } from './ring';
 import { serialize } from './serialize';
 
@@ -37,7 +37,8 @@ export class TrafficBuffer {
         const record: TrafficRecord = {
             id: this.#next,
             deviceId: entry.deviceId,
-            protocol: entry.protocol,
+            // Core labels are free-form; these are the labels the protocol packages pass.
+            protocol: entry.protocol as TrafficProtocol,
             direction: entry.direction,
             summary: entry.summary,
             decoded: serialize(entry.decoded),

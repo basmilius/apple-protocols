@@ -1,21 +1,16 @@
+import { Discovery, mdnsMulticast } from '@corewire/core/discovery';
 import {
     AIRPLAY_SERVICE,
-    COMPANION_LINK_SERVICE,
-    Discovery,
-    getDeviceModelName,
-    lookupDeviceModel,
-    mdnsMulticast,
-    mdnsUnicast,
-    parseFeatures,
-    RAOP_SERVICE
-} from '@corewire/core/discovery';
-import {
     describeFlags,
     getPairingRequirement,
     getProtocolVersion,
     isPasswordRequired,
-    isRemoteControlSupported
+    isRemoteControlSupported,
+    parseFeatures
 } from '@corewire/airplay';
+import { RAOP_SERVICE } from '@corewire/airplay/raop';
+import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
+import { discoverAll as discoverAllDevices, getDeviceModelName, lookupDeviceModel, mdnsUnicast, WAKE_PORTS } from '@corewire/devices';
 import type { DiscoveryService, MdnsCombinedRecord, MdnsFeatures, MdnsQuery, MdnsRecord } from '@shared/contract';
 
 const DEFAULT_TIMEOUT_MS = 4000;
@@ -72,18 +67,7 @@ type DiscoveryHit = {
 
 const fromDiscovery = (result: DiscoveryHit): MdnsRecord => toRecord(result.id.replace(/\.local$/, ''), result.service.type, result.address, result.service.port, result.txt);
 
-const discoveryFor = (service: DiscoveryService): Discovery => {
-    switch (service) {
-        case 'companionLink':
-            return Discovery.companionLink();
-
-        case 'raop':
-            return Discovery.raop();
-
-        default:
-            return Discovery.airplay();
-    }
-};
+const discoveryFor = (service: DiscoveryService): Discovery => new Discovery(SERVICES[service] ?? AIRPLAY_SERVICE);
 
 export async function scan(query: MdnsQuery): Promise<readonly MdnsRecord[]> {
     const services = query.services.map(service => service.trim()).filter(service => service.length > 0);
@@ -105,11 +89,11 @@ export async function scan(query: MdnsQuery): Promise<readonly MdnsRecord[]> {
 }
 
 export async function wake(address: string): Promise<void> {
-    await Discovery.wake(address);
+    await Discovery.wake(address, WAKE_PORTS);
 }
 
 export async function findByAddress(service: DiscoveryService, address: string, timeoutMs?: number): Promise<MdnsRecord | null> {
-    const result = await discoveryFor(service).findByAddress(address, seconds(timeoutMs));
+    const result = await discoveryFor(service).findByAddress(address, seconds(timeoutMs), WAKE_PORTS);
     return result === null ? null : fromDiscovery(result as DiscoveryHit);
 }
 
@@ -119,7 +103,7 @@ export async function findUntil(service: DiscoveryService, id: string, tries?: n
 }
 
 export async function discoverAll(): Promise<readonly MdnsCombinedRecord[]> {
-    const found = await Discovery.discoverAll();
+    const found = await discoverAllDevices();
 
     return found.map(entry => ({
         id: entry.id,

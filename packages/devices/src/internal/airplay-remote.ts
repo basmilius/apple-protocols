@@ -444,7 +444,7 @@ export class AirPlayRemote {
             const cleanup = (): void => {
                 clearTimeout(timer);
                 stream.off('remoteTextInput', onSession);
-                stream.off('close', onClose);
+                stream.off('closed', onClose);
                 stream.off('error', onError);
             };
             const onError = (error: Error): void => { cleanup(); reject(error); };
@@ -462,7 +462,7 @@ export class AirPlayRemote {
             };
             const timer = setTimeout(() => onError(new TimeoutError('AirPlay did not provide an RTI text session.')), 5000);
             stream.on('remoteTextInput', onSession);
-            stream.on('close', onClose);
+            stream.on('closed', onClose);
             stream.on('error', onError);
             try {
                 stream.send(DataStreamMessage.getRemoteTextInputSession());

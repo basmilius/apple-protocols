@@ -23,7 +23,8 @@ type EventMap = {
 
     /**
      * The playback state differs from the last one this object announced; a `change` to null resets
-     * that to `unknown`. Fires before the matching `change`.
+     * that to `unknown`. Fires before the matching `change`; while a reconnect restores, it waits for
+     * the `change` that ends the restore.
      */
     state: [state: PlaybackState, previous: PlaybackState, item: NowPlaying];
 
@@ -31,8 +32,15 @@ type EventMap = {
     artwork: [item: NowPlaying];
 };
 
+/** Identifier, URL, item bytes and SET_ARTWORK bytes of the artwork, as far as they are known. */
+type ArtworkParts = readonly (string | null)[];
+
 function sameItem(a: NowPlaying | null | undefined, b: NowPlaying | null | undefined): boolean {
     return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+function sameArtwork(a: ArtworkParts | undefined, b: ArtworkParts): boolean {
+    return a !== undefined && a.every((part, index) => part === b[index]);
 }
 
 /** Length and hash of image bytes: the same image sent again matches, other bytes for the same item do not. */
@@ -70,11 +78,15 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
 
     readonly #remote: () => MediaRemote | undefined;
     readonly #state: MediaRemoteState;
-    #artwork?: string;
+    #artwork?: ArtworkParts;
     #deadline?: NodeJS.Timeout;
     #heldElapsed: number = 0;
     #last?: NowPlaying | null;
     #lastState: PlaybackState = 'unknown';
+
+    /** Indexes of the artwork parts the current session reported; the others keep the announced value. */
+    readonly #reported: Set<number> = new Set();
+
     #restoring: boolean = false;
     #settle?: NodeJS.Timeout;
 
@@ -128,6 +140,7 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         }
 
         this.#endRestore();
+        this.#reported.clear();
         this.#restoring = this.#last !== undefined;
     }
 
@@ -145,9 +158,31 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         this.#deadline.unref();
     }
 
-    /** The artwork as far as it can be seen from outside: its identifier, its URL and its bytes. */
-    #artworkOf(client: Client | null): string {
-        return JSON.stringify([client?.artworkId ?? null, client?.artworkUrl() ?? null, fingerprintOf(client?.currentItemArtwork), fingerprintOf(this.#state.artworkJpegData)]);
+    /**
+     * Cancels the pending restore timers, so nothing fires after the device disconnected. A restore
+     * in flight keeps the held values until the next session reports. Called on disconnect.
+     */
+    stop(): void {
+        this.#clearTimers();
+    }
+
+    /**
+     * The artwork as far as it can be seen from outside: its identifier, its URL and its bytes. A part
+     * the current session has not reported yet keeps the announced value, so artwork that comes back
+     * in pieces after a reconnect does not look like a change.
+     */
+    #artworkOf(client: Client | null): ArtworkParts {
+        const parts = [client?.artworkId ?? null, client?.artworkUrl() ?? null, fingerprintOf(client?.currentItemArtwork), fingerprintOf(this.#state.artworkJpegData)];
+
+        return parts.map((part, index) => {
+            if (part !== null) {
+                this.#reported.add(index);
+
+                return part;
+            }
+
+            return this.#reported.has(index) ? null : this.#artwork?.[index] ?? null;
+        });
     }
 
     #onArtworkChanged(client: Client): void {
@@ -157,7 +192,7 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
 
         const artwork = this.#artworkOf(client);
 
-        if (artwork === this.#artwork) {
+        if (sameArtwork(this.#artwork, artwork)) {
             return;
         }
 
@@ -176,6 +211,7 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
 
         if (sameItem(item, this.#last)) {
             this.#endRestore();
+            this.#publish(item, client);
 
             return;
         }
@@ -185,7 +221,12 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         this.#settle.unref();
     }
 
+    /** While a reconnect restores, the state is part of the item that ends the restore, so it waits for that. */
     #onPlaybackStateChanged(client: Client, newState: Proto.PlaybackState_Enum): void {
+        if (this.#restoring) {
+            return;
+        }
+
         const state = playbackStateOf(newState);
         const previous = this.#lastState;
 
@@ -197,11 +238,15 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         this.emit('state', state, previous, toNowPlaying(client));
     }
 
-    #endRestore(): void {
+    #clearTimers(): void {
         clearTimeout(this.#settle);
         clearTimeout(this.#deadline);
         this.#settle = undefined;
         this.#deadline = undefined;
+    }
+
+    #endRestore(): void {
+        this.#clearTimers();
         this.#restoring = false;
     }
 
@@ -214,12 +259,12 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         this.#publish(toNowPlaying(current), current);
     }
 
-    /** Announces the item when it differs; a same item whose artwork arrived announces the artwork instead. */
+    /** Announces the item when it differs; a same item whose artwork changed announces the artwork instead. */
     #publish(item: NowPlaying | null, client: Client | null): void {
         if (sameItem(item, this.#last)) {
             const artwork = this.#artworkOf(client);
 
-            if (item && artwork !== this.#artwork && (client?.artworkUrl() != null || client?.currentItemArtwork != null)) {
+            if (item && !sameArtwork(this.#artwork, artwork)) {
                 this.#artwork = artwork;
                 this.emit('artwork', item);
             }

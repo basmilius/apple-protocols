@@ -473,8 +473,10 @@ export class AudioStream {
             this.#context.logger.debug('[audio]', 'TEARDOWN complete');
 
         } finally {
+            // close() stops the source without waiting for it, so a source that hangs on stop cannot
+            // hold up the caller's teardown; the caller awaits the stop itself when it needs to.
             this.close();
-            await session.stop();
+
             if (this.#source === session) {
                 this.#source = undefined;
             }

@@ -9,6 +9,7 @@ Decisions by Bas on section 8: `disconnected` is the sixth state; `remote.press`
 Where the code differs from the sections below:
 
 - **No spurious events across a recovery** (extra requirement). `nowPlaying` compares public values only, with the last ones it announced, which survive sessions. Within a session ST-07 therefore only fires where the public item differs: a change of `hasArtworkUrl`/`hasArtworkData` alone (artwork arriving for the same item) now fires `artwork` instead of `change`. Section 0.1 has the details.
+- **Audio playback teardown.** When an audio stream ends or fails, `AudioPlayback` closes its AirPlay session (control and event channel, feedback timer) before it waits for the source to stop, so a source whose `stop()` rejects or hangs cannot keep that session open. `AudioStream.stream()` no longer waits for the source to stop either; the bytes and their order on the wire stay the same (TEARDOWN, then the UDP sockets, then the session connections).
 - **Volume `change` is deduplicated.** It fires only when level, muted, availability or mode differ from the last emitted value. ST-19 changes: a VOLUME_DID_CHANGE with the same level no longer fires. The getters keep their values across sessions, while `volume.up()`/`down()` still step from the model, which a new session clears to 0 until the device reports (as before, AP-HS-03).
 - **`AppleDevice`** is `AppleDevice<TCapability extends AppleTVCapability = Capability>` with a protected constructor. It exposes `protected mediaRemoteState` and `protected companionLinkState` for the subclass; nothing else is protected.
 - **`Credentials.from(accessoryCredentials)`** is public, for credentials from a protocol `pair()`. Diagnostics needs it.
@@ -28,13 +29,15 @@ The MRP model is cleared at the start of every AirPlay session (AP-HS-03) and fi
 | Event | Old (per connect) | New |
 | --- | --- | --- |
 | `nowPlayingChanged` / `nowPlaying.change` | Always fired at the first evaluation, often twice (app first, then its state). The 15-minute reconnect repeated that every 15 minutes | Fires only when the public `NowPlaying` differs (deep equal) from the last one announced. After a reconnect the device holds back: as soon as the new session reports the announced item again nothing fires; if it reports something else, the item settled after 1 s (the last message resets the wait) is announced once. The restore ends at the latest 5 s after the new session is up; whatever the model holds then (possibly null) is announced once if it differs. `current` keeps the last item meanwhile |
-| `playbackStateChanged` / `nowPlaying.state` | Fired Unknown to Playing at every connect | Fires only when the state differs from the last one announced, through `state` or as part of a `change`. A state that changed during the outage fires once, right before its `change`, with the last announced state as `previous`. A `change` to null resets the announced state to `unknown`, so the next app that plays fires `state` again |
-| `artworkChanged` / `nowPlaying.artwork` | Fired on every SET_ARTWORK, also of the same artwork | Fires when the artwork of the current item looks different from outside: another identifier or URL, or other item or SET_ARTWORK bytes (compared by length and hash). Nothing fires while a reconnect restores, and the same artwork after it fires nothing |
+| `playbackStateChanged` / `nowPlaying.state` | Fired Unknown to Playing at every connect | Fires only when the state differs from the last one announced, through `state` or as part of a `change`. While a reconnect restores, `state` is held as well: a state that changed during the outage fires once, right before the `change` that ends the restore, with the settled item and the last announced state as `previous`. A `change` to null resets the announced state to `unknown`, so the next app that plays fires `state` again |
+| `artworkChanged` / `nowPlaying.artwork` | Fired on every SET_ARTWORK, also of the same artwork | Fires when the artwork of the current item looks different from outside: another identifier or URL, or other item or SET_ARTWORK bytes (compared by length and hash). Nothing fires while a reconnect restores. When the restore ends on the same item, the artwork is compared with the last announced one and `artwork` fires once if it differs. A part of the artwork the new session has not sent yet counts as unchanged, so the same artwork arriving in pieces fires nothing |
 | `volumeChanged`, `volumeMutedChanged` / `volume.change` | Fired on every message | Fires only for a different value |
 | `power` / `power.change` | Fired at every Companion Link connect (HY-08) | Unchanged: fires at every Companion Link connect and every attention report. Without the forced reconnect that is only after a real drop |
 | `textInput` / `text.change` | Every `_tiStarted`/`_tiStopped` | Unchanged for Companion Link; MRP keyboard messages fire it while Companion Link is down |
 
 `nowPlaying.current` and `nowPlaying.elapsed` return the last item and elapsed time while the new session has not reported yet.
+
+`disconnect()` cancels the restore timers. No capability event (`nowPlaying`, `volume`, `power`, `text`) fires once `disconnect()` resolved: the sessions are closed by then and the models only change on device messages. A restore that was in flight keeps the held values until the next session reports.
 
 ## 1. Public API
 
@@ -613,7 +616,7 @@ off --connect()--> connecting --ok--> connected --session closed (not local)--> 
                        |                                                     ^      |
                        +------------------fail---------------------------> waiting  |
                                                 timer fires, or connect() while offline --> connecting
-any state --disconnect()--> off   (timers cleared, attempt aborted through its signal, sessions closed)
+any state --disconnect()--> off   (timers cleared, now-playing restore timers too, attempt aborted through its signal, sessions closed)
 ```
 
 An attempt is: resolve (3.4), then `connect()` of the protocol package with an `AbortSignal` that `disconnect()` aborts. For AirPlay it also opens `MediaRemote` on the device's own `MediaRemoteState` (cleared first, AP-HS-03). For Companion Link it passes the device's own `CompanionLinkState`. Both models therefore outlive the sessions.

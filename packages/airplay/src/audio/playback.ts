@@ -49,9 +49,10 @@ export class AudioPlayback {
         try {
             await this.#stream.stream(this.#source, this.#session.target.address);
         } finally {
+            // The session goes first, so a source that fails or hangs on stop cannot keep it open.
             this.#stream.close();
-            await this.#source.stop();
             void this.#session.close();
+            await this.#source.stop();
         }
     }
 }

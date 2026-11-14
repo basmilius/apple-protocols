@@ -14,6 +14,10 @@
 | m7 | fixed | Artwork compares item and SET_ARTWORK bytes by length and hash, so other bytes for the same item fire `artwork` once. |
 | m8 | fixed | The code now reports `degraded`, as the design says: `connected` promises everything the device type offers. Homey always pairs an Apple TV and HomePods have no Companion Link, so Homey sees no difference. |
 | m9 | open | Homey keys animated artwork by track and covers the check; the helper documents that the caller owns it. |
+| M2 | fixed | A second audit found that `AudioPlayback` awaited `source.stop()` before closing its AirPlay session, so a source that rejected or hung leaked the control and event channel and the feedback timer. The session now closes first, as the baseline did; `AudioStream.stream()` no longer awaits the source either. Same bytes in the same order on the wire. |
+| m10 | fixed | `state` no longer fires during a restore with a half item that contradicts `current`; it is held and fires right before the `change` that ends the restore, with the settled item. |
+| m11 | fixed | `disconnect()` cancels the now-playing restore timers, so no `change` fires about a second after a disconnect. Volume, power and text only change on device messages and stay silent once the sessions are closed. |
+| m12 | fixed | A restore that ends on the same item compares the artwork with the last announced one and fires `artwork` once if it differs. A part the new session has not sent yet counts as unchanged, so the same artwork coming back fires nothing. |
 
 Independent audit of all 311 items of `behavior-inventory.md` against the new code. Every verdict was checked in code; the verdict tables in `devices-api.md` and the commit bodies were only used to decide whether a change is documented.
 

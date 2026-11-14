@@ -235,10 +235,15 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         this.#running = false;
         this.#companionLinkStarted = false;
 
-        await Promise.all([
+        const stopping = Promise.all([
             this.#airplay.stop(),
             this.#companionLink?.stop()
         ]);
+
+        // Stopping the links ends the AirPlay session at once, so no model event restarts these timers.
+        this.nowPlaying.stop();
+
+        await stopping;
 
         this.#update('requested', null);
     }
@@ -334,6 +339,12 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         this.mediaRemoteState.clear();
 
         const remote = await MediaRemote.open(session, {state: this.mediaRemoteState});
+
+        // A disconnect that came in while the remote opened already ended the session through the
+        // signal, and must not leave a restore timer behind.
+        if (signal.aborted) {
+            throw new ConnectionClosedError('AirPlay setup was interrupted.');
+        }
 
         this.nowPlaying.resume();
 

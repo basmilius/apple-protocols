@@ -105,6 +105,22 @@ export class Credentials {
         return [PREFIX, ...fields.map(field => Buffer.from(field).toString('base64url'))].join('.');
     }
 
+    /**
+     * The five fields with the binary ones as hex, the object form {@link parse} reads as well. For a
+     * consumer that has to keep writing what an older release of it reads back.
+     */
+    toFields(): {readonly accessoryIdentifier: string; readonly accessoryLongTermPublicKey: string; readonly pairingId: string; readonly publicKey: string; readonly secretKey: string} {
+        const credentials = accessories.get(this);
+
+        return {
+            accessoryIdentifier: credentials.accessoryIdentifier,
+            accessoryLongTermPublicKey: Buffer.from(credentials.accessoryLongTermPublicKey).toString('hex'),
+            pairingId: Buffer.from(credentials.pairingId).toString('hex'),
+            publicKey: Buffer.from(credentials.publicKey).toString('hex'),
+            secretKey: Buffer.from(credentials.secretKey).toString('hex')
+        };
+    }
+
     toJSON(): string {
         return this.toString();
     }

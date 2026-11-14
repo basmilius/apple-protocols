@@ -1,6 +1,6 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
-import type { Context } from '@corewire/core/transport';
+import type { Logger } from '../reporter';
 
 /** IPv4 multicast address for mDNS (RFC 6762). */
 const MDNS_ADDRESS = '224.0.0.251';
@@ -40,11 +40,11 @@ export type AdvertisedService = {
 };
 
 /**
- * Advertises one proxy service through periodic PTR/SRV/TXT/A multicasts and replies to queries mentioning its type.
+ * Advertises one service through periodic PTR/SRV/TXT/A multicasts and replies to queries mentioning its type.
  * Does not fully parse DNS questions; intended for quiet test networks. Controller discovery may require device-specific instance names and TXT records.
  */
 export class MdnsResponder {
-    readonly #context: Context;
+    readonly #logger: Logger;
     readonly #service: AdvertisedService;
     readonly #address: string;
     #socket?: UdpSocket;
@@ -54,8 +54,8 @@ export class MdnsResponder {
      * @param service - The service to advertise.
      * @param address - The local IPv4 address to publish in the A record.
      */
-    constructor(context: Context, service: AdvertisedService, address: string = MdnsResponder.localAddress()) {
-        this.#context = context;
+    constructor(logger: Logger, service: AdvertisedService, address: string = MdnsResponder.localAddress()) {
+        this.#logger = logger;
         this.#service = service;
         this.#address = address;
     }
@@ -78,7 +78,7 @@ export class MdnsResponder {
         const socket = createSocket({type: 'udp4', reuseAddr: true});
 
         socket.on('error', (error) => {
-            this.#context.logger.warn('[proxy]', 'mDNS responder socket error', error.message);
+            this.#logger.warn('[mdns]', 'mDNS responder socket error', error.message);
         });
 
         socket.on('message', (data: Buffer) => {
@@ -99,7 +99,7 @@ export class MdnsResponder {
                 // Membership may fail if another responder owns the port; we can still send.
             }
 
-            this.#context.logger.info('[proxy]', `Advertising ${this.#service.instance} ${this.#service.type} on ${this.#address}:${this.#service.port}`);
+            this.#logger.info('[mdns]', `Advertising ${this.#service.instance} ${this.#service.type} on ${this.#address}:${this.#service.port}`);
             this.#announce();
         });
 
@@ -133,7 +133,7 @@ export class MdnsResponder {
         try {
             this.#socket.send(message, MDNS_PORT, MDNS_ADDRESS);
         } catch (error) {
-            this.#context.logger.warn('[proxy]', 'mDNS announce failed', (error as Error).message);
+            this.#logger.warn('[mdns]', 'mDNS announce failed', (error as Error).message);
         }
     }
 

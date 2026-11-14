@@ -1,6 +1,6 @@
 import { getMacAddress, PlaybackError, waitFor } from '@corewire/core';
-import type { Context } from '@corewire/core/transport';
 import { Plist } from '@corewire/core/encoding';
+import type { Context } from '@corewire/core/transport';
 import { AirPlayFeatureFlags, hasFeatureFlag } from '../airplayFeatures';
 import type { ControlChannel } from '../channels/control';
 import type { EventChannel } from '../channels/event';

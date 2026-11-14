@@ -43,6 +43,9 @@
             ],
             "@corewire/devices": [
                 "./../devices/src"
+            ],
+            "@corewire/devices/*": [
+                "./../devices/src/*"
             ]
         }
     },
@@ -51,6 +54,7 @@
         "src/preload/**/*.ts",
         "src/shared/**/*.ts",
         "cli/**/*.ts",
+        "test/**/*.ts",
         "electron.vite.config.ts"
     ]
 }

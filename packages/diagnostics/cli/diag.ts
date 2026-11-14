@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { AGENT_MARK_FILE, AGENT_STATE_FILE, type AgentCursors, type AgentKind, type AgentPage, type AgentState, type AgentStatus } from '../src/shared/agent';
-import type { CallResult, DeviceEvent, DiscoveredDeviceInfo, LogEntry, TrafficRecord } from '../src/shared/contract';
+import type { CallResult, DeviceEvent, DiscoveredDeviceInfo, LogEntry, ProxyStatus, TrafficRecord } from '../src/shared/contract';
 
 const CONFIG = join(homedir(), '.config', 'apple-protocols');
 
@@ -21,9 +21,13 @@ const HELP = `diag: drive the running diagnostics app and read what it captured.
   mark                                    remember the current cursors
   logs | events | traffic [filters]       read a buffer
   wait <logs|events|traffic> [filters]    block until something matches, --timeout in seconds
+  proxy status                            running proxies, with PIN and message counts
+  proxy start <device> <airplay|companionLink> [--port <n>] [--capture] --confirm
+  proxy stop <airplay|companionLink>
 
 <device> is a device id or a part of its name.
-Agent roots: device, airplay, airplayState, companionLink (registered actions only).
+Agent roots: device, airplay, mediaRemote, companionLink (registered actions only).
+Proxy traffic is protocol 'proxy' under the device it relays to.
 Raw protocol experiments use the app or raw:send with --confirm.
 
 Filters: --device <device>  --after <cursor> | --since-mark  --grep <regex>  --limit <n>
@@ -36,6 +40,7 @@ const {values: flags, positionals} = parseArgs({
     options: {
         after: {type: 'string'},
         bytes: {type: 'string'},
+        capture: {type: 'boolean'},
         confirm: {type: 'boolean'},
         decoded: {type: 'boolean'},
         device: {type: 'string'},
@@ -47,6 +52,7 @@ const {values: flags, positionals} = parseArgs({
         json: {type: 'boolean'},
         limit: {type: 'string'},
         name: {type: 'string'},
+        port: {type: 'string'},
         protocol: {type: 'string'},
         scan: {type: 'boolean'},
         'since-mark': {type: 'boolean'},
@@ -227,6 +233,45 @@ function printDevices(devices: readonly DiscoveredDeviceInfo[]): void {
     }
 }
 
+function printProxies(proxies: readonly ProxyStatus[]): void {
+    if (flags.json) {
+        return print(proxies);
+    }
+
+    if (proxies.length === 0) {
+        return print('no proxy running');
+    }
+
+    for (const running of proxies) {
+        const capture = running.capturePath ? `, capture ${running.capturePath}` : '';
+
+        print(`${running.protocol} '${running.instanceName}' on port ${running.port}, PIN ${running.pin}, relays to ${running.target.name} ${running.target.address}:${running.target.port} (${running.deviceId}), ${running.messages['controller->device']} out / ${running.messages['device->controller']} in${capture}`);
+    }
+}
+
+async function proxy([action, ...rest]: readonly string[]): Promise<void> {
+    switch (action) {
+        case 'status':
+            return printProxies(await invoke<readonly ProxyStatus[]>('proxy:status'));
+
+        case 'start': {
+            const [reference, protocol] = rest;
+            const device = await resolveDevice(reference);
+            const port = flags.port === undefined ? undefined : Number(flags.port);
+
+            return printProxies([await invoke<ProxyStatus>('proxy:start', {deviceId: device.id, protocol, port, capture: flags.capture === true})]);
+        }
+
+        case 'stop':
+            await invoke('proxy:stop', {protocol: rest[0]});
+
+            return print(`stopped the ${rest[0]} proxy`);
+
+        default:
+            return print(HELP);
+    }
+}
+
 async function main(): Promise<void> {
     const [command, ...rest] = positionals;
 
@@ -279,6 +324,9 @@ async function main(): Promise<void> {
 
         case 'invoke':
             return print(await invoke(rest[0], rest[1] === undefined ? undefined : JSON.parse(rest[1])));
+
+        case 'proxy':
+            return await proxy(rest);
 
         case 'mark': {
             const status = await request<AgentStatus>('GET', '/status');

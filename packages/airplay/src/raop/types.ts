@@ -1,5 +1,19 @@
 import type { Socket as UdpSocket } from 'node:dgram';
 
+/** Where a RAOP receiver is. */
+export type RaopTarget = {
+    readonly address: string;
+
+    /** RTSP port of the RAOP service. */
+    readonly port: number;
+
+    /** Tags the logs, usually the mDNS name. Defaults to the address. */
+    readonly id?: string;
+
+    /** The RAOP TXT record; the encryption, metadata and audio properties come from it. */
+    readonly txt?: Readonly<Record<string, string>>;
+};
+
 /**
  * Metadata describing the currently streaming media track.
  */

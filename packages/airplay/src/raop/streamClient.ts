@@ -1,17 +1,17 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
-import type { Context } from '@corewire/core/transport';
 import { waitFor } from '@corewire/core';
-import { AUDIO_FRAMES_PER_PACKET } from '../const';
+import type { Context } from '@corewire/core/transport';
 import type { AudioSource } from '../audio/source';
+import { AUDIO_FRAMES_PER_PACKET } from '../const';
 import type { TimingServer } from '../timing';
 import { EMPTY_METADATA, MAX_PACKETS_COMPENSATE, MISSING_METADATA, PACKET_BACKLOG_SIZE, SLOW_WARNING_THRESHOLD, SUPPORTED_ENCRYPTIONS } from './const';
+import { ControlClient } from './controlClient';
 import { AudioPacketHeader, PacketFifo } from './packets';
+import { RaopRtspClient as RtspClient } from './rtspClient';
+import { Statistics } from './statistics';
 import { EncryptionType, type MediaMetadata, MetadataType, type PlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
 import { getAudioProperties, getEncryptionTypes, getMetadataTypes, pctToDbfs } from './utils';
-import { ControlClient } from './controlClient';
-import { Statistics } from './statistics';
-import { RaopRtspClient as RtspClient } from './rtspClient';
 
 /**
  * Event map for the StreamClient, emitted during the audio streaming lifecycle.

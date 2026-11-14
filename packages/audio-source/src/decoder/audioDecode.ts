@@ -1,6 +1,6 @@
 // @ts-nocheck
-import getType from 'audio-type';
 import AudioBufferShim from 'audio-buffer';
+import getType from 'audio-type';
 
 /** AudioBuffer implementation: uses the native Web Audio API version if available, otherwise falls back to a shim. */
 const AudioBuffer = globalThis.AudioBuffer || AudioBufferShim;

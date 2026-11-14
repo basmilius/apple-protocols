@@ -58,6 +58,7 @@ import {
     Unplug,
     Users,
     Volume2,
+    Waypoints,
     Wrench,
     Zap
 } from 'lucide-react';
@@ -125,5 +126,6 @@ export const ICONS = {
     eventLoop: Hourglass,
     memory: MemoryStick,
     encryption: LockKeyhole,
-    storage: Database
+    storage: Database,
+    proxy: Waypoints
 } as const satisfies Record<string, LucideIcon>;

@@ -1,6 +1,6 @@
-import { type Context, EncryptionState } from '@corewire/core/transport';
 import { HTTP_TIMEOUT } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
+import { type Context, EncryptionState } from '@corewire/core/transport';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '../identifiers';
 import { RtspClient } from '../rtsp';
 import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';

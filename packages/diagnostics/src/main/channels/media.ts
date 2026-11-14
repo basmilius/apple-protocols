@@ -1,5 +1,6 @@
 import type { ChannelContext } from './context';
 import { registerAudioChannels } from './media/audio';
+import { registerCatalogChannels } from './media/catalog';
 import { registerPairingChannels } from './media/pairing';
 import { registerRaopChannels } from './media/raop';
 import { registerRawChannels } from './media/raw';
@@ -11,4 +12,5 @@ export function registerMediaChannels(context: ChannelContext): void {
     registerRaopChannels(context);
     registerRawChannels(context);
     registerRecoveryChannels(context);
+    registerCatalogChannels(context);
 }

@@ -13,7 +13,7 @@ export async function runCall(roots: CallRoots, request: CallRequest): Promise<C
     try {
         if (!request || typeof request.root !== 'string' || typeof request.path !== 'string' || (request.args !== undefined && !Array.isArray(request.args))) throw new Error('Invalid call request.');
         if (!Object.hasOwn(roots, request.root)) throw new Error(`Root '${request.root}' is not allowed.`);
-        if (['device', 'airplay'].includes(request.root) && ['volume.set', 'volume.fade', 'volume.setForDevice'].includes(request.path)) {
+        if (['device', 'mediaRemote'].includes(request.root) && ['volume.set', 'volume.fade', 'volume.setForDevice'].includes(request.path)) {
             const index = request.path === 'volume.setForDevice' ? 1 : 0;
             const value = request.args?.[index];
             if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) throw new RangeError('SDK volume must be a fraction from 0 to 1.');

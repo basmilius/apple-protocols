@@ -225,7 +225,8 @@ export type LogEntry = {
 
 // --- Traffic ---
 
-export type TrafficProtocol = 'companionLink' | 'dataStream' | 'eventStream' | 'rtsp';
+/** `proxy` is what a running proxy relays, under the id of the device it relays to. */
+export type TrafficProtocol = 'companionLink' | 'dataStream' | 'eventStream' | 'rtsp' | 'proxy';
 
 /** One protocol message in plaintext, as tapped inside the protocol packages. */
 export type TrafficRecord = {
@@ -245,13 +246,17 @@ export type TrafficRecord = {
 
 // --- Generic call channel ---
 
-/** The objects `device:call` may resolve a path against. */
-export type CallRoot = 'device' | 'airplay' | 'airplayState' | 'companionLink' | 'airplayProtocol' | 'companionLinkProtocol';
+/**
+ * The objects `device:call` may resolve a path against: the device, and the protocol sessions it
+ * uses now (`device.sessions`). `airplay` is the AirPlay session, `mediaRemote` the MRP remote on
+ * it and `companionLink` the Companion Link session.
+ */
+export type CallRoot = 'device' | 'airplay' | 'mediaRemote' | 'companionLink';
 
 export type CallRequest = {
     readonly deviceId: string;
     readonly root: CallRoot;
-    /** A dotted path, for example `playback.seekTo` or `state.volume`. */
+    /** A dotted path, for example `playback.seek` or `state.volume`. */
     readonly path: string;
     /** Left out for a getter read. */
     readonly args?: readonly unknown[];

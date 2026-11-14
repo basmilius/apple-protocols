@@ -1,16 +1,16 @@
-import { EventEmitter } from 'node:events';
 import type { Socket as UdpSocket } from 'node:dgram';
+import { EventEmitter } from 'node:events';
 import { PlaybackError } from '@corewire/core';
+import { Discovery } from '@corewire/core/discovery';
 import { Context } from '@corewire/core/transport';
-import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from '../const';
 import type { AudioSource } from '../audio/source';
 import { AudioSourceSession } from '../audio/sourceSession';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from '../const';
 import { TimingServer } from '../timing';
 import { RAOP_SERVICE } from './discovery';
-import type { MediaMetadata, PlaybackInfo, Settings, StreamContext, StreamProtocol } from './types';
 import { RaopRtspClient as RtspClient } from './rtspClient';
 import { StreamClient } from './streamClient';
+import type { MediaMetadata, PlaybackInfo, RaopTarget, Settings, StreamContext, StreamProtocol } from './types';
 
 /**
  * Event map for the RaopClient, emitted during the streaming lifecycle.
@@ -45,19 +45,19 @@ export class RaopClient extends EventEmitter<EventMap> {
         return this.#context;
     }
 
-    /** Unique identifier of the discovered RAOP device. */
+    /** The id of the target, or its address. */
     get deviceId(): string {
-        return this.#discoveryResult.id;
+        return this.#target.id ?? this.#target.address;
     }
 
     /** IP address of the RAOP receiver. */
     get address(): string {
-        return this.#discoveryResult.address;
+        return this.#target.address;
     }
 
-    /** Model name of the RAOP receiver (e.g. "AirPort Express"). */
+    /** Model name of the RAOP receiver (e.g. "AirPort Express"), from the TXT record; empty when unknown. */
     get modelName(): string {
-        return this.#discoveryResult.modelName;
+        return this.#target.txt?.model ?? this.#target.txt?.am ?? '';
     }
 
     /** Device info dictionary fetched during initialization. */
@@ -72,8 +72,7 @@ export class RaopClient extends EventEmitter<EventMap> {
     readonly #rtsp: RtspClient;
     /** Stream client managing audio transport and metadata. */
     readonly #streamClient: StreamClient;
-    /** mDNS discovery result for this device. */
-    readonly #discoveryResult: DiscoveryResult;
+    readonly #target: RaopTarget;
 
     /**
      * Private constructor — use `RaopClient.create()` or `RaopClient.discover()` instead.
@@ -81,15 +80,15 @@ export class RaopClient extends EventEmitter<EventMap> {
      * @param context - Application context.
      * @param rtsp - Connected RTSP client.
      * @param streamClient - Initialized stream client.
-     * @param discoveryResult - mDNS discovery result for the device.
+     * @param target - Where the receiver is.
      */
-    private constructor(context: Context, rtsp: RtspClient, streamClient: StreamClient, discoveryResult: DiscoveryResult) {
+    private constructor(context: Context, rtsp: RtspClient, streamClient: StreamClient, target: RaopTarget) {
         super();
 
         this.#context = context;
         this.#rtsp = rtsp;
         this.#streamClient = streamClient;
-        this.#discoveryResult = discoveryResult;
+        this.#target = target;
 
         this.#streamClient.on('playing', info => this.emit('playing', info));
         this.#streamClient.on('stopped', () => this.emit('stopped'));
@@ -150,16 +149,16 @@ export class RaopClient extends EventEmitter<EventMap> {
     }
 
     /**
-     * Creates a new RaopClient from a pre-discovered device. Connects
-     * via RTSP, initializes the stream context, and negotiates transport.
+     * Creates a new RaopClient for a receiver. Connects via RTSP,
+     * initializes the stream context, and negotiates transport.
      *
-     * @param discoveryResult - mDNS discovery result for the target device.
+     * @param target - Where the receiver is.
      * @param timingServer - NTP timing server for clock synchronization.
      * @returns A fully initialized and connected RaopClient.
      */
-    static async create(discoveryResult: DiscoveryResult, timingServer: TimingServer): Promise<RaopClient> {
-        const context = new Context(discoveryResult.id);
-        const rtsp = new RtspClient(context, discoveryResult.address, discoveryResult.service.port);
+    static async create(target: RaopTarget, timingServer: TimingServer): Promise<RaopClient> {
+        const context = new Context(target.id ?? target.address);
+        const rtsp = new RtspClient(context, target.address, target.port);
 
         await rtsp.connect();
 
@@ -179,10 +178,10 @@ export class RaopClient extends EventEmitter<EventMap> {
 
         const streamClient = new StreamClient(context, rtsp, streamContext, protocol, settings, timingServer);
 
-        const properties = new Map<string, string>(Object.entries(discoveryResult.txt));
+        const properties = new Map<string, string>(Object.entries(target.txt ?? {}));
         await streamClient.initialize(properties);
 
-        return new RaopClient(context, rtsp, streamClient, discoveryResult);
+        return new RaopClient(context, rtsp, streamClient, target);
     }
 
     /**
@@ -197,7 +196,7 @@ export class RaopClient extends EventEmitter<EventMap> {
         const discovery = new Discovery(RAOP_SERVICE);
         const result = await discovery.findUntil(deviceId);
 
-        return RaopClient.create(result, timingServer);
+        return RaopClient.create({address: result.address, port: result.service.port, id: result.id, txt: result.txt}, timingServer);
     }
 }
 

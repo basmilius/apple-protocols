@@ -1,36 +1,44 @@
 import { Discovery } from '@corewire/core/discovery';
-import { WAKE_PORTS } from '@corewire/devices';
-import type { RecoveryOptionsInfo, RecoveryStatus } from '@shared/contract';
+import { type ProtocolStatus, WAKE_PORTS } from '@corewire/devices';
+import type { RecoveryLink, RecoveryStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';
 import type { ChannelContext } from '../context';
 
-/** The quick phase of the device's own schedule, shown in the panel; it is not configurable. */
-const DEVICE_OPTIONS: RecoveryOptionsInfo = {
-    baseDelay: 1000,
-    maxDelay: 4000,
-    maxAttempts: 3
-};
+const DROP_TARGETS = ['control', 'data', 'event', 'companionLink'];
+
+function linkOf(status: ProtocolStatus | undefined): RecoveryLink | null {
+    if (status === undefined) {
+        return null;
+    }
+
+    return {
+        state: status.state,
+        attempt: status.attempt,
+        phase: status.phase,
+        nextAttemptAt: status.nextAttemptAt,
+        error: status.error?.message ?? null
+    };
+}
 
 /**
- * The device recovers by itself now; these channels report its status and keep the drop and wake
- * tools. Arming and disarming are accepted and change nothing, until step 2 reworks the panel.
+ * The device recovers by itself; these channels report its status on every change and keep the
+ * tools to provoke a recovery: drop a socket, or knock to wake a sleeping device.
  */
 export function registerRecoveryChannels(context: ChannelContext): void {
     const lastEvents = new Map<string, string>();
 
     const statusOf = (deviceId: string): RecoveryStatus => {
         const status = context.sessions.sessions.get(deviceId)?.device?.status;
-        const airplay = status?.airplay;
 
         return {
             deviceId,
-            enabled: true,
-            options: DEVICE_OPTIONS,
-            recovering: status?.state === 'recovering' || status?.state === 'offline',
-            attempt: airplay?.attempt ?? 0,
-            lastEvent: lastEvents.get(deviceId) ?? status?.state ?? null,
+            state: status?.state ?? null,
+            reason: status?.reason ?? null,
             error: status?.error?.message ?? null,
+            airplay: linkOf(status?.airplay),
+            companionLink: linkOf(status?.companionLink),
+            lastEvent: lastEvents.get(deviceId) ?? null,
             updatedAt: Date.now()
         };
     };
@@ -49,16 +57,15 @@ export function registerRecoveryChannels(context: ChannelContext): void {
         return session;
     };
 
-    handle('recovery:status', request => statusOf(request.deviceId));
-
-    handle('recovery:configure', request => {
-        const status = statusOf(request.deviceId);
-        context.send('recovery:status', status);
-
-        return status;
+    context.onEvent(event => {
+        if (event.source === 'device' && event.name === 'status') {
+            push(event.deviceId);
+        }
     });
 
-    /* Destroying the socket is the only way to produce the unexpected disconnect recovery is for. */
+    handle('recovery:status', request => statusOf(request.deviceId));
+
+    /* Destroying a socket is the only way to produce the unexpected disconnect recovery is for. */
     handle('recovery:simulateDrop', request => {
         const device = sessionOf(request.deviceId).device;
 
@@ -66,16 +73,22 @@ export function registerRecoveryChannels(context: ChannelContext): void {
             throw new Error('This device is not connected, so there is nothing to drop.');
         }
 
-        const airplay = device.sessions.airplay;
         const kind = request.stream ?? 'data';
-        if (!['control', 'data', 'event'].includes(kind)) throw new Error('Unknown stream to drop.');
-        const stream = kind === 'control' ? airplay?.control : kind === 'event' ? airplay?.remoteControl?.events : airplay?.remoteControl?.data;
+
+        if (!DROP_TARGETS.includes(kind)) {
+            throw new Error('Unknown stream to drop.');
+        }
+
+        const {airplay, companionLink} = device.sessions;
+        const stream = kind === 'companionLink'
+            ? companionLink?.stream
+            : kind === 'control' ? airplay?.control : kind === 'event' ? airplay?.remoteControl?.events : airplay?.remoteControl?.data;
 
         if (!stream?.destroy) {
             throw new Error('This device has no selected stream socket to drop.');
         }
 
-        lastEvents.set(request.deviceId, 'socket destroyed');
+        lastEvents.set(request.deviceId, `${kind} socket destroyed`);
         push(request.deviceId);
 
         stream.destroy(new Error('Simulated drop.'));

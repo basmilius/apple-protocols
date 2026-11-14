@@ -118,6 +118,41 @@ export type MdnsCombinedRecord = {
 
 export type DiscoveryService = 'airplay' | 'companionLink' | 'raop';
 
+// --- Proxy ---
+
+export type ProxyProtocol = 'airplay' | 'companionLink';
+
+export type ProxyDirection = 'controller->device' | 'device->controller';
+
+export type ProxyStartRequest = {
+    readonly protocol: ProxyProtocol;
+    /** The device in the last discovery result the proxy relays to. Its credentials must be stored. */
+    readonly deviceId: string;
+    /** 7000 for AirPlay and 49152 for Companion Link when omitted. */
+    readonly port?: number;
+    /** Appends every relayed message to a JSONL file under `~/.config/apple-protocols/proxy-captures`. */
+    readonly capture?: boolean;
+};
+
+/** A running proxy. Its traffic goes into the traffic buffer as protocol `proxy`, under the device id. */
+export type ProxyStatus = {
+    readonly protocol: ProxyProtocol;
+    readonly deviceId: string;
+    readonly target: {
+        readonly name: string;
+        readonly address: string;
+        readonly port: number;
+    };
+    /** The name controllers see. */
+    readonly instanceName: string;
+    readonly port: number;
+    /** What a controller enters to pair with the proxy. */
+    readonly pin: string;
+    readonly startedAt: number;
+    readonly capturePath: string | null;
+    readonly messages: Readonly<Record<ProxyDirection, number>>;
+};
+
 export type ToolsInvokeMap = {
     'tool:list': [void, readonly ToolInfo[]];
     'tool:run': [ToolRunRequest, CallResult];
@@ -134,9 +169,15 @@ export type ToolsInvokeMap = {
     'discoverytools:findUntil': [{ readonly service: DiscoveryService; readonly id: string; readonly tries?: number; readonly timeoutMs?: number }, MdnsRecord];
     'discoverytools:discoverAll': [void, readonly MdnsCombinedRecord[]];
     'discoverytools:clearCache': [void, void];
+
+    'proxy:start': [ProxyStartRequest, ProxyStatus];
+    'proxy:stop': [{ readonly protocol: ProxyProtocol }, void];
+    'proxy:status': [void, readonly ProxyStatus[]];
 };
 
-export type ToolsEventMap = {};
+export type ToolsEventMap = {
+    'proxy:status': readonly ProxyStatus[];
+};
 
 export const TOOLS_INVOKE_CHANNELS: readonly (keyof ToolsInvokeMap)[] = [
     'tool:list',
@@ -150,9 +191,14 @@ export const TOOLS_INVOKE_CHANNELS: readonly (keyof ToolsInvokeMap)[] = [
     'discoverytools:findByAddress',
     'discoverytools:findUntil',
     'discoverytools:discoverAll',
-    'discoverytools:clearCache'
+    'discoverytools:clearCache',
+    'proxy:start',
+    'proxy:stop',
+    'proxy:status'
 ];
 
-export const TOOLS_EVENT_CHANNELS: readonly (keyof ToolsEventMap)[] = new Array<keyof ToolsEventMap>();
+export const TOOLS_EVENT_CHANNELS: readonly (keyof ToolsEventMap)[] = ['proxy:status'];
+
+export const PROXY_PROTOCOLS: readonly ProxyProtocol[] = ['airplay', 'companionLink'];
 
 export const STORAGE_PROTOCOLS: readonly StorageProtocol[] = ['airplay', 'companionLink', 'raop'];

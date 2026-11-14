@@ -86,7 +86,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                     <ResultBlock label="Cluster id" tooltip="multiroom.clusterId" run={() => call('device', 'multiroom.clusterId')} disabled={!connected}/>
                     <ResultBlock label="Leader" tooltip="multiroom.isLeader" run={() => call('device', 'multiroom.isLeader')} disabled={!connected}/>
                     <ResultBlock label="Cluster aware" tooltip="multiroom.isClusterAware" run={() => call('device', 'multiroom.isClusterAware')} disabled={!connected}/>
-                    <ResultBlock label="Cluster type" tooltip="airplayState.clusterType" run={() => call('airplayState', 'clusterType')} disabled={!connected}/>
+                    <ResultBlock label="Cluster type" tooltip="mediaRemote.state.clusterType" run={() => call('mediaRemote', 'state.clusterType')} disabled={!connected}/>
                 </Row>
             </Section>
 
@@ -133,10 +133,10 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                     <IconButton icon={Plus} label="Add the uid" size="sm" onClick={addManual}/>
                 </ControlRow>
                 <Row>
-                    <CommandButton label="Add to group" tooltip="multiroom.addDevice" run={() => call('device', 'multiroom.addDevice', selected)} disabled={!connected || selected.length === 0}/>
-                    <CommandButton label="Remove from group" tooltip="multiroom.removeDevice" run={() => call('device', 'multiroom.removeDevice', selected)} disabled={!connected || selected.length === 0}/>
-                    <CommandButton label="Set group" variant="primary" tooltip="multiroom.setDevices" run={() => call('device', 'multiroom.setDevices', selected)} disabled={!connected || selected.length === 0}/>
-                    <CommandButton label="Set to none" variant="danger" tooltip="multiroom.setDevices([])" run={() => call('device', 'multiroom.setDevices', [])} disabled={!connected}/>
+                    <CommandButton label="Add to group" tooltip="multiroom.add" run={() => call('device', 'multiroom.add', selected)} disabled={!connected || selected.length === 0}/>
+                    <CommandButton label="Remove from group" tooltip="multiroom.remove" run={() => call('device', 'multiroom.remove', selected)} disabled={!connected || selected.length === 0}/>
+                    <CommandButton label="Set group" variant="primary" tooltip="multiroom.set" run={() => call('device', 'multiroom.set', selected)} disabled={!connected || selected.length === 0}/>
+                    <CommandButton label="Set to none" variant="danger" tooltip="multiroom.set()" run={() => call('device', 'multiroom.set', [])} disabled={!connected}/>
                 </Row>
             </Section>
         </PanelBody>

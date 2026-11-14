@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type { DeviceIdentity } from '@corewire/core/transport';
-import { uint16ToBE } from '@corewire/core';
 import { create, DescExtension, type Extendee, type ExtensionValueShape, getExtension as _getExtension, setExtension } from '@bufbuild/protobuf';
+import { uint16ToBE } from '@corewire/core';
+import type { DeviceIdentity } from '@corewire/core/transport';
 import * as Proto from './proto';
 
 /**

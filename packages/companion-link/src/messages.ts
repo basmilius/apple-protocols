@@ -1,4 +1,4 @@
-import { OPack, RTI } from '@corewire/core/encoding';
+import { OPack } from '@corewire/core/encoding';
 import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 
@@ -100,19 +100,6 @@ export function systemInfo(pairingId: Buffer, name: string = 'AP Companion Link'
 }
 
 /**
- * Builds a `_systemInfoUpdate` event carrying an updated HomeKit user identity and its signature
- * (observed over the wire). Advanced: the signature must be produced with the controller's HomeKit user
- * key, so this is only useful when those credentials are available.
- *
- * @param idHKU - The HomeKit user identity UUID.
- * @param sigHKU - The Ed25519 signature over the identity.
- * @returns The system info update event message.
- */
-export function systemInfoUpdate(idHKU: string, sigHKU: Buffer): OPackMessage {
-    return event('_systemInfoUpdate', { _sigHKU: sigHKU, _idHKU: idHKU });
-}
-
-/**
  * Builds a session start request for the `com.apple.tvremoteservices` service.
  *
  * @param localSid - The locally generated session identifier.
@@ -154,15 +141,6 @@ export function tvrcSessionStart(): OPackMessage {
  */
 export function tvrcSessionStop(): OPackMessage {
     return request('TVRCSessionStop');
-}
-
-/**
- * Builds a keepalive ping message.
- *
- * @returns The ping request message.
- */
-export function ping(): OPackMessage {
-    return request('_ping');
 }
 
 // --- HID Commands ---
@@ -259,29 +237,6 @@ export function tiStop(): OPackMessage {
  */
 export function tiChange(tiD: Buffer): OPackMessage {
     return event('_tiC', { _tiV: 1, _tiD: tiD });
-}
-
-/**
- * Builds an NSKeyedArchiver-encoded RTI payload that clears the current text input.
- * Uses `TIKeyboardOutput` with an empty `textToAssert` to reset the field.
- *
- * @param sessionUUID - The 16-byte UUID of the active keyboard session.
- * @returns The binary plist payload ready to be sent via {@link tiChange}.
- */
-export function buildRtiClearPayload(sessionUUID: Buffer): ArrayBuffer {
-    return RTI.encodeOperation(sessionUUID, '', true);
-}
-
-/**
- * Builds an NSKeyedArchiver-encoded RTI payload that inserts text into the active input field.
- * Uses `TIKeyboardOutput` with `insertionText` to type the given string.
- *
- * @param sessionUUID - The 16-byte UUID of the active keyboard session.
- * @param text - The text to insert into the input field.
- * @returns The binary plist payload ready to be sent via {@link tiChange}.
- */
-export function buildRtiInputPayload(sessionUUID: Buffer, text: string): ArrayBuffer {
-    return RTI.encodeOperation(sessionUUID, text, false);
 }
 
 // --- Media Control ---
@@ -392,15 +347,6 @@ export function fetchNowPlayingInfo(): OPackMessage {
  */
 export function fetchSiriRemoteInfo(): OPackMessage {
     return request('FetchSiriRemoteInfo');
-}
-
-/**
- * Builds a request to fetch the current Siri activation status.
- *
- * @returns The Siri status fetch request message.
- */
-export function fetchSiriStatus(): OPackMessage {
-    return request('FetchSiriStatus');
 }
 
 /**
@@ -592,16 +538,6 @@ export function siriStop(): OPackMessage {
 }
 
 // --- Presence ---
-
-/**
- * Builds a request to publish the controller's presence to the Apple TV.
- * Used to signal that this controller is actively connected and available.
- *
- * @returns The publish presence request message.
- */
-export function publishPresence(): OPackMessage {
-    return request('PublishPresenceEvent');
-}
 
 // --- Game Controller ---
 

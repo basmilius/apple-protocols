@@ -1,5 +1,5 @@
-import type { Context } from '@corewire/core/transport';
 import { Plist } from '@corewire/core/encoding';
+import type { Context } from '@corewire/core/transport';
 import { describeFlags } from './airplayFeatures';
 import type { ControlChannel } from './channels/control';
 import { parseReceiverFeatures } from './features';

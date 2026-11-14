@@ -1,6 +1,5 @@
 import type { EventEmitter } from 'node:events';
 import { TimingServer } from '@corewire/airplay';
-import type { Storage } from '@corewire/core/storage';
 import { AppleTV, Credentials, HomePod, type Status } from '@corewire/devices';
 import type { CallRequest, CallResult, DeviceEvent, DeviceEventSource, DeviceSessionStatus, DiscoveredDeviceInfo, ProtocolName, ServiceInfo, StateSnapshot } from '@shared/contract';
 import { runCall, type CallRoots } from './call';
@@ -16,6 +15,7 @@ import {
 } from './events';
 import { serializeAll } from './serialize';
 import { buildSnapshot, emptySnapshot } from './snapshot';
+import type { JsonStorage } from './storage';
 
 type Device = AppleTV | HomePod;
 
@@ -82,7 +82,7 @@ export class DeviceSession {
     }
 
     /** Connects AirPlay and, when credentials exist, Companion Link. Apple TV needs credentials; HomePod pairs transiently. */
-    async connect(storage: Storage): Promise<StateSnapshot> {
+    async connect(storage: JsonStorage): Promise<StateSnapshot> {
         if (this.#connecting) return this.#connecting;
         if (this.#status === 'connected' && this.#device) return this.snapshot();
         const operation = this.#connect(storage);
@@ -94,7 +94,7 @@ export class DeviceSession {
         }
     }
 
-    async #connect(storage: Storage): Promise<StateSnapshot> {
+    async #connect(storage: JsonStorage): Promise<StateSnapshot> {
         const generation = ++this.#generation;
         this.#status = 'connecting';
         this.#error = null;
@@ -194,11 +194,9 @@ export class DeviceSession {
 
         return {
             device,
-            airplay: sessions.mediaRemote,
-            airplayState: sessions.mediaRemote?.state,
-            companionLink: sessions.companionLink,
-            airplayProtocol: sessions.airplay,
-            companionLinkProtocol: sessions.companionLink
+            airplay: sessions.airplay,
+            mediaRemote: sessions.mediaRemote,
+            companionLink: sessions.companionLink
         };
     }
 
@@ -232,7 +230,7 @@ export class DeviceSession {
         this.#host.emitSnapshot(this.snapshot());
     }
 
-    #create(storage: Storage): Device {
+    #create(storage: JsonStorage): Device {
         const target = targetOf(this.#discovered);
 
         if (this.#discovered.deviceType !== 'appletv') {
@@ -351,13 +349,13 @@ export class DeviceSession {
 export class SessionManager {
     readonly #sessions = new Map<string, DeviceSession>();
     readonly #host: SessionHost;
-    readonly #storage: Storage;
+    readonly #storage: JsonStorage;
 
     #timingServer: TimingServer | null = null;
     #timingPromise?: Promise<TimingServer>;
     #discovered = new Map<string, DiscoveredDevice>();
 
-    constructor(host: SessionHost, storage: Storage) {
+    constructor(host: SessionHost, storage: JsonStorage) {
         this.#host = host;
         this.#storage = storage;
 
@@ -473,11 +471,11 @@ export class SessionManager {
     #describe(device: DiscoveredDevice): DiscoveredDeviceInfo {
         const paired: ProtocolName[] = [];
 
-        if (this.#storage.getCredentials(device.services.airplay?.id ?? device.id, 'airplay')) {
+        if (this.#storage.hasCredentials(device.services.airplay?.id ?? device.id, 'airplay')) {
             paired.push('airplay');
         }
 
-        if (this.#storage.getCredentials(device.services.companionLink?.id ?? device.id, 'companionLink')) {
+        if (this.#storage.hasCredentials(device.services.companionLink?.id ?? device.id, 'companionLink')) {
             paired.push('companionLink');
         }
 

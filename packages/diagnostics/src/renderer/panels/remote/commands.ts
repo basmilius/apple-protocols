@@ -125,11 +125,11 @@ export function callFor(command: FaceCommand, gesture: Gesture, transport: Trans
             return {root: 'device', path: 'remote.press', args: [keyOf(command.holdPath)]};
         }
 
-        return {root: 'airplay', path: 'hid.longPress', args: [command.page, command.usage, heldMs]};
+        return {root: 'mediaRemote', path: 'hid.longPress', args: [command.page, command.usage, heldMs]};
     }
 
     if (gesture === 'double' || command.doubleTap === true) {
-        return {root: 'airplay', path: 'hid.doublePress', args: [command.page, command.usage]};
+        return {root: 'mediaRemote', path: 'hid.doublePress', args: [command.page, command.usage]};
     }
 
     return {root: 'device', path: 'remote.press', args: [keyOf(command.path)]};

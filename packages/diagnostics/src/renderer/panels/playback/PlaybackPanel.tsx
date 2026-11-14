@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Bookmark, ChevronsRight, FastForward, ListMusic, ListPlus, type LucideIcon, Pause, Play, Repeat, Rewind, RotateCcw, RotateCw, Shuffle, SkipBack, SkipForward, Square, ThumbsDown, ThumbsUp, Timer } from 'lucide-react';
+import type { CallRoot } from '@shared/contract';
 import { formatDuration } from '@shared/helpers';
 import { Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
@@ -12,12 +13,9 @@ import {
     numberOf,
     PanelLink,
     REPEAT_MODE_ITEMS,
-    REPEAT_MODES,
     ResultBlock,
     Row,
-    SHUFFLE_MODE_ITEMS,
-    SHUFFLE_MODES,
-    valueOf
+    SHUFFLE_MODE_ITEMS
 } from '@/panels/sdk-shared';
 
 type CommandContext = {
@@ -32,6 +30,8 @@ type CommandProps = CommandContext & {
     readonly path: string;
     readonly args?: readonly unknown[];
     readonly icon?: LucideIcon;
+    /* The device for what it offers, the MRP remote for the rarer commands. */
+    readonly root?: CallRoot;
 };
 
 /* Unsupported commands stay enabled so their actual device behavior can be tested; a dot marks them. */
@@ -39,12 +39,13 @@ function Unsupported({command, supported}: { readonly command: string; readonly 
     return supported.includes(command) ? null : <span aria-hidden className="pointer-events-none absolute -top-px -right-px size-1.5 rounded-full bg-status-needs-you"/>;
 }
 
-function PlaybackCommand({label, command, path, args, icon, call, supported, connected}: CommandProps) {
+function PlaybackCommand({label, command, path, args, icon, root = 'device', call, supported, connected}: CommandProps) {
     const known = supported.includes(command);
+    const tooltip = root === 'device' ? path : `${root}.${path}`;
 
     return (
         <span className={clsx('relative inline-flex', !known && 'opacity-60')}>
-            <CommandButton label={label} icon={icon} tooltip={known ? path : `${path}, not in supportedCommands`} run={() => call('device', path, args)} disabled={!connected}/>
+            <CommandButton label={label} icon={icon} tooltip={known ? tooltip : `${tooltip}, not in supportedCommands`} run={() => call(root, path, args)} disabled={!connected}/>
             <Unsupported command={command} supported={supported}/>
         </span>
     );
@@ -103,15 +104,22 @@ function HoldButton({label, icon, begin, end, call, connected}: { readonly label
             size="sm"
             variant="secondary"
             disabled={!connected}
-            title={`${begin} on press, ${end} on release`}
-            onPointerDown={() => void call('device', begin)}
-            onPointerUp={() => void call('device', end)}
-            onPointerLeave={() => void call('device', end)}
+            title={`mediaRemote.${begin} on press, ${end} on release`}
+            onPointerDown={() => void call('mediaRemote', begin)}
+            onPointerUp={() => void call('mediaRemote', end)}
+            onPointerLeave={() => void call('mediaRemote', end)}
         >
             <Icon icon={icon} size={14}/>
             {label}
         </Button>
     );
+}
+
+/* The session keeps these replies in its state rather than returning them. */
+async function fetchThenRead(call: DeviceCall, fetch: string, read: string): Promise<unknown> {
+    await call('companionLink', fetch);
+
+    return await call('companionLink', read);
 }
 
 function CompanionMedia({call, connected}: { readonly call: DeviceCall; readonly connected: boolean }) {
@@ -124,11 +132,11 @@ function CompanionMedia({call, connected}: { readonly call: DeviceCall; readonly
         setContentError(null);
 
         if (trimmed.length === 0) {
-            return await call('companionLink', 'mediaControlCommand', [command]);
+            return await call('companionLink', 'media.command', [command]);
         }
 
         try {
-            return await call('companionLink', 'mediaControlCommand', [command, JSON.parse(trimmed)]);
+            return await call('companionLink', 'media.command', [command, JSON.parse(trimmed)]);
         } catch (error) {
             setContentError(error instanceof Error ? error.message : String(error));
 
@@ -139,13 +147,13 @@ function CompanionMedia({call, connected}: { readonly call: DeviceCall; readonly
     return (
         <Section wide title="Companion Link media" icon={ICONS.companionLink}>
             <Row>
-                <ResultBlock label="Now playing info" tooltip="companionLink.fetchNowPlayingInfo" run={() => call('companionLink', 'fetchNowPlayingInfo')} disabled={!connected} defaultDepth={3}/>
-                <ResultBlock label="Supported actions" tooltip="companionLink.fetchSupportedActions" run={() => call('companionLink', 'fetchSupportedActions')} disabled={!connected} defaultDepth={3}/>
-                <ResultBlock label="Media control status" tooltip="companionLink.fetchMediaControlStatus" run={() => call('companionLink', 'fetchMediaControlStatus')} disabled={!connected} defaultDepth={3}/>
+                <ResultBlock label="Now playing info" tooltip="companionLink.media.fetchNowPlayingInfo" run={() => call('companionLink', 'media.fetchNowPlayingInfo')} disabled={!connected} defaultDepth={3}/>
+                <ResultBlock label="Supported actions" tooltip="companionLink.media.fetchSupportedActions, then media.supportedActions" run={() => fetchThenRead(call, 'media.fetchSupportedActions', 'media.supportedActions')} disabled={!connected} defaultDepth={3}/>
+                <ResultBlock label="Media control status" tooltip="companionLink.media.fetchControlStatus, then media.capabilities" run={() => fetchThenRead(call, 'media.fetchControlStatus', 'media.capabilities')} disabled={!connected} defaultDepth={3}/>
             </Row>
             <ControlRow label="Media control" icon={ICONS.send}>
                 <Select label="Media control command" value={command} onValueChange={setCommand} items={MEDIA_CONTROL_ITEMS} size="sm"/>
-                <CommandButton label="Send" variant="primary" icon={ICONS.send} tooltip="companionLink.mediaControlCommand" run={send} disabled={!connected}/>
+                <CommandButton label="Send" variant="primary" icon={ICONS.send} tooltip="companionLink.media.command" run={send} disabled={!connected}/>
             </ControlRow>
             <ControlRow label="Content (JSON)" icon={ICONS.result} hint="Optional, for example {&quot;volume&quot;:0.5}.">
                 <TextInput label="Command content as JSON" mono className="h-7 min-w-0 flex-1 basis-40" value={content} onChange={event => setContent(event.target.value)}/>
@@ -160,8 +168,8 @@ export function PlaybackPanel({deviceId}: PanelProps) {
     const call = useDeviceCall(deviceId);
 
     const [skipSeconds, setSkipSeconds] = useState('15');
-    const [shuffleMode, setShuffleMode] = useState('Off');
-    const [repeatMode, setRepeatMode] = useState('Off');
+    const [shuffleMode, setShuffleMode] = useState('off');
+    const [repeatMode, setRepeatMode] = useState('off');
     const [rate, setRate] = useState('1');
     const [sleepSeconds, setSleepSeconds] = useState('1800');
     const [stopMode, setStopMode] = useState('0');
@@ -203,8 +211,8 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                             <TransportKey {...context} small label="Pause" command="Pause" path="playback.pause" icon={Pause}/>
                             <TransportKey {...context} small label="Stop" command="Stop" path="playback.stop" icon={Square}/>
                         </ButtonGroup>
-                        <HoldButton label="Rewind" icon={Rewind} begin="playback.beginRewind" end="playback.endRewind" call={call} connected={connected}/>
-                        <HoldButton label="Fast forward" icon={FastForward} begin="playback.beginFastForward" end="playback.endFastForward" call={call} connected={connected}/>
+                        <HoldButton label="Rewind" icon={Rewind} begin="commands.beginRewind" end="commands.endRewind" call={call} connected={connected}/>
+                        <HoldButton label="Fast forward" icon={FastForward} begin="commands.beginFastForward" end="commands.endFastForward" call={call} connected={connected}/>
                     </div>
                     <ControlRow label="Skip (seconds)" icon={RotateCw}>
                         <NumberInput label="Skip seconds" value={skipSeconds} onValueChange={setSkipSeconds}/>
@@ -212,8 +220,8 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                         <PlaybackCommand {...context} label="Forward" icon={RotateCw} command="SkipForward" path="playback.skipForward" args={[numberOf(skipSeconds, 15)]}/>
                     </ControlRow>
                     <ControlRow label="Chapter" icon={ListMusic}>
-                        <PlaybackCommand {...context} label="Previous" command="PreviousChapter" path="playback.previousChapter"/>
-                        <PlaybackCommand {...context} label="Next" command="NextChapter" path="playback.nextChapter"/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Previous" command="PreviousChapter" path="commands.previousChapter"/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Next" command="NextChapter" path="commands.nextChapter"/>
                     </ControlRow>
                     <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. It still runs, to see what the device does.</p>
                 </Section>
@@ -223,35 +231,35 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                 <Section title="Modes" icon={Shuffle}>
                     <ControlRow label="Shuffle" icon={Shuffle} value={modes.shuffle}>
                         <Select label="Shuffle mode" value={shuffleMode} onValueChange={setShuffleMode} items={SHUFFLE_MODE_ITEMS} size="sm"/>
-                        <PlaybackCommand {...context} label="Set" command="ChangeShuffleMode" path="playback.setShuffleMode" args={[valueOf(SHUFFLE_MODES, shuffleMode)]}/>
-                        <PlaybackCommand {...context} label="Advance" command="AdvanceShuffleMode" path="playback.advanceShuffleMode"/>
+                        <PlaybackCommand {...context} label="Set" command="ChangeShuffleMode" path="playback.setShuffle" args={[shuffleMode]}/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Advance" command="AdvanceShuffleMode" path="commands.advanceShuffleMode"/>
                     </ControlRow>
                     <ControlRow label="Repeat" icon={Repeat} value={modes.repeat}>
                         <Select label="Repeat mode" value={repeatMode} onValueChange={setRepeatMode} items={REPEAT_MODE_ITEMS} size="sm"/>
-                        <PlaybackCommand {...context} label="Set" command="ChangeRepeatMode" path="playback.setRepeatMode" args={[valueOf(REPEAT_MODES, repeatMode)]}/>
-                        <PlaybackCommand {...context} label="Advance" command="AdvanceRepeatMode" path="playback.advanceRepeatMode"/>
+                        <PlaybackCommand {...context} label="Set" command="ChangeRepeatMode" path="playback.setRepeat" args={[repeatMode]}/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Advance" command="AdvanceRepeatMode" path="commands.advanceRepeatMode"/>
                     </ControlRow>
                     <ControlRow label="Rate" icon={ChevronsRight} value={nowPlaying ? `${nowPlaying.playbackRate}x` : undefined}>
                         <NumberInput label="Playback rate" value={rate} onValueChange={setRate} className="w-16"/>
-                        <PlaybackCommand {...context} label="Set" command="ChangePlaybackRate" path="playback.setPlaybackRate" args={[numberOf(rate, 1)]}/>
+                        <PlaybackCommand {...context} label="Set" command="ChangePlaybackRate" path="playback.setRate" args={[numberOf(rate, 1)]}/>
                     </ControlRow>
                     <ControlRow label="Sleep timer" icon={Timer} hint="Seconds until playback stops, and the stop mode the device expects.">
                         <NumberInput label="Sleep timer seconds" value={sleepSeconds} onValueChange={setSleepSeconds}/>
                         <NumberInput label="Sleep stop mode" value={stopMode} onValueChange={setStopMode} className="w-14"/>
-                        <PlaybackCommand {...context} label="Set" command="SetSleepTimer" path="playback.setSleepTimer" args={[numberOf(sleepSeconds, 1800), numberOf(stopMode, 0)]}/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Set" command="SetSleepTimer" path="commands.setSleepTimer" args={[numberOf(sleepSeconds, 1800), numberOf(stopMode, 0)]}/>
                     </ControlRow>
                 </Section>
 
                 <Section title="Library and queue" icon={ListMusic}>
                     <ControlRow label="Current item" icon={ICONS.nowPlaying}>
-                        <PlaybackCommand {...context} label="Like" icon={ThumbsUp} command="LikeTrack" path="playback.likeTrack"/>
-                        <PlaybackCommand {...context} label="Dislike" icon={ThumbsDown} command="DislikeTrack" path="playback.dislikeTrack"/>
-                        <PlaybackCommand {...context} label="Bookmark" icon={Bookmark} command="BookmarkTrack" path="playback.bookmarkTrack"/>
-                        <PlaybackCommand {...context} label="Add to library" icon={ListPlus} command="AddNowPlayingItemToLibrary" path="playback.addToLibrary"/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Like" icon={ThumbsUp} command="LikeTrack" path="commands.likeTrack"/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Dislike" icon={ThumbsDown} command="DislikeTrack" path="commands.dislikeTrack"/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Bookmark" icon={Bookmark} command="BookmarkTrack" path="commands.bookmarkTrack"/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Add to library" icon={ListPlus} command="AddNowPlayingItemToLibrary" path="commands.addNowPlayingItemToLibrary"/>
                     </ControlRow>
                     <ControlRow label="Queue length" icon={ListMusic}>
                         <NumberInput label="Queue length" value={queueLength} onValueChange={setQueueLength}/>
-                        <PlaybackCommand {...context} label="Request queue" command="GetPlaybackQueue" path="playback.requestPlaybackQueue" args={[numberOf(queueLength, 10)]}/>
+                        <PlaybackCommand {...context} root="mediaRemote" label="Request queue" command="GetPlaybackQueue" path="playbackQueue.request" args={[numberOf(queueLength, 10)]}/>
                     </ControlRow>
                 </Section>
 

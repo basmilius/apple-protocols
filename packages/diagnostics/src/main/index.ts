@@ -8,6 +8,7 @@ import { handle } from './ipc';
 import { LogBuffer } from './logs';
 import { Ring } from './ring';
 import { RuntimeMetrics } from './performance';
+import { ProxyManager } from './proxy/manager';
 import { SessionManager, type SessionHost } from './session';
 import { StatisticsBuffer } from './statistics';
 import { StorageQueue } from './storage';
@@ -45,16 +46,27 @@ const send = <C extends EventChannel>(channel: C, payload: EventMap[C]): void =>
     window.webContents.send(channel, payload);
 };
 
+const eventListeners = new Set<(event: DeviceEvent) => void>();
+
 const host: SessionHost = {
     emitEvent: (event: DeviceEvent) => {
         events.push(event);
         send('device:event', event);
+
+        for (const listener of eventListeners) {
+            listener(event);
+        }
     },
     emitSnapshot: (snapshot: StateSnapshot) => send('device:snapshot', snapshot),
     emitDiscovery: () => send('discovery:changed', sessions.list())
 };
 
 const sessions = new SessionManager(host, storage.storage);
+const proxies = new ProxyManager(sessions, storage.storage, status => send('proxy:status', status));
+
+const onEvent = (listener: (event: DeviceEvent) => void): void => {
+    eventListeners.add(listener);
+};
 
 const registerChannels = (): void => {
     handle('performance:status', () => metrics.status());
@@ -96,8 +108,8 @@ const registerChannels = (): void => {
         traffic.ring.clear();
     });
 
-    registerMediaChannels({sessions, storage, send});
-    registerToolsChannels({sessions, storage, send});
+    registerMediaChannels({sessions, storage, proxies, send, onEvent});
+    registerToolsChannels({sessions, storage, proxies, send, onEvent});
 };
 
 const start = async (): Promise<void> => {
@@ -172,5 +184,6 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     quitting = true;
     void agent?.stop();
+    void proxies.stopAll();
     void sessions.shutdown();
 });

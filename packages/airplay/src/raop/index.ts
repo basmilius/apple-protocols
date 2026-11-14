@@ -8,6 +8,7 @@ export type {
     MediaMetadata,
     PlaybackInfo,
     RaopListener,
+    RaopTarget,
     Settings,
     StreamContext,
     StreamProtocol

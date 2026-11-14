@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import { BufferAudioSource } from './bufferAudioSource';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { decode, isMp3, isOgg, isWav } from './decoder';
-import { BufferAudioSource } from './bufferAudioSource';
 
 /**
  * Audio source that reads from a pre-decoded PCM buffer loaded from a file.

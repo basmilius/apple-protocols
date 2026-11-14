@@ -10,6 +10,7 @@ import type { PanelProps } from '@/panels/registry';
 import { EventFeed, NotConnected, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
 
 type Getter = {
+    /* A path under the device. */
     readonly name: string;
     /* What the snapshot says, for comparison. Absent for values that move on their own or use another unit. */
     readonly snapshot?: (snapshot: StateSnapshot | null) => unknown;
@@ -17,25 +18,28 @@ type Getter = {
 
 const activePlayer = (snapshot: StateSnapshot | null): PlayerSnapshot | null => snapshot?.clients.flatMap(client => client.players).find(player => player.isActive) ?? null;
 
+/* The model reports Unknown where the device API reports 'off'. */
+const modeOf = (mode: string | undefined): string | undefined => (mode === undefined ? undefined : mode === 'Unknown' ? 'off' : mode.toLowerCase());
+
 const GETTERS: readonly Getter[] = [
-    {name: 'title', snapshot: snapshot => snapshot?.nowPlaying?.title},
-    {name: 'artist', snapshot: snapshot => snapshot?.nowPlaying?.artist},
-    {name: 'album', snapshot: snapshot => snapshot?.nowPlaying?.album},
-    {name: 'genre', snapshot: snapshot => snapshot?.nowPlaying?.genre},
-    {name: 'duration', snapshot: snapshot => snapshot?.nowPlaying?.duration},
-    {name: 'elapsedTime'},
-    {name: 'playbackRate', snapshot: snapshot => snapshot?.nowPlaying?.playbackRate},
-    {name: 'isPlaying', snapshot: snapshot => (snapshot?.nowPlaying ? snapshot.nowPlaying.playbackState === 'Playing' : undefined)},
-    {name: 'playbackState', snapshot: snapshot => snapshot?.nowPlaying?.playbackState},
-    {name: 'mediaType', snapshot: snapshot => snapshot?.nowPlaying?.mediaType},
-    {name: 'shuffleMode', snapshot: snapshot => activePlayer(snapshot)?.shuffleMode},
-    {name: 'repeatMode', snapshot: snapshot => activePlayer(snapshot)?.repeatMode},
-    {name: 'volume'},
-    {name: 'isMuted', snapshot: snapshot => snapshot?.volume?.muted},
-    {name: 'volumeAvailable', snapshot: snapshot => snapshot?.volume?.available},
-    {name: 'isKeyboardActive', snapshot: snapshot => snapshot?.keyboard?.active},
-    {name: 'clusterId', snapshot: snapshot => snapshot?.cluster?.clusterId},
-    {name: 'isClusterLeader', snapshot: snapshot => snapshot?.cluster?.isLeader}
+    {name: 'nowPlaying.current.title', snapshot: snapshot => snapshot?.nowPlaying?.title},
+    {name: 'nowPlaying.current.artist', snapshot: snapshot => snapshot?.nowPlaying?.artist},
+    {name: 'nowPlaying.current.album', snapshot: snapshot => snapshot?.nowPlaying?.album},
+    {name: 'nowPlaying.current.genre', snapshot: snapshot => snapshot?.nowPlaying?.genre},
+    {name: 'nowPlaying.current.duration', snapshot: snapshot => snapshot?.nowPlaying?.duration},
+    {name: 'nowPlaying.elapsed'},
+    {name: 'nowPlaying.current.rate', snapshot: snapshot => snapshot?.nowPlaying?.playbackRate},
+    {name: 'nowPlaying.current.state', snapshot: snapshot => snapshot?.nowPlaying?.playbackState?.toLowerCase()},
+    {name: 'nowPlaying.current.kind', snapshot: snapshot => snapshot?.nowPlaying?.mediaType?.toLowerCase()},
+    {name: 'nowPlaying.current.shuffle', snapshot: snapshot => modeOf(activePlayer(snapshot)?.shuffleMode)},
+    {name: 'nowPlaying.current.repeat', snapshot: snapshot => modeOf(activePlayer(snapshot)?.repeatMode)},
+    {name: 'volume.level'},
+    {name: 'volume.muted', snapshot: snapshot => snapshot?.volume?.muted},
+    {name: 'volume.available', snapshot: snapshot => snapshot?.volume?.available},
+    {name: 'volume.mode'},
+    {name: 'text.state.active', snapshot: snapshot => snapshot?.keyboard?.active},
+    {name: 'multiroom.clusterId', snapshot: snapshot => snapshot?.cluster?.clusterId},
+    {name: 'multiroom.isLeader', snapshot: snapshot => snapshot?.cluster?.isLeader}
 ];
 
 const STATE_SOURCE = ['state'] as const;
@@ -117,7 +121,7 @@ function GetterTable({call, connected, snapshot}: { readonly call: DeviceCall; r
         const results = await Promise.all(
             GETTERS.map(async getter => {
                 try {
-                    return [getter.name, show(await call('device', `state.${getter.name}`))] as const;
+                    return [getter.name, show(await call('device', getter.name))] as const;
                 } catch (error) {
                     return [getter.name, error instanceof Error ? error.message : String(error)] as const;
                 }
@@ -134,9 +138,9 @@ function GetterTable({call, connected, snapshot}: { readonly call: DeviceCall; r
             wide
             title="Getters against the snapshot"
             icon={ICONS.result}
-            actions={<CommandButton label="Read getters" icon={RefreshCw} tooltip="state.*" run={readAll} showResult={false} disabled={!connected}/>}
+            actions={<CommandButton label="Read getters" icon={RefreshCw} tooltip="device.*" run={readAll} showResult={false} disabled={!connected}/>}
         >
-            <Table.Root label="StateController getters" columns={COLUMNS} density="compact">
+            <Table.Root label="Device getters" columns={COLUMNS} density="compact">
                 <Table.Head>
                     <Table.Column>Getter</Table.Column>
                     <Table.Column>Snapshot</Table.Column>
@@ -159,8 +163,8 @@ function GetterTable({call, connected, snapshot}: { readonly call: DeviceCall; r
                 })}
             </Table.Root>
             <Row>
-                <ResultBlock label="Active app" tooltip="state.activeApp" run={() => call('device', 'state.activeApp')} disabled={!connected}/>
-                <ResultBlock label="Output devices" tooltip="state.outputDevices" run={() => call('device', 'state.outputDevices')} disabled={!connected}/>
+                <ResultBlock label="Active app" tooltip="nowPlaying.current.app" run={() => call('device', 'nowPlaying.current.app')} disabled={!connected}/>
+                <ResultBlock label="Output devices" tooltip="mediaRemote.state.outputDevices" run={() => call('mediaRemote', 'state.outputDevices')} disabled={!connected}/>
             </Row>
         </Section>
     );
@@ -205,9 +209,9 @@ export function StatePanel({deviceId}: PanelProps) {
                     </KeyValueList>
                 )}
                 <Row>
-                    <ResultBlock label="Capabilities" tooltip="device.capabilities" run={() => call('device', 'capabilities')} disabled={!connected}/>
-                    <ResultBlock label="Receiver info" tooltip="device.receiverInfo" run={() => call('device', 'receiverInfo')} disabled={!connected}/>
-                    <ResultBlock label="Receiver features" tooltip="airplayProtocol.features" run={() => call('airplayProtocol', 'features')} disabled={!connected}/>
+                    <ResultBlock label="Status" tooltip="device.status" run={() => call('device', 'status')} disabled={!connected}/>
+                    <ResultBlock label="Receiver info" tooltip="airplay.info" run={() => call('airplay', 'info')} disabled={!connected}/>
+                    <ResultBlock label="Receiver features" tooltip="airplay.features" run={() => call('airplay', 'features')} disabled={!connected}/>
                 </Row>
             </Section>
 

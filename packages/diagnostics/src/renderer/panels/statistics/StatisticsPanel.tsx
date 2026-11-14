@@ -13,7 +13,8 @@ const PROTOCOL_LABELS: Record<TrafficProtocol, string> = {
     dataStream: 'Data stream',
     eventStream: 'Event stream',
     companionLink: 'Companion Link',
-    rtsp: 'RTSP'
+    rtsp: 'RTSP',
+    proxy: 'Proxy'
 };
 
 const TrafficChart = createChart<TrafficBucket>();

@@ -1,5 +1,5 @@
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { BufferAudioSource } from './bufferAudioSource';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { convertPcm } from './decoder/pcm';
 
 /**

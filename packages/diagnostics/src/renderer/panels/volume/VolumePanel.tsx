@@ -20,9 +20,9 @@ function OutputVolume({uid, name, volume, call, connected}: { readonly uid: stri
                 <span className="min-w-0 truncate text-xs text-text">{name || uid}</span>
                 <MiddleTruncate text={uid} className="mono min-w-0 grow text-text-faint"/>
                 <ButtonGroup>
-                    <IconButton icon={RefreshCw} label="Read the volume" size="sm" disabled={!connected} onClick={() => void call('device', 'volume.getForDevice', [uid])}/>
-                    <IconButton icon={VolumeX} label="Mute" size="sm" disabled={!connected} onClick={() => void call('device', 'volume.muteDevice', [uid])}/>
-                    <IconButton icon={Volume2} label="Unmute" size="sm" disabled={!connected} onClick={() => void call('device', 'volume.unmuteDevice', [uid])}/>
+                    <IconButton icon={RefreshCw} label="Read the volume" size="sm" disabled={!connected} onClick={() => void call('mediaRemote', 'volume.getForDevice', [uid])}/>
+                    <IconButton icon={VolumeX} label="Mute" size="sm" disabled={!connected} onClick={() => void call('mediaRemote', 'volume.muteDevice', [uid])}/>
+                    <IconButton icon={Volume2} label="Unmute" size="sm" disabled={!connected} onClick={() => void call('mediaRemote', 'volume.unmuteDevice', [uid])}/>
                 </ButtonGroup>
             </div>
             <div className="flex items-center gap-1">
@@ -33,7 +33,7 @@ function OutputVolume({uid, name, volume, call, connected}: { readonly uid: stri
                     onValueChange={setDragging}
                     onValueCommitted={next => {
                         setDragging(null);
-                        void call('device', 'volume.setForDevice', [uid, toDevice(next)]);
+                        void call('mediaRemote', 'volume.setForDevice', [uid, toDevice(next)]);
                     }}
                 />
                 <span className="w-10 shrink-0 text-right text-xs tabular-nums text-text-muted">{level}%</span>
@@ -86,7 +86,7 @@ export function VolumePanel({deviceId}: PanelProps) {
                                 <IconButton icon={VolumeX} label="Mute" onClick={() => void call('device', 'volume.mute')}/>
                                 <IconButton icon={Volume2} label="Unmute" onClick={() => void call('device', 'volume.unmute')}/>
                             </ButtonGroup>
-                            <CommandButton label="Read" icon={RefreshCw} tooltip="volume.get" run={() => call('device', 'volume.get')}/>
+                            <CommandButton label="Read" icon={RefreshCw} tooltip="mediaRemote.volume.get" run={() => call('mediaRemote', 'volume.get')}/>
                         </Row>
                     )}
                     <p className="text-xs text-text-faint">{`The receiver reports volume as ${volume?.available ? 'available' : 'unavailable'}; the control mode above decides what the SDK sends.`}</p>
@@ -114,8 +114,8 @@ export function VolumePanel({deviceId}: PanelProps) {
                         <Select label="Output device" value={adjustUid} onValueChange={setAdjustUid} items={outputItems} size="sm"/>
                         <CommandButton
                             label="Adjust"
-                            tooltip="volume.adjust"
-                            run={() => call('device', 'volume.adjust', adjustUid === DEFAULT_OUTPUT ? [valueOf(VOLUME_ADJUSTMENTS, adjustment)] : [valueOf(VOLUME_ADJUSTMENTS, adjustment), adjustUid])}
+                            tooltip="mediaRemote.volume.adjust"
+                            run={() => call('mediaRemote', 'volume.adjust', adjustUid === DEFAULT_OUTPUT ? [valueOf(VOLUME_ADJUSTMENTS, adjustment)] : [valueOf(VOLUME_ADJUSTMENTS, adjustment), adjustUid])}
                             disabled={!connected}
                         />
                     </ControlRow>
@@ -138,30 +138,30 @@ export function VolumePanel({deviceId}: PanelProps) {
             <PanelGroup title="Capabilities and sound modes" icon={ICONS.info}>
                 <Section title="Volume capabilities" icon={ICONS.info}>
                     <Row>
-                        <ResultBlock label="Capabilities" tooltip="airplayState.volumeCapabilities" run={() => call('airplayState', 'volumeCapabilities')} disabled={!connected}/>
-                        <ResultBlock label="Available" tooltip="airplayState.volumeAvailable" run={() => call('airplayState', 'volumeAvailable')} disabled={!connected}/>
-                        <ResultBlock label="Output device UID" tooltip="airplayState.outputDeviceUID" run={() => call('airplayState', 'outputDeviceUID')} disabled={!connected}/>
+                        <ResultBlock label="Capabilities" tooltip="mediaRemote.state.volumeCapabilities" run={() => call('mediaRemote', 'state.volumeCapabilities')} disabled={!connected}/>
+                        <ResultBlock label="Available" tooltip="mediaRemote.state.volumeAvailable" run={() => call('mediaRemote', 'state.volumeAvailable')} disabled={!connected}/>
+                        <ResultBlock label="Output device UID" tooltip="mediaRemote.state.outputDeviceUID" run={() => call('mediaRemote', 'state.outputDeviceUID')} disabled={!connected}/>
                     </Row>
                 </Section>
 
                 <Section title="Sound modes" icon={ICONS.experimental} collapsible defaultOpen={false}>
-                    <p className="text-xs text-text-muted">These go straight at the AirPlay manager. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
+                    <p className="text-xs text-text-muted">These go straight at the AirPlay session and its MRP remote. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
                     <ControlRow label="Audio mode" icon={ICONS.audio}>
                         <TextInput label="Audio mode" mono className="h-7 min-w-0 flex-1 basis-40" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
-                        <CommandButton label="Set" tooltip="airplay.setAudioMode" run={() => call('airplay', 'setAudioMode', [audioMode])} disabled={!connected}/>
+                        <CommandButton label="Set" tooltip="airplay.control.setAudioMode" run={() => call('airplay', 'control.setAudioMode', [audioMode])} disabled={!connected}/>
                     </ControlRow>
                     <ControlRow label="Listening mode" icon={ICONS.outputDevice}>
                         <TextInput label="Listening mode" mono className="h-7 min-w-0 flex-1 basis-40" value={listeningMode} onChange={event => setListeningMode(event.target.value)}/>
-                        <CommandButton label="Set" tooltip="airplay.setListeningMode" run={() => call('airplay', 'setListeningMode', [listeningMode])} disabled={!connected}/>
+                        <CommandButton label="Set" tooltip="mediaRemote.outputDevices.setListeningMode" run={() => call('mediaRemote', 'outputDevices.setListeningMode', [listeningMode])} disabled={!connected}/>
                     </ControlRow>
                     <ControlRow label="Audio fade type" icon={TrendingDown}>
                         <NumberInput label="Audio fade type" value={fadeType} onValueChange={setFadeType} className="w-14"/>
-                        <CommandButton label="Fade" tooltip="airplay.audioFade" run={() => call('airplay', 'audioFade', [numberOf(fadeType, 0)])} disabled={!connected}/>
+                        <CommandButton label="Fade" tooltip="mediaRemote.volume.audioFade" run={() => call('mediaRemote', 'volume.audioFade', [numberOf(fadeType, 0)])} disabled={!connected}/>
                     </ControlRow>
                     <ControlRow label="Conversation detection" icon={ICONS.lyrics}>
                         <ButtonGroup>
-                            <CommandButton label="On" tooltip="airplay.setConversationDetectionEnabled(true)" run={() => call('airplay', 'setConversationDetectionEnabled', [true])} disabled={!connected}/>
-                            <CommandButton label="Off" tooltip="airplay.setConversationDetectionEnabled(false)" run={() => call('airplay', 'setConversationDetectionEnabled', [false])} disabled={!connected}/>
+                            <CommandButton label="On" tooltip="mediaRemote.outputDevices.setConversationDetectionEnabled(true)" run={() => call('mediaRemote', 'outputDevices.setConversationDetectionEnabled', [true])} disabled={!connected}/>
+                            <CommandButton label="Off" tooltip="mediaRemote.outputDevices.setConversationDetectionEnabled(false)" run={() => call('mediaRemote', 'outputDevices.setConversationDetectionEnabled', [false])} disabled={!connected}/>
                         </ButtonGroup>
                     </ControlRow>
                 </Section>

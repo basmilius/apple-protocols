@@ -183,27 +183,55 @@ export type RawMessageRequest = {
 
 // --- Connection recovery ---
 
-export type RecoveryOptionsInfo = {
-    readonly baseDelay: number;
-    readonly maxDelay: number;
-    readonly maxAttempts: number;
+/** One protocol link of the device, as `Status` of `@corewire/devices` reports it. */
+export type RecoveryLink = {
+    readonly state: 'off' | 'connecting' | 'connected' | 'waiting';
+    /** Failed attempts since the link was last connected. */
+    readonly attempt: number;
+    readonly phase: 'quick' | 'slow' | 'rare' | null;
+    /** Epoch milliseconds. */
+    readonly nextAttemptAt: number | null;
+    readonly error: string | null;
 };
 
+/** The recovery the device runs by itself; diagnostics only reports it. */
 export type RecoveryStatus = {
     readonly deviceId: string;
-    readonly enabled: boolean;
-    readonly options: RecoveryOptionsInfo;
-    readonly recovering: boolean;
-    readonly attempt: number;
-    readonly lastEvent: string | null;
+    /** `disconnected`, `connecting`, `connected`, `degraded`, `recovering` or `offline`; null without a session. */
+    readonly state: string | null;
+    readonly reason: string | null;
     readonly error: string | null;
+    readonly airplay: RecoveryLink | null;
+    /** Null on a HomePod. */
+    readonly companionLink: RecoveryLink | null;
+    readonly lastEvent: string | null;
     readonly updatedAt: number;
 };
 
-export type RecoveryConfigureRequest = {
+export type RecoveryDropTarget = 'control' | 'data' | 'event' | 'companionLink';
+
+// --- Apple Music catalog ---
+
+export type CatalogLyricsRequest = {
     readonly deviceId: string;
-    readonly enabled: boolean;
-    readonly options?: Partial<RecoveryOptionsInfo>;
+    readonly bearerToken: string;
+    readonly musicUserToken: string;
+    readonly storefront: string;
+};
+
+/** Lyrics of the current item from the catalog, in the shape `nowPlaying.lyrics()` returns. */
+export type CatalogLyrics = {
+    readonly identifier: string;
+    readonly catalogId: string;
+    readonly text: string | null;
+    readonly available: boolean | null;
+    readonly url: null;
+};
+
+export type CatalogAnimatedArtwork = {
+    readonly format: string;
+    readonly url: string | null;
+    readonly source?: 'device' | 'apple-music';
 };
 
 export type MediaInvokeMap = {
@@ -233,9 +261,11 @@ export type MediaInvokeMap = {
     'raw:send': [RawMessageRequest, CallResult];
 
     'recovery:status': [{ readonly deviceId: string }, RecoveryStatus];
-    'recovery:configure': [RecoveryConfigureRequest, RecoveryStatus];
-    'recovery:simulateDrop': [{ readonly deviceId: string; readonly stream?: 'control' | 'data' | 'event' }, void];
+    'recovery:simulateDrop': [{ readonly deviceId: string; readonly stream?: RecoveryDropTarget }, void];
     'recovery:wake': [{ readonly deviceId: string }, void];
+
+    'catalog:lyrics': [CatalogLyricsRequest, CatalogLyrics | null];
+    'catalog:animatedArtwork': [{ readonly deviceId: string; readonly storefront?: string }, readonly CatalogAnimatedArtwork[]];
 };
 
 export type MediaEventMap = {
@@ -268,9 +298,10 @@ export const MEDIA_INVOKE_CHANNELS: readonly (keyof MediaInvokeMap)[] = [
     'raw:builders',
     'raw:send',
     'recovery:status',
-    'recovery:configure',
     'recovery:simulateDrop',
-    'recovery:wake'
+    'recovery:wake',
+    'catalog:lyrics',
+    'catalog:animatedArtwork'
 ];
 
 export const MEDIA_EVENT_CHANNELS: readonly (keyof MediaEventMap)[] = ['pair:status', 'audio:status', 'raop:status', 'recovery:status'];

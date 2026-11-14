@@ -52,4 +52,10 @@ export function registerToolsChannels(context: ChannelContext): void {
     handle('discoverytools:clearCache', () => {
         mdns.clearCache();
     });
+
+    handle('proxy:start', async request => await context.proxies.start(request));
+    handle('proxy:stop', async request => {
+        await context.proxies.stop(request?.protocol);
+    });
+    handle('proxy:status', () => context.proxies.status());
 }

@@ -8,6 +8,4 @@ bun --cwd packages/audio-source build
 
 bun --cwd packages/devices build
 
-bun --cwd packages/proxy check
-
 bun --cwd packages/diagnostics build

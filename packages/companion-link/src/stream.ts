@@ -66,8 +66,10 @@ export class Stream extends EncryptionAwareConnection<StreamEventMap> {
             return Promise.reject(new ConnectionClosedError('Stream cleanup.'));
         }
 
-        // Taken before sendOPack advances the counter, so it is the `_x` the frame carries.
-        const key = PairingFrameTypes.includes(type) ? PAIRING_QUEUE_IDENTIFIER : this.#xid;
+        // A preset `_x` is what the frame carries; otherwise the counter, taken before sendOPack advances it.
+        const key = PairingFrameTypes.includes(type)
+            ? PAIRING_QUEUE_IDENTIFIER
+            : (message._x !== undefined && message._x !== null ? Number(message._x) : this.#xid);
 
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {

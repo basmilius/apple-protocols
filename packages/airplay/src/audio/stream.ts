@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
-import type { Context } from '@corewire/core/transport';
 import { EncryptionError, randomInt32, randomInt64, SetupError } from '@corewire/core';
-import { NTP, Plist } from '@corewire/core/encoding';
 import { Chacha20 } from '@corewire/core/crypto';
+import { NTP, Plist } from '@corewire/core/encoding';
+import type { Context } from '@corewire/core/transport';
 import type { ControlChannel } from '../channels/control';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from '../const';
 import { LatencyManager } from './latency';

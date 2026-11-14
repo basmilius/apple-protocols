@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AnimatedArtwork as AnimatedArtworkResult, Lyrics as LyricsResult } from '@corewire/devices';
 import { formatDuration, isBytes } from '@shared/helpers';
+import { invoke } from '@/client';
 import { useAppleMusic } from '@/state/apple-music';
 import { useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
@@ -63,7 +64,9 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
         const generation = ++lyricsGeneration.current;
         setLyricsResult(undefined);
 
-        const result = await call('device', catalog ? 'media.getLyricsFromCatalog' : 'nowPlaying.lyrics', catalog ? [{bearerToken, musicUserToken, storefront}] : []);
+        const result = catalog
+            ? await invoke('catalog:lyrics', {deviceId, bearerToken, musicUserToken, storefront})
+            : await call('device', 'nowPlaying.lyrics', []);
 
         if (generation === lyricsGeneration.current) {
             setLyricsResult(result as LyricsResult | null);
@@ -81,7 +84,7 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
         setAnimated(null);
 
         const result = catalog
-            ? await call('device', 'artwork.getAnimatedFromCatalog', [storefront || 'us'])
+            ? await invoke('catalog:animatedArtwork', {deviceId, storefront: storefront || 'us'})
             : await call('device', 'artwork.getAnimated', [numberOf(width, 600), numberOf(height, -1)]);
 
         setAnimated(result as AnimatedArtworkResult[]);
@@ -177,7 +180,7 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
                 <Section title="Animated artwork" icon={ICONS.animatedArtwork}>
                     <Row>
                         <CommandButton label="From the device" tooltip="artwork.getAnimated" run={() => loadAnimated(false)} showResult={false} disabled={!connected}/>
-                        <CommandButton label="From Apple Music" tooltip="artwork.getAnimatedFromCatalog" run={() => loadAnimated(true)} showResult={false} disabled={!connected}/>
+                        <CommandButton label="From Apple Music" tooltip="catalog:animatedArtwork" run={() => loadAnimated(true)} showResult={false} disabled={!connected}/>
                     </Row>
                     {animated === null ? (
                         <p className="text-xs text-text-muted">Fetch animated artwork for the current item. The Apple Music catalog uses the storefront below.</p>
@@ -227,8 +230,8 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
             <PanelGroup title="Lyrics" icon={ICONS.lyrics}>
                 <Section wide title="Lyrics" icon={ICONS.lyrics}>
                     <Row>
-                        <CommandButton label="Get lyrics" tooltip="media.getLyrics" run={() => fetchLyrics(false)} showResult={false} disabled={!connected}/>
-                        <CommandButton label="From Apple Music" tooltip="media.getLyricsFromCatalog" run={() => fetchLyrics(true)} showResult={false} disabled={!connected || !hasTokens}/>
+                        <CommandButton label="Get lyrics" tooltip="nowPlaying.lyrics" run={() => fetchLyrics(false)} showResult={false} disabled={!connected}/>
+                        <CommandButton label="From Apple Music" tooltip="catalog:lyrics" run={() => fetchLyrics(true)} showResult={false} disabled={!connected || !hasTokens}/>
                         <Button size="sm" variant="secondary" onClick={() => setShowLyricsDemo(value => !value)}>
                             {showLyricsDemo ? 'Close preview' : 'Try preview'}
                         </Button>

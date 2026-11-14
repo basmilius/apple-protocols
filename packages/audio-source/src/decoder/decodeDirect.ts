@@ -1,6 +1,6 @@
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '../const';
-import { convertPcm } from './pcm';
 import { audioDecode } from './audioDecode';
+import { convertPcm } from './pcm';
 
 /** Decodes MP3, OGG, WAV, FLAC or QOA to signed 16-bit big-endian stereo PCM. Resamples to the default rate with linear interpolation. */
 export async function decodeDirect(buffer: Buffer): Promise<Buffer> {

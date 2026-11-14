@@ -14,19 +14,9 @@ export type NamedValue = {
 
 const itemsOf = (entries: readonly NamedValue[]): readonly SelectItem<string>[] => entries.map(entry => ({value: entry.name, label: entry.name}));
 
-export const SHUFFLE_MODES: readonly NamedValue[] = [
-    {name: 'Unknown', value: 0},
-    {name: 'Off', value: 1},
-    {name: 'Albums', value: 2},
-    {name: 'Songs', value: 3}
-];
-
-export const REPEAT_MODES: readonly NamedValue[] = [
-    {name: 'Unknown', value: 0},
-    {name: 'Off', value: 1},
-    {name: 'One', value: 2},
-    {name: 'All', value: 3}
-];
+/** `ShuffleMode` and `RepeatMode` of `@corewire/devices`. */
+export const SHUFFLE_MODES: readonly string[] = ['off', 'albums', 'songs'];
+export const REPEAT_MODES: readonly string[] = ['off', 'one', 'all'];
 
 export const VOLUME_ADJUSTMENTS: readonly NamedValue[] = [
     {name: 'IncrementSmall', value: 1},
@@ -115,8 +105,8 @@ export const MEDIA_CONTROL_COMMANDS: readonly string[] = [
     'SetCaptionSettings'
 ];
 
-export const SHUFFLE_MODE_ITEMS = itemsOf(SHUFFLE_MODES);
-export const REPEAT_MODE_ITEMS = itemsOf(REPEAT_MODES);
+export const SHUFFLE_MODE_ITEMS: readonly SelectItem<string>[] = SHUFFLE_MODES.map(name => ({value: name, label: name}));
+export const REPEAT_MODE_ITEMS: readonly SelectItem<string>[] = REPEAT_MODES.map(name => ({value: name, label: name}));
 export const VOLUME_ADJUSTMENT_ITEMS = itemsOf(VOLUME_ADJUSTMENTS);
 export const COMPANION_HID_ITEMS: readonly SelectItem<string>[] = COMPANION_HID_COMMANDS.map(name => ({value: name, label: name}));
 export const BUTTON_PRESS_ITEMS: readonly SelectItem<string>[] = BUTTON_PRESS_TYPES.map(name => ({value: name, label: name}));

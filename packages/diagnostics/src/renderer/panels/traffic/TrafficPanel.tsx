@@ -13,7 +13,8 @@ const PROTOCOL_ITEMS: readonly SelectItem<TrafficProtocol | 'all'>[] = [
     {value: 'dataStream', label: 'Data stream'},
     {value: 'eventStream', label: 'Event stream'},
     {value: 'companionLink', label: 'Companion Link'},
-    {value: 'rtsp', label: 'RTSP'}
+    {value: 'rtsp', label: 'RTSP'},
+    {value: 'proxy', label: 'Proxy'}
 ];
 
 const COLUMNS = [{width: '5.5rem'}, {width: '1rem'}, {width: '7.5rem', hideBelow: 'md'}, {width: 'minmax(0,1fr)'}] as const;

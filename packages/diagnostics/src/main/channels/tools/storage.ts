@@ -1,6 +1,5 @@
-import type { StorageData } from '@corewire/core/storage';
 import { STORAGE_PROTOCOLS, type StorageDump, type StoredDeviceInfo, type StorageProtocol } from '@shared/contract';
-import type { StorageQueue } from '../../storage';
+import type { StorageData, StoredCredentials, StorageQueue } from '../../storage';
 
 /** Mask credential key material; keep `accessoryIdentifier` visible as the device name. */
 const SECRET_FIELDS: readonly string[] = ['accessoryLongTermPublicKey', 'pairingId', 'publicKey', 'secretKey'];
@@ -10,22 +9,28 @@ const mask = (value: unknown): string => {
     return `[hidden, ${length} bytes]`;
 };
 
+/** The string form starts with the accessory id; everything after it is key material. */
+const maskCredentials = (credentials: StoredCredentials): unknown => {
+    if (typeof credentials === 'string') {
+        const [prefix, identifier = ''] = credentials.split('.');
+
+        return {form: prefix, accessoryIdentifier: Buffer.from(identifier, 'base64url').toString('utf8'), keys: '[hidden]'};
+    }
+
+    return Object.fromEntries(Object.entries(credentials).map(([field, value]) => [field, SECRET_FIELDS.includes(field) ? mask(value) : value]));
+};
+
 /** Mask keys in main so they never cross IPC without an explicit reveal request. */
 const maskData = (data: StorageData): unknown => ({
     ...data,
-    credentials: Object.fromEntries(
-        Object.entries(data.credentials).map(([key, credentials]) => [
-            key,
-            Object.fromEntries(Object.entries(credentials).map(([field, value]) => [field, SECRET_FIELDS.includes(field) ? mask(value) : value]))
-        ])
-    )
+    credentials: Object.fromEntries(Object.entries(data.credentials).map(([key, credentials]) => [key, maskCredentials(credentials)]))
 });
 
 export function listDevices(storage: StorageQueue): readonly StoredDeviceInfo[] {
     return storage.storage.listDevices().map(device => ({
         identifier: device.identifier,
         name: device.name,
-        credentials: STORAGE_PROTOCOLS.filter(protocol => storage.storage.getCredentials(device.identifier, protocol) !== undefined)
+        credentials: STORAGE_PROTOCOLS.filter(protocol => storage.storage.hasCredentials(device.identifier, protocol))
     }));
 }
 

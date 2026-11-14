@@ -1,14 +1,13 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
-import type { DiscoveryResult } from '@corewire/core/discovery';
-import { OPack } from '@corewire/core/encoding';
 import { FrameType, PairingFrameTypes } from '@corewire/companion-link';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { type DiscoveryResult, MdnsResponder } from '@corewire/core/discovery';
+import { OPack } from '@corewire/core/encoding';
+import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
+import type { Context } from '@corewire/core/transport';
 import { FramedConnection } from '../core/framedConnection';
-import { MdnsResponder } from '../core/mdnsResponder';
-import type { ProtocolProxy } from '../core/protocolProxy';
+import { listen, type ProtocolProxy } from '../core/protocolProxy';
 import type { ProxyTap } from '../core/tap';
 import type { ProxyStore } from '../store';
 
@@ -20,6 +19,8 @@ const SERVICE_TYPE = '_companion-link._tcp.local';
 
 /** Configuration for a {@link CompanionLinkProxy}. */
 export type CompanionLinkProxyOptions = {
+    /** Tags the logs and the tapped traffic, normally with the id of the device relayed to. */
+    readonly context: Context;
     /** The real target device (Apple TV/HomePod) to relay traffic to. */
     readonly device: DiscoveryResult;
     /** The proxy's own client credentials for pair-verifying with the real device. */
@@ -50,23 +51,18 @@ export class CompanionLinkProxy implements ProtocolProxy {
     #server?: Server;
 
     constructor(options: CompanionLinkProxyOptions) {
-        this.#context = new Context(`proxy:${options.device.id}`);
+        this.#context = options.context;
         this.#options = options;
     }
 
-    /** Starts the mDNS advertisement and the TCP listener for controllers. */
+    /**
+     * Starts the TCP listener for controllers and the mDNS advertisement.
+     *
+     * @throws {Error} When the port cannot be bound, such as `EADDRINUSE`.
+     */
     async start(): Promise<void> {
         const identity = this.#options.store.accessoryIdentity(this.#options.device.id);
         const host = `${sanitize(this.#options.instanceName)}.local`;
-
-        this.#responder = new MdnsResponder(this.#context, {
-            instance: this.#options.instanceName,
-            type: SERVICE_TYPE,
-            host,
-            port: this.#options.listenPort,
-            txt: proxyTxt(identity, this.#options.device.txt ?? {})
-        });
-        this.#responder.start();
 
         this.#server = createServer((socket) => {
             this.#context.logger.info('[proxy]', `Controller connected from ${socket.remoteAddress}`);
@@ -75,7 +71,17 @@ export class CompanionLinkProxy implements ProtocolProxy {
             session.start(socket);
         });
 
-        await new Promise<void>((resolve) => this.#server.listen(this.#options.listenPort, resolve));
+        await listen(this.#server, this.#options.listenPort);
+
+        this.#responder = new MdnsResponder(this.#context.logger, {
+            instance: this.#options.instanceName,
+            type: SERVICE_TYPE,
+            host,
+            port: this.#options.listenPort,
+            txt: proxyTxt(identity, this.#options.device.txt ?? {})
+        });
+        this.#responder.start();
+
         this.#context.logger.info('[proxy]', `Listening for controllers on port ${this.#options.listenPort}. Pair with PIN ${this.#options.pin}.`);
     }
 

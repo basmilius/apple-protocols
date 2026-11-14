@@ -1,18 +1,17 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
-import type { DiscoveryResult } from '@corewire/core/discovery';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '@corewire/airplay';
-import { Plist } from '@corewire/core/encoding';
 import { buildResponse } from '@corewire/airplay/rtsp';
-import { ControlConnection, type ControlMessage } from './controlConnection';
-import { DataChannelServer, EventChannelServer } from './channelServer';
-import { MdnsResponder } from '../core/mdnsResponder';
-import type { ProtocolProxy } from '../core/protocolProxy';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { type DiscoveryResult, MdnsResponder } from '@corewire/core/discovery';
+import { Plist } from '@corewire/core/encoding';
+import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
+import type { Context } from '@corewire/core/transport';
+import { listen, type ProtocolProxy } from '../core/protocolProxy';
 import type { ProxyTap } from '../core/tap';
 import type { ProxyStore } from '../store';
+import { DataChannelServer, EventChannelServer } from './channelServer';
+import { ControlConnection, type ControlMessage } from './controlConnection';
 
 /** AirPlay control service type advertised over mDNS. */
 const SERVICE_TYPE = '_airplay._tcp.local';
@@ -22,6 +21,8 @@ const PAIRING_PATHS = ['/pair-pin-start', '/pair-setup', '/pair-verify'];
 
 /** Configuration for an {@link AirPlayProxy}. */
 export type AirPlayProxyOptions = {
+    /** Tags the logs and the tapped traffic, normally with the id of the device relayed to. */
+    readonly context: Context;
     readonly device: DiscoveryResult;
     readonly credentials: AccessoryCredentials;
     readonly store: ProxyStore;
@@ -46,16 +47,27 @@ export class AirPlayProxy implements ProtocolProxy {
     #server?: Server;
 
     constructor(options: AirPlayProxyOptions) {
-        this.#context = new Context(`proxy:${options.device.id}`);
+        this.#context = options.context;
         this.#options = options;
     }
 
-    /** Starts the mDNS advertisement and the RTSP listener. */
+    /**
+     * Starts the RTSP listener and the mDNS advertisement.
+     *
+     * @throws {Error} When the port cannot be bound, such as `EADDRINUSE`.
+     */
     async start(): Promise<void> {
         const identity = this.#options.store.accessoryIdentity(`airplay:${this.#options.device.id}`);
         const host = `${sanitize(this.#options.instanceName)}.local`;
 
-        this.#responder = new MdnsResponder(this.#context, {
+        this.#server = createServer((socket) => {
+            this.#context.logger.info('[proxy]', `Controller connected from ${socket.remoteAddress}`);
+            new AirPlaySession(this.#context, this.#options, identity).start(socket);
+        });
+
+        await listen(this.#server, this.#options.listenPort);
+
+        this.#responder = new MdnsResponder(this.#context.logger, {
             instance: this.#options.instanceName,
             type: SERVICE_TYPE,
             host,
@@ -64,12 +76,6 @@ export class AirPlayProxy implements ProtocolProxy {
         });
         this.#responder.start();
 
-        this.#server = createServer((socket) => {
-            this.#context.logger.info('[proxy]', `Controller connected from ${socket.remoteAddress}`);
-            new AirPlaySession(this.#context, this.#options, identity).start(socket);
-        });
-
-        await new Promise<void>((resolve) => this.#server.listen(this.#options.listenPort, resolve));
         this.#context.logger.info('[proxy]', `Listening for AirPlay controllers on port ${this.#options.listenPort}. Pair with PIN ${this.#options.pin}.`);
     }
 

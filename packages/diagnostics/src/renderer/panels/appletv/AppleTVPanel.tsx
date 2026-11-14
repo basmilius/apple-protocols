@@ -12,7 +12,7 @@ type LaunchableApp = {
 };
 
 type UserAccount = {
-    readonly accountId: string;
+    readonly id: string;
     readonly name: string;
 };
 
@@ -66,8 +66,7 @@ function AppsSection({call, connected}: Context) {
             </ControlRow>
             <ControlRow label="URL" icon={Link2}>
                 <TextInput label="URL to open" mono className="h-7 min-w-0 flex-1 basis-40" placeholder="https://tv.apple.com/..." value={url} onChange={event => setUrl(event.target.value)}/>
-                <CommandButton label="Via AirPlay" tooltip="apps.openUrl" run={() => call('device', 'apps.openUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
-                <CommandButton label="Via Companion Link" tooltip="companionLink.launchUrl" run={() => call('companionLink', 'launchUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
+                <CommandButton label="Open" tooltip="apps.openUrl" run={() => call('device', 'apps.openUrl', [url.trim()])} disabled={!connected || url.trim().length === 0}/>
             </ControlRow>
         </Section>
     );
@@ -101,25 +100,21 @@ function AccountsSection({call, connected}: Context) {
             ) : (
                 <div className="flex flex-col divide-y divide-border-soft">
                     {accounts.map(account => (
-                        <div key={account.accountId} className="flex items-center gap-2 py-1">
+                        <div key={account.id} className="flex items-center gap-2 py-1">
                             <span className="min-w-0 grow truncate text-xs text-text">{account.name}</span>
-                            <span className="mono truncate text-text-faint">{account.accountId}</span>
-                            <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [account.accountId])}/>
+                            <span className="mono truncate text-text-faint">{account.id}</span>
+                            <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [account.id])}/>
                         </div>
                     ))}
                 </div>
             )}
-            <Row>
-                <ResultBlock label="Active account" tooltip="accounts.active" run={() => call('device', 'accounts.active')} disabled={!connected}/>
-                <ResultBlock label="Companion account" tooltip="companionLink.activeUserAccount" run={() => call('companionLink', 'activeUserAccount')} disabled={!connected}/>
-            </Row>
             <ControlRow label="Account id" icon={ICONS.identifier}>
                 <TextInput label="Account identifier" mono className="h-7 min-w-0 flex-1 basis-40" value={accountId} onChange={event => setAccountId(event.target.value)}/>
                 <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [accountId.trim()])} disabled={!connected || accountId.trim().length === 0}/>
             </ControlRow>
             <ControlRow label="iCloud alt DSID" icon={ICONS.identifier}>
                 <TextInput label="iCloud alt DSID" mono className="h-7 min-w-0 flex-1 basis-40" value={dsid} onChange={event => setDsid(event.target.value)}/>
-                <CommandButton label="Switch" tooltip="accounts.switchActive" run={() => call('device', 'accounts.switchActive', [dsid.trim()])} disabled={!connected || dsid.trim().length === 0}/>
+                <CommandButton label="Switch" tooltip="companionLink.accounts.switchActive" run={() => call('companionLink', 'accounts.switchActive', [dsid.trim()])} disabled={!connected || dsid.trim().length === 0}/>
             </ControlRow>
         </Section>
     );
@@ -154,8 +149,8 @@ function SystemSection({call, connected}: Context) {
             </ControlRow>
             <ControlRow label="Siri" icon={Mic}>
                 <ButtonGroup>
-                    <CommandButton label="Start" tooltip="system.siriStart" run={() => call('device', 'system.siriStart')} disabled={!connected}/>
-                    <CommandButton label="Stop" tooltip="system.siriStop" run={() => call('device', 'system.siriStop')} disabled={!connected}/>
+                    <CommandButton label="Start" tooltip="system.startSiri" run={() => call('device', 'system.startSiri')} disabled={!connected}/>
+                    <CommandButton label="Stop" tooltip="system.stopSiri" run={() => call('device', 'system.stopSiri')} disabled={!connected}/>
                 </ButtonGroup>
             </ControlRow>
         </Section>
@@ -166,12 +161,12 @@ function PowerSection({call, connected}: Context) {
     return (
         <Section title="Power" icon={ICONS.power}>
             <ControlRow label="Power" icon={ICONS.power}>
-                <CommandButton label="On" variant="primary" tooltip="power.on" run={() => call('device', 'power.on')} disabled={!connected}/>
-                <CommandButton label="Off" variant="danger" tooltip="power.off" run={() => call('device', 'power.off')} disabled={!connected}/>
+                <CommandButton label="On" variant="primary" tooltip="power.wake" run={() => call('device', 'power.wake')} disabled={!connected}/>
+                <CommandButton label="Off" variant="danger" tooltip="power.sleep" run={() => call('device', 'power.sleep')} disabled={!connected}/>
             </ControlRow>
             <Row>
-                <ResultBlock label="Power state" tooltip="power.getState" run={() => call('device', 'power.getState')} disabled={!connected}/>
-                <ResultBlock label="Attention state" tooltip="companionLink.getAttentionState" run={() => call('companionLink', 'getAttentionState')} disabled={!connected}/>
+                <ResultBlock label="Power state" tooltip="power.state" run={() => call('device', 'power.state')} disabled={!connected}/>
+                <ResultBlock label="Attention state" tooltip="companionLink.power.fetch" run={() => call('companionLink', 'power.fetch')} disabled={!connected}/>
             </Row>
         </Section>
     );
@@ -190,8 +185,8 @@ function UpNextSection({call, connected}: Context) {
             </ControlRow>
             <ResultBlock
                 label="Fetch up next"
-                tooltip="system.fetchUpNext"
-                run={() => call('device', 'system.fetchUpNext', paginationToken.trim().length > 0 ? [paginationToken.trim()] : [])}
+                tooltip="companionLink.system.fetchUpNext"
+                run={() => call('companionLink', 'system.fetchUpNext', paginationToken.trim().length > 0 ? [paginationToken.trim()] : [])}
                 disabled={!connected}
                 defaultDepth={3}
             />
@@ -202,9 +197,9 @@ function UpNextSection({call, connected}: Context) {
                 <TextInput label="Up next kind" mono className="h-7 w-32" value={kind} onChange={event => setKind(event.target.value)}/>
             </ControlRow>
             <Row>
-                <CommandButton label="Add" tooltip="system.addToUpNext" run={() => call('device', 'system.addToUpNext', [identifier.trim(), kind.trim()])} disabled={!ready}/>
-                <CommandButton label="Remove" variant="danger" tooltip="system.removeFromUpNext" run={() => call('device', 'system.removeFromUpNext', [identifier.trim(), kind.trim()])} disabled={!ready}/>
-                <CommandButton label="Mark as watched" tooltip="companionLink.markAsWatched" run={() => call('companionLink', 'markAsWatched', [identifier.trim(), kind.trim()])} disabled={!ready}/>
+                <CommandButton label="Add" tooltip="companionLink.system.addToUpNext" run={() => call('companionLink', 'system.addToUpNext', [identifier.trim(), kind.trim()])} disabled={!ready}/>
+                <CommandButton label="Remove" variant="danger" tooltip="companionLink.system.removeFromUpNext" run={() => call('companionLink', 'system.removeFromUpNext', [identifier.trim(), kind.trim()])} disabled={!ready}/>
+                <CommandButton label="Mark as watched" tooltip="companionLink.system.markAsWatched" run={() => call('companionLink', 'system.markAsWatched', [identifier.trim(), kind.trim()])} disabled={!ready}/>
             </Row>
         </Section>
     );

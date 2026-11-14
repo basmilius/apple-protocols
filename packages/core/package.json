@@ -61,10 +61,6 @@
             "types": "./dist/pairing.d.mts",
             "default": "./dist/pairing.mjs"
         },
-        "./storage": {
-            "types": "./dist/storage.d.mts",
-            "default": "./dist/storage.mjs"
-        },
         "./transport": {
             "types": "./dist/transport.d.mts",
             "default": "./dist/transport.mjs"

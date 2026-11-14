@@ -1,33 +1,68 @@
 import { useState } from 'react';
-import type { RecoveryStatus } from '@shared/contract';
+import type { RecoveryDropTarget, RecoveryLink } from '@shared/contract';
 import { invoke } from '@/client';
 import { useDevice } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { EventFeed, MissingDevice } from '@/panels/sdk-shared';
 import { useStatus } from '@/panels/shared-media/hooks';
-import { Banner, Button, Field, FormError, Icon, ICONS, KeyValue, KeyValueList, PanelBody, RelativeTime, Section, StatusPill, TextInput, Toggle, useAsyncAction } from '@/ui';
+import { Banner, Button, FormError, Icon, ICONS, KeyValue, KeyValueList, PanelBody, RelativeTime, Section, Select, type SelectItem, type Status, StatusPill, useAsyncAction } from '@/ui';
 
 const CONNECTION_EVENTS: readonly string[] = ['status'];
 const DEVICE_SOURCE = ['device'] as const;
 
-/** Arms `ConnectionRecovery` in main; simulate-drop destroys the DataStream socket to test recovery. */
+const DROP_ITEMS: readonly SelectItem<RecoveryDropTarget>[] = [
+    {value: 'data', label: 'AirPlay data stream'},
+    {value: 'event', label: 'AirPlay event stream'},
+    {value: 'control', label: 'AirPlay control stream'},
+    {value: 'companionLink', label: 'Companion Link'}
+];
+
+const STATE_TONE: Record<string, Status> = {
+    connected: 'ok',
+    degraded: 'warning',
+    connecting: 'busy',
+    recovering: 'busy',
+    offline: 'error',
+    disconnected: 'off'
+};
+
+const LINK_TONE: Record<RecoveryLink['state'], Status> = {
+    connected: 'ok',
+    connecting: 'busy',
+    waiting: 'warning',
+    off: 'off'
+};
+
+function LinkRows({label, link}: { readonly label: string; readonly link: RecoveryLink }) {
+    return (
+        <>
+            <KeyValue label={label} icon={label === 'AirPlay' ? ICONS.airplay : ICONS.companionLink}>
+                <StatusPill status={LINK_TONE[link.state]}>{link.phase ? `${link.state}, ${link.phase}` : link.state}</StatusPill>
+            </KeyValue>
+            {link.attempt > 0 && <KeyValue label="Failed attempts">{link.attempt}</KeyValue>}
+            {link.nextAttemptAt !== null && (
+                <KeyValue label="Next attempt" mono={false}>
+                    <RelativeTime at={link.nextAttemptAt}/>
+                </KeyValue>
+            )}
+            {link.error !== null && <KeyValue label="Last error" mono={false}>{link.error}</KeyValue>}
+        </>
+    );
+}
+
+/** The device keeps itself connected; this shows how, and drops a socket to watch it recover. */
 export function ConnectionPanel({deviceId}: PanelProps) {
     const {device, snapshot, connected} = useDevice(deviceId);
     const [status] = useStatus('recovery:status', 'recovery:status', deviceId);
-    const [baseDelay, setBaseDelay] = useState(1000);
-    const [maxDelay, setMaxDelay] = useState(30000);
-    const [maxAttempts, setMaxAttempts] = useState(3);
+    const [dropTarget, setDropTarget] = useState<RecoveryDropTarget>('data');
     const action = useAsyncAction();
 
     if (device === null || deviceId === null) {
         return <MissingDevice/>;
     }
 
-    const current: RecoveryStatus | null = status;
-    const enabled = current?.enabled === true;
     const connection = snapshot?.connection ?? null;
-
-    const configure = (next: boolean): Promise<unknown> => invoke('recovery:configure', {deviceId, enabled: next, options: {baseDelay, maxDelay, maxAttempts}});
+    const state = status?.state ?? null;
 
     return (
         <PanelBody>
@@ -60,37 +95,31 @@ export function ConnectionPanel({deviceId}: PanelProps) {
                         <Icon icon={ICONS.knock} size={14}/>
                         Knock to wake
                     </Button>
-                    <Button variant="danger" size="sm" disabled={action.busy || !connected} onClick={() => void action.run(() => invoke('recovery:simulateDrop', {deviceId}))}>
+                    <Select label="Socket to drop" value={dropTarget} onValueChange={setDropTarget} items={DROP_ITEMS} size="sm"/>
+                    <Button variant="danger" size="sm" disabled={action.busy || !connected} onClick={() => void action.run(() => invoke('recovery:simulateDrop', {deviceId, stream: dropTarget}))}>
                         <Icon icon={ICONS.simulateDrop} size={14}/>
                         Simulate drop
                     </Button>
                 </div>
-                <p className="text-xs text-text-muted">Simulate drop destroys the data stream socket, the way a network loss would.</p>
+                <p className="text-xs text-text-muted">Simulate drop destroys the chosen socket, the way a network loss would. The device then recovers on its own.</p>
+                {action.failure && <FormError>{action.failure}</FormError>}
             </Section>
 
             <Section
                 title="Recovery"
                 icon={ICONS.recovery}
-                actions={<StatusPill status={current?.recovering ? 'busy' : enabled ? 'ok' : 'off'}>{current?.recovering ? `attempt ${current.attempt}` : enabled ? 'armed' : 'off'}</StatusPill>}
+                actions={<StatusPill status={state === null ? 'off' : (STATE_TONE[state] ?? 'off')}>{state ?? 'no session'}</StatusPill>}
             >
-                <div className="flex flex-wrap items-end gap-2">
-                    <Field label="Base delay (ms)">
-                        <TextInput label="Base delay (ms)" type="number" value={baseDelay} disabled={enabled} onChange={event => setBaseDelay(Number(event.target.value))} className="max-w-32" mono/>
-                    </Field>
-                    <Field label="Max delay (ms)">
-                        <TextInput label="Max delay (ms)" type="number" value={maxDelay} disabled={enabled} onChange={event => setMaxDelay(Number(event.target.value))} className="max-w-32" mono/>
-                    </Field>
-                    <Field label="Max attempts">
-                        <TextInput label="Max attempts" type="number" value={maxAttempts} disabled={enabled} onChange={event => setMaxAttempts(Number(event.target.value))} className="max-w-28" mono/>
-                    </Field>
-                </div>
-                <Toggle label="Recover from unexpected disconnects" checked={enabled} disabled={action.busy || !connected} onCheckedChange={next => void action.run(() => configure(next))}/>
-                <p className="text-xs text-text-muted">Delays double each attempt up to the maximum. Arming needs a live session, and the options above are read when recovery is switched on.</p>
+                <p className="text-xs text-text-muted">
+                    The device retries by itself until it is disconnected: three quick attempts after 1, 2 and 4 seconds, then on an Apple TV fifteen attempts every two minutes, then every fifteen minutes. A HomePod skips the two-minute phase.
+                </p>
                 <KeyValueList>
-                    <KeyValue label="Last event">{current?.lastEvent ?? '-'}</KeyValue>
-                    <KeyValue label="Errors">{current?.error ?? '-'}</KeyValue>
+                    <KeyValue label="Reason">{status?.reason ?? '-'}</KeyValue>
+                    {status?.airplay && <LinkRows label="AirPlay" link={status.airplay}/>}
+                    {status?.companionLink && <LinkRows label="Companion Link" link={status.companionLink}/>}
+                    <KeyValue label="Last test">{status?.lastEvent ?? '-'}</KeyValue>
+                    <KeyValue label="Error" mono={false}>{status?.error ?? '-'}</KeyValue>
                 </KeyValueList>
-                {action.failure && <FormError>{action.failure}</FormError>}
             </Section>
 
             <EventFeed
@@ -99,7 +128,7 @@ export function ConnectionPanel({deviceId}: PanelProps) {
                 title="Connection events"
                 sources={DEVICE_SOURCE}
                 names={CONNECTION_EVENTS}
-                empty="Nothing yet. Connect, then simulate a drop to see recovery walk its attempts."
+                empty="Nothing yet. Connect, then simulate a drop to see the device recover."
             />
         </PanelBody>
     );

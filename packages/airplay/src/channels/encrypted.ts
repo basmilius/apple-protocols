@@ -1,5 +1,5 @@
-import { type Connection, type Context, EncryptionAwareConnection } from '@corewire/core/transport';
 import type { EventMap } from '@corewire/core';
+import { type Connection, type Context, EncryptionAwareConnection } from '@corewire/core/transport';
 import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
 /** Upper bound for both receive buffers; a peer that sends more is broken or hostile. */

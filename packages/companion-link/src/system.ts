@@ -49,7 +49,8 @@ export class System {
     async siriRemoteInfo(): Promise<any> {
         const reply = await this.#channel.exchange(Messages.fetchSiriRemoteInfo());
 
-        return Plist.parse(Buffer.from(reply._c.SiriRemoteInfoKey).buffer);
+        // A copy owns its ArrayBuffer; a small Buffer shares the pool's, at an offset.
+        return Plist.parse(Uint8Array.from(reply._c.SiriRemoteInfoKey as Uint8Array).buffer);
     }
 
     /** The Up Next queue, as the raw reply. */

@@ -45,8 +45,9 @@ register('device', 'touch.tap', {args: [number(0, 2000)], optional: 1});
 
 const reads = new Map<string, readonly string[]>([
     ['device', ['id', 'name', 'address', 'model', 'modelName', 'status', 'nowPlaying.current', 'nowPlaying.elapsed', 'volume.level', 'volume.muted', 'volume.available', 'volume.mode', 'power.state', 'text.state', 'multiroom.clusterId', 'multiroom.isLeader', 'multiroom.isClusterAware']],
-    ['airplayState', ['volume', 'volumeAvailable', 'volumeCapabilities', 'outputDeviceUID', 'outputDevices', 'nowPlayingClient', 'keyboardState', 'keyboardAttributes', 'clusterID', 'isClusterLeader']],
-    ['companionLink', ['isOpen', 'state']]
+    ['airplay', ['isOpen', 'info', 'features', 'supportsUrlPlayback']],
+    ['mediaRemote', ['state.volume', 'state.volumeAvailable', 'state.volumeCapabilities', 'state.outputDeviceUID', 'state.outputDevices', 'state.nowPlayingClient', 'state.keyboardState', 'state.keyboardAttributes', 'state.clusterID', 'state.isClusterLeader']],
+    ['companionLink', ['isOpen', 'sourceVersion', 'state']]
 ]);
 
 /** Agent calls use exact actions; arbitrary protocol methods never cross this boundary. */

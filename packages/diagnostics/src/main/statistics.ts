@@ -15,7 +15,7 @@ type Bucket = {
     readonly types: Map<string, MessageType>;
 };
 
-const protocolCounts = (): ProtocolCounts => ({dataStream: 0, eventStream: 0, companionLink: 0, rtsp: 0});
+const protocolCounts = (): ProtocolCounts => ({dataStream: 0, eventStream: 0, companionLink: 0, rtsp: 0, proxy: 0});
 const emptyTotals = (): StatisticsTotals => ({received: 0, sent: 0, bytes: 0, errors: 0, warnings: 0});
 
 /* RTSP sequence numbers and frame sizes describe individual messages rather than message types. */

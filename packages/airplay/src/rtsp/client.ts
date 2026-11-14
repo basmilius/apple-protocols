@@ -1,6 +1,6 @@
-import { type CloseReason, Connection, type Context } from '@corewire/core/transport';
 import { ConnectionClosedError, ConnectionTimeoutError, HTTP_TIMEOUT, InvalidResponseError, reporter, TimeoutError } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
+import { type CloseReason, Connection, type Context } from '@corewire/core/transport';
 import { type Method, parseResponse } from './encoding';
 
 /**

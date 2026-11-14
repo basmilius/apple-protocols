@@ -1,8 +1,8 @@
+import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { ConnectionClosedError, randomInt32, reporter, TimeoutError } from '@corewire/core';
-import type { Context } from '@corewire/core/transport';
 import { deriveEncryptionKeys } from '@corewire/core/crypto';
 import { Plist } from '@corewire/core/encoding';
-import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
+import type { Context } from '@corewire/core/transport';
 import { encodeVarint, messageKind, type MrpMessageMap, type MrpMessageName, parseMessages } from '../mrp/codec';
 import { describeProtocolMessage } from '../mrp/describe';
 import * as Proto from '../mrp/proto';

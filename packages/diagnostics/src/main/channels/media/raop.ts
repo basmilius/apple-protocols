@@ -107,7 +107,7 @@ export function registerRaopChannels(context: ChannelContext): void {
         }
 
         const timingServer = await context.sessions.timingServer();
-        const client = await RaopClient.create(service, timingServer);
+        const client = await RaopClient.create({address: service.address, port: service.service.port, id: service.id, txt: service.txt}, timingServer);
         if (generation !== state.generation) {await client.close(); throw new Error('RAOP connect cancelled.');}
 
         client.on('playing', info => {

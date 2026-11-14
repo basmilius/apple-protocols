@@ -1,10 +1,12 @@
 import { Binary, Database, Gauge, LockKeyhole, Radar, ToggleLeft } from 'lucide-react';
+import { ICONS } from '@/ui/icons';
 import type { PanelDefinition } from './registry';
 import { EncodingPanel } from './encoding/EncodingPanel';
 import { EncryptionPanel } from './encryption/EncryptionPanel';
 import { FeaturesPanel } from './features/FeaturesPanel';
 import { MdnsPanel } from './mdns/MdnsPanel';
 import { PerformancePanel } from './performance/PerformancePanel';
+import { ProxyPanel } from './proxy/ProxyPanel';
 import { StoragePanel } from './storage/StoragePanel';
 
 /* Tools also work in cells without a device. */
@@ -44,5 +46,12 @@ export const TOOLS_PANELS: readonly PanelDefinition[] = [
         icon: Database,
         appliesTo: () => true,
         component: StoragePanel
+    },
+    {
+        id: 'proxy',
+        title: 'Proxy',
+        icon: ICONS.proxy,
+        appliesTo: () => true,
+        component: ProxyPanel
     }
 ];

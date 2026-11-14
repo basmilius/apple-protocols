@@ -4,6 +4,9 @@ import { checkAction } from './actions';
 
 const DENIED: readonly InvokeChannel[] = ['app:theme', 'audio:pickFile'];
 const DESTRUCTIVE: readonly InvokeChannel[] = ['pair:forget', 'storage:removeCredentials', 'storage:removeDevice'];
+
+/** A proxy advertises a device on the network and relays to a real one with stored credentials. */
+const NEEDS_AGREEMENT: readonly InvokeChannel[] = ['raw:send', 'proxy:start'];
 const configured = Number(process.env.DIAGNOSTICS_AGENT_MAX_VOLUME ?? 0.5);
 const MAX_VOLUME = Number.isFinite(configured) && configured >= 0 && configured <= 1 ? configured : 0.5;
 
@@ -21,7 +24,7 @@ export function refusal(channel: InvokeChannel, request: unknown, confirm: boole
         try {validateRawRequest(body as unknown as RawMessageRequest);} catch (error) {return error instanceof Error ? error.message : String(error);}
     }
     let volume: number | undefined;
-    let needsConfirm = DESTRUCTIVE.includes(channel) || channel === 'raw:send';
+    let needsConfirm = DESTRUCTIVE.includes(channel) || NEEDS_AGREEMENT.includes(channel);
     if (channel === 'device:call') {
         const action = checkAction(body);
         if (action.error) return action.error;

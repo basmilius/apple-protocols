@@ -52,9 +52,9 @@ function TextInputSection({deviceId, call, connected, companionConnected}: { rea
             </Row>
             <Row>
                 <ResultBlock label="Session" tooltip="text.state" run={() => call('device', 'text.state')} disabled={!connected} defaultDepth={3}/>
-                <ResultBlock label="State" tooltip="airplayState.keyboardState" run={() => call('airplayState', 'keyboardState')} disabled={!connected}/>
-                <ResultBlock label="Attributes" tooltip="airplayState.keyboardAttributes" run={() => call('airplayState', 'keyboardAttributes')} disabled={!connected} defaultDepth={3}/>
-                <ResultBlock label="Companion state" tooltip="companionLink.textInputState" run={() => call('companionLink', 'state.textInputState')} disabled={!companionConnected} defaultDepth={3}/>
+                <ResultBlock label="State" tooltip="mediaRemote.state.keyboardState" run={() => call('mediaRemote', 'state.keyboardState')} disabled={!connected}/>
+                <ResultBlock label="Attributes" tooltip="mediaRemote.state.keyboardAttributes" run={() => call('mediaRemote', 'state.keyboardAttributes')} disabled={!connected} defaultDepth={3}/>
+                <ResultBlock label="Companion state" tooltip="companionLink.state.textInputState" run={() => call('companionLink', 'state.textInputState')} disabled={!companionConnected} defaultDepth={3}/>
             </Row>
         </Section>
     );
@@ -136,9 +136,9 @@ export function RemotePanel({deviceId}: PanelProps) {
                         <NumberInput label="Hold duration in milliseconds" value={holdDuration} onValueChange={setHoldDuration}/>
                     </ControlRow>
                     <Row>
-                        <CommandButton label="Press and release" tooltip="airplay.hid.press" run={() => call('airplay', 'hid.press', [hidPage, hidUsage])} disabled={!connected}/>
-                        <CommandButton label="Long press" tooltip="airplay.hid.longPress" run={() => call('airplay', 'hid.longPress', [hidPage, hidUsage, numberOf(holdDuration, 1000)])} disabled={!connected}/>
-                        <CommandButton label="Double press" tooltip="airplay.hid.doublePress" run={() => call('airplay', 'hid.doublePress', [hidPage, hidUsage])} disabled={!connected}/>
+                        <CommandButton label="Press and release" tooltip="mediaRemote.hid.press" run={() => call('mediaRemote', 'hid.press', [hidPage, hidUsage])} disabled={!connected}/>
+                        <CommandButton label="Long press" tooltip="mediaRemote.hid.longPress" run={() => call('mediaRemote', 'hid.longPress', [hidPage, hidUsage, numberOf(holdDuration, 1000)])} disabled={!connected}/>
+                        <CommandButton label="Double press" tooltip="mediaRemote.hid.doublePress" run={() => call('mediaRemote', 'hid.doublePress', [hidPage, hidUsage])} disabled={!connected}/>
                     </Row>
                     <ControlRow label="Presets" icon={ICONS.remote}>
                         {HID_PRESETS.map(preset => (

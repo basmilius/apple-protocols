@@ -3,7 +3,7 @@ import type { TrafficProtocol } from './contract';
 export const STATISTICS_INTERVAL_MS = 2000;
 export const STATISTICS_WINDOW_MS = 30 * 60_000;
 
-export const STATISTICS_PROTOCOLS: readonly TrafficProtocol[] = ['dataStream', 'eventStream', 'companionLink', 'rtsp'];
+export const STATISTICS_PROTOCOLS: readonly TrafficProtocol[] = ['dataStream', 'eventStream', 'companionLink', 'rtsp', 'proxy'];
 
 export type TrafficBucket = Record<TrafficProtocol, number> & {
     readonly at: number;

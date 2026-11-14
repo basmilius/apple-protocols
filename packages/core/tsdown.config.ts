@@ -7,7 +7,6 @@ export default defineConfig({
         discovery: './src/discovery/index.ts',
         encoding: './src/encoding/index.ts',
         pairing: './src/pairing/index.ts',
-        storage: './src/storage.ts',
         transport: './src/transport/index.ts'
     },
     logLevel: 'warn',

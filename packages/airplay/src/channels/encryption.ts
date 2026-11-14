@@ -1,5 +1,5 @@
-import { buildNonce, type EncryptionState } from '@corewire/core/transport';
 import { Chacha20 } from '@corewire/core/crypto';
+import { buildNonce, type EncryptionState } from '@corewire/core/transport';
 
 /** Frames we send carry at most this much plaintext. */
 const FRAME_LENGTH = 1024;

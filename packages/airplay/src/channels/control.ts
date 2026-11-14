@@ -1,6 +1,6 @@
 import { HTTP_TIMEOUT } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
-import { type Context, EncryptionState } from '@corewire/core/transport';
+import { type CloseReason, type Context, EncryptionState } from '@corewire/core/transport';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '../identifiers';
 import { RtspClient } from '../rtsp';
 import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';
@@ -38,10 +38,17 @@ export class ControlChannel extends RtspClient {
         return !!this.#encryptionState;
     }
 
+    /** Settles once the TEARDOWN in flight is answered, times out or loses its connection; undefined when none is. */
+    get pendingTeardown(): Promise<void> | undefined {
+        return this.#pendingTeardown;
+    }
+
     readonly #activeRemoteId: string;
     readonly #dacpId: string;
     readonly #sessionId: string;
+    #closeReason?: CloseReason;
     #encryptionState?: EncryptionState;
+    #pendingTeardown?: Promise<void>;
 
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
@@ -49,6 +56,8 @@ export class ControlChannel extends RtspClient {
         this.#activeRemoteId = generateActiveRemoteId();
         this.#dacpId = generateDacpId();
         this.#sessionId = generateSessionId();
+
+        this.on('closed', reason => this.#closeReason = reason);
     }
 
     /** Switches to encrypted frames with the control keys from pair-verify or a transient pairing. */
@@ -185,7 +194,31 @@ export class ControlChannel extends RtspClient {
         return await this.exchange('POST', '/stop', {allowError: true});
     }
 
-    async teardown(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response> {
-        return await this.exchange('TEARDOWN', path, {headers, timeout, allowError: true});
+    /**
+     * Ends the session on the receiver. A receiver that closes this connection before it answers
+     * has ended the session itself, so that counts as done and resolves with undefined.
+     */
+    async teardown(path: string, headers: Record<string, string> = {}, timeout: number = HTTP_TIMEOUT): Promise<Response | undefined> {
+        const exchange = this.exchange('TEARDOWN', path, {headers, timeout, allowError: true});
+        const settled = exchange.then(() => undefined, () => undefined);
+
+        this.#pendingTeardown = settled;
+        void settled.then(() => {
+            if (this.#pendingTeardown === settled) {
+                this.#pendingTeardown = undefined;
+            }
+        });
+
+        try {
+            return await exchange;
+        } catch (err) {
+            if (this.#closeReason !== 'remote') {
+                throw err;
+            }
+
+            this.context.logger.debug('[rtsp]', 'The receiver closed the control connection before answering TEARDOWN, the session has ended.');
+
+            return undefined;
+        }
     }
 }

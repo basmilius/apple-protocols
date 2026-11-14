@@ -475,8 +475,21 @@ export class AirPlaySession extends EventEmitter<EventMap> {
         }
     }
 
-    /** A channel the session did not close itself counts as broken, also when someone destroyed it locally. */
+    /**
+     * A channel the session did not close itself counts as broken, also when someone destroyed it locally.
+     * Once TEARDOWN went out, a receiver may drop the event or data channel before it answers on the
+     * control channel, so the session then waits for that answer or its timeout.
+     */
     #channelClosed(name: ChannelName, reason: CloseReason, error?: Error): void {
+        const teardown = this.#control.pendingTeardown;
+
+        if (name !== 'control' && reason === 'remote' && teardown) {
+            this.#context.logger.debug('[session]', `The ${name} channel closed during TEARDOWN, ending the session once it is answered.`);
+            void teardown.then(() => this.#end('local'));
+
+            return;
+        }
+
         if (reason === 'local') {
             this.#end('error', error ?? new ConnectionClosedError(`The ${name} channel was closed.`));
 

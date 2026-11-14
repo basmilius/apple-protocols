@@ -18,6 +18,7 @@
 | m10 | fixed | `state` no longer fires during a restore with a half item that contradicts `current`; it is held and fires right before the `change` that ends the restore, with the settled item. |
 | m11 | fixed | `disconnect()` cancels the now-playing restore timers, so no `change` fires about a second after a disconnect. Volume, power and text only change on device messages and stay silent once the sessions are closed. |
 | m12 | fixed | A restore that ends on the same item compares the artwork with the last announced one and fires `artwork` once if it differs. A part the new session has not sent yet counts as unchanged, so the same artwork coming back fires nothing. |
+| Audio TEARDOWN race | fixed | Found on a real Apple TV: after the TEARDOWN at the end of an audio stream the device closed the event channel before its `200 OK`. The session ended on that close, which destroyed the control channel and rejected the pending TEARDOWN, so `AudioPlayback.finished` and `MediaPlayback.ended` rejected in 3 of 4 runs. Once TEARDOWN went out, a remote close of the event or data channel now waits for the reply or its timeout; a control channel the receiver closes before replying counts as a completed TEARDOWN. Outside that window a remote close still ends the session at once. Same bytes on the wire. |
 
 Independent audit of all 311 items of `behavior-inventory.md` against the new code. Every verdict was checked in code; the verdict tables in `devices-api.md` and the commit bodies were only used to decide whether a change is documented.
 

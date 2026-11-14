@@ -511,3 +511,85 @@ Homey usages that no HY item covers (all have an equivalent in the new API; list
 - Type and constant imports: `AbstractDevice`, `AirPlayClient`, `AirPlayPlayer` (H:src/logic/airplay.ts:1), `PairingSession` (H:src/apple-tv/pairing.ts:2), `AccessoryCredentials`, `DiscoveryResult`, `MdnsService`, and `AIRPLAY_SERVICE`/`COMPANION_LINK_SERVICE`, which are also Homey store keys and mDNS types (H:src/apple-tv/device.ts:54, :83, :168, :191). Equivalent: `AppleDevice`, `NowPlaying`, `Pairing`, `Credentials`, `DeviceTarget`; the service constants are no longer exported from devices, so Homey has to keep its own strings for its store keys.
 - `ConnectionRecovery` `recovering(attempt)` events, used for logging only (H:src/apple-tv/device.ts:283, :313, H:src/homepod-base/device.ts:163). Equivalent: `status.airplay.attempt` / `phase`.
 - `TimingServer` constructor, `listen()`, and the `SERVER=ws://...` environment switch that disables it (H:src/index.ts:19-22, :29-35). Equivalent: `timing: false` per device, shared server otherwise.
+
+## Validation against macOS 27.3 research
+
+Static check of five rewritten protocol paths at f15b711 against the macOS 27.3 decompilation (build 26C5035r, the export with resolved ObjC names under `reference/apple-frameworks/macos-27.3-26C5035r/rea/decompiled`). Addresses are function entry points in that export. No traffic was captured for this check. "Baseline same?" compares with 5286829.
+
+Verdicts: `confirmed` (the research shows the same behavior), `deviates` (the research shows something else), `undetermined` (cannot be determined from the research: the value lives behind unresolved stubs or in a binary that is not part of the set).
+
+### 1. AirPlay handshake and keepalive (`air/session.ts`)
+
+| Item | Verdict | Evidence | Baseline same? |
+| --- | --- | --- | --- |
+| `GET /info` before pair-verify | confirmed | AirPlayReceiver `_airplayReqProcessor_HandleRequest` (0x21feaf154) lets only `info` and the pairing requests through before verification; anything else logs "Unverified request denied". | yes |
+| Pair-verify or transient pair-setup, then the control keys | confirmed | See path 4. `Control-Salt`, `Control-Read-Encryption-Key` and `Control-Write-Encryption-Key` are in the AirPlaySender and AirPlayReceiver strings; read and write are used from the controller's side. | yes |
+| `/pair-pin-start` before transient M1 | undetermined | The sender's pairing driver is not traced. The capture in `metadata/macbook-after-access-change.txt` is our own client, not an Apple sender. | yes |
+| SETUP body for remote control (`isRemoteControlOnly`, identity, `timingProtocol`) | confirmed | Every key we send appears in the AirPlaySender strings, and the receiver strings hold all keys it reads (`isRemoteControlOnly`, `timingProtocol`, `sessionUUID`, `sourceVersion`, `macAddress`). `sessionCorrelationUUID` and `statsCollectionEnabled` are sender-only keys; the receiver ignores them. | yes |
+| SETUP body for audio (`groupUUID`, `isMultiSelectAirPlay`, `senderSupportsRelay`, `supportsGroupCohesion`, `updateSessionRequest`) | confirmed | All keys are known to the receiver strings. `groupUUID` is lowercase in `playUrl`; the receiver takes it as a string. | yes, lowercase too |
+| Data channel SETUP (type 130, `controlType` 2, `wantsDedicatedSocket`, `clientTypeUUID` `1910A70F-DBC0-4242-AF95-115DB30604E1`) | confirmed | The UUID and every stream key are in the AirPlayReceiver strings. `DataStream-Salt` plus seed, `DataStream-Input-Encryption-Key` and `DataStream-Output-Encryption-Key` are in both binaries. | yes |
+| Event channel before RECORD | confirmed | The receiver returns `eventPort` in the SETUP reply and accepts RECORD (`rcrd`) afterwards; order not contested anywhere in the request processor. | yes |
+| `POST /feedback` every 2 s | undetermined | The Apple sender drives keepalive through its transport session (AirPlaySender `_apsession_ensureKeepAliveStarted`, 0x2092d9ab0); the interval is not visible there. The receiver side bounds it, see the next row. | yes |
+| 30 s keepalive deadline | confirmed | Every request bumps the session activity counter (`_airplayReqProcessor_HandleRequest`, 0x21feaf154, field +0x1fc). `_airplayReqProcessor_createSession` (0x21febd268) sets the idle limit from `TimeoutDataSeconds`, default `0x1e` (30 s); `__PerformPeriodTasks` (0x21feed410) logs "Idle timeout after %d seconds with no activity." and terminates the session. Audio sessions get 120 s (`__GeneralAudioSetup`, 0x21fee88e8, `_SetTimeoutDataSecs(..., 0x78)`). Our 30 s client deadline matches the receiver's own limit. | baseline had no deadline (new, documented as m1) |
+
+### 2. MRP startup (`air/mrp/mediaRemote.ts`)
+
+| Item | Verdict | Evidence | Baseline same? |
+| --- | --- | --- | --- |
+| DEVICE_INFO first, as an exchange | confirmed | mediaremoted `MRDTransportExternalDevice::_onWorkerQueue_loadDeviceInfoWithUserInfo:completion:` (0x1000bc530) builds `MRDeviceInfoMessage` and sends it with a reply handler and a timeout. | yes |
+| SET_CONNECTION_STATE (Connected), fire and forget | confirmed | `_onWorkerQueue_syncClientStateWithUserInfo:completion:` (0x1000bd92c) creates `MRSetConnectionStateMessage` with state 2 and calls `sendMessage:` without a reply. Our enum value `Connected` is 2. | yes |
+| CLIENT_UPDATES_CONFIG after SET_CONNECTION_STATE | confirmed | Same function: after the connection state it checks the update flags and only then sends the client updates config. | yes |
+| `Waking` option on DEVICE_INFO and SET_CONNECTION_STATE | deviates (minor) | Both functions above call `setWaking:1` on `MRProtocolMessageOptions`; we set no such option. Whether that option reaches the wire is not visible in the research. | yes |
+| GET_STATE after the config | undetermined | Not sent in the two startup functions above; the research does not show whether Apple sends it later. | yes |
+| GET_KEYBOARD_SESSION | undetermined | Not part of the startup functions; we do not send it either. | yes |
+
+### 3. Companion Link startup and heartbeat (`cl/session.ts`)
+
+| Item | Verdict | Evidence | Baseline same? |
+| --- | --- | --- | --- |
+| Pair-verify and `ClientEncrypt-main` / `ServerEncrypt-main` with an empty salt | confirmed | CoreUtils `-[CUPairingStream prepareWithName:isClient:pskData:error:]` (0x192501f34) derives the client key from `"ClientEncrypt-%@"` and the server key from `"ServerEncrypt-%@"`, HKDF with salt `""`, ChaCha20-Poly1305. | yes |
+| `_systemInfo` before `_sessionStart` | undetermined | The `_systemInfo` exchange lives in the RPConnection setup; its order is not readable through the unresolved selector stubs. | yes |
+| `_sessionStart` content (`_srvT`, `_sid` local 32-bit id, `_btHP`) | confirmed | rapportd `RPCompanionLinkDaemon sessionStartSend:...` (0x100040c6c) sends a three-key `_c` with `_srvT`, `_sid` and `_btHP`. Its reply handler (0x100041030) stores the session id as the peer `_sid` shifted left 32 bits, ORed with the local id. | yes |
+| `TVRCSessionStart` with `ProtocolVersionKey` `1.2` | confirmed | TVRemoteCore `-[TVRCRPCompanionLinkClientWrapper _sendSessionStartWithCompletion:]` (0x2b0d34280) references `TVRCSessionStart`, `ProtocolVersionKey` and `1.2`. | yes |
+| `_touchStart` (`_width`, `_height`, `_tFl`) and `_tiStart` | confirmed | Rapport `-[RPHIDTouchSession _activateWithCompletion:]` (0x1a6bb9adc) and `-[RPTextInputSession _activateWithCompletion:]` (0x1a6bf1728) use exactly these identifiers and keys. | yes |
+| `_interest` with `_regEvents`, one event id per call | confirmed | rapportd `interestRegisterEventID:peerIdentifier:owner:` (0x100032958) sends `_interest` with `_regEvents` per event id. | yes |
+| `FetchAttentionState` | confirmed | Present in the TVRemoteCore strings as a request id. | yes |
+| Order `_touchStart`, `_tiStart`, `_interest`, `FetchAttentionState` | undetermined | The TVRemoteCore connect block chain calls through unresolved stubs. | yes |
+| NoOp heartbeat every 15 s | undetermined (mechanism confirmed) | Rapport `-[RPConnection _idleTimerFired]` (0x1a6b9fd78) compares the frame counter and disconnects with "Idle disconnect" when no frame arrived, so a NoOp keeps the link alive. The idle interval comes from callers through stubs; rapportd sets `keepAliveSeconds` 10 only for remote display connections. | yes |
+| Graceful stop order (`_interest` deregister, `_tiStop`, `_touchStop`, `TVRCSessionStop`, `_sessionStop`) | undetermined | Each stop message exists with the keys we use (`_touchStop` with `_i` in 0x1a6bba054, `_tiStop` in 0x1a6bf1bfc, `TVRCSessionStop` in 0x2b0d3460c); the order across them is not readable. | yes |
+| `_sessionStop` content | deviates | rapportd `sessionStopSend:session:xpcID:completion:` (0x10004145c) sends `_c = {_sid: <64-bit session id>, _btHP}`, with the id built in the start reply (peer id in the high 32 bits, local id in the low 32 bits) and logged as "SID 0x%llX". We send `{_srvT, _sid: <local 32-bit id>}` (`cl/messages.ts` `sessionStop`). | yes |
+| 10 s close bound | undetermined | rapportd passes a `timeoutSeconds` option to `_sessionStop` whose value is a constant object the export does not resolve. | baseline had no bound (new, documented as M1) |
+
+### 4. Pairing (`core/pairing`)
+
+| Item | Verdict | Evidence | Baseline same? |
+| --- | --- | --- | --- |
+| Pair-setup M1 (Method 0, State 1, Flags `0x13` = `0x10` for transient) | confirmed | CoreUtils `_SetupClientExchange` (0x192570a80) appends TLV 0 (method), TLV 6 (state) and, when flags are set, TLV `0x13`. | yes |
+| SRP 3072-bit SHA-512, user `Pair-Setup`; M3 with TLV 3 and 4 | confirmed | Same function: `kSRPParameters_3072_SHA512`, `"Pair-Setup"`, TLV 3 and TLV 4 appended. | yes |
+| M5 sub-TLV (1 identifier, 3 public key, 10 signature, 0x11 OPack info), `PS-Msg05`, `PS-Msg06` | confirmed | Same function appends 1, 3, 10, optional `0x10`, `0x11` (OPack self info), `0x1a`, then seals with `"PS-Msg05"`; M6 opens with `"PS-Msg06"`. | yes |
+| HKDF salts and infos for pair-setup | confirmed | `Pair-Setup-Encrypt-Salt/Info`, `Pair-Setup-Controller-Sign-Salt/Info`, `Pair-Setup-Accessory-Sign-Salt/Info` in `_SetupClientExchange`; AES variants `Pair-Setup-AES-Key/IV` in AirPlaySupport. | yes |
+| Pair-verify M1 (State, ephemeral public key) | confirmed | `_VerifyClientExchange` (0x1925751a0) appends TLV 6 and TLV 3; TLV 0 (method 7) only in the MFi mode. | yes |
+| Pair-verify M2 and M3 (`Pair-Verify-Encrypt-Salt/Info`, `PV-Msg02`, `PV-Msg03`, sub-TLV 1 and 10) | confirmed | `_VerifyClientExchange` and `_VerifyClientM3` (0x19257da30). | yes |
+| Pair-verify M4 | deviates (minor) | `_VerifyClientExchange` parses the M4 reply and fails on an error TLV. `PairVerify.#m3` discards the M4 body, so an accessory that rejects M3 surfaces later as a failed encrypted exchange instead of a `PairingError`. | yes |
+| 8-byte pairing nonces, zero-padded to 12 | confirmed | CoreUtils passes the 8-byte nonce strings with length 8 to `chacha20_poly1305`; `core/crypto` left-pads with four zero bytes. | yes |
+| Channel nonces (counter at offset 0 for Companion Link, at offset 4 for AirPlay) | undetermined | Not traced in this pass; CLAUDE.md records the earlier confirmation through pyatv. | yes |
+
+### 5. Teardown order (f15b711)
+
+| Item | Verdict | Evidence | Baseline same? |
+| --- | --- | --- | --- |
+| The receiver may close the event channel before it answers TEARDOWN | confirmed | AirPlayReceiver `_airplayReqProcessor_HandleRequest` (0x21feaf154), TEARDOWN branch: it calls `_AirPlayReceiverSessionTearDown` before it builds the response. For a TEARDOWN without streams `_AirPlayReceiverSessionTearDown` (0x21feec260) logs "Final teardown requested - tearing down all streams and session" and runs `__Cleanup`, which takes the streams down first. | no; the baseline ended on the event close and rejected the pending TEARDOWN |
+| Waiting for the reply or its timeout, then closing with reason `local` | confirmed | Follows from the row above: the 200 OK can arrive after the event channel is gone. No bytes on the wire changed. | no (new) |
+| A control channel close before the reply counts as done | confirmed | The receiver ends the session itself in `__Cleanup`; a missing reply after a remote close carries no extra information. | no (new) |
+
+### Deviations also in baseline
+
+Not a regression. Change these only after a traffic comparison against the baseline.
+
+- `_sessionStop` sends `{_srvT, _sid: <local 32-bit id>}`; rapportd sends `{_sid: <64-bit id>, _btHP}`. A device that cannot match the 32-bit id may answer late or not at all, which would fit the slow `_sessionStop` that M1 bounds at 10 s. That link is a guess and is not checked.
+- Pair-verify ignores the M4 reply; CoreUtils checks it for an error TLV.
+- DEVICE_INFO and SET_CONNECTION_STATE go out without the `Waking` message option that mediaremoted sets; the research does not show whether that option is on the wire.
+
+### New deviations
+
+None. The two behavior changes against the baseline in these paths (the 30 s keepalive deadline and the TEARDOWN wait from f15b711) both agree with the receiver.

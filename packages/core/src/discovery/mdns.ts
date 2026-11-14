@@ -96,7 +96,7 @@ const encodeQName = (name: string): Buffer => {
  */
 const splitServiceName = (name: string): string[] => {
     /* Service instance names can contain dots. Split at the service type. */
-    const servicePattern = /\._[a-z]+\._(?:tcp|udp)\.local$/;
+    const servicePattern = /\._[a-z0-9-]+\._(?:tcp|udp)\.local$/;
     const match = name.match(servicePattern);
 
     if (match) {

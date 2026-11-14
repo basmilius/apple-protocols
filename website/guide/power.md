@@ -25,7 +25,7 @@ await tv.power.sleep();
 | `asleep` | The Apple TV sleeps |
 | `unknown` | Companion Link has not reported a state yet |
 
-The state comes from Companion Link. Without credentials, or while Companion Link is down, it stays at the last reported value (`unknown` before the first report).
+The state comes from Companion Link. Without credentials, or while Companion Link is down, it stays at the last reported value (`unknown` before the first report and after `disconnect()`).
 
 ## The change event
 

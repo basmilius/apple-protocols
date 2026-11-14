@@ -44,6 +44,12 @@ export class AppleTV extends AppleDevice<AppleTVCapability> {
         this.touch = new TouchControl(companionLink);
     }
 
+    async disconnect(): Promise<void> {
+        await super.disconnect();
+
+        this.power.reset();
+    }
+
     /** Starts a PIN pairing; the PIN shows on screen once this resolves. */
     static async pair(target: DeviceTarget, options: PairOptions = {}): Promise<Pairing> {
         return await Pairing.start(target, options);

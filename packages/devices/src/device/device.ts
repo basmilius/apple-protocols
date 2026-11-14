@@ -245,6 +245,11 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
 
         await stopping;
 
+        // A disconnect is a fresh start: the next connect announces everything as a new device does.
+        // A drop keeps the announced values, so a recovery stays silent about what did not change.
+        this.nowPlaying.reset();
+        this.volume.reset();
+
         this.#update('requested', null);
     }
 

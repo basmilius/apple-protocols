@@ -70,7 +70,9 @@ The announced values survive sessions. After a reconnect the device holds back:
 - When it reports another item, that item is announced once it settled for one second.
 - At the latest five seconds after the new session is up, whatever the device reports then is announced once, if it differs.
 
-Meanwhile `current` and `elapsed` return the last announced item and position. A network blip does not look like playback stopping and starting. A state that changed during the outage fires `state` once, right before the `change` that ends the wait.
+Meanwhile `current` and `elapsed` return the last announced item and position, and `supports()` answers as that item did. A network blip does not look like playback stopping and starting. A state that changed during the outage fires `state` once, right before the `change` that ends the wait.
+
+This only holds for a reconnect after a drop. `disconnect()` forgets the announced item, state and artwork, so the next `connect()` announces them again as a new device does.
 
 ## Artwork
 

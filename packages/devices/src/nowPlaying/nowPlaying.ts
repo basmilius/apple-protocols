@@ -80,6 +80,7 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
     readonly #state: MediaRemoteState;
     #artwork?: ArtworkParts;
     #deadline?: NodeJS.Timeout;
+    #heldCommands: ReadonlySet<NowPlayingCommand> = new Set();
     #heldElapsed: number = 0;
     #last?: NowPlaying | null;
     #lastState: PlaybackState = 'unknown';
@@ -101,8 +102,12 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         state.on('artworkChanged', client => this.#onArtworkChanged(client));
     }
 
-    /** Whether the now-playing app accepts the command. */
+    /** Whether the now-playing app accepts the command. While a reconnect restores, as the held item did. */
     supports(command: NowPlayingCommand): boolean {
+        if (this.#restoring) {
+            return this.#heldCommands.has(command);
+        }
+
         return this.#state.nowPlayingClient?.isCommandSupported(COMMANDS[command]) ?? false;
     }
 
@@ -136,7 +141,10 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
      */
     hold(): void {
         if (!this.#restoring) {
-            this.#heldElapsed = this.#state.nowPlayingClient?.elapsedTime ?? 0;
+            const client = this.#state.nowPlayingClient;
+
+            this.#heldElapsed = client?.elapsedTime ?? 0;
+            this.#heldCommands = new Set((Object.keys(COMMANDS) as NowPlayingCommand[]).filter(command => client?.isCommandSupported(COMMANDS[command]) ?? false));
         }
 
         this.#endRestore();
@@ -164,6 +172,20 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
      */
     stop(): void {
         this.#clearTimers();
+    }
+
+    /**
+     * Forgets what was announced, so the next session announces its item, state and artwork as a
+     * new device would. Called once a disconnect closed the sessions; a drop keeps them instead.
+     */
+    reset(): void {
+        this.#endRestore();
+        this.#artwork = undefined;
+        this.#heldCommands = new Set();
+        this.#heldElapsed = 0;
+        this.#last = undefined;
+        this.#lastState = 'unknown';
+        this.#reported.clear();
     }
 
     /**

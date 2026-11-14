@@ -33,6 +33,11 @@ export class PowerControl extends EventEmitter<EventMap> {
         });
     }
 
+    /** Back to `unknown` once a disconnect closed the sessions, as for a new device. */
+    reset(): void {
+        this.#state = 'unknown';
+    }
+
     async wake(): Promise<void> {
         await this.#hid().wake();
     }

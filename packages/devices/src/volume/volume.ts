@@ -7,6 +7,8 @@ type EventMap = {
     change: [volume: VolumeState];
 };
 
+const INITIAL: VolumeState = {level: 0, muted: false, available: false, mode: 'none'};
+
 function modeOf(capabilities: Proto.VolumeCapabilities_Enum): VolumeMode {
     switch (capabilities) {
         case Proto.VolumeCapabilities_Enum.Absolute:
@@ -44,7 +46,7 @@ export class VolumeControl extends EventEmitter<EventMap> implements VolumeState
     }
 
     readonly #remote: () => MediaRemote | undefined;
-    #volume: VolumeState = {level: 0, muted: false, available: false, mode: 'none'};
+    #volume: VolumeState = INITIAL;
 
     constructor(state: MediaRemoteState, remote: () => MediaRemote | undefined) {
         super();
@@ -84,6 +86,14 @@ export class VolumeControl extends EventEmitter<EventMap> implements VolumeState
 
     async fade(level: number, durationMs: number): Promise<void> {
         await this.#require().fade(level, durationMs);
+    }
+
+    /**
+     * Forgets the announced values, so the next session announces them as a new device would.
+     * Called once a disconnect closed the sessions; a drop keeps them instead.
+     */
+    reset(): void {
+        this.#volume = INITIAL;
     }
 
     #require(): MediaRemote['volume'] {

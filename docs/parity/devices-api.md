@@ -36,9 +36,11 @@ The MRP model is cleared at the start of every AirPlay session (AP-HS-03) and fi
 | `power` / `power.change` | Fired at every Companion Link connect (HY-08) | Unchanged: fires at every Companion Link connect and every attention report. Without the forced reconnect that is only after a real drop |
 | `textInput` / `text.change` | Every `_tiStarted`/`_tiStopped` | Unchanged for Companion Link; MRP keyboard messages fire it while Companion Link is down |
 
-`nowPlaying.current` and `nowPlaying.elapsed` return the last item and elapsed time while the new session has not reported yet.
+`nowPlaying.current` and `nowPlaying.elapsed` return the last item and elapsed time while the new session has not reported yet. `nowPlaying.supports(command)` answers from the commands that item supported when the old session ended, so a consumer does not see every command disappear for the length of the restore.
 
-`disconnect()` cancels the restore timers. No capability event (`nowPlaying`, `volume`, `power`, `text`) fires once `disconnect()` resolved: the sessions are closed by then and the models only change on device messages. A restore that was in flight keeps the held values until the next session reports.
+This holding back is for recoveries only. An explicit `disconnect()` forgets what was announced: `nowPlaying` drops the last item, state and artwork, `volume` returns to level 0, unmuted, unavailable, mode `none`, and `power.state` to `unknown`. The next `connect()` then announces the current item, state, volume and power as a new device does, without a restore. A consumer that cleared its own view (a restart button: `await disconnect(); await connect();`) gets it filled again.
+
+`disconnect()` cancels the restore timers. No capability event (`nowPlaying`, `volume`, `power`, `text`) fires once `disconnect()` resolved: the sessions are closed by then and the models only change on device messages. A restore that was in flight ends with the reset.
 
 ## 1. Public API
 

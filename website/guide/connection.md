@@ -126,6 +126,8 @@ The capabilities keep their values across sessions. A reconnect that brings back
 
 `power.change` is the exception. It fires at every Companion Link connect, so you can resync after a real drop.
 
+An explicit `disconnect()` is not a reconnect. It resets the announced now playing, volume and power, so `await disconnect(); await connect();` announces everything fresh, like a new device.
+
 ## disconnect()
 
 `disconnect()` stops every retry, aborts an attempt in flight, ends running URL playback and audio streams and closes every session. It is idempotent. Once it resolved, no capability event fires anymore.

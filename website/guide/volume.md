@@ -43,7 +43,7 @@ tv.volume.on('change', volume => {
 });
 ```
 
-`change` fires only when `level`, `muted`, `available` or `mode` differs from what it announced last. The values outlive the sessions, so a reconnect that reports the same volume emits nothing.
+`change` fires only when `level`, `muted`, `available` or `mode` differs from what it announced last. The values outlive the sessions, so a reconnect that reports the same volume emits nothing. `disconnect()` resets them to the initial values, so the next `connect()` announces the volume again.
 
 A new session starts from 0 until the device reports its level. `up()` and `down()` right after a reconnect step from that value.
 

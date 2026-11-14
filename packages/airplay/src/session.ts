@@ -506,6 +506,9 @@ export class AirPlaySession extends EventEmitter<EventMap> {
         const plist = Plist.parse(await response.arrayBuffer()) as {streams: {dataPort: number}[]};
         const dataPort = plist.streams[0].dataPort & 0xFFFF;
 
+        // An abort listener added to an aborted signal never runs, so the channel would outlive the session.
+        this.#checkpoint();
+
         this.#context.logger.net('[protocol]', `Connecting to data stream on port ${dataPort}...`);
 
         const data = new DataChannel(this.#context, this.#target.address, dataPort, this.#keys.sharedSecret, seed);
@@ -521,6 +524,9 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
     async #connectEvents(setup: {eventPort: number}): Promise<EventChannel> {
         const eventPort = setup.eventPort & 0xFFFF;
+
+        // An abort listener added to an aborted signal never runs, so the channel would outlive the session.
+        this.#checkpoint();
 
         this.#context.logger.net('[protocol]', `Connecting to event stream on port ${eventPort}...`);
 

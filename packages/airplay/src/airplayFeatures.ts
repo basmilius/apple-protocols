@@ -8,9 +8,7 @@ import { parseFeatures } from './features';
  * AirPlayReceiver framework (`sysInfo_createFeaturesInternal`). Flag names follow the
  * common community naming, in camelCase.
  *
- * Sources:
- * - Apple AirPlayReceiver framework decompilation (sysInfo.c)
- * - https://emanuelecozzi.net/docs/airplay2/features/
+ * Source: Apple AirPlayReceiver framework decompilation (sysInfo.c).
  */
 export const AirPlayFeatureFlags: Record<string, bigint> = {
     SupportsAirPlayVideoV1: 1n << 0n,

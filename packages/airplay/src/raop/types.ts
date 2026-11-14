@@ -174,7 +174,7 @@ export type RaopConnectOptions = {
     /** Logger to use. Built from {@link RaopTarget.id} when omitted. */
     readonly context?: Context;
 
-    /** Shown on the receiver while a stream comes without metadata; each field falls back to the library default. */
+    /** Shown on the receiver while a stream comes without metadata. Title `Streaming with CoreWire`, artist `CoreWire` and album `AirPlay` when omitted. */
     readonly metadata?: Partial<Pick<MediaMetadata, 'title' | 'artist' | 'album'>>;
 
     /** Answers a digest challenge on ANNOUNCE from a receiver with a password. */

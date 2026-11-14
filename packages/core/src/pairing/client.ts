@@ -8,8 +8,8 @@ import { decodeTlv, deriveControlKeys, deriveKey, pairingCipher } from './cipher
 import { TRANSIENT_PAIRING_PIN } from './const';
 import type { AccessoryCredentials, AccessoryKeys, PairingOptions, PairingTransport } from './types';
 
-/** The name this controller presents to the accessory in M5. */
-const CONTROLLER_NAME = 'basmilius/apple-protocols';
+/** The name this controller presents to the accessory in M5 when the identity of the context has none. */
+const CONTROLLER_NAME = 'CoreWire';
 
 /**
  * Controller side of HAP pair-setup (SRP-6a, then an Ed25519 identity exchange).
@@ -137,7 +137,7 @@ export class PairSetup {
             [TLV8.Value.PublicKey, this.#publicKey],
             [TLV8.Value.Signature, Buffer.from(signature)],
             [TLV8.Value.Name, OPack.encode({
-                name: CONTROLLER_NAME
+                name: this.#context.identity.name ?? CONTROLLER_NAME
             })]
         ]);
 

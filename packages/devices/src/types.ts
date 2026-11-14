@@ -31,6 +31,10 @@ export type LogEntry = {
 
 /** Overrides of the identity this client presents to the device. */
 export type ClientIdentity = Partial<{
+    /**
+     * The name the Apple TV lists for this client after a PIN pairing, `CoreWire` when omitted. It
+     * is also the name in the AirPlay SETUP and the MRP device info, `apple-protocols` when omitted.
+     */
     readonly name: string;
     readonly model: string;
     readonly osName: string;

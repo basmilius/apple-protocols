@@ -23,8 +23,8 @@ export const SLOW_WARNING_THRESHOLD = 5;
  * media metadata for the audio stream.
  */
 export const MISSING_METADATA: MediaMetadata = {
-    title: 'Streaming with apple-raop',
-    artist: 'apple-raop',
+    title: 'Streaming with CoreWire',
+    artist: 'CoreWire',
     album: 'AirPlay',
     duration: 0
 };

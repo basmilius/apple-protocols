@@ -23,6 +23,12 @@ import type { CompanionLinkTarget, ConnectOptions, SessionCloseReason } from './
 /** NoOp frames keep the connection alive; the device answers none of them. */
 const HEARTBEAT_INTERVAL = 15000;
 
+/**
+ * The graceful stop and the socket close together. A slow but alive Apple TV can take up to 10 s to
+ * answer `_sessionStop`; a half-open peer would otherwise hold the close for minutes.
+ */
+const CLOSE_TIMEOUT = 10000;
+
 /** The state events the device only pushes after an `_interest` registration. */
 const INTEREST_EVENTS: readonly string[] = ['_iMC', 'SystemStatus', 'TVSystemStatus', 'NowPlayingInfo', 'SupportedActions'];
 
@@ -241,7 +247,8 @@ export class CompanionLinkSession extends EventEmitter<EventMap> {
     /**
      * Ends the session gracefully: stops the heartbeat, deregisters the interests, stops text
      * input, touch, the remote control session and the service session (each failure ignored),
-     * then closes the socket. Resolves once it is closed.
+     * then closes the socket. Resolves once it is closed; a peer that does not finish within
+     * {@link CLOSE_TIMEOUT} gets its socket destroyed.
      */
     close(): Promise<void> {
         this.#closing ??= this.#close();
@@ -270,13 +277,24 @@ export class CompanionLinkSession extends EventEmitter<EventMap> {
         this.#stopHeartbeat();
         this.#stopStateFeed();
 
+        // Ending the session destroys the stream, which rejects the pending exchange and settles the disconnect.
+        const deadline = setTimeout(() => {
+            this.#context.logger.warn('[companion-link]', `Graceful stop did not finish within ${CLOSE_TIMEOUT} ms, destroying the socket.`);
+            this.#end('local');
+        }, CLOSE_TIMEOUT);
+
         try {
             await this.#gracefulStop();
         } catch (err) {
             this.#context.logger.warn('[companion-link]', 'Graceful stop failed during disconnect', err);
         }
 
-        await this.#stream.disconnect();
+        try {
+            await this.#stream.disconnect();
+        } finally {
+            clearTimeout(deadline);
+        }
+
         this.#end('local');
     }
 

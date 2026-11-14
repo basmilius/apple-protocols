@@ -27,9 +27,9 @@ The MRP model is cleared at the start of every AirPlay session (AP-HS-03) and fi
 
 | Event | Old (per connect) | New |
 | --- | --- | --- |
-| `nowPlayingChanged` / `nowPlaying.change` | Always fired at the first evaluation, often twice (app first, then its state). The 15-minute reconnect repeated that every 15 minutes | Fires only when the public `NowPlaying` differs (deep equal) from the last one announced. After a reconnect the device holds back: as soon as the new session reports the announced item again nothing fires; if it reports something else, the item settled after 1 s (the last message resets the wait) is announced once. `current` keeps the last item meanwhile |
-| `playbackStateChanged` / `nowPlaying.state` | Fired Unknown to Playing at every connect | Fires only when the state differs from the last one announced, through `state` or as part of a `change`. A state that changed during the outage fires once, right before its `change`, with the last announced state as `previous` |
-| `artworkChanged` / `nowPlaying.artwork` | Fired on every SET_ARTWORK, also of the same artwork | Fires when the artwork of the current item looks different from outside: another identifier or URL, item bytes or SET_ARTWORK bytes that arrived. Nothing fires while a reconnect restores, and the same artwork after it fires nothing |
+| `nowPlayingChanged` / `nowPlaying.change` | Always fired at the first evaluation, often twice (app first, then its state). The 15-minute reconnect repeated that every 15 minutes | Fires only when the public `NowPlaying` differs (deep equal) from the last one announced. After a reconnect the device holds back: as soon as the new session reports the announced item again nothing fires; if it reports something else, the item settled after 1 s (the last message resets the wait) is announced once. The restore ends at the latest 5 s after the new session is up; whatever the model holds then (possibly null) is announced once if it differs. `current` keeps the last item meanwhile |
+| `playbackStateChanged` / `nowPlaying.state` | Fired Unknown to Playing at every connect | Fires only when the state differs from the last one announced, through `state` or as part of a `change`. A state that changed during the outage fires once, right before its `change`, with the last announced state as `previous`. A `change` to null resets the announced state to `unknown`, so the next app that plays fires `state` again |
+| `artworkChanged` / `nowPlaying.artwork` | Fired on every SET_ARTWORK, also of the same artwork | Fires when the artwork of the current item looks different from outside: another identifier or URL, or other item or SET_ARTWORK bytes (compared by length and hash). Nothing fires while a reconnect restores, and the same artwork after it fires nothing |
 | `volumeChanged`, `volumeMutedChanged` / `volume.change` | Fired on every message | Fires only for a different value |
 | `power` / `power.change` | Fired at every Companion Link connect (HY-08) | Unchanged: fires at every Companion Link connect and every attention report. Without the forced reconnect that is only after a real drop |
 | `textInput` / `text.change` | Every `_tiStarted`/`_tiStopped` | Unchanged for Companion Link; MRP keyboard messages fire it while Companion Link is down |
@@ -155,11 +155,15 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
      * Starts keeping the device connected until {@link disconnect}. Resolves the first time the device reaches
      * `connected` or `degraded`. Rejects with the last error when the first attempt and the three quick retries
      * all fail; the device then stays `offline` and keeps trying on the slow schedule. A call while connecting
-     * returns the same promise; a call while connected resolves at once.
+     * returns the same promise; a call while connected resolves at once. A call while `offline` runs the next
+     * scheduled AirPlay attempt now; the schedule keeps its position unless that attempt succeeds.
      */
     connect(): Promise<void>;
 
-    /** Stops all retries, ends the media sessions and every protocol session, then emits `disconnected`. Idempotent. */
+    /**
+     * Stops all retries, ends the media sessions and every protocol session, then emits `disconnected`. Idempotent.
+     * The Companion Link graceful stop and socket close get 10 s together; after that the socket is destroyed.
+     */
     disconnect(): Promise<void>;
 
     /** Whether the capability works now. A call that cannot work throws {@link UnavailableError}. */
@@ -608,7 +612,7 @@ The device keeps a link for AirPlay and, on an Apple TV, one for Companion Link.
 off --connect()--> connecting --ok--> connected --session closed (not local)--> waiting
                        |                                                     ^      |
                        +------------------fail---------------------------> waiting  |
-                                                                    timer fires --> connecting
+                                                timer fires, or connect() while offline --> connecting
 any state --disconnect()--> off   (timers cleared, attempt aborted through its signal, sessions closed)
 ```
 
@@ -628,7 +632,7 @@ This equals HY-13 to HY-16. HY-16's "one immediate rediscovery and reattach" is 
 
 The connect retry `Connection` lost in step 2 (TM-01: 3 TCP attempts, 3 s apart) is covered by the first attempt plus the quick phase: four attempts over about 7 s plus connect time. Unlike TM-01 they retry the whole handshake, not just TCP.
 
-Companion Link only runs while credentials exist. Without them its link stays `off` with a `CredentialsError` and the Apple TV reports `degraded`. An authentication failure keeps retrying on the schedule; the reason is in `error`, so the app can ask for re-pairing without the device giving up on a transient refusal.
+Companion Link only runs while credentials exist. Without them its link stays `off` with a `CredentialsError` and the Apple TV reports `degraded`, because `connected` promises everything the device type offers and apps, accounts, power and touch then never work. An authentication failure keeps retrying on the schedule; the reason is in `error`, so the app can ask for re-pairing without the device giving up on a transient refusal.
 
 ### 3.3 Device state
 
@@ -662,7 +666,7 @@ Evidence:
 
 - Homey added a periodic reconnect on 2026-01-31 (`0355389`, "companion link protocol should be more stable and reconnects every 5 minutes"), later 15 minutes in `ConnectionRecovery`. Library fixes for the instability it papered over landed after that: `267bcf5` (2026-02-02, CL exchanges hung on close/error, FX-31), `48f5273`/`e169ced`/`a99d4ae` (2026-02-20/21, the encrypted NoOp heartbeat blocked the CL connection, FX-28), `331d8ec` (2026-09-21, SetConnectionState=Disconnected now ends the session, FX-16), `86d7742` (2026-11-13, receive frames over 1024 bytes desynced the decryptor, FX-08).
 - The zombie session (LC-13) needed two things: `Connection.destroy()` emitted no `close` (LC-01), and the manager reacted to data/event errors and timeouts with `controlStream.destroy()`. Since `c3bfd63` every way a `Connection` ends emits `closed` and aborts its signal (`core/src/transport/connection.ts:20`). `AirPlaySession` ends on any channel close, also a local destroy (`#channelClosed`, `airplay/src/session.ts:476`), on any data or event channel error (`#observe`, `:569`) and on SetConnectionState=Disconnected (`:585`). A session with `isOpen === true` and a dead channel can no longer exist.
-- A dead AirPlay peer used to go unnoticed: feedback failures were only logged (TM-08). Now three failed `/feedback` calls end the session with `timeout` (`KEEPALIVE_FAILURES = 3`, `session.ts:25`, `:646`). Detection takes about 6 s. A DHCP address change is therefore caught by the keepalive and handled by re-resolving.
+- A dead AirPlay peer used to go unnoticed: feedback failures were only logged (TM-08). Now a feedback tick that finds no successful `/feedback` in the last 30 s ends the session with `timeout` (`KEEPALIVE_DEADLINE = 30000`, `session.ts:28`, `:652`). The interval stays 2 s and the requests are unchanged. Detection takes about 30 s: a receiver only flags an inactive client after tens of seconds, and a slow hub with event loop stalls can miss a few ticks without losing its session. A DHCP address change is therefore caught by the keepalive and handled by re-resolving.
 - Keeping it costs every hub a full teardown per device every 15 minutes: state cleared (AP-HS-03), a new remote session on the TV, a power event, a DEVICE_INFO exchange.
 
 What remains is a half-open Companion Link socket (peer gone without FIN). Companion Link has no request-response keepalive; the NoOp heartbeat gets no answer (TM-13). The kernel notices through TCP retransmission timeout on the heartbeat bytes, on Linux about 15 minutes with default `tcp_retries2`. That is the same bound the forced reconnect gave, so the decision does not regress Homey. LC-23 (a CL frame that fails to decrypt keeps the stream) is not a desync source: the read counter advances before the tag check (`stream.ts:154`), so the next frame decrypts again.
@@ -790,7 +794,7 @@ Diagnostics stays a consumer: no code from it moves into devices. The `diag call
 | LC-09 | kept | see section 4 |
 | LC-10, LC-11, LC-18, LC-20 | changed | `status` replaces `disconnected(...)` |
 | LC-13 | dropped | the zombie cannot occur; no forced reconnect |
-| LC-24 | changed | `disconnect()` async, awaits the CL graceful stop |
+| LC-24 | changed | `disconnect()` async, awaits the CL graceful stop (bounded at 10 s, then the socket is destroyed) |
 | LC-25 | changed | device status follows both protocols |
 | LC-26 | changed | recovery is emitted through `status` |
 | LC-27, LC-28 | kept | stop and end of a newer playback unaffected |
@@ -822,7 +826,7 @@ Diagnostics stays a consumer: no code from it moves into devices. The `diag call
 ### 7.2 Behavior changes toward consumers
 
 1. Devices recover by themselves until `disconnect()`, on the schedule of section 3.2.
-2. `connect()` is idempotent and rejects only after the quick phase; retries continue after the rejection.
+2. `connect()` is idempotent and rejects only after the quick phase; retries continue after the rejection. A `connect()` while `offline` runs the next attempt now.
 3. No forced reconnect of a healthy session.
 4. Companion Link attaches later without rebuilding the device; an Apple TV reports `degraded` meanwhile.
 5. A call whose protocol is down throws `UnavailableError` immediately. Before, it threw `ConnectionClosedError` on the last session or a `TypeError` (HY-27).

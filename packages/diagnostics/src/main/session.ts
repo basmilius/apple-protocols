@@ -96,9 +96,22 @@ export class DeviceSession {
 
     async #connect(storage: JsonStorage): Promise<StateSnapshot> {
         const generation = ++this.#generation;
+        const previous = this.#device;
         this.#status = 'connecting';
         this.#error = null;
         this.#host.emitDiscovery();
+
+        // A device that is recovering or offline still runs its sessions; a second one with the same
+        // pairing makes the Apple TV close the other's Companion Link, over and over.
+        if (previous !== null) {
+            this.#teardown();
+            this.#device = null;
+            await previous.disconnect().catch(() => undefined);
+
+            if (generation !== this.#generation) {
+                throw new Error('Device connect cancelled.');
+            }
+        }
 
         let device: Device;
 

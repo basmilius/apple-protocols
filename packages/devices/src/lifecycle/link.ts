@@ -53,6 +53,10 @@ export class Link<T> extends EventEmitter<EventMap> {
     #attempt: number = 0;
     #error: Error | null = null;
     #hasConnected: boolean = false;
+
+    /** Settles once every earlier attempt and close finished; a new attempt waits for it, so the device never sees two sessions of one link. */
+    #idle: Promise<void> = Promise.resolve();
+
     #nextAttemptAt: number | null = null;
     #phase: RetryPhase | null = null;
     #retries: number = 0;
@@ -81,6 +85,19 @@ export class Link<T> extends EventEmitter<EventMap> {
         this.#run('requested', true);
     }
 
+    /**
+     * Runs the scheduled attempt now when the link waits for one. The schedule keeps its position:
+     * a failure counts as the attempt it replaced, a success resets it as usual.
+     */
+    retryNow(): void {
+        if (this.#state !== 'waiting') {
+            return;
+        }
+
+        clearTimeout(this.#timer);
+        this.#run('requested', false);
+    }
+
     /** Cancels the schedule and any attempt in flight, then closes the session. */
     async stop(): Promise<void> {
         const session = this.#session;
@@ -100,7 +117,7 @@ export class Link<T> extends EventEmitter<EventMap> {
         }
 
         if (session) {
-            await this.#options.close(session).catch(() => undefined);
+            await this.#close(session);
         }
     }
 
@@ -113,15 +130,46 @@ export class Link<T> extends EventEmitter<EventMap> {
         this.#state = 'connecting';
         this.emit('change', reason);
 
-        this.#options.open(abort.signal, first).then(
+        const attempt = this.#idle.then(async () => {
+            if (abort.signal.aborted) {
+                throw new ConnectionClosedError('The attempt was cancelled.');
+            }
+
+            const session = await this.#options.open(abort.signal, first);
+
+            // Closed inside the attempt, so the next one waits until this session is gone.
+            if (this.#abort !== abort) {
+                await this.#options.close(session).catch(() => undefined);
+
+                throw new ConnectionClosedError('The attempt was cancelled.');
+            }
+
+            return session;
+        });
+
+        this.#track(attempt);
+
+        attempt.then(
             session => this.#opened(abort, session),
             error => this.#failed(abort, error)
         );
     }
 
+    #close(session: T): Promise<void> {
+        const closing = this.#options.close(session).catch(() => undefined);
+
+        this.#track(closing);
+
+        return closing;
+    }
+
+    #track(work: Promise<unknown>): void {
+        this.#idle = Promise.all([this.#idle, work.catch(() => undefined)]).then(() => undefined);
+    }
+
     #opened(abort: AbortController, session: T): void {
         if (this.#abort !== abort) {
-            void this.#options.close(session).catch(() => undefined);
+            void this.#close(session);
 
             return;
         }

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { ConnectionClosedError, getMacAddress, PlaybackError, randomInt64, SetupError } from '@corewire/core';
+import { ConnectionClosedError, getMacAddress, PlaybackError, randomInt64, SetupError, TimeoutError } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
 import type { AccessoryKeys } from '@corewire/core/pairing';
 import { type CloseReason, Context } from '@corewire/core/transport';
@@ -21,8 +21,11 @@ import { UrlPlayback } from './playback/playback';
 import { type PtpMaster, selectTimingStrategy } from './timing';
 import type { AirPlayTarget, ConnectOptions, PlayUrlOptions, RemoteControl, RemoteControlOptions, SessionCloseReason, StreamAudioOptions } from './types';
 
-/** Failed keepalives in a row after which the receiver counts as gone. */
-const KEEPALIVE_FAILURES = 3;
+/**
+ * How long the keepalive may go without a successful `/feedback` before the receiver counts as gone.
+ * A receiver only flags an inactive client after tens of seconds, and a busy hub can miss a few ticks.
+ */
+const KEEPALIVE_DEADLINE = 30000;
 
 /** A fresh audio session starts silent, so it gets an audible volume. */
 const DEFAULT_VOLUME_DB = -20;
@@ -642,29 +645,36 @@ export class AirPlaySession extends EventEmitter<EventMap> {
         }, ptpMaster);
     }
 
-    /** `POST /feedback` every two seconds; {@link KEEPALIVE_FAILURES} failures in a row end the session with `timeout`. */
+    /**
+     * `POST /feedback` every two seconds. A tick that finds no success within {@link KEEPALIVE_DEADLINE}
+     * ends the session with `timeout`.
+     */
     #startKeepalive(): void {
         if (this.#keepalive || this.signal.aborted) {
             return;
         }
 
-        let failures = 0;
+        let lastSuccess = Date.now();
+        let lastError: Error | undefined;
 
         this.#keepalive = setInterval(async () => {
+            if (Date.now() - lastSuccess >= KEEPALIVE_DEADLINE) {
+                this.#end('timeout', lastError ?? new TimeoutError(`No successful feedback for ${KEEPALIVE_DEADLINE} ms.`));
+
+                return;
+            }
+
             try {
                 await this.#control.feedback();
-                failures = 0;
+                lastSuccess = Date.now();
+                lastError = undefined;
             } catch (err) {
                 if (this.signal.aborted) {
                     return;
                 }
 
-                failures++;
-                this.#context.logger.warn('[protocol]', `Feedback failed (${failures}/${KEEPALIVE_FAILURES}).`, err);
-
-                if (failures >= KEEPALIVE_FAILURES) {
-                    this.#end('timeout', err instanceof Error ? err : new Error(String(err)));
-                }
+                lastError = err instanceof Error ? err : new Error(String(err));
+                this.#context.logger.warn('[protocol]', `Feedback failed (${Math.round((Date.now() - lastSuccess) / 1000)} s since the last success).`, err);
             }
         }, FEEDBACK_INTERVAL);
     }

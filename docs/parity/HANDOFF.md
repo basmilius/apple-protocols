@@ -32,7 +32,7 @@ State on 2026-11-14, branch `refactor/corewire` (not pushed). `main` equals `ori
 | `e45656b`, `3e5a268` | Two small fixes (mDNS regex, channel leak on abort during SETUP) |
 | `6866b5e` | Remaining step 1: the new `@corewire/devices` API with built-in recovery |
 | `990df3c` | Remaining step 2: diagnostics on the public APIs, with the proxy and storage inside |
-| (step 3 commit) | Remaining step 3: CI and release workflow for the five `@corewire` packages, README, CLAUDE.md, report updated where the build deviated |
+| `6dedef5` | Remaining step 3: CI and release workflow for the five `@corewire` packages, README, CLAUDE.md, report updated where the build deviated |
 
 After every step the outgoing traffic was compared with the baseline on real devices and matched: connect (Apple TV with credentials, HomePod with transient pairing), remote keys, lists, power state, volume, playback queue, pause/play, URL playback, audio streaming, power off/on, app launch. Simulated drops of the control, data and event stream each end the session at once.
 
@@ -71,7 +71,7 @@ Design: report sections "Wat @corewire/devices wel en niet doet", "Hoe de code a
 - `Storage`/`JsonStorage`/`MemoryStorage` move from `@corewire/core/storage` into diagnostics; the temporary subpath disappears. `Context` in `core/transport` stays as the plain object that is handed down.
 - Leftovers noted by agents: unused builders in `companion-link/src/messages.ts` (`ping`, `publishPresence`, `fetchSiriStatus`, `systemInfoUpdate`, `buildRtiClearPayload`, `buildRtiInputPayload`); `siriRemoteInfo` parses `Buffer.from(...).buffer` (possible wrong offset, inherited); raw `exchange` with a preset `_x` registers under the wrong key; `raop/raop.ts` still takes a `DiscoveryResult`; `raop/const.ts` sends the metadata strings `'Streaming with apple-raop'`/`'apple-raop'` to the device (behavior, untouched); import order in rewritten import blocks is not alphabetical everywhere.
 
-### 3. CI, README, CLAUDE.md (done, step 3 commit)
+### 3. CI, README, CLAUDE.md (done, `6dedef5`)
 - `.github/workflows/checks.yml` and `released.yml` for the new package list; the release workflow publishes five packages under `@corewire`. Checks run `build.sh`, the core pairing test and the proxy smoke test. The release publishes with `npm publish --provenance` over OIDC and no `NPM_TOKEN`; `provenance: false` is gone from the `publishConfig` of the five packages. It only works once the trust is set up (step 6).
 - Rewrite `CLAUDE.md` and `README.md` for the new structure. Remove the old-name instructions (Homey copy loop, package table, dependency graph).
 - Update the report where the build deviated from it (codecs DAAP/NTP/RTI stay in core; `timing/` sits at the top level of airplay; MRP has one state model instead of a separate `nowPlaying`).

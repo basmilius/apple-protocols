@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import type { Client, MediaRemote, MediaRemoteState, Proto } from '@corewire/airplay/mrp';
 import { UnavailableError } from '../errors';
@@ -10,11 +11,20 @@ import { COMMANDS, playbackStateOf, toNowPlaying } from './snapshot';
  */
 const RESTORE_SETTLE = 1000;
 
+/** How long a restore may last once the new session is up, also when the device reports nothing. */
+const RESTORE_TIMEOUT = 5000;
+
+/** Fingerprints per image buffer, so the bytes of one SET_ARTWORK are hashed once. */
+const FINGERPRINTS: WeakMap<Uint8Array, string> = new WeakMap();
+
 type EventMap = {
     /** The public item differs from the last one this object emitted. */
     change: [item: NowPlaying | null];
 
-    /** The playback state differs from the last one this object announced. Fires before the matching `change`. */
+    /**
+     * The playback state differs from the last one this object announced; a `change` to null resets
+     * that to `unknown`. Fires before the matching `change`.
+     */
     state: [state: PlaybackState, previous: PlaybackState, item: NowPlaying];
 
     /** The artwork of the current item changed: another URL, or image bytes that arrived. */
@@ -23,6 +33,22 @@ type EventMap = {
 
 function sameItem(a: NowPlaying | null | undefined, b: NowPlaying | null | undefined): boolean {
     return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+/** Length and hash of image bytes: the same image sent again matches, other bytes for the same item do not. */
+function fingerprintOf(bytes: Uint8Array | null | undefined): string | null {
+    if (!bytes || bytes.byteLength === 0) {
+        return null;
+    }
+
+    let fingerprint = FINGERPRINTS.get(bytes);
+
+    if (!fingerprint) {
+        fingerprint = `${bytes.byteLength}:${createHash('sha1').update(bytes).digest('base64')}`;
+        FINGERPRINTS.set(bytes, fingerprint);
+    }
+
+    return fingerprint;
 }
 
 /**
@@ -45,6 +71,7 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
     readonly #remote: () => MediaRemote | undefined;
     readonly #state: MediaRemoteState;
     #artwork?: string;
+    #deadline?: NodeJS.Timeout;
     #heldElapsed: number = 0;
     #last?: NowPlaying | null;
     #lastState: PlaybackState = 'unknown';
@@ -92,21 +119,35 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
 
     /**
      * Holds the announced values while the model is cleared for a new session, until that session
-     * reports the same item, or {@link RESTORE_SETTLE} passed without it. Called right before the clear.
+     * reports the same item, another item settled for {@link RESTORE_SETTLE}, or {@link resume} timed
+     * out. Called right before the clear.
      */
     hold(): void {
         if (!this.#restoring) {
             this.#heldElapsed = this.#state.nowPlayingClient?.elapsedTime ?? 0;
         }
 
-        clearTimeout(this.#settle);
-        this.#settle = undefined;
+        this.#endRestore();
         this.#restoring = this.#last !== undefined;
     }
 
-    /** The artwork as far as it can be seen from outside: its identifier, its URL and whether bytes are there. */
+    /**
+     * Ends the restore within {@link RESTORE_TIMEOUT}, so a session that reports nothing does not
+     * keep the held values. Called once the new session is up.
+     */
+    resume(): void {
+        if (!this.#restoring) {
+            return;
+        }
+
+        clearTimeout(this.#deadline);
+        this.#deadline = setTimeout(() => this.#settleRestore(), RESTORE_TIMEOUT);
+        this.#deadline.unref();
+    }
+
+    /** The artwork as far as it can be seen from outside: its identifier, its URL and its bytes. */
     #artworkOf(client: Client | null): string {
-        return JSON.stringify([client?.artworkId ?? null, client?.artworkUrl() ?? null, client?.currentItemArtwork != null, this.#state.artworkJpegData != null]);
+        return JSON.stringify([client?.artworkId ?? null, client?.artworkUrl() ?? null, fingerprintOf(client?.currentItemArtwork), fingerprintOf(this.#state.artworkJpegData)]);
     }
 
     #onArtworkChanged(client: Client): void {
@@ -140,13 +181,7 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
         }
 
         clearTimeout(this.#settle);
-        this.#settle = setTimeout(() => {
-            this.#endRestore();
-
-            const current = this.#state.nowPlayingClient;
-
-            this.#publish(toNowPlaying(current), current);
-        }, RESTORE_SETTLE);
+        this.#settle = setTimeout(() => this.#settleRestore(), RESTORE_SETTLE);
         this.#settle.unref();
     }
 
@@ -164,8 +199,19 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
 
     #endRestore(): void {
         clearTimeout(this.#settle);
+        clearTimeout(this.#deadline);
         this.#settle = undefined;
+        this.#deadline = undefined;
         this.#restoring = false;
+    }
+
+    /** Ends the restore and announces what the model holds now, when it differs from the last announced. */
+    #settleRestore(): void {
+        this.#endRestore();
+
+        const current = this.#state.nowPlayingClient;
+
+        this.#publish(toNowPlaying(current), current);
     }
 
     /** Announces the item when it differs; a same item whose artwork arrived announces the artwork instead. */
@@ -186,9 +232,12 @@ export class NowPlayingControl extends EventEmitter<EventMap> {
 
         // The model only reports a state change of the app that plays; a state that changed while the
         // app took over, or while the session was down, is announced here so `state` stays truthful.
+        // Without an item no state is announced, so the next item announces its state as new.
         const previous = this.#lastState;
 
-        if (item && item.state !== previous) {
+        if (!item) {
+            this.#lastState = 'unknown';
+        } else if (item.state !== previous) {
             this.#lastState = item.state;
             this.emit('state', item.state, previous, item);
         }

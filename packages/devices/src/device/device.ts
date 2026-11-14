@@ -11,7 +11,7 @@ import { lookupDeviceModel, type DeviceModel } from '../deviceModel';
 import { Link } from '../lifecycle/link';
 import { Resolver } from '../lifecycle/resolve';
 import type { Schedule } from '../lifecycle/schedule';
-import { deriveState, sameStatus } from '../lifecycle/status';
+import { deriveState, sameStatus, type StatusLink } from '../lifecycle/status';
 import { sharedTimingServer } from '../lifecycle/timing';
 import { MediaControl } from '../media/media';
 import { MultiroomControl } from '../multiroom/multiroom';
@@ -123,6 +123,16 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     readonly #id: string;
     readonly #options: BaseOptions;
     readonly #resolver: Resolver;
+
+    /**
+     * Companion Link on an Apple TV without credentials: off for good, so the device is `degraded`.
+     * One error instance, so equal statuses compare equal.
+     */
+    readonly #withoutCredentials: StatusLink = {
+        status: {...NO_COMPANION_LINK, error: new CredentialsError('Companion Link needs credentials from a PIN pairing.')},
+        hasConnected: false
+    };
+
     #companionLinkStarted: boolean = false;
     #connecting?: Promise<void>;
     #info?: {readonly name?: string; readonly model?: string};
@@ -176,7 +186,8 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     /**
      * Keeps the device connected until {@link disconnect}. Resolves the first time it is connected or
      * degraded. Rejects when the first attempt and the quick retries all failed; the device keeps
-     * trying on the slow schedule after that. A call while connected resolves at once.
+     * trying on the slow schedule after that. A call while connected resolves at once; a call while
+     * `offline` runs the next scheduled attempt now.
      */
     connect(): Promise<void> {
         if (this.#connecting) {
@@ -212,6 +223,8 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         if (!this.#running) {
             this.#running = true;
             this.#airplay.start();
+        } else if (this.#status.state === 'offline') {
+            this.#airplay.retryNow();
         }
 
         return connecting;
@@ -254,16 +267,14 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     }
 
     #buildStatus(reason: StatusReason, error: Error | null): Status {
-        const companionLink = this.#companionLink
-            ? (this.#options.credentials ? this.#companionLink.status : {...NO_COMPANION_LINK, error: new CredentialsError('Companion Link needs credentials from a PIN pairing.')})
-            : undefined;
+        const companionLink = this.#companionLink && !this.#options.credentials ? this.#withoutCredentials : this.#companionLink;
 
         return {
-            state: deriveState(this.#running, this.#airplay, this.#companionLink && this.#options.credentials ? this.#companionLink : undefined),
+            state: deriveState(this.#running, this.#airplay, companionLink),
             reason,
             error,
             airplay: this.#airplay.status,
-            companionLink
+            companionLink: companionLink?.status
         };
     }
 
@@ -323,6 +334,8 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         this.mediaRemoteState.clear();
 
         const remote = await MediaRemote.open(session, {state: this.mediaRemoteState});
+
+        this.nowPlaying.resume();
 
         return {session, remote};
     }

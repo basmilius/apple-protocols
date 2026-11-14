@@ -3,7 +3,7 @@ import { type MediaRemote, type MediaRemoteState, Proto } from '@corewire/airpla
 import { UnavailableError } from '../errors';
 import type { VolumeMode, VolumeState } from '../types';
 
-type EventMap = {
+export type VolumeEventMap = {
     change: [volume: VolumeState];
 };
 
@@ -28,7 +28,21 @@ function modeOf(capabilities: Proto.VolumeCapabilities_Enum): VolumeMode {
  * when one of them differs from what it announced last, so a reconnect that reports the same
  * volume emits nothing.
  */
-export class VolumeControl extends EventEmitter<EventMap> implements VolumeState {
+export interface VolumeControl extends EventEmitter<VolumeEventMap>, VolumeState {
+    /** Clamped to 0 to 1; needs mode `absolute`. */
+    set(level: number): Promise<void>;
+
+    /** A 0.05 step in mode `absolute`, the volume key in mode `relative`. */
+    up(): Promise<void>;
+
+    down(): Promise<void>;
+    mute(): Promise<void>;
+    unmute(): Promise<void>;
+    toggleMute(): Promise<void>;
+    fade(level: number, durationMs: number): Promise<void>;
+}
+
+export class VolumeController extends EventEmitter<VolumeEventMap> implements VolumeControl {
     get available(): boolean {
         return this.#volume.available;
     }

@@ -3,23 +3,23 @@ import { format } from 'node:util';
 import { type AirPlaySession, type AirPlayTarget, connect as connectAirPlay, parseFeatures } from '@corewire/airplay';
 import { MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
 import { type CompanionLinkSession, CompanionLinkState, connect as connectCompanionLink } from '@corewire/companion-link';
-import { ConnectionClosedError, CredentialsError, type DebugGroup, DiscoveryError } from '@corewire/core';
+import { ConnectionClosedError, CredentialsError, type DebugGroup, DiscoveryError, type LogSink } from '@corewire/core';
 import { type CloseReason, Context } from '@corewire/core/transport';
-import { ArtworkControl } from '../artwork/artwork';
+import { ArtworkController, type ArtworkControl } from '../artwork/artwork';
 import { accessoryCredentialsOf, type Credentials } from '../credentials/credentials';
 import { lookupDeviceModel, type DeviceModel } from '../deviceModel';
 import { Link } from '../lifecycle/link';
 import { Resolver } from '../lifecycle/resolve';
 import type { Schedule } from '../lifecycle/schedule';
 import { deriveState, sameStatus, type StatusLink } from '../lifecycle/status';
-import { sharedTimingServer } from '../lifecycle/timing';
-import { MediaControl } from '../media/media';
-import { MultiroomControl } from '../multiroom/multiroom';
-import { NowPlayingControl } from '../nowPlaying/nowPlaying';
-import { PlaybackControl } from '../playback/playback';
-import { RemoteControl } from '../remote/remote';
-import type { AppleTVCapability, Capability, ClientIdentity, DeviceOptions, DeviceSessions, DeviceTarget, LogLevel, ProtocolStatus, Status, StatusReason } from '../types';
-import { VolumeControl } from '../volume/volume';
+import { acquireTimingServer, releaseTimingServer } from '../lifecycle/timing';
+import { MediaController, type MediaControl } from '../media/media';
+import { MultiroomController, type MultiroomControl } from '../multiroom/multiroom';
+import { NowPlayingController, type NowPlayingControl } from '../nowPlaying/nowPlaying';
+import { PlaybackController, type PlaybackControl } from '../playback/playback';
+import { RemoteController, type RemoteControl } from '../remote/remote';
+import type { AppleTVCapability, Capability, DeviceOptions, DeviceSessions, DeviceTarget, LogLevel, ProtocolStatus, Status, StatusReason } from '../types';
+import { VolumeController, type VolumeControl } from '../volume/volume';
 
 const DEFAULT_LOG_LEVELS: readonly LogLevel[] = ['error', 'warn'];
 
@@ -111,18 +111,21 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     readonly remote: RemoteControl;
     readonly volume: VolumeControl;
 
-    /** The MRP model; it outlives the sessions and is cleared when a new one starts. */
+    /** The MRP model; it outlives the sessions and is cleared when a new one starts or on disconnect. */
     protected readonly mediaRemoteState: MediaRemoteState = new MediaRemoteState();
 
-    /** The Companion Link model; it outlives the sessions and is cleared when a new one starts. */
+    /** The Companion Link model; it outlives the sessions and is cleared when a new one starts or on disconnect. */
     protected readonly companionLinkState: CompanionLinkState = new CompanionLinkState();
 
     readonly #airplay: Link<AirPlayLink>;
     readonly #companionLink?: Link<CompanionLinkSession>;
     readonly #context: Context;
     readonly #id: string;
+    readonly #logSink?: LogSink;
+    readonly #nowPlaying: NowPlayingController;
     readonly #options: BaseOptions;
     readonly #resolver: Resolver;
+    readonly #volume: VolumeController;
 
     /**
      * Companion Link on an Apple TV without credentials: off for good, so the device is `degraded`.
@@ -133,9 +136,16 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         hasConnected: false
     };
 
+    /** The address AirPlay moved to; Companion Link retries at once there instead of waiting for its schedule. */
+    #addressChanged: boolean = false;
+
     #companionLinkStarted: boolean = false;
     #connecting?: Promise<void>;
     #info?: {readonly name?: string; readonly model?: string};
+
+    /** Set while {@link disconnect} stops the links, so their changes add up to one status. */
+    #quiet: boolean = false;
+
     #running: boolean = false;
     #status: Status;
 
@@ -146,7 +156,8 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
 
         this.#id = target.id ?? target.address;
         this.#options = options;
-        this.#context = new Context(this.#id, options.identity as ClientIdentity, options.log ? (group, args) => this.#log(levels, group, args) : undefined);
+        this.#logSink = options.log ? (group, args) => this.#log(levels, group, args) : undefined;
+        this.#context = new Context(this.#id, options.identity, this.#logSink);
         this.#resolver = new Resolver(target, this.#context.logger, options.resolve);
 
         this.#airplay = new Link({
@@ -172,13 +183,16 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         const mediaRemote = (): MediaRemote | undefined => this.#airplay.session?.remote;
         const companionLinkSession = (): CompanionLinkSession | undefined => this.#companionLink?.session;
 
-        this.artwork = new ArtworkControl(mediaRemote);
-        this.media = new MediaControl(() => this.#airplay.session?.session);
-        this.multiroom = new MultiroomControl(this.mediaRemoteState, mediaRemote);
-        this.nowPlaying = new NowPlayingControl(this.mediaRemoteState, mediaRemote);
-        this.playback = new PlaybackControl(mediaRemote);
-        this.remote = new RemoteControl(mediaRemote, companionLinkSession);
-        this.volume = new VolumeControl(this.mediaRemoteState, mediaRemote);
+        this.#nowPlaying = new NowPlayingController(this.mediaRemoteState, mediaRemote);
+        this.#volume = new VolumeController(this.mediaRemoteState, mediaRemote);
+
+        this.artwork = new ArtworkController(mediaRemote);
+        this.media = new MediaController(() => this.#airplay.session?.session);
+        this.multiroom = new MultiroomController(this.mediaRemoteState, mediaRemote);
+        this.nowPlaying = this.#nowPlaying;
+        this.playback = new PlaybackController(mediaRemote);
+        this.remote = new RemoteController(mediaRemote, companionLinkSession);
+        this.volume = this.#volume;
 
         this.#status = this.#buildStatus('requested', null);
     }
@@ -230,27 +244,42 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         return connecting;
     }
 
-    /** Stops every retry, ends the media sessions and every protocol session. Idempotent. */
+    /**
+     * Stops every retry, ends the media sessions and every protocol session. Idempotent. The
+     * device forgets what it announced and reports `disconnected` at once, so a `connect()` right
+     * after, even without awaiting this, starts fresh; the promise settles once the sessions closed.
+     */
     async disconnect(): Promise<void> {
         this.#running = false;
         this.#companionLinkStarted = false;
+        this.#addressChanged = false;
+        this.#quiet = true;
 
-        const stopping = Promise.all([
-            this.#airplay.stop(),
-            this.#companionLink?.stop()
-        ]);
+        let stopping: Promise<unknown>;
 
-        // Stopping the links ends the AirPlay session at once, so no model event restarts these timers.
-        this.nowPlaying.stop();
-
-        await stopping;
+        try {
+            // Stopping the links ends the AirPlay session and the Companion Link state feed at
+            // once, so no model event fires after the reset below.
+            stopping = Promise.all([
+                this.#airplay.stop(),
+                this.#companionLink?.stop()
+            ]);
+        } finally {
+            this.#quiet = false;
+        }
 
         // A disconnect is a fresh start: the next connect announces everything as a new device does.
         // A drop keeps the announced values, so a recovery stays silent about what did not change.
-        this.nowPlaying.reset();
-        this.volume.reset();
+        this.#nowPlaying.stop();
+        this.reset();
 
+        releaseTimingServer(this);
+
+        // The pending connect rejects with this status; a connect after it starts anew.
+        this.#connecting = undefined;
         this.#update('requested', null);
+
+        await stopping;
     }
 
     /** Whether the capability works now. A call that cannot work throws an `UnavailableError`. */
@@ -276,6 +305,17 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         }
     }
 
+    /**
+     * Forgets what the capabilities announced and clears both models, as for a new device. Runs
+     * at the start of {@link disconnect}; a subclass adds its own capabilities.
+     */
+    protected reset(): void {
+        this.#nowPlaying.reset();
+        this.#volume.reset();
+        this.mediaRemoteState.clear();
+        this.companionLinkState.clear();
+    }
+
     #buildStatus(reason: StatusReason, error: Error | null): Status {
         const companionLink = this.#companionLink && !this.#options.credentials ? this.#withoutCredentials : this.#companionLink;
 
@@ -291,6 +331,17 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     #clearConnecting(connecting: Promise<void>): void {
         if (this.#connecting === connecting) {
             this.#connecting = undefined;
+        }
+    }
+
+    /** Calls every `status` listener, also when an earlier one throws, so a consumer cannot stall the lifecycle. */
+    #emitStatus(status: Status): void {
+        for (const listener of this.rawListeners('status')) {
+            try {
+                (listener as (status: Status) => void).call(this, status);
+            } catch (err) {
+                this.#context.logger.error('[device]', 'A status listener threw.', err);
+            }
         }
     }
 
@@ -315,6 +366,11 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
             const info = this.#airplay.session.session.info;
 
             this.#info = {name: info?.name, model: info?.model};
+
+            if (this.#addressChanged) {
+                this.#addressChanged = false;
+                this.#companionLink?.retryNow();
+            }
         }
 
         this.#update(reason, this.#airplay.status.error);
@@ -322,14 +378,25 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
 
     async #openAirPlay(signal: AbortSignal, first: boolean): Promise<AirPlayLink> {
         if (!first || this.#resolver.target.port === undefined) {
-            await this.#resolver.refreshAirPlay();
+            const address = this.#resolver.target.address;
+
+            await this.#resolver.refreshAirPlay(signal);
+
+            if (this.#resolver.target.address !== address) {
+                this.#addressChanged = true;
+            }
         }
 
         const timing = this.#options.timing === false
             ? undefined
-            : this.#options.timing ?? await sharedTimingServer(this.#context.logger);
+            : this.#options.timing ?? await acquireTimingServer(this, this.#logSink);
 
         if (signal.aborted) {
+            // A disconnect released the server while this attempt waited for it.
+            if (!this.#running) {
+                releaseTimingServer(this);
+            }
+
             throw new ConnectionClosedError('AirPlay setup was interrupted.');
         }
 
@@ -340,7 +407,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
             signal
         });
 
-        this.nowPlaying.hold();
+        this.#nowPlaying.hold();
         this.mediaRemoteState.clear();
 
         const remote = await MediaRemote.open(session, {state: this.mediaRemoteState});
@@ -351,7 +418,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
             throw new ConnectionClosedError('AirPlay setup was interrupted.');
         }
 
-        this.nowPlaying.resume();
+        this.#nowPlaying.resume();
 
         return {session, remote};
     }
@@ -382,6 +449,10 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     }
 
     #update(reason: StatusReason, error: Error | null): void {
+        if (this.#quiet) {
+            return;
+        }
+
         const status = this.#buildStatus(reason, reason === 'established' || reason === 'requested' ? null : error);
 
         if (sameStatus(this.#status, status)) {
@@ -389,6 +460,6 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         }
 
         this.#status = status;
-        this.emit('status', status);
+        this.#emitStatus(status);
     }
 }

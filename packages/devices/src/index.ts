@@ -16,8 +16,28 @@ export {
 } from './pairing/pairing';
 
 export {
+    CommandRefusedError,
     UnavailableError
 } from './errors';
+
+export {
+    AppleProtocolError,
+    AuthenticationError,
+    CommandError,
+    ConnectionClosedError,
+    ConnectionError,
+    ConnectionTimeoutError,
+    CredentialsError,
+    DecryptionError,
+    DiscoveryError,
+    EncryptionError,
+    InvalidResponseError,
+    PairingError,
+    PlaybackError,
+    SetupError,
+    TimeoutError,
+    TLV8PairingError
+} from '@corewire/core';
 
 export {
     createDevice,
@@ -48,14 +68,14 @@ export type { AppsControl } from './apps/apps';
 export type { ArtworkControl } from './artwork/artwork';
 export type { MediaControl, MediaPlayback } from './media/media';
 export type { MultiroomControl } from './multiroom/multiroom';
-export type { NowPlayingControl } from './nowPlaying/nowPlaying';
+export type { NowPlayingControl, NowPlayingEventMap } from './nowPlaying/nowPlaying';
 export type { PlaybackControl } from './playback/playback';
-export type { PowerControl } from './power/power';
+export type { PowerControl, PowerEventMap } from './power/power';
 export type { RemoteControl } from './remote/remote';
 export type { SystemControl } from './system/system';
-export type { TextControl } from './text/text';
+export type { TextControl, TextEventMap } from './text/text';
 export type { TouchControl } from './touch/touch';
-export type { VolumeControl } from './volume/volume';
+export type { VolumeControl, VolumeEventMap } from './volume/volume';
 
 export type {
     Account,

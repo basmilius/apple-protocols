@@ -1,6 +1,6 @@
 import { AIRPLAY_SERVICE } from '@corewire/airplay';
 import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import type { Logger } from '@corewire/core';
+import { ConnectionClosedError, type Logger } from '@corewire/core';
 import { Discovery, type MdnsService, mdnsUnicast } from '@corewire/core/discovery';
 import type { DeviceTarget } from '../types';
 
@@ -9,6 +9,11 @@ export const WAKE_PORTS: readonly number[] = [7000, 3689, 49152, 32498];
 
 /** Seconds the unicast query waits for answers; it finishes early once the service answered. */
 const UNICAST_TIMEOUT = 5;
+
+/** Milliseconds the `resolve` option gets before the attempt goes on with the last known address. */
+const RESOLVE_TIMEOUT = 15_000;
+
+export type ResolveFunction = (last: DeviceTarget, signal: AbortSignal) => Promise<DeviceTarget | null>;
 
 export type CompanionLinkRecord = {
     readonly port: number;
@@ -47,17 +52,18 @@ export class Resolver {
     }
 
     readonly #logger: Logger;
-    readonly #resolve?: (last: DeviceTarget) => Promise<DeviceTarget | null>;
+    readonly #resolve?: ResolveFunction;
     #companionLink?: CompanionLinkRecord;
     #target: DeviceTarget;
 
-    constructor(target: DeviceTarget, logger: Logger, resolve?: (last: DeviceTarget) => Promise<DeviceTarget | null>) {
+    constructor(target: DeviceTarget, logger: Logger, resolve?: ResolveFunction) {
         this.#logger = logger;
         this.#resolve = resolve;
         this.#target = target;
     }
 
-    async refreshAirPlay(): Promise<void> {
+    /** @throws {ConnectionClosedError} When the signal aborts while the `resolve` option runs. */
+    async refreshAirPlay(signal: AbortSignal): Promise<void> {
         const answer = (await this.#unicast(AIRPLAY_SERVICE))[0];
 
         if (answer) {
@@ -66,7 +72,7 @@ export class Resolver {
             return;
         }
 
-        const found = this.#resolve ? await this.#consumerResolve() : await this.#multicast();
+        const found = this.#resolve ? await this.#consumerResolve(signal) : await this.#multicast();
 
         if (found && found.address !== this.#target.address) {
             this.#logger.info('[device]', `Address changed from ${this.#target.address} to ${found.address}.`);
@@ -85,13 +91,31 @@ export class Resolver {
         }
     }
 
-    async #consumerResolve(): Promise<DeviceTarget | null> {
+    /**
+     * The consumer's lookup, bounded by {@link RESOLVE_TIMEOUT} and the attempt: a lookup that
+     * hangs neither freezes the retries nor blocks a disconnect.
+     */
+    async #consumerResolve(signal: AbortSignal): Promise<DeviceTarget | null> {
+        const bounded = AbortSignal.any([signal, AbortSignal.timeout(RESOLVE_TIMEOUT)]);
+        let onAbort: () => void;
+
+        const aborted = new Promise<never>((_, reject) => {
+            onAbort = () => reject(bounded.reason);
+            bounded.addEventListener('abort', onAbort, {once: true});
+        });
+
         try {
-            return await this.#resolve(this.#target);
+            return await Promise.race([this.#resolve(this.#target, bounded), aborted]);
         } catch (err) {
-            this.#logger.warn('[device]', 'The resolve option failed.', err);
+            if (signal.aborted) {
+                throw new ConnectionClosedError('AirPlay setup was interrupted.');
+            }
+
+            this.#logger.warn('[device]', bounded.aborted ? `The resolve option did not answer within ${RESOLVE_TIMEOUT} ms.` : 'The resolve option failed.', err);
 
             return null;
+        } finally {
+            bounded.removeEventListener('abort', onAbort);
         }
     }
 

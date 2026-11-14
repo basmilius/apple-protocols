@@ -1,11 +1,11 @@
-import { AccountsControl } from '../accounts/accounts';
-import { AppsControl } from '../apps/apps';
+import { AccountsController, type AccountsControl } from '../accounts/accounts';
+import { AppsController, type AppsControl } from '../apps/apps';
 import type { Credentials } from '../credentials/credentials';
 import { Pairing, type PairOptions } from '../pairing/pairing';
-import { PowerControl } from '../power/power';
-import { SystemControl } from '../system/system';
-import { TextControl } from '../text/text';
-import { TouchControl } from '../touch/touch';
+import { PowerController, type PowerControl } from '../power/power';
+import { SystemController, type SystemControl } from '../system/system';
+import { TextController, type TextControl } from '../text/text';
+import { TouchController, type TouchControl } from '../touch/touch';
 import type { AppleTVCapability, DeviceOptions, DeviceTarget } from '../types';
 import { AppleDevice } from './device';
 
@@ -30,28 +30,32 @@ export class AppleTV extends AppleDevice<AppleTVCapability> {
     readonly text: TextControl;
     readonly touch: TouchControl;
 
+    readonly #power: PowerController;
+
     constructor(target: DeviceTarget, options: AppleTVOptions = {}) {
         super(target, options, 'appleTv', true);
 
         const companionLink = () => this.sessions.companionLink;
         const mediaRemote = () => this.sessions.mediaRemote;
 
-        this.accounts = new AccountsControl(companionLink);
-        this.apps = new AppsControl(companionLink);
-        this.power = new PowerControl(this.companionLinkState, mediaRemote);
-        this.system = new SystemControl(companionLink);
-        this.text = new TextControl(this.mediaRemoteState, mediaRemote, this.companionLinkState, companionLink);
-        this.touch = new TouchControl(companionLink);
-    }
+        this.#power = new PowerController(this.companionLinkState, mediaRemote);
 
-    async disconnect(): Promise<void> {
-        await super.disconnect();
-
-        this.power.reset();
+        this.accounts = new AccountsController(companionLink);
+        this.apps = new AppsController(companionLink);
+        this.power = this.#power;
+        this.system = new SystemController(companionLink);
+        this.text = new TextController(this.mediaRemoteState, mediaRemote, this.companionLinkState, companionLink);
+        this.touch = new TouchController(companionLink);
     }
 
     /** Starts a PIN pairing; the PIN shows on screen once this resolves. */
     static async pair(target: DeviceTarget, options: PairOptions = {}): Promise<Pairing> {
         return await Pairing.start(target, options);
+    }
+
+    protected override reset(): void {
+        super.reset();
+
+        this.#power.reset();
     }
 }

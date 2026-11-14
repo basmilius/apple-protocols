@@ -182,9 +182,14 @@ export class Link<T> extends EventEmitter<EventMap> {
         this.#hasConnected = true;
         this.#phase = null;
         this.#retries = 0;
-        this.emit('change', 'established');
 
+        // Watched before anyone hears of it, so a listener that throws cannot leave the session unwatched.
         this.#options.watch(session, (reason, error) => this.#closed(session, reason, error));
+
+        // A session that already ended scheduled its retry while being watched.
+        if (this.#session === session) {
+            this.emit('change', 'established');
+        }
     }
 
     #failed(abort: AbortController, error: unknown): void {

@@ -3,7 +3,12 @@ import { requireSession } from '../errors';
 import type { Account } from '../types';
 
 /** The user accounts of an Apple TV, over Companion Link. */
-export class AccountsControl {
+export interface AccountsControl {
+    list(): Promise<Account[]>;
+    switch(id: string): Promise<void>;
+}
+
+export class AccountsController implements AccountsControl {
     readonly #companionLink: () => CompanionLinkSession | undefined;
 
     constructor(companionLink: () => CompanionLinkSession | undefined) {

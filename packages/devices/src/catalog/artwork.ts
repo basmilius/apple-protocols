@@ -1,4 +1,5 @@
 import type { AnimatedArtwork } from '../types';
+import { CatalogError } from './errors';
 
 export type AnimatedArtworkOptions = {
     /** Two-letter storefront; `us` when omitted. */
@@ -10,7 +11,7 @@ export type AnimatedArtworkOptions = {
 function parseAppleMusicArtwork(html: string, albumId: string): AnimatedArtwork[] {
     const script = html.match(/<script\b[^>]*\bid="serialized-server-data"[^>]*>([\s\S]*?)<\/script>/);
     if (!script) {
-        throw new Error('Apple Music did not return album page data.');
+        throw new CatalogError('invalidResponse', 'Apple Music did not return album page data.');
     }
 
     const page = JSON.parse(script[1]);
@@ -52,21 +53,28 @@ export async function fetchAnimatedArtwork(albumId: string, options: AnimatedArt
     const storefront = options.storefront ?? 'us';
 
     if (!/^[1-9]\d*$/.test(albumId) || !/^[a-z]{2}$/.test(storefront)) {
-        throw new Error('Apple Music requires a numeric album ID and a two-letter storefront.');
+        throw new CatalogError('invalidArgument', 'Apple Music requires a numeric album ID and a two-letter storefront.');
     }
 
     const timeout = AbortSignal.timeout(10000);
-    const response = await fetch(`https://music.apple.com/${storefront}/album/${albumId}`, {
-        signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
-        headers: {accept: 'text/html'}
-    });
+    let response: Response;
+    try {
+        response = await fetch(`https://music.apple.com/${storefront}/album/${albumId}`, {
+            signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
+            headers: {accept: 'text/html'}
+        });
+    } catch (err) {
+        const error = new CatalogError('requestFailed', 'Apple Music artwork request failed or timed out.');
+        error.cause = err;
+        throw error;
+    }
     if (!response.ok) {
-        throw new Error(`Apple Music artwork request failed (${response.status}).`);
+        throw new CatalogError('requestFailed', `Apple Music artwork request failed (${response.status}).`, response.status);
     }
 
     const reader = response.body?.getReader();
     if (!reader) {
-        throw new Error('Apple Music returned an empty response.');
+        throw new CatalogError('invalidResponse', 'Apple Music returned an empty response.');
     }
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -76,7 +84,7 @@ export async function fetchAnimatedArtwork(albumId: string, options: AnimatedArt
             if (done) break;
             size += value.byteLength;
             if (size > 2 * 1024 * 1024) {
-                throw new Error('Apple Music album page exceeds 2 MB.');
+                throw new CatalogError('tooLarge', 'Apple Music album page exceeds 2 MB.');
             }
             chunks.push(value);
         }

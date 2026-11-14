@@ -291,11 +291,14 @@ export class CompanionLinkSession extends EventEmitter<EventMap> {
 
         try {
             await this.#stream.disconnect();
+        } catch (err) {
+            this.#context.logger.warn('[companion-link]', 'Closing the socket failed during disconnect', err);
         } finally {
             clearTimeout(deadline);
-        }
 
-        this.#end('local');
+            // Also when the socket close failed, so the session ends and its signal aborts.
+            this.#end('local');
+        }
     }
 
     /** The single exit: stops the heartbeat, aborts the signal (listeners clean up there), destroys the stream and emits `closed`. */

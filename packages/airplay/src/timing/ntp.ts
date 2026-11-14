@@ -23,8 +23,9 @@ export class TimingServer {
     readonly #socket: Socket;
     #port: number = 0;
 
-    constructor() {
-        this.#logger = new Logger('timing-server');
+    /** @param options.logger - Receives the errors of the server; a `timing-server` logger when omitted. */
+    constructor(options: {readonly logger?: Logger} = {}) {
+        this.#logger = options.logger ?? new Logger('timing-server');
         this.#socket = createSocket('udp4');
 
         this.onError = this.onError.bind(this);

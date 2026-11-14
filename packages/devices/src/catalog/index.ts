@@ -5,6 +5,11 @@ export {
 } from './artwork';
 
 export {
+    CatalogError,
+    type CatalogErrorReason
+} from './errors';
+
+export {
     type AppleMusicLyricsOptions,
     fetchLyrics
 } from './lyrics';

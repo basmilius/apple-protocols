@@ -19,7 +19,19 @@ function toDecibels(volume: number): number {
  * One URL playback or audio stream on a connection of its own. It ends when it played out, on
  * {@link stop}, or when the AirPlay session of the device ends.
  */
-export class MediaPlayback {
+export interface MediaPlayback {
+    readonly kind: 'url' | 'audio';
+
+    /**
+     * Settles when playback ended. For a URL the device is polled or watched from the first read
+     * on, so a consumer that never reads this sends nothing extra.
+     */
+    readonly ended: Promise<void>;
+
+    stop(): void;
+}
+
+class Playback implements MediaPlayback {
     get kind(): 'url' | 'audio' {
         return this.#kind;
     }
@@ -52,14 +64,30 @@ export class MediaPlayback {
 
 type Running = {
     readonly abort: AbortController;
-    playback?: MediaPlayback;
+    playback?: Playback;
 };
 
 /**
  * URL playback and audio streaming. Each runs on its own connection, so remote control stays
  * untouched, and a new one of a kind stops the previous one.
  */
-export class MediaControl {
+export interface MediaControl {
+    /**
+     * Has the device fetch and play a URL. Resolves once playback started.
+     *
+     * @throws {UnavailableError} When the device cannot play URLs; stream the audio instead.
+     * @throws {PlaybackError} When the device refuses this URL.
+     */
+    playUrl(url: string, options?: PlayUrlOptions): Promise<MediaPlayback>;
+
+    /**
+     * Streams audio to the device. Resolves once the stream is set up; {@link MediaPlayback.ended}
+     * settles when the source ran out and the stream was torn down.
+     */
+    streamAudio(source: AudioSource, options?: StreamAudioOptions): Promise<MediaPlayback>;
+}
+
+export class MediaController implements MediaControl {
     readonly #session: () => AirPlaySession | undefined;
     #audio?: Running;
     #url?: Running;
@@ -97,7 +125,7 @@ export class MediaControl {
             throw new ConnectionClosedError('URL playback cancelled.');
         }
 
-        running.playback = new MediaPlayback('url', async () => {
+        running.playback = new Playback('url', async () => {
             try {
                 await playback.ended;
             } finally {
@@ -145,7 +173,7 @@ export class MediaControl {
 
         finished.catch(() => undefined);
 
-        running.playback = new MediaPlayback('audio', () => finished, () => {
+        running.playback = new Playback('audio', () => finished, () => {
             running.abort.abort();
             playback.stop();
         });

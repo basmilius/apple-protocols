@@ -11,7 +11,12 @@ type AirPlayKey = keyof typeof AIRPLAY_KEYS & keyof Hid;
  * over Companion Link when it is connected and knows the key. Either way falls back to the other
  * protocol. These are the paths the presses took before, so the bytes on the wire stay the same.
  */
-export class RemoteControl {
+export interface RemoteControl {
+    /** @throws {UnavailableError} When no connected protocol knows the key. */
+    press(key: RemoteKey, options?: PressOptions): Promise<void>;
+}
+
+export class RemoteController implements RemoteControl {
     readonly #companionLink: () => CompanionLinkSession | undefined;
     readonly #remote: () => MediaRemote | undefined;
 

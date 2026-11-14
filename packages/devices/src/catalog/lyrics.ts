@@ -1,3 +1,5 @@
+import { CatalogError } from './errors';
+
 export type AppleMusicLyricsOptions = {
     readonly bearerToken: string;
     readonly musicUserToken: string;
@@ -10,7 +12,7 @@ export type AppleMusicLyricsOptions = {
 function extractAppleMusicLyrics(payload: unknown): string | null {
     const data = (payload as {data?: {attributes?: {ttml?: unknown; ttmlLocalizations?: unknown}}[]})?.data;
     if (!Array.isArray(data)) {
-        throw new Error('Apple Music returned an invalid lyrics response.');
+        throw new CatalogError('invalidResponse', 'Apple Music returned an invalid lyrics response.');
     }
     for (const item of data) {
         const attributes = item?.attributes;
@@ -27,12 +29,12 @@ function extractAppleMusicLyrics(payload: unknown): string | null {
  */
 export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOptions): Promise<string | null> {
     if (!/^[1-9]\d*$/.test(catalogId) || !/^[a-z]{2}$/.test(options.storefront)) {
-        throw new Error('Apple Music requires a numeric song ID and a two-letter storefront.');
+        throw new CatalogError('invalidArgument', 'Apple Music requires a numeric song ID and a two-letter storefront.');
     }
     const bearer = options.bearerToken.trim().replace(/^Bearer\s+/i, '');
     const user = options.musicUserToken.trim();
     if (!bearer || !user || /[\r\n]/.test(bearer + user)) {
-        throw new Error('Apple Music requires a bearer token and a music user token.');
+        throw new CatalogError('invalidArgument', 'Apple Music requires a bearer token and a music user token.');
     }
     const url = new URL(`https://amp-api.music.apple.com/v1/catalog/${options.storefront}/songs/${catalogId}/syllable-lyrics`);
     url.searchParams.set('extend', 'ttmlLocalizations');
@@ -48,17 +50,17 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
             headers: {authorization: `Bearer ${bearer}`, 'media-user-token': user, origin: 'https://music.apple.com', referer: 'https://music.apple.com/'}
         });
     } catch {
-        throw new Error('Apple Music lyrics request failed or timed out.');
+        throw new CatalogError('requestFailed', 'Apple Music lyrics request failed or timed out.');
     }
     if (!response.ok) {
         await response.body?.cancel();
-        if (response.status === 401) throw new Error('Apple Music rejected the bearer token (401).');
-        if (response.status === 403) throw new Error('Apple Music denied lyrics access. Check the account token, subscription and storefront (403).');
+        if (response.status === 401) throw new CatalogError('unauthorized', 'Apple Music rejected the bearer token (401).', 401);
+        if (response.status === 403) throw new CatalogError('forbidden', 'Apple Music denied lyrics access. Check the account token, subscription and storefront (403).', 403);
         if (response.status === 404) return null;
-        throw new Error(`Apple Music lyrics request failed (${response.status}).`);
+        throw new CatalogError('requestFailed', `Apple Music lyrics request failed (${response.status}).`, response.status);
     }
     const reader = response.body?.getReader();
-    if (!reader) throw new Error('Apple Music returned an empty lyrics response.');
+    if (!reader) throw new CatalogError('invalidResponse', 'Apple Music returned an empty lyrics response.');
     const chunks: Uint8Array[] = [];
     let size = 0;
     try {
@@ -66,7 +68,7 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
             const {done, value} = await reader.read();
             if (done) break;
             size += value.byteLength;
-            if (size > 2 * 1024 * 1024) throw new Error('Apple Music lyrics response exceeds 2 MB.');
+            if (size > 2 * 1024 * 1024) throw new CatalogError('tooLarge', 'Apple Music lyrics response exceeds 2 MB.');
             chunks.push(value);
         }
     } finally {
@@ -76,7 +78,7 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
     try {
         payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     } catch {
-        throw new Error('Apple Music returned invalid lyrics JSON.');
+        throw new CatalogError('invalidResponse', 'Apple Music returned invalid lyrics JSON.');
     }
     return extractAppleMusicLyrics(payload);
 }

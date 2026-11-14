@@ -6,7 +6,15 @@ import type { SwipeDirection } from '../types';
  * The touch surface of an Apple TV, over Companion Link. AirPlay has no touch: tvOS drops the MRP
  * session on a virtual touch event.
  */
-export class TouchControl {
+export interface TouchControl {
+    /** Selects what has focus; held when `holdMs` is given. */
+    tap(holdMs?: number): Promise<void>;
+
+    /** @param durationMs - 200 when omitted. */
+    swipe(direction: SwipeDirection, durationMs?: number): Promise<void>;
+}
+
+export class TouchController implements TouchControl {
     readonly #companionLink: () => CompanionLinkSession | undefined;
 
     constructor(companionLink: () => CompanionLinkSession | undefined) {

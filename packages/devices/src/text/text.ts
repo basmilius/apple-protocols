@@ -4,7 +4,7 @@ import type { CompanionLinkSession, CompanionLinkState, TextInputState } from '@
 import { UnavailableError } from '../errors';
 import type { TextState } from '../types';
 
-type EventMap = {
+export type TextEventMap = {
     change: [state: TextState];
 };
 
@@ -36,7 +36,17 @@ function fromMediaRemote(state: MediaRemoteState): TextState {
  * Text input on the focused field. Companion Link goes first; without it the text goes through the
  * AirPlay RTI session. The state follows the same protocol.
  */
-export class TextControl extends EventEmitter<EventMap> {
+export interface TextControl extends EventEmitter<TextEventMap> {
+    readonly state: TextState;
+
+    /** Replaces the text of the focused field. */
+    set(text: string): Promise<void>;
+
+    append(text: string): Promise<void>;
+    clear(): Promise<void>;
+}
+
+export class TextController extends EventEmitter<TextEventMap> implements TextControl {
     get state(): TextState {
         return this.#companionLink()
             ? fromCompanionLink(this.#companionLinkState.textInputState)

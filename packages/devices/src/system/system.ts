@@ -2,7 +2,19 @@ import type { CompanionLinkSession } from '@corewire/companion-link';
 import { requireSession } from '../errors';
 
 /** System settings and Siri of an Apple TV, over Companion Link. */
-export class SystemControl {
+export interface SystemControl {
+    toggleCaptions(): Promise<void>;
+    setAppearance(mode: 'light' | 'dark'): Promise<void>;
+    setReduceLoudSounds(enabled: boolean): Promise<void>;
+
+    /** Find My mode. */
+    setFindingMode(enabled: boolean): Promise<void>;
+
+    startSiri(): Promise<void>;
+    stopSiri(): Promise<void>;
+}
+
+export class SystemController implements SystemControl {
     readonly #companionLink: () => CompanionLinkSession | undefined;
 
     constructor(companionLink: () => CompanionLinkSession | undefined) {

@@ -54,9 +54,11 @@ export type DeviceOptions = {
 
     /**
      * Looks the device up before a recovery attempt when the unicast query at the last address found nothing.
-     * A device with this option never scans with multicast; the consumer owns discovery.
+     * A device with this option never scans with multicast; the consumer owns discovery. The signal
+     * aborts after 15 seconds or when the attempt is cancelled; the attempt then goes on with the
+     * last known address, or stops.
      */
-    resolve?(last: DeviceTarget): Promise<DeviceTarget | null>;
+    resolve?(last: DeviceTarget, signal: AbortSignal): Promise<DeviceTarget | null>;
 
     readonly identity?: ClientIdentity;
 };

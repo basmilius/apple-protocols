@@ -2,7 +2,19 @@ import type { MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
 import { requireSession } from '../errors';
 
 /** The multi-room group the device plays in. */
-export class MultiroomControl {
+export interface MultiroomControl {
+    readonly clusterId: string | null;
+    readonly isClusterAware: boolean;
+    readonly isLeader: boolean;
+
+    add(...deviceUids: string[]): Promise<void>;
+    remove(...deviceUids: string[]): Promise<void>;
+
+    /** Replaces the whole group. */
+    set(...deviceUids: string[]): Promise<void>;
+}
+
+export class MultiroomController implements MultiroomControl {
     get clusterId(): string | null {
         return this.#state.clusterID;
     }
@@ -31,7 +43,6 @@ export class MultiroomControl {
         await requireSession(this.#remote(), 'multiroom').outputDevices.remove(deviceUids);
     }
 
-    /** Replaces the whole group. */
     async set(...deviceUids: string[]): Promise<void> {
         await requireSession(this.#remote(), 'multiroom').outputDevices.set(deviceUids);
     }

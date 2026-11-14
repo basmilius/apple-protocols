@@ -17,7 +17,7 @@ const RESTORE_TIMEOUT = 5000;
 /** Fingerprints per image buffer, so the bytes of one SET_ARTWORK are hashed once. */
 const FINGERPRINTS: WeakMap<Uint8Array, string> = new WeakMap();
 
-type EventMap = {
+export type NowPlayingEventMap = {
     /** The public item differs from the last one this object emitted. */
     change: [item: NowPlaying | null];
 
@@ -65,7 +65,21 @@ function fingerprintOf(bytes: Uint8Array | null | undefined): string | null {
  * item, state or artwork emits nothing, so a network blip does not look like playback stopping
  * and starting.
  */
-export class NowPlayingControl extends EventEmitter<EventMap> {
+export interface NowPlayingControl extends EventEmitter<NowPlayingEventMap> {
+    /** The current item. While a new session has not reported it again, the last announced one. */
+    readonly current: NowPlaying | null;
+
+    /** Elapsed seconds now, extrapolated from the playback rate while playing. */
+    readonly elapsed: number;
+
+    /** Whether the now-playing app accepts the command. While a reconnect restores, as the held item did. */
+    supports(command: NowPlayingCommand): boolean;
+
+    /** Lyrics of the current item from the playback queue. */
+    lyrics(): Promise<Lyrics | null>;
+}
+
+export class NowPlayingController extends EventEmitter<NowPlayingEventMap> implements NowPlayingControl {
     /** The current item. While a new session has not reported it again, the last announced one. */
     get current(): NowPlaying | null {
         return this.#restoring ? this.#last ?? null : toNowPlaying(this.#state.nowPlayingClient);

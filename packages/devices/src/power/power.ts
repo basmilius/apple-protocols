@@ -4,7 +4,7 @@ import type { CompanionLinkState } from '@corewire/companion-link';
 import { UnavailableError } from '../errors';
 import type { PowerState } from '../types';
 
-type EventMap = {
+export type PowerEventMap = {
     change: [state: PowerState];
 };
 
@@ -13,7 +13,15 @@ type EventMap = {
  * including the one each Companion Link connect fetches, so a consumer can resync then. Waking and
  * sleeping are AirPlay HID keys.
  */
-export class PowerControl extends EventEmitter<EventMap> {
+export interface PowerControl extends EventEmitter<PowerEventMap> {
+    /** The last reported state; `unknown` before Companion Link reported one. */
+    readonly state: PowerState;
+
+    wake(): Promise<void>;
+    sleep(): Promise<void>;
+}
+
+export class PowerController extends EventEmitter<PowerEventMap> implements PowerControl {
     /** The last reported state; `unknown` before Companion Link reported one. */
     get state(): PowerState {
         return this.#state;

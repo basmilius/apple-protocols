@@ -14,7 +14,8 @@
         "diag": "bun packages/diagnostics/cli/diag.ts"
     },
     "workspaces": [
-        "packages/*"
+        "packages/*",
+        "website"
     ],
     "devDependencies": {
         "@basmilius/tools": "^3.35.0",

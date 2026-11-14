@@ -1,0 +1,130 @@
+# @corewire/core
+
+`@corewire/core` has a main entry point and five subpaths. It knows no protocol.
+
+## @corewire/core
+
+```ts
+import { AppleProtocolError, Logger, reporter } from '@corewire/core';
+```
+
+### Errors
+
+Every class takes a `message: string`; the connection errors have a default message.
+
+| Export | Extends |
+| --- | --- |
+| `AppleProtocolError` | `Error` |
+| `ConnectionError` | `AppleProtocolError` |
+| `ConnectionTimeoutError` | `ConnectionError` |
+| `ConnectionClosedError` | `ConnectionError` |
+| `PairingError` | `AppleProtocolError` |
+| `AuthenticationError` | `PairingError` |
+| `CredentialsError` | `PairingError` |
+| `CommandError` | `AppleProtocolError` |
+| `SetupError` | `AppleProtocolError` |
+| `DiscoveryError` | `AppleProtocolError` |
+| `EncryptionError` | `AppleProtocolError` |
+| `InvalidResponseError` | `AppleProtocolError` |
+| `TimeoutError` | `AppleProtocolError` |
+| `PlaybackError` | `AppleProtocolError` |
+
+### Logging
+
+| Export | Description |
+| --- | --- |
+| `class Logger` | `constructor(id: string, sink?: LogSink)`; `debug()`, `error()`, `info()`, `net()`, `raw()`, `warn()`; `traffic(protocol, direction, summary, decoded?, bytes?)`; `id`, `label` |
+| `reporter: Reporter` | The global reporter |
+| type `Reporter` | `all()`, `none()`, `enable(group)`, `disable(group)`, `isEnabled(group)`, `accepts(group)`, `printsToConsole(group)`, `setSink(sink, options?)`, `clearSink()`, `setTrafficSink(sink)`, `clearTrafficSink()`, `reportTraffic(entry)`, `report(group, deviceId, args)`, `tapsTraffic` |
+| type `DebugGroup` | `'debug' \| 'error' \| 'info' \| 'net' \| 'raw' \| 'warn'` |
+| type `LogSink` | `(group: DebugGroup, args: readonly unknown[]) => void` |
+| type `ReporterEntry` | `{group: DebugGroup; deviceId: string \| null; args: readonly unknown[]; timestamp: number}` |
+| type `ReporterSink` | `(entry: ReporterEntry) => void` |
+| type `ReporterSinkOptions` | `{groups?: readonly DebugGroup[]; silenceConsole?: boolean}` |
+| type `TrafficEntry` | `{protocol: TrafficProtocol; direction: TrafficDirection; summary: string; decoded?: unknown; bytes?: Uint8Array; timestamp: number}` |
+| type `TrafficSink` | `(entry: TrafficEntry) => void` |
+| type `TrafficDirection` | `'in' \| 'out'` |
+| type `TrafficProtocol` | `string` |
+
+### Helpers
+
+| Export | Description |
+| --- | --- |
+| `waitFor(ms: number): Promise<void>` | |
+| `getLocalIP(): string \| null` | The first non-internal IPv4 address |
+| `getMacAddress(): string` | |
+| `randomInt32(): number`, `randomInt64(): bigint` | |
+| `uint16ToBE(value: number): Buffer`, `uint53ToLE(value: number): Buffer` | |
+| `HTTP_TIMEOUT` | 6000 ms |
+| `SOCKET_TIMEOUT` | 30000 ms |
+| type `EventMap` | `Record<string, any>` |
+
+## @corewire/core/crypto
+
+| Export | Description |
+| --- | --- |
+| `Chacha20` | `encrypt(key, nonce, aad, plaintext): EncryptedData`, `decrypt(key, nonce, aad, ciphertext, authTag): Buffer`, `padNonce(nonce)`, `CHACHA20_AUTH_TAG_LENGTH` (16), `CHACHA20_NONCE_LENGTH` (12), `DecryptionError`, type `EncryptedData` (`{ciphertext; authTag}`) |
+| `Ed25519` | `generateKeyPair(): KeyPair`, `sign(message, secretKey)`, `verify(message, signature, publicKey)` |
+| `Curve25519` | `generateKeyPair(): KeyPair`, `generateSharedSecKey(priKey, pubKey)` |
+| `Aes` | `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`; AES-128-CTR |
+| `hkdf(options: HKDFOptions): Buffer` | `{hash; key; length; salt; info}` |
+| `deriveEncryptionKeys(sharedSecret: Buffer, salt: string, readInfo: string, writeInfo: string): {readKey: Buffer; writeKey: Buffer}` | |
+| type `KeyPair` | `{publicKey: Uint8Array; secretKey: Uint8Array}` |
+
+## @corewire/core/discovery
+
+| Export | Description |
+| --- | --- |
+| `class Discovery` | `constructor(service: string)`; `find(useCache?)`, `findUntil(id, tries?, timeout?)`, `findByAddress(address, timeout?, wakePorts?)`; static `findServices(services, useCache?)`, `clearCache()`, `wake(address, ports)` |
+| `mdnsMulticast(services: string[], timeout = 4): Promise<MdnsService[]>` | Timeout in seconds |
+| `mdnsUnicast(hosts: string[], services: string[], timeout = 4, wakePorts = []): Promise<MdnsService[]>` | |
+| `class MdnsResponder` | `constructor(logger: Logger, service: AdvertisedService, address?: string)`; `start()`, `stop()`, static `localAddress()` |
+| type `DiscoveryResult` | `{id; txt; fqdn; address; modelName; familyName; service: {port; protocol; type}; packet}` |
+| type `MdnsService` | `{name; type; address; port; properties: Record<string, string>}` |
+| type `AdvertisedService` | `{instance; type; host; port; txt}` |
+
+## @corewire/core/encoding
+
+| Export | Description |
+| --- | --- |
+| `TLV8` | `encode(entries)`, `decode(buffer)`, `bail(data)`, `Value`, `State`, `Method`, `Flags`, `ErrorCode`, `TLV8PairingError` |
+| `OPack` | `encode(data)`, `decode(data)`, `int(value)`, `float(value)`, `sizedInteger(value, size)` |
+| `Plist` | `serialize(value)`, `parse(buffer)`, types `PlistValue`, `PlistDictionary` |
+| `DAAP` | `encodeTag()`, `encodeContainer()`, `encodeTagWithSize()`, `encodePlaybackStatus()`, `encodeTrackMetadata()`, `decode()`, `decodeTag()`, `decodeToObject()`, `decodeTrackMetadata()`, `ContentCode`, `TagType` and their types |
+| `NTP` | `now(): bigint`, `parts(ntp: bigint): [number, number]`, `encode(fields)`, `decode(buffer)`, type `PacketFields` |
+| `NSKeyedArchiver` | `decode(archive)`, `decodeAsArray(archive)` |
+| `RTI` | `decodeSession(data)`, `encodeOperation(sessionUUID, text, clear)`, type `TextInputSession` |
+
+## @corewire/core/pairing
+
+| Export | Description |
+| --- | --- |
+| `class PairSetup` | `constructor(context: Context, transport: PairingTransport, options?: PairingOptions)`; `start()`, `pin(askPin): Promise<AccessoryCredentials>`, `transient(): Promise<AccessoryKeys>`, `m1()` to `m6()` |
+| `class PairVerify` | `constructor(context, transport, options?)`; `start(credentials: AccessoryCredentials): Promise<AccessoryKeys>` |
+| `class PairSetupServer` | `constructor(context, identity: AccessoryIdentity, pin: string, options?)`; `handle(request: Buffer): Promise<Buffer>`, `controller`, `sharedSecret` |
+| `class PairVerifyServer` | `constructor(context, identity, resolveController: ControllerResolver, options?)`; `handle(request)`, `pairingId`, `sharedSecret` |
+| `generateAccessoryIdentity(): AccessoryIdentity` | A random identifier and a new Ed25519 key pair |
+| `deriveControlKeys(sharedSecret: Buffer): {accessoryToControllerKey: Buffer; controllerToAccessoryKey: Buffer}` | |
+| `TRANSIENT_PAIRING_PIN` | `'3939'` |
+| type `AccessoryCredentials` | `{accessoryIdentifier: string; accessoryLongTermPublicKey: Buffer; pairingId: Buffer; publicKey: Buffer; secretKey: Buffer}` |
+| type `AccessoryKeys` | `{pairingId; sharedSecret; accessoryToControllerKey; controllerToAccessoryKey}`, all `Buffer` |
+| type `AccessoryIdentity` | `{identifier: string; publicKey: Buffer; secretKey: Buffer}` |
+| type `PairedController` | `{identifier: string; longTermPublicKey: Buffer}` |
+| type `ControllerResolver` | `(pairingId: string) => Buffer \| undefined` |
+| type `PairingOptions` | `{useAes?: boolean}` |
+| type `PairingStep` | `'m1' \| 'm3' \| 'm5'` |
+| type `PairingTransport` | `(payload: Buffer, step: PairingStep) => Promise<Buffer>` |
+
+## @corewire/core/transport
+
+| Export | Description |
+| --- | --- |
+| `class Context` | `constructor(deviceId: string, identity?: Partial<DeviceIdentity>, sink?: LogSink)`; `deviceId`, `identity`, `logger` |
+| `class Connection<TEventMap>` | `constructor(context, address, port)`; `connect()`, `disconnect()`, `destroy(error?)`, `write(data)`, `debug(enabled)`; `address`, `port`, `localAddress`, `isConnected`, `state`, `signal`, `context`; events `connect`, `data`, `error`, `closed` |
+| `class EncryptionAwareConnection<TEventMap>` | `Connection` plus `enableEncryption(readKey, writeKey)`, `isEncrypted` |
+| `class EncryptionState` | `constructor(readKey, writeKey)`; `readKey`, `readCount`, `writeKey`, `writeCount` |
+| `buildNonce(counter: number, format: NonceFormat): Buffer` | A 12-byte nonce |
+| type `NonceFormat` | `'counter-at-0' \| 'counter-at-4'` |
+| type `DeviceIdentity` | `{name; model; osName; osVersion; osBuildVersion; sourceVersion; applicationBundleIdentifier; applicationBundleVersion}` |
+| type `CloseReason` | `'local' \| 'remote' \| 'timeout' \| 'error'` |
+| type `ConnectionState` | `'closing' \| 'connected' \| 'connecting' \| 'disconnected' \| 'failed'` |

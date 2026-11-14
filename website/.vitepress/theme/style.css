@@ -1,0 +1,12 @@
+/* The accent of ADE CORE, so the two sites read as one family. */
+:root {
+    --accent: #155dfc;
+    --vp-c-brand-1: var(--accent);
+    --vp-c-brand-2: color-mix(in srgb, var(--accent) 85%, var(--vp-c-bg));
+    --vp-c-brand-3: var(--accent);
+    --vp-c-brand-soft: rgb(21 93 252 / 0.14);
+}
+
+.dark {
+    --vp-c-brand-1: color-mix(in srgb, var(--accent) 70%, white);
+}

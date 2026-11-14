@@ -42,9 +42,13 @@ for (const name of ['launch', 'openUrl']) register('device', `apps.${name}`, {ar
 register('device', 'accounts.switch', {args: [string]});
 register('device', 'touch.swipe', {args: [oneOf('up', 'down', 'left', 'right'), number(50, 2000)], optional: 1});
 register('device', 'touch.tap', {args: [number(0, 2000)], optional: 1});
+register('device', 'multiroom.getVolume', {args: [string]});
+register('device', 'multiroom.setVolume', {args: [string, fraction], volume: 1});
+register('device', 'multiroom.mute', {args: [string]});
+register('device', 'multiroom.unmute', {args: [string], confirm: true});
 
 const reads = new Map<string, readonly string[]>([
-    ['device', ['id', 'name', 'address', 'model', 'modelName', 'status', 'nowPlaying.current', 'nowPlaying.elapsed', 'volume.level', 'volume.muted', 'volume.available', 'volume.mode', 'power.state', 'text.state', 'multiroom.clusterId', 'multiroom.isLeader', 'multiroom.isClusterAware']],
+    ['device', ['id', 'name', 'address', 'model', 'modelName', 'status', 'nowPlaying.current', 'nowPlaying.elapsed', 'volume.level', 'volume.muted', 'volume.available', 'volume.mode', 'power.state', 'text.state', 'multiroom.clusterId', 'multiroom.isLeader', 'multiroom.isClusterAware', 'multiroom.outputs']],
     ['airplay', ['isOpen', 'info', 'features', 'supportsUrlPlayback']],
     ['mediaRemote', ['state.volume', 'state.volumeAvailable', 'state.volumeCapabilities', 'state.outputDeviceUID', 'state.outputDevices', 'state.nowPlayingClient', 'state.keyboardState', 'state.keyboardAttributes', 'state.clusterID', 'state.isClusterLeader']],
     ['companionLink', ['isOpen', 'sourceVersion', 'state']]

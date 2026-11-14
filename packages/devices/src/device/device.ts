@@ -122,6 +122,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     readonly #context: Context;
     readonly #id: string;
     readonly #logSink?: LogSink;
+    readonly #multiroom: MultiroomController;
     readonly #nowPlaying: NowPlayingController;
     readonly #options: BaseOptions;
     readonly #resolver: Resolver;
@@ -183,12 +184,13 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         const mediaRemote = (): MediaRemote | undefined => this.#airplay.session?.remote;
         const companionLinkSession = (): CompanionLinkSession | undefined => this.#companionLink?.session;
 
+        this.#multiroom = new MultiroomController(this.mediaRemoteState, mediaRemote);
         this.#nowPlaying = new NowPlayingController(this.mediaRemoteState, mediaRemote);
         this.#volume = new VolumeController(this.mediaRemoteState, mediaRemote);
 
         this.artwork = new ArtworkController(mediaRemote);
         this.media = new MediaController(() => this.#airplay.session?.session);
-        this.multiroom = new MultiroomController(this.mediaRemoteState, mediaRemote);
+        this.multiroom = this.#multiroom;
         this.nowPlaying = this.#nowPlaying;
         this.playback = new PlaybackController(mediaRemote);
         this.remote = new RemoteController(mediaRemote, companionLinkSession);
@@ -310,6 +312,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
      * at the start of {@link disconnect}; a subclass adds its own capabilities.
      */
     protected reset(): void {
+        this.#multiroom.reset();
         this.#nowPlaying.reset();
         this.#volume.reset();
         this.mediaRemoteState.clear();

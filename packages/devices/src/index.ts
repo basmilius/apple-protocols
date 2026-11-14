@@ -67,7 +67,7 @@ export type { AccountsControl } from './accounts/accounts';
 export type { AppsControl } from './apps/apps';
 export type { ArtworkControl } from './artwork/artwork';
 export type { MediaControl, MediaPlayback } from './media/media';
-export type { MultiroomControl } from './multiroom/multiroom';
+export type { MultiroomControl, MultiroomEventMap } from './multiroom/multiroom';
 export type { NowPlayingControl, NowPlayingEventMap } from './nowPlaying/nowPlaying';
 export type { PlaybackControl } from './playback/playback';
 export type { PowerControl, PowerEventMap } from './power/power';
@@ -100,6 +100,7 @@ export type {
     NowPlaying,
     NowPlayingCommand,
     NowPlayingSeries,
+    OutputDevice,
     PlaybackState,
     PlayUrlOptions,
     PowerState,

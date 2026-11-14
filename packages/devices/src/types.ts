@@ -196,6 +196,25 @@ export type VolumeState = {
     readonly mode: VolumeMode;
 };
 
+/** A speaker or TV in the multi-room group. */
+export type OutputDevice = {
+    /** Identifies the device in the multiroom calls. */
+    readonly uid: string;
+
+    readonly name: string;
+
+    /** The model identifier, e.g. `AudioAccessory5,1`; empty when unknown. */
+    readonly model: string;
+
+    readonly groupId: string | null;
+
+    /** Whether this is the device the session runs on. */
+    readonly isLocal: boolean;
+
+    readonly isGroupLeader: boolean;
+    readonly hasVolumeControl: boolean;
+};
+
 export type RemoteKey =
     | 'up'
     | 'down'

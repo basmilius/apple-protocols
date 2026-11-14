@@ -1,4 +1,4 @@
-import { AIRPLAY_PROTOCOL, AppleTV, COMPANION_LINK_PROTOCOL } from '@basmilius/apple-sdk';
+import { AIRPLAY_PROTOCOL, AppleTV, COMPANION_LINK_PROTOCOL } from '@corewire/devices';
 import type { CallResult } from '@shared/contract';
 import { handle } from '../../ipc';
 import { serialize, serializeError } from '../../serialize';

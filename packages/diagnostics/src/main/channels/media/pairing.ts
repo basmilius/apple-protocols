@@ -1,6 +1,7 @@
-import * as CompanionLink from '@basmilius/apple-companion-link';
-import { PairingSession } from '@basmilius/apple-sdk';
-import type { AccessoryCredentials, DiscoveryResult } from '@basmilius/apple-common';
+import * as CompanionLink from '@corewire/companion-link';
+import { PairingSession } from '@corewire/devices';
+import type { AccessoryCredentials } from '@corewire/core/pairing';
+import type { DiscoveryResult } from '@corewire/core/discovery';
 import type { PairRequest, PairStage, PairStatus, ProtocolName } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';

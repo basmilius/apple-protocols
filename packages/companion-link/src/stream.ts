@@ -1,7 +1,8 @@
 import { randomInt } from 'node:crypto';
-import { ConnectionClosedError, type Context, EncryptionAwareConnection, EncryptionState, TimeoutError } from '@basmilius/apple-common';
-import { OPack } from '@basmilius/apple-encoding';
-import { Chacha20 } from '@basmilius/apple-encryption';
+import { ConnectionClosedError, TimeoutError } from '@corewire/core';
+import { type Context, EncryptionAwareConnection, EncryptionState } from '@corewire/core/transport';
+import { OPack } from '@corewire/core/encoding';
+import { Chacha20 } from '@corewire/core/crypto';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
 /** Size of the frame header in bytes (1 byte type + 3 bytes payload length). */

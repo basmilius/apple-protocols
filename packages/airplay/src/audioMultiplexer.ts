@@ -1,4 +1,7 @@
-import { AUDIO_FRAMES_PER_PACKET, type AudioSource, AudioSourceSession, type Context } from '@basmilius/apple-common';
+import type { Context } from '@corewire/core/transport';
+import { AUDIO_FRAMES_PER_PACKET } from './const';
+import type { AudioSource } from './audioSource';
+import { AudioSourceSession } from './audioSourceSession';
 import { type AudioStreamContext, AudioStream, type AudioStreamOptions } from './audioStream';
 import type { Protocol } from './protocol';
 import { streamWithTiming } from './streamTiming';

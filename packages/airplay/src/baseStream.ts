@@ -1,4 +1,5 @@
-import { EncryptionAwareConnection, type EventMap } from '@basmilius/apple-common';
+import { EncryptionAwareConnection } from '@corewire/core/transport';
+import type { EventMap } from '@corewire/core';
 import { chacha20Decrypt, chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
 /**

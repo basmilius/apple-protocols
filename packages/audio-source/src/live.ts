@@ -1,4 +1,5 @@
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioSource } from '@basmilius/apple-common';
+import type { AudioSource } from '@corewire/airplay';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 
 /** Default ring buffer duration in seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;

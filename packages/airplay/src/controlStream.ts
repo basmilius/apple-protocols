@@ -1,6 +1,8 @@
-import { type Context, EncryptionState, generateActiveRemoteId, generateDacpId, generateSessionId, HTTP_TIMEOUT } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
-import { RtspClient } from '@basmilius/apple-rtsp';
+import { type Context, EncryptionState } from '@corewire/core/transport';
+import { HTTP_TIMEOUT } from '@corewire/core';
+import { Plist } from '@corewire/core/encoding';
+import { generateActiveRemoteId, generateDacpId, generateSessionId } from './identifiers';
+import { RtspClient } from './rtsp';
 import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
 /** Request line protocol of play queue commands. pyatv #2948 sends them as HTTP/1.1 on the RTSP connection. */

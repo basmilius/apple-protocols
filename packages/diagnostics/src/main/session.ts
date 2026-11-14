@@ -9,7 +9,7 @@ import {
     HomePod,
     type Storage,
     TimingServer
-} from '@basmilius/apple-sdk';
+} from '@corewire/devices';
 import type { CallRequest, CallResult, DeviceEvent, DeviceEventSource, DeviceSessionStatus, DiscoveredDeviceInfo, ProtocolName, ServiceInfo, StateSnapshot } from '@shared/contract';
 import { runCall, type CallRoots } from './call';
 import {

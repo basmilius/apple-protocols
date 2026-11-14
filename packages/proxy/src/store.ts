@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { type AccessoryIdentity, generateAccessoryIdentity } from '@basmilius/apple-common';
+import { type AccessoryIdentity, generateAccessoryIdentity } from '@corewire/core/pairing';
 
 /** On-disk shape of the proxy state file. Buffers are stored as hex strings. */
 type ProxyStoreData = {

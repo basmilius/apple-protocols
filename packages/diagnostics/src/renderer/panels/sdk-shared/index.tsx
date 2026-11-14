@@ -61,7 +61,7 @@ export const HID_PRESETS: readonly { readonly name: string; readonly page: numbe
     {name: 'Mute', page: 12, usage: 0xe2}
 ];
 
-/** `HidCommand` from `@basmilius/apple-companion-link`, by name. */
+/** `HidCommand` from `@corewire/companion-link`, by name. */
 export const COMPANION_HID_COMMANDS = [
     'Up',
     'Down',
@@ -98,7 +98,7 @@ export type CompanionHidCommand = (typeof COMPANION_HID_COMMANDS)[number];
 
 export const BUTTON_PRESS_TYPES: readonly string[] = ['SingleTap', 'DoubleTap', 'Hold'];
 
-/** `MediaControlCommand` from `@basmilius/apple-companion-link`, by name. */
+/** `MediaControlCommand` from `@corewire/companion-link`, by name. */
 export const MEDIA_CONTROL_COMMANDS: readonly string[] = [
     'Play',
     'Pause',

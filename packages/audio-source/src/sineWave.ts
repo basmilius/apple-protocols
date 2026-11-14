@@ -1,4 +1,4 @@
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { BufferAudioSource } from './bufferAudioSource';
 import { convertPcm } from './decoder/pcm';
 

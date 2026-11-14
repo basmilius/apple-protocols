@@ -1,5 +1,7 @@
-import { type Context, PlaybackError, uuid } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
+import { randomUUID } from 'node:crypto';
+import type { Context } from '@corewire/core/transport';
+import { PlaybackError } from '@corewire/core';
+import { Plist } from '@corewire/core/encoding';
 import type { ControlStream } from './controlStream';
 import type { EventStream } from './eventStream';
 import type { PlaybackInfo } from './protocol';
@@ -169,7 +171,7 @@ export class PlayQueueSession {
      * @throws PlaybackError when a later command fails or reports an `errorCode`.
      */
     async start(url: string, position: number): Promise<boolean> {
-        const itemUUID = uuid().toUpperCase();
+        const itemUUID = randomUUID().toUpperCase();
         this.#itemUUID = itemUUID;
 
         const insert = await this.#send({type: 'insertPlayQueueItem', item: buildItem(itemUUID, url, position)});
@@ -257,7 +259,7 @@ export class PlayQueueSession {
                 type: 130,
                 controlType: 1,
                 channelID,
-                clientUUID: uuid().toUpperCase(),
+                clientUUID: randomUUID().toUpperCase(),
                 clientTypeUUID: RCS_CLIENT_TYPE_UUID
             }]
         });

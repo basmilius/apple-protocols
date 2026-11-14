@@ -1,4 +1,4 @@
-import { type AirPlayClient, type AirPlayPlayer, type AirPlayState, AppleTV, type HomePod, Proto } from '@basmilius/apple-sdk';
+import { type AirPlayClient, type AirPlayPlayer, type AirPlayState, AppleTV, type HomePod, Proto } from '@corewire/devices';
 import type {
     ClientSnapshot,
     ConnectionSnapshot,

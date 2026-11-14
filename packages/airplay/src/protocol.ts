@@ -1,5 +1,12 @@
-import { AirPlayFeatureFlags, type AudioSource, AudioSourceSession, Context, type DeviceIdentity, type DiscoveryResult, getMacAddress, InvalidResponseError, PlaybackError, type PtpMaster, randomInt64, selectTimingStrategy, SetupError, type TimingServer, uuid, waitFor } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
+import { randomUUID } from 'node:crypto';
+import { Context, type DeviceIdentity } from '@corewire/core/transport';
+import type { DiscoveryResult } from '@corewire/core/discovery';
+import { getMacAddress, InvalidResponseError, PlaybackError, randomInt64, SetupError, waitFor } from '@corewire/core';
+import { Plist } from '@corewire/core/encoding';
+import { AirPlayFeatureFlags, describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from './airplayFeatures';
+import type { AudioSource } from './audioSource';
+import { AudioSourceSession } from './audioSourceSession';
+import { type PtpMaster, selectTimingStrategy, type TimingServer } from './timing';
 import { Pairing, Verify } from './pairing';
 import { AudioStream } from './audioStream';
 import { ControlStream } from './controlStream';
@@ -8,7 +15,6 @@ import { EventStream } from './eventStream';
 import { encodeFeatures, parseReceiverFeatures } from './features';
 import { PlayQueueSession, type PlayQueueState } from './playQueue';
 
-import { describeFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from '@basmilius/apple-common';
 
 function compareVersions(a: string, b: string): number {
     const pa = a.split('.').map(Number);
@@ -143,7 +149,7 @@ export class Protocol {
     constructor(discoveryResult: DiscoveryResult, identity?: Partial<DeviceIdentity>) {
         this.#context = new Context(discoveryResult.id, identity);
         this.#discoveryResult = discoveryResult;
-        this.#sessionUUID = uuid().toUpperCase();
+        this.#sessionUUID = randomUUID().toUpperCase();
         this.#controlStream = new ControlStream(this.#context, discoveryResult.address, discoveryResult.service.port);
         this.#pairing = new Pairing(this);
         this.#verify = new Verify(this);
@@ -359,9 +365,9 @@ export class Protocol {
         const response = await this.#controlStream.setup(`/${this.#controlStream.sessionId}`, {
             streams: [{
                 controlType: 2,
-                channelID: uuid().toUpperCase(),
+                channelID: randomUUID().toUpperCase(),
                 seed,
-                clientUUID: uuid().toUpperCase(),
+                clientUUID: randomUUID().toUpperCase(),
                 type: 130,
                 wantsDedicatedSocket: true,
                 clientTypeUUID: '1910A70F-DBC0-4242-AF95-115DB30604E1'
@@ -516,7 +522,7 @@ export class Protocol {
      * @param pairingId - Pairing identifier from pair-verify for the SETUP body.
      */
     async setupEventStreamForAudioStreaming(sharedSecret: Buffer, pairingId: Buffer): Promise<void> {
-        const groupUUID = uuid().toUpperCase();
+        const groupUUID = randomUUID().toUpperCase();
 
         const body: Record<string, any> = {
             ...this.#setupBody(pairingId, SENDER_FEATURES_AUDIO),
@@ -567,7 +573,7 @@ export class Protocol {
         const setupBody: Record<string, any> = {
             ...this.#setupBody(pairingId, SENDER_FEATURES_AUDIO),
             groupContainsGroupLeader: false,
-            groupUUID: uuid(),
+            groupUUID: randomUUID(),
             isMultiSelectAirPlay: true,
             senderSupportsRelay: false,
             statsCollectionEnabled: false,

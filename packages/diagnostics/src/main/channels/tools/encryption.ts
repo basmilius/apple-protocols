@@ -1,4 +1,4 @@
-import { Aes, Chacha20, Curve25519, Ed25519, hkdf } from '@basmilius/apple-encryption';
+import { Aes, Chacha20, Curve25519, Ed25519, hkdf } from '@corewire/core/crypto';
 import type { ToolInputOption } from '@shared/contract';
 import { parseBytes, readBoolean, readNumber, readString, toHex } from './bytes';
 import { keyInput, type ToolDefinition } from './registry';

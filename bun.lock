@@ -11,13 +11,10 @@
       },
     },
     "packages/airplay": {
-      "name": "@basmilius/apple-airplay",
+      "name": "@corewire/airplay",
       "version": "0.0.0",
       "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@basmilius/apple-rtsp": "workspace:*",
+        "@corewire/core": "workspace:*",
       },
       "devDependencies": {
         "@bufbuild/buf": "^1.70.0",
@@ -29,12 +26,13 @@
       },
     },
     "packages/audio-source": {
-      "name": "@basmilius/apple-audio-source",
+      "name": "@corewire/audio-source",
       "version": "0.0.0",
       "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
+        "@corewire/core": "workspace:*",
       },
       "devDependencies": {
+        "@corewire/airplay": "workspace:*",
         "@types/bun": "^1.3.14",
         "@types/node": "^25.9.2",
         "@wasm-audio-decoders/flac": "^0.2.4",
@@ -47,28 +45,39 @@
         "tsdown": "^0.22.2",
       },
     },
-    "packages/common": {
-      "name": "@basmilius/apple-common",
+    "packages/companion-link": {
+      "name": "@corewire/companion-link",
       "version": "0.0.0",
       "dependencies": {
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
+        "@corewire/core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
         "@types/node": "^25.9.2",
-        "fast-srp-hap": "^2.0.4",
         "tsdown": "^0.22.2",
-        "uuid": "^14.0.0",
       },
     },
-    "packages/companion-link": {
-      "name": "@basmilius/apple-companion-link",
+    "packages/core": {
+      "name": "@corewire/core",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@plist/binary.serialize": "^1.1.0",
+        "@stablelib/chacha20poly1305": "^2.0.1",
+        "@stablelib/ed25519": "^2.1.0",
+        "@stablelib/x25519": "^2.0.1",
+        "@types/bun": "^1.3.14",
+        "@types/node": "^25.9.2",
+        "fast-srp-hap": "^2.0.4",
+        "tsdown": "^0.22.2",
+      },
+    },
+    "packages/devices": {
+      "name": "@corewire/devices",
       "version": "0.0.0",
       "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
+        "@corewire/airplay": "workspace:*",
+        "@corewire/companion-link": "workspace:*",
+        "@corewire/core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",
@@ -77,22 +86,18 @@
       },
     },
     "packages/diagnostics": {
-      "name": "@basmilius/apple-diagnostics",
+      "name": "@corewire/diagnostics",
       "version": "0.0.0",
       "devDependencies": {
         "@adecore/charts": "^0.66.8",
         "@adecore/shell": "^0.66.8",
         "@adecore/ui": "^0.66.8",
         "@base-ui/react": "^1.9.0",
-        "@basmilius/apple-airplay": "workspace:*",
-        "@basmilius/apple-audio-source": "workspace:*",
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-companion-link": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@basmilius/apple-raop": "workspace:*",
-        "@basmilius/apple-rtsp": "workspace:*",
-        "@basmilius/apple-sdk": "workspace:*",
+        "@corewire/airplay": "workspace:*",
+        "@corewire/audio-source": "workspace:*",
+        "@corewire/companion-link": "workspace:*",
+        "@corewire/core": "workspace:*",
+        "@corewire/devices": "workspace:*",
         "@fontsource-variable/geist": "^5.3.0",
         "@fontsource-variable/jetbrains-mono": "^5.3.0",
         "@tailwindcss/vite": "^4.3.3",
@@ -118,38 +123,13 @@
         "zustand": "^5.0.15",
       },
     },
-    "packages/encoding": {
-      "name": "@basmilius/apple-encoding",
-      "version": "0.0.0",
-      "devDependencies": {
-        "@plist/binary.serialize": "^1.1.0",
-        "@types/bun": "^1.3.14",
-        "@types/node": "^25.9.2",
-        "tsdown": "^0.22.2",
-      },
-    },
-    "packages/encryption": {
-      "name": "@basmilius/apple-encryption",
-      "version": "0.0.0",
-      "devDependencies": {
-        "@stablelib/chacha20poly1305": "^2.0.1",
-        "@stablelib/ed25519": "^2.1.0",
-        "@stablelib/x25519": "^2.0.1",
-        "@types/bun": "^1.3.14",
-        "@types/node": "^25.9.2",
-        "tsdown": "^0.22.2",
-      },
-    },
     "packages/proxy": {
-      "name": "@basmilius/apple-proxy",
+      "name": "@corewire/proxy",
       "version": "0.0.0",
       "dependencies": {
-        "@basmilius/apple-airplay": "workspace:*",
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-companion-link": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@basmilius/apple-rtsp": "workspace:*",
+        "@corewire/airplay": "workspace:*",
+        "@corewire/companion-link": "workspace:*",
+        "@corewire/core": "workspace:*",
         "enquirer": "^2.4.1",
         "ora": "^9.3.0",
       },
@@ -157,50 +137,6 @@
         "@basmilius/tools": "^3.35.0",
         "@types/bun": "^1.3.12",
         "@types/node": "^25.9.2",
-      },
-    },
-    "packages/raop": {
-      "name": "@basmilius/apple-raop",
-      "version": "0.0.0",
-      "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@basmilius/apple-rtsp": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.3.14",
-        "@types/node": "^25.9.2",
-        "tsdown": "^0.22.2",
-      },
-    },
-    "packages/rtsp": {
-      "name": "@basmilius/apple-rtsp",
-      "version": "0.0.0",
-      "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.3.14",
-        "@types/node": "^25.9.2",
-        "tsdown": "^0.22.2",
-      },
-    },
-    "packages/sdk": {
-      "name": "@basmilius/apple-sdk",
-      "version": "0.0.0",
-      "dependencies": {
-        "@basmilius/apple-airplay": "workspace:*",
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-companion-link": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-raop": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.3.14",
-        "@types/node": "^25.9.2",
-        "tsdown": "^0.22.2",
       },
     },
   },
@@ -258,28 +194,6 @@
 
     "@base-ui/utils": ["@base-ui/utils@0.5.0", "", { "dependencies": { "@babel/runtime": "^7.29.7 || ^8.0.0", "@floating-ui/utils": "^0.2.12", "reselect": "^5.3.0", "use-sync-external-store": "^1.7.0" }, "peerDependencies": { "@types/react": "^17 || ^18 || ^19", "react": "^17 || ^18 || ^19", "react-dom": "^17 || ^18 || ^19" }, "optionalPeers": ["@types/react"] }, "sha512-dYGGcEttjkYiMoa5nHm8vLaJ2UcuTWxo3BFAwOYXeRg/q7UVVvA6cacEIXEs3FgBfK1CGtW1ptElqs7wsx+t9A=="],
 
-    "@basmilius/apple-airplay": ["@basmilius/apple-airplay@workspace:packages/airplay"],
-
-    "@basmilius/apple-audio-source": ["@basmilius/apple-audio-source@workspace:packages/audio-source"],
-
-    "@basmilius/apple-common": ["@basmilius/apple-common@workspace:packages/common"],
-
-    "@basmilius/apple-companion-link": ["@basmilius/apple-companion-link@workspace:packages/companion-link"],
-
-    "@basmilius/apple-diagnostics": ["@basmilius/apple-diagnostics@workspace:packages/diagnostics"],
-
-    "@basmilius/apple-encoding": ["@basmilius/apple-encoding@workspace:packages/encoding"],
-
-    "@basmilius/apple-encryption": ["@basmilius/apple-encryption@workspace:packages/encryption"],
-
-    "@basmilius/apple-proxy": ["@basmilius/apple-proxy@workspace:packages/proxy"],
-
-    "@basmilius/apple-raop": ["@basmilius/apple-raop@workspace:packages/raop"],
-
-    "@basmilius/apple-rtsp": ["@basmilius/apple-rtsp@workspace:packages/rtsp"],
-
-    "@basmilius/apple-sdk": ["@basmilius/apple-sdk@workspace:packages/sdk"],
-
     "@basmilius/tools": ["@basmilius/tools@3.35.0", "", { "dependencies": { "oxc-transform": "^0.132.0" } }, "sha512-IMjWP1d6tNywqwant/3E3+C4/bnDJc6bMIKzOirOiQd4c6clnJMn8UMmGCf8Qq7T3X9z3/PgWejPas5zGa0nZg=="],
 
     "@bufbuild/buf": ["@bufbuild/buf@1.70.0", "", { "optionalDependencies": { "@bufbuild/buf-darwin-arm64": "1.70.0", "@bufbuild/buf-darwin-x64": "1.70.0", "@bufbuild/buf-linux-aarch64": "1.70.0", "@bufbuild/buf-linux-armv7": "1.70.0", "@bufbuild/buf-linux-x64": "1.70.0", "@bufbuild/buf-win32-arm64": "1.70.0", "@bufbuild/buf-win32-x64": "1.70.0" }, "bin": { "buf": "bin/buf", "protoc-gen-buf-breaking": "bin/protoc-gen-buf-breaking", "protoc-gen-buf-lint": "bin/protoc-gen-buf-lint" } }, "sha512-oJWGqltlu8F7VVNHLoJ3pFXhjfiGpbh7+/mXW0y+VMPWFGxc9YDv4de1UcX7zhhjV6MbE4SiEGo5Gs5jhpVg5A=="],
@@ -303,6 +217,20 @@
     "@bufbuild/protoc-gen-es": ["@bufbuild/protoc-gen-es@2.12.0", "", { "dependencies": { "@bufbuild/protobuf": "2.12.0", "@bufbuild/protoplugin": "2.12.0" }, "bin": { "protoc-gen-es": "bin/protoc-gen-es" } }, "sha512-d9htF6jEkSwPbp9d/vSmZOBF7eeG18AvTMKmVg4I23afnrQOxL2w3WOXa9TaufMCyu24QakEUb4vux8apI5e7A=="],
 
     "@bufbuild/protoplugin": ["@bufbuild/protoplugin@2.12.0", "", { "dependencies": { "@bufbuild/protobuf": "2.12.0", "@typescript/vfs": "^1.6.2", "typescript": "5.4.5" } }, "sha512-ORlDITp8AFUXzIhLRoMCG+ud+D3MPKWb5HQXBoskMMnjeyEjE1H1qLonVNPyOr8lkx3xSfYUo8a0dvOZJVAzow=="],
+
+    "@corewire/airplay": ["@corewire/airplay@workspace:packages/airplay"],
+
+    "@corewire/audio-source": ["@corewire/audio-source@workspace:packages/audio-source"],
+
+    "@corewire/companion-link": ["@corewire/companion-link@workspace:packages/companion-link"],
+
+    "@corewire/core": ["@corewire/core@workspace:packages/core"],
+
+    "@corewire/devices": ["@corewire/devices@workspace:packages/devices"],
+
+    "@corewire/diagnostics": ["@corewire/diagnostics@workspace:packages/diagnostics"],
+
+    "@corewire/proxy": ["@corewire/proxy@workspace:packages/proxy"],
 
     "@electron-internal/extract-zip": ["@electron-internal/extract-zip@1.0.5", "", {}, "sha512-+bqFCP98pLI0Tt0XQo1TmlXtwjWchISndDOxCkEcIuUgXWpBnLyRI+2DU+mesvnMMX6L1XDqYNA0lXNDHd/yiA=="],
 
@@ -572,9 +500,9 @@
 
     "@tailwindcss/vite": ["@tailwindcss/vite@4.3.3", "", { "dependencies": { "@tailwindcss/node": "4.3.3", "@tailwindcss/oxide": "4.3.3", "tailwindcss": "4.3.3" }, "peerDependencies": { "vite": "^5.2.0 || ^6 || ^7 || ^8" } }, "sha512-yYU8cogLeSh/ms2jh8Fj7jaba/EWa7Ja6GoUqYZaraEuCI5YS6ms6ObZgjjedm+jm6XZjdNRWBpPP6Z86oOxcw=="],
 
-    "@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.13", "", { "dependencies": { "@tanstack/virtual-core": "3.17.11" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-JbDTAwtzZ99aOeCrAfW5EsE5KSq5RWh6Af2dtFwyLIIk48Ja7vm6n4axu/43T3vfjFnEGJalxJ1wyYjSQD6bSg=="],
+    "@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.26", "", { "dependencies": { "@tanstack/virtual-core": "3.19.11" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-HUDlfsrYH6ko5xH56L62Mcl/uzT+AGVNMHFuDNqDJMdZWc1AQa2oeVKNUvZ/RWBZQ4TYtyQerFrNvLnp39h65A=="],
 
-    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.17.11", "", {}, "sha512-+ILjvtHup6Y2hzQ6YzwMgX1Q+oQpxEGOXCEsCNaPoIP0VxMbizIBTmYTDtkerkIQS8/CbP1BRuyt8V/8BCsy1g=="],
+    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.19.11", "", {}, "sha512-/5iHb0RHBvj8Di59FDs4ESNm45jls33aZAi4zccVXZjc/6ZvwQP6nzEYeT6weXjTf9E6/vrp2JhYWRyO+ZP13A=="],
 
     "@thi.ng/bitstream": ["@thi.ng/bitstream@2.4.39", "", { "dependencies": { "@thi.ng/errors": "^2.6.2" } }, "sha512-VhdYiBqoSpCXil4BGMgHr6fS0i1uGWTqE2oszd453bDmAdthc24VUvzZoKu7GorLopOJwrnkhpcAl5004hpYaw=="],
 
@@ -1252,8 +1180,6 @@
 
     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
 
-    "uuid": ["uuid@14.0.0", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg=="],
-
     "vite": ["vite@8.3.0", "", { "dependencies": { "lightningcss": "^1.33.0", "picomatch": "^4.0.7", "postcss": "^8.5.28", "rolldown": "~1.2.6", "tinyglobby": "^0.2.17" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "peerDependencies": { "@types/node": "^20.19.0 || >=22.12.0", "@vitejs/devtools": "^0.7.1", "esbuild": "^0.27.0 || ^0.28.0", "jiti": ">=1.21.0", "less": "^4.0.0", "sass": "^1.70.0", "sass-embedded": "^1.70.0", "stylus": ">=0.54.8", "sugarss": "^5.0.0", "terser": "^5.16.0", "tsx": "^4.8.1", "yaml": "^2.4.2" }, "optionalPeers": ["@types/node", "@vitejs/devtools", "esbuild", "jiti", "less", "sass", "sass-embedded", "stylus", "sugarss", "terser", "tsx", "yaml"], "bin": { "vite": "bin/vite.js" } }, "sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ=="],
 
     "webcrypto-core": ["webcrypto-core@1.9.2", "", { "dependencies": { "@peculiar/asn1-schema": "^2.7.0", "@peculiar/json-schema": "^1.1.12", "@peculiar/utils": "^2.0.2", "asn1js": "^3.0.10", "tslib": "^2.8.1" } }, "sha512-gsXecm82UQNlTBURJGuqOWy1Ww08S3kZUcr3aOJS02Pk0xLtkfeUAVC0u0xhgdonFme80edSJUIJyuvL/7250Q=="],
@@ -1278,11 +1204,7 @@
 
     "yoctocolors": ["yoctocolors@2.1.2", "", {}, "sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug=="],
 
-    "zustand": ["zustand@5.0.15", "", { "peerDependencies": { "@types/react": ">=18.0.0", "immer": ">=9.0.6", "react": ">=18.0.0", "use-sync-external-store": ">=1.2.0" }, "optionalPeers": ["@types/react", "immer", "react", "use-sync-external-store"] }, "sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A=="],
-
-    "@adecore/ui/@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.26", "", { "dependencies": { "@tanstack/virtual-core": "3.19.11" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-HUDlfsrYH6ko5xH56L62Mcl/uzT+AGVNMHFuDNqDJMdZWc1AQa2oeVKNUvZ/RWBZQ4TYtyQerFrNvLnp39h65A=="],
-
-    "@adecore/ui/zustand": ["zustand@5.1.0", "", { "peerDependencies": { "@types/react": ">=18.0.0", "immer": ">=9.0.6", "react": ">=18.0.0", "use-sync-external-store": ">=1.2.0" }, "optionalPeers": ["@types/react", "immer", "react", "use-sync-external-store"] }, "sha512-ciJZlP48M1PTQbVQq81CGVFxHTLpZNrFjKqwjtCU34AWuXTZT/jrF3p9+fI84Cf1eSCMLapxqBy/SNTfwOBuqA=="],
+    "zustand": ["zustand@5.1.0", "", { "peerDependencies": { "@types/react": ">=18.0.0", "immer": ">=9.0.6", "react": ">=18.0.0", "use-sync-external-store": ">=1.2.0" }, "optionalPeers": ["@types/react", "immer", "react", "use-sync-external-store"] }, "sha512-ciJZlP48M1PTQbVQq81CGVFxHTLpZNrFjKqwjtCU34AWuXTZT/jrF3p9+fI84Cf1eSCMLapxqBy/SNTfwOBuqA=="],
 
     "@babel/code-frame/@babel/helper-validator-identifier": ["@babel/helper-validator-identifier@7.29.7", "", {}, "sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg=="],
 
@@ -1397,8 +1319,6 @@
     "wrap-ansi/string-width": ["string-width@4.2.3", "", { "dependencies": { "emoji-regex": "^8.0.0", "is-fullwidth-code-point": "^3.0.0", "strip-ansi": "^6.0.1" } }, "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g=="],
 
     "yargs/string-width": ["string-width@4.2.3", "", { "dependencies": { "emoji-regex": "^8.0.0", "is-fullwidth-code-point": "^3.0.0", "strip-ansi": "^6.0.1" } }, "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g=="],
-
-    "@adecore/ui/@tanstack/react-virtual/@tanstack/virtual-core": ["@tanstack/virtual-core@3.19.11", "", {}, "sha512-/5iHb0RHBvj8Di59FDs4ESNm45jls33aZAi4zccVXZjc/6ZvwQP6nzEYeT6weXjTf9E6/vrp2JhYWRyO+ZP13A=="],
 
     "@babel/generator/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@8.0.0-rc.6", "", {}, "sha512-BCkFy+zN6kXQed3YOT7aJl93NfDSzQc3pBfsvTVPs9gU9X3V0aefEF5kwBT0E+mDWH9QgKaZstYUQN9VdQZT4g=="],
 

@@ -1,5 +1,5 @@
-import { DataStreamMessage, Proto } from '@basmilius/apple-airplay';
-import { FrameType } from '@basmilius/apple-companion-link';
+import { DataStreamMessage, Proto } from '@corewire/airplay';
+import { FrameType } from '@corewire/companion-link';
 import type { RawBuilderInfo, RawMessageRequest, RawParam, RawParamOption, RawTransport } from '@shared/contract';
 
 export type RawEntry = RawBuilderInfo & {

@@ -1,5 +1,5 @@
-import { Discovery, type DiscoveryResult } from '@basmilius/apple-common';
-import { pctToDbfs, RaopClient } from '@basmilius/apple-raop';
+import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { pctToDbfs, RaopClient } from '@corewire/airplay/raop';
 import type { RaopServiceInfo, RaopStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import { serialize } from '../../serialize';

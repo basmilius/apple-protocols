@@ -1,6 +1,6 @@
 import type { Socket } from 'node:net';
-import { type Context } from '@basmilius/apple-common';
-import { Chacha20 } from '@basmilius/apple-encryption';
+import type { Context } from '@corewire/core/transport';
+import { Chacha20 } from '@corewire/core/crypto';
 
 /** Chunk size AirPlay splits an encrypted stream into. */
 const FRAME_LENGTH = 1024;

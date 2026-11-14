@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { type AccessoryCredentials, type AccessoryIdentity, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer, Context, deriveEncryptionKeys, type DiscoveryResult } from '@basmilius/apple-common';
-import { OPack } from '@basmilius/apple-encoding';
-import { FrameType, PairingFrameTypes } from '@basmilius/apple-companion-link';
+import { type AccessoryCredentials, type AccessoryIdentity, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer } from '@corewire/core/pairing';
+import { Context } from '@corewire/core/transport';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import type { DiscoveryResult } from '@corewire/core/discovery';
+import { OPack } from '@corewire/core/encoding';
+import { FrameType, PairingFrameTypes } from '@corewire/companion-link';
 import { FramedConnection } from '../core/framedConnection';
 import { MdnsResponder } from '../core/mdnsResponder';
 import type { ProtocolProxy } from '../core/protocolProxy';

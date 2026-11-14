@@ -1,4 +1,4 @@
-import { DAAP, NSKeyedArchiver, NTP, OPack, Plist, TLV8 } from '@basmilius/apple-encoding';
+import { DAAP, NSKeyedArchiver, NTP, OPack, Plist, TLV8 } from '@corewire/core/encoding';
 import type { RoundTripResult } from '@shared/contract';
 import { firstDifference, parseBytes, readJson, readString, toHex } from './bytes';
 import { bytesInput, jsonInput, type ToolDefinition } from './registry';

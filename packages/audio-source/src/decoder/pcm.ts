@@ -1,4 +1,4 @@
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '../const';
 
 /** Converts to 44100 Hz signed 16-bit big-endian stereo PCM using linear interpolation and channel mapping. */
 export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {

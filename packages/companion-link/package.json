@@ -1,5 +1,5 @@
 {
-    "name": "@basmilius/apple-companion-link",
+    "name": "@corewire/companion-link",
     "description": "Implementation of Apple's Companion Link in Node.js.",
     "version": "0.0.0",
     "type": "module",
@@ -31,9 +31,7 @@
     },
     "scripts": {
         "build": "tsgo --noEmit && tsdown",
-        "dev": "tsdown --watch",
-        "find": "bun find.ts",
-        "watch:test": "bun --watch test.ts"
+        "dev": "tsdown --watch"
     },
     "main": "./dist/index.mjs",
     "types": "./dist/index.d.mts",
@@ -45,9 +43,7 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*"
+        "@corewire/core": "workspace:*"
     },
     "devDependencies": {
         "@types/bun": "^1.3.14",

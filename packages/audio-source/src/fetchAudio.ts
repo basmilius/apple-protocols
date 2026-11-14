@@ -1,4 +1,4 @@
-import { PlaybackError } from '@basmilius/apple-common';
+import { PlaybackError } from '@corewire/core';
 
 export async function fetchAudio(url: string, options: {signal?: AbortSignal; maxBytes?: number; timeoutMs?: number} = {}): Promise<Buffer> {
     const maxBytes = options.maxBytes ?? 64 * 1024 * 1024;

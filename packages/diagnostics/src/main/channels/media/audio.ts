@@ -1,7 +1,8 @@
 import { dialog } from 'electron';
-import { Protocol } from '@basmilius/apple-airplay';
-import { type AccessoryKeys, PtpMaster } from '@basmilius/apple-common';
-import type { MediaController } from '@basmilius/apple-sdk';
+import { Protocol } from '@corewire/airplay';
+import type { AccessoryKeys } from '@corewire/core/pairing';
+import { PtpMaster } from '@corewire/airplay';
+import type { MediaController } from '@corewire/devices';
 import type { AudioSourceKind, AudioStatus, AudioTelemetry, PtpTelemetry } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';

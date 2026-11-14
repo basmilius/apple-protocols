@@ -1,4 +1,4 @@
-import type { StorageData } from '@basmilius/apple-common';
+import type { StorageData } from '@corewire/core/storage';
 import { STORAGE_PROTOCOLS, type StorageDump, type StoredDeviceInfo, type StorageProtocol } from '@shared/contract';
 import type { StorageQueue } from '../../storage';
 

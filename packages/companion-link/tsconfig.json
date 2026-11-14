@@ -17,18 +17,27 @@
         "declaration": true,
         "isolatedDeclarations": true,
         "isolatedModules": true,
-        "rootDir": ".",
+        "rootDir": "..",
         "outDir": "dist",
         "experimentalDecorators": true,
         "noEmit": true,
         "types": [
             "node"
-        ]
+        ],
+        "paths": {
+            "@corewire/airplay/*": [
+                "../airplay/src/*"
+            ],
+            "@corewire/core/*": [
+                "../core/src/*"
+            ],
+            "@corewire/*": [
+                "../*/src"
+            ]
+        }
     },
     "include": [
-        "src/**/*.ts",
-        "find.ts",
-        "test.ts"
+        "src/**/*.ts"
     ],
     "exclude": [
         "dist",

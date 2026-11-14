@@ -1,5 +1,7 @@
-import { ConnectionClosedError, type Context, deriveEncryptionKeys, randomInt32, reporter, TimeoutError } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
+import { ConnectionClosedError, randomInt32, reporter, TimeoutError } from '@corewire/core';
+import type { Context } from '@corewire/core/transport';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { Plist } from '@corewire/core/encoding';
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
 import { buildHeader, buildReply, encodeVarint, parseHeaderSeqno, parseMessages } from './utils';
 import { BaseStream } from './baseStream';

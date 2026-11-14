@@ -1,6 +1,8 @@
-import { type Context, deriveEncryptionKeys, reporter } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
-import { buildResponse, type Method, parseRequest } from '@basmilius/apple-rtsp';
+import type { Context } from '@corewire/core/transport';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { reporter } from '@corewire/core';
+import { Plist } from '@corewire/core/encoding';
+import { buildResponse, type Method, parseRequest } from './rtsp';
 import { BaseStream } from './baseStream';
 import { decodeNestedCommand, type PlayQueueCommand } from './playQueue';
 

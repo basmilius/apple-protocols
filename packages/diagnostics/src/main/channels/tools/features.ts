@@ -1,18 +1,20 @@
 import {
     AirPlayFeatureFlags,
     describeFlags,
-    getDeviceModelName,
-    getDeviceType,
     getPairingRequirement,
     getProtocolVersion,
+    isPasswordRequired,
+    isRemoteControlSupported
+} from '@corewire/airplay';
+import {
+    getDeviceModelName,
+    getDeviceType,
     isAirPort,
     isAppleTV,
     isHomePod,
-    isPasswordRequired,
-    isRemoteControlSupported,
     lookupDeviceModel,
     parseFeatures
-} from '@basmilius/apple-common';
+} from '@corewire/core/discovery';
 import { readString } from './bytes';
 import type { ToolDefinition } from './registry';
 

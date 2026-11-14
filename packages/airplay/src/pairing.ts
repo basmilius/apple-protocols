@@ -1,4 +1,6 @@
-import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify, deriveEncryptionKeys, PairingError } from '@basmilius/apple-common';
+import { type AccessoryCredentials, type AccessoryKeys, AccessoryPair, AccessoryVerify } from '@corewire/core/pairing';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { PairingError } from '@corewire/core';
 import type { ControlStream } from './controlStream';
 import type { Protocol } from './protocol';
 

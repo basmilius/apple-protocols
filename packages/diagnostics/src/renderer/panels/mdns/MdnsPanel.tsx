@@ -6,7 +6,7 @@ import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
 import { asCard, BoolValue, Button, CommandButton, CopyButton, CountPill, EmptyState, Field, FormError, Icon, ICONS, JsonView, KeyValue, KeyValueList, PanelBody, Pill, Section, Segmented, Select, type SelectItem, TextInput } from '@/ui';
 
-/* The service strings `@basmilius/apple-common` exports. The renderer cannot import the package. */
+/* The service strings `@corewire/core/discovery` exports. The renderer cannot import the package. */
 const AIRPLAY = '_airplay._tcp.local';
 const COMPANION_LINK = '_companion-link._tcp.local';
 const RAOP = '_raop._tcp.local';

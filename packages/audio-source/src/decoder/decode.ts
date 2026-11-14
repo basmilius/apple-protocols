@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { PlaybackError } from '@basmilius/apple-common';
+import { PlaybackError } from '@corewire/core';
 
 const MAX_INPUT_BYTES = 64 * 1024 * 1024;
 const MAX_PENDING = 8;

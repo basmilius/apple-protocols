@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { JsonStorage } from '@basmilius/apple-sdk';
+import { JsonStorage } from '@corewire/devices';
 
 /** Queues credential saves in call order. */
 export class StorageQueue {

@@ -1,5 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, type AudioSource, PlaybackError } from '@basmilius/apple-common';
+import type { AudioSource } from '@corewire/airplay';
+import { PlaybackError } from '@corewire/core';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 
 const FRAME_SIZE = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
 const BUFFER_LIMIT = AUDIO_SAMPLE_RATE * FRAME_SIZE;

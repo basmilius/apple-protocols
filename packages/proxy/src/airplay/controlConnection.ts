@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
-import { type Context } from '@basmilius/apple-common';
-import { Chacha20 } from '@basmilius/apple-encryption';
-import { parseRequest, parseResponse, type RtspRequest } from '@basmilius/apple-rtsp';
+import type { Context } from '@corewire/core/transport';
+import { Chacha20 } from '@corewire/core/crypto';
+import { parseRequest, parseResponse, type RtspRequest } from '@corewire/airplay/rtsp';
 
 /** Chunk size AirPlay splits the control stream into when encrypting. */
 const FRAME_LENGTH = 1024;

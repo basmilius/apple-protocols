@@ -1,6 +1,7 @@
 import type { EventEmitter } from 'node:events';
-import { ConnectionRecovery, Discovery } from '@basmilius/apple-common';
-import { AIRPLAY_PROTOCOL } from '@basmilius/apple-sdk';
+import { ConnectionRecovery } from '@corewire/core/transport';
+import { Discovery } from '@corewire/core/discovery';
+import { AIRPLAY_PROTOCOL } from '@corewire/devices';
 import type { DeviceEvent, RecoveryOptionsInfo, RecoveryStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';

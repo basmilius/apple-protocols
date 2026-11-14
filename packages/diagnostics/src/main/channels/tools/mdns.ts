@@ -1,19 +1,21 @@
 import {
     AIRPLAY_SERVICE,
     COMPANION_LINK_SERVICE,
-    describeFlags,
     Discovery,
     getDeviceModelName,
-    getPairingRequirement,
-    getProtocolVersion,
-    isPasswordRequired,
-    isRemoteControlSupported,
     lookupDeviceModel,
     mdnsMulticast,
     mdnsUnicast,
     parseFeatures,
     RAOP_SERVICE
-} from '@basmilius/apple-common';
+} from '@corewire/core/discovery';
+import {
+    describeFlags,
+    getPairingRequirement,
+    getProtocolVersion,
+    isPasswordRequired,
+    isRemoteControlSupported
+} from '@corewire/airplay';
 import type { DiscoveryService, MdnsCombinedRecord, MdnsFeatures, MdnsQuery, MdnsRecord } from '@shared/contract';
 
 const DEFAULT_TIMEOUT_MS = 4000;

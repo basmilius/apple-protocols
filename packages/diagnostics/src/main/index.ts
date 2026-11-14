@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron';
-import { configure } from '@basmilius/apple-sdk';
+import { configure } from '@corewire/devices';
 import { type DeviceEvent, type EventChannel, type EventMap, type StateSnapshot } from '@shared/contract';
 import { AgentServer } from './agent/server';
 import { ResumeList } from './agent/resume';

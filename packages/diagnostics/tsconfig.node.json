@@ -23,32 +23,26 @@
             "@shared/*": [
                 "./src/shared/*"
             ],
-            "@basmilius/apple-airplay": [
+            "@corewire/airplay": [
                 "./../airplay/src"
             ],
-            "@basmilius/apple-audio-source": [
+            "@corewire/airplay/*": [
+                "./../airplay/src/*"
+            ],
+            "@corewire/audio-source": [
                 "./../audio-source/src"
             ],
-            "@basmilius/apple-common": [
-                "./../common/src"
-            ],
-            "@basmilius/apple-companion-link": [
+            "@corewire/companion-link": [
                 "./../companion-link/src"
             ],
-            "@basmilius/apple-encoding": [
-                "./../encoding/src"
+            "@corewire/core": [
+                "./../core/src"
             ],
-            "@basmilius/apple-encryption": [
-                "./../encryption/src"
+            "@corewire/core/*": [
+                "./../core/src/*"
             ],
-            "@basmilius/apple-raop": [
-                "./../raop/src"
-            ],
-            "@basmilius/apple-rtsp": [
-                "./../rtsp/src"
-            ],
-            "@basmilius/apple-sdk": [
-                "./../sdk/src"
+            "@corewire/devices": [
+                "./../devices/src"
             ]
         }
     },

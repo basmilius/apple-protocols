@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
-import { type Context, EncryptionState } from '@basmilius/apple-common';
-import { Chacha20 } from '@basmilius/apple-encryption';
+import { type Context, EncryptionState } from '@corewire/core/transport';
+import { Chacha20 } from '@corewire/core/crypto';
 
 /** Size of the frame header in bytes (1 byte type + 3 bytes payload length, big-endian). */
 const HEADER_SIZE = 4;

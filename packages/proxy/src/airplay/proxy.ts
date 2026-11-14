@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { type AccessoryCredentials, type AccessoryIdentity, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer, Context, deriveEncryptionKeys, type DiscoveryResult, generateActiveRemoteId, generateDacpId, generateSessionId } from '@basmilius/apple-common';
-import { Plist } from '@basmilius/apple-encoding';
-import { buildResponse } from '@basmilius/apple-rtsp';
+import { type AccessoryCredentials, type AccessoryIdentity, AccessoryPairServer, AccessoryVerify, AccessoryVerifyServer } from '@corewire/core/pairing';
+import { Context } from '@corewire/core/transport';
+import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import type { DiscoveryResult } from '@corewire/core/discovery';
+import { generateActiveRemoteId, generateDacpId, generateSessionId } from '@corewire/airplay';
+import { Plist } from '@corewire/core/encoding';
+import { buildResponse } from '@corewire/airplay/rtsp';
 import { ControlConnection, type ControlMessage } from './controlConnection';
 import { DataChannelServer, EventChannelServer } from './channelServer';
 import { MdnsResponder } from '../core/mdnsResponder';

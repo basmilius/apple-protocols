@@ -1,5 +1,5 @@
 {
-    "name": "@basmilius/apple-airplay",
+    "name": "@corewire/airplay",
     "description": "Implementation of Apple's AirPlay2 in Node.js.",
     "version": "0.0.0",
     "type": "module",
@@ -17,6 +17,8 @@
     "keywords": [
         "apple",
         "airplay",
+        "raop",
+        "rtsp",
         "tv",
         "apple tv",
         "homekit"
@@ -32,10 +34,7 @@
     "scripts": {
         "build": "tsgo --noEmit && tsdown",
         "dev": "tsdown --watch",
-        "find": "bun find.ts",
-        "gen:proto": "buf generate",
-        "test:audio": "bun --watch test-audio.ts",
-        "test:remote": "bun --watch test-remote.ts"
+        "gen:proto": "buf generate"
     },
     "main": "./dist/index.mjs",
     "types": "./dist/index.d.mts",
@@ -44,13 +43,18 @@
         ".": {
             "types": "./dist/index.d.mts",
             "default": "./dist/index.mjs"
+        },
+        "./raop": {
+            "types": "./dist/raop.d.mts",
+            "default": "./dist/raop.mjs"
+        },
+        "./rtsp": {
+            "types": "./dist/rtsp.d.mts",
+            "default": "./dist/rtsp.mjs"
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@basmilius/apple-rtsp": "workspace:*"
+        "@corewire/core": "workspace:*"
     },
     "devDependencies": {
         "@bufbuild/buf": "^1.70.0",

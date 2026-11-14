@@ -3,7 +3,8 @@
  * Run: bun run packages/proxy/test/smoke.ts
  */
 
-import { Context, generateAccessoryIdentity } from '@basmilius/apple-common';
+import { Context } from '@corewire/core/transport';
+import { generateAccessoryIdentity } from '@corewire/core/pairing';
 import { FramedConnection } from '../src/core/framedConnection';
 import { MdnsResponder } from '../src/core/mdnsResponder';
 import { ProxyTap } from '../src/core/tap';

@@ -1,5 +1,5 @@
 {
-    "name": "@basmilius/apple-audio-source",
+    "name": "@corewire/audio-source",
     "description": "Different audio sources for use in Apple Streaming Protocols.",
     "version": "0.0.0",
     "type": "module",
@@ -37,9 +37,10 @@
         }
     },
     "dependencies": {
-        "@basmilius/apple-common": "workspace:*"
+        "@corewire/core": "workspace:*"
     },
     "devDependencies": {
+        "@corewire/airplay": "workspace:*",
         "@types/bun": "^1.3.14",
         "@types/node": "^25.9.2",
         "@wasm-audio-decoders/flac": "^0.2.4",

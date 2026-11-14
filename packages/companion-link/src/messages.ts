@@ -1,4 +1,4 @@
-import { OPack, RTI } from '@basmilius/apple-encoding';
+import { OPack, RTI } from '@corewire/core/encoding';
 import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 

@@ -7,17 +7,13 @@ import tailwindcss from '@tailwindcss/vite';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const packages = fileURLToPath(new URL('..', import.meta.url));
 
-/* Resolve protocol packages to source, matching tsconfig aliases, so protocol edits need no separate build. */
+/* Resolve protocol packages to source, matching tsconfig aliases, so protocol edits need no separate build. A key also covers its subpaths. */
 const protocolAliases = {
-    '@basmilius/apple-airplay': `${packages}/airplay/src`,
-    '@basmilius/apple-audio-source': `${packages}/audio-source/src`,
-    '@basmilius/apple-common': `${packages}/common/src`,
-    '@basmilius/apple-companion-link': `${packages}/companion-link/src`,
-    '@basmilius/apple-encoding': `${packages}/encoding/src`,
-    '@basmilius/apple-encryption': `${packages}/encryption/src`,
-    '@basmilius/apple-raop': `${packages}/raop/src`,
-    '@basmilius/apple-rtsp': `${packages}/rtsp/src`,
-    '@basmilius/apple-sdk': `${packages}/sdk/src`
+    '@corewire/airplay': `${packages}/airplay/src`,
+    '@corewire/audio-source': `${packages}/audio-source/src`,
+    '@corewire/companion-link': `${packages}/companion-link/src`,
+    '@corewire/core': `${packages}/core/src`,
+    '@corewire/devices': `${packages}/devices/src`
 };
 
 const external = ['electron', /^electron\/.+/, ...builtinModules, ...builtinModules.map(name => `node:${name}`)];

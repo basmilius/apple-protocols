@@ -1,4 +1,6 @@
-import { type DeviceIdentity, uint16ToBE, uuid } from '@basmilius/apple-common';
+import { randomUUID } from 'node:crypto';
+import type { DeviceIdentity } from '@corewire/core/transport';
+import { uint16ToBE } from '@corewire/core';
 import { create, DescExtension, type Extendee, type ExtensionValueShape, getExtension as _getExtension, setExtension } from '@bufbuild/protobuf';
 import * as Proto from './proto';
 
@@ -16,8 +18,8 @@ export function protocol(type: Proto.ProtocolMessage_Type, errorCode: Proto.Erro
     return create(Proto.ProtocolMessageSchema, {
         type,
         errorCode,
-        identifier: uuid().toUpperCase(),
-        uniqueIdentifier: uuid().toUpperCase()
+        identifier: randomUUID().toUpperCase(),
+        uniqueIdentifier: randomUUID().toUpperCase()
     });
 }
 

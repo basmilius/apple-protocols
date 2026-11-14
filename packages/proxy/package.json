@@ -1,5 +1,5 @@
 {
-    "name": "@basmilius/apple-proxy",
+    "name": "@corewire/proxy",
     "description": "MITM proxy for Apple protocols \u2014 terminates pairing, logs plaintext, and relays to a real device.",
     "version": "0.0.0",
     "type": "module",
@@ -32,12 +32,9 @@
         "check": "tsgo --noEmit && bun build src/index.ts --target=bun --outdir dist/check"
     },
     "dependencies": {
-        "@basmilius/apple-airplay": "workspace:*",
-        "@basmilius/apple-common": "workspace:*",
-        "@basmilius/apple-companion-link": "workspace:*",
-        "@basmilius/apple-encoding": "workspace:*",
-        "@basmilius/apple-encryption": "workspace:*",
-        "@basmilius/apple-rtsp": "workspace:*",
+        "@corewire/airplay": "workspace:*",
+        "@corewire/companion-link": "workspace:*",
+        "@corewire/core": "workspace:*",
         "enquirer": "^2.4.1",
         "ora": "^9.3.0"
     },

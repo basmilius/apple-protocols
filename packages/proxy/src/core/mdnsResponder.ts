@@ -1,6 +1,6 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
-import type { Context } from '@basmilius/apple-common';
+import type { Context } from '@corewire/core/transport';
 
 /** IPv4 multicast address for mDNS (RFC 6762). */
 const MDNS_ADDRESS = '224.0.0.251';

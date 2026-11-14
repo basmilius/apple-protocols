@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '@basmilius/apple-common';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { decode, isMp3, isOgg, isWav } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
 

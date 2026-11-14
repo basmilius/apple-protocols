@@ -1,0 +1,83 @@
+{
+    "name": "@corewire/core",
+    "description": "Shared core for the Corewire protocol packages: encoding, crypto, transport, pairing and discovery.",
+    "version": "0.0.0",
+    "type": "module",
+    "license": "MIT",
+    "author": {
+        "name": "Bas Milius",
+        "email": "bas@mili.us",
+        "url": "https://bas.dev"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/basmilius/apple-protocols",
+        "directory": "packages/core"
+    },
+    "keywords": [
+        "apple",
+        "airplay",
+        "companion link",
+        "homekit",
+        "opack",
+        "plist",
+        "tlv8",
+        "encryption",
+        "mdns"
+    ],
+    "files": [
+        "dist",
+        "LICENSE"
+    ],
+    "publishConfig": {
+        "access": "public",
+        "provenance": false
+    },
+    "scripts": {
+        "build": "tsgo --noEmit && tsdown",
+        "dev": "tsdown --watch"
+    },
+    "main": "./dist/index.mjs",
+    "types": "./dist/index.d.mts",
+    "typings": "./dist/index.d.mts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.mts",
+            "default": "./dist/index.mjs"
+        },
+        "./crypto": {
+            "types": "./dist/crypto.d.mts",
+            "default": "./dist/crypto.mjs"
+        },
+        "./discovery": {
+            "types": "./dist/discovery.d.mts",
+            "default": "./dist/discovery.mjs"
+        },
+        "./encoding": {
+            "types": "./dist/encoding.d.mts",
+            "default": "./dist/encoding.mjs"
+        },
+        "./pairing": {
+            "types": "./dist/pairing.d.mts",
+            "default": "./dist/pairing.mjs"
+        },
+        "./storage": {
+            "types": "./dist/storage.d.mts",
+            "default": "./dist/storage.mjs"
+        },
+        "./transport": {
+            "types": "./dist/transport.d.mts",
+            "default": "./dist/transport.mjs"
+        }
+    },
+    "devDependencies": {
+        "@plist/binary.serialize": "^1.1.0",
+        "@stablelib/chacha20poly1305": "^2.0.1",
+        "@stablelib/ed25519": "^2.1.0",
+        "@stablelib/x25519": "^2.0.1",
+        "@types/bun": "^1.3.14",
+        "@types/node": "^25.9.2",
+        "fast-srp-hap": "^2.0.4",
+        "tsdown": "^0.22.2"
+    }
+}

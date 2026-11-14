@@ -1,6 +1,8 @@
 import { randomInt } from 'node:crypto';
-import { CommandError, Context, type DiscoveryResult, waitFor } from '@basmilius/apple-common';
-import { Plist, RTI } from '@basmilius/apple-encoding';
+import { CommandError, waitFor } from '@corewire/core';
+import { Context } from '@corewire/core/transport';
+import type { DiscoveryResult } from '@corewire/core/discovery';
+import { Plist, RTI } from '@corewire/core/encoding';
 import { HidCommand, type HidCommandKey, MediaControlCommand, type MediaControlCommandKey } from './const';
 import { FrameType } from './frame';
 import { Pairing, Verify } from './pairing';

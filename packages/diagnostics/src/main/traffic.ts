@@ -1,4 +1,4 @@
-import { reporter, type TrafficEntry } from '@basmilius/apple-sdk';
+import { reporter, type TrafficEntry } from '@corewire/devices';
 import type { TrafficRecord } from '@shared/contract';
 import { Ring } from './ring';
 import { serialize } from './serialize';

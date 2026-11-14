@@ -1,4 +1,5 @@
-import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, PlaybackError } from '@basmilius/apple-common';
+import { PlaybackError } from '@corewire/core';
+import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 import { decode } from './decoder';
 import { BufferAudioSource } from './bufferAudioSource';
 import { fetchAudio } from './fetchAudio';

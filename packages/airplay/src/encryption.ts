@@ -1,5 +1,5 @@
-import { type EncryptionState } from '@basmilius/apple-common';
-import { Chacha20 } from '@basmilius/apple-encryption';
+import type { EncryptionState } from '@corewire/core/transport';
+import { Chacha20 } from '@corewire/core/crypto';
 import { nonce } from './utils';
 
 /**

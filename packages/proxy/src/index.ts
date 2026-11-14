@@ -1,5 +1,8 @@
 import { join } from 'node:path';
-import { type AccessoryCredentials, Discovery, type DiscoveryResult, JsonStorage, type ProtocolType, reporter } from '@basmilius/apple-common';
+import type { AccessoryCredentials } from '@corewire/core/pairing';
+import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { JsonStorage, type ProtocolType } from '@corewire/core/storage';
+import { reporter } from '@corewire/core';
 import enquirer from 'enquirer';
 import ora from 'ora';
 import { AirPlayProxy } from './airplay/proxy';

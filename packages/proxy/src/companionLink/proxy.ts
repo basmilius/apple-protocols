@@ -296,7 +296,7 @@ class ProxySession {
 /**
  * Preserves the real device's non-identity TXT fields and replaces identity fields with stable proxy values.
  * This forces fresh pair-setup rather than pair-verify against the real device's key.
- * Matches pyatv atvproxy overrides for rpHA/rpHN/rpAD/rpHI/rpBA/rpMRtID.
+ * The identity fields are rpHA, rpHN, rpAD, rpHI, rpBA and rpMRtID.
  */
 function proxyTxt(identity: AccessoryIdentity, base: Record<string, string>): Record<string, string> {
     const hash = createHash('sha256').update(identity.publicKey).digest('hex');

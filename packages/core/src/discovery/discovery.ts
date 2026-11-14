@@ -1,7 +1,7 @@
 import { DiscoveryError } from '../errors';
 import { Logger } from '../reporter';
 import { waitFor } from '../utils';
-import { knock, multicast, unicast, type MdnsService } from './mdns';
+import { knock, type MdnsService, mdnsMulticast, mdnsUnicast } from './mdns';
 import type { DiscoveryResult } from './types';
 
 type CacheEntry = {
@@ -38,7 +38,7 @@ export class Discovery {
     }
 
     async find(useCache: boolean = true): Promise<DiscoveryResult[]> {
-        const now = Date.now();
+        const now = performance.now();
 
         for (const [key, entry] of Discovery.#cache) {
             if (entry.expiresAt <= now) {
@@ -81,7 +81,7 @@ export class Discovery {
      * @param wakePorts - Ports to knock on first, to wake a sleeping device.
      */
     async findByAddress(address: string, timeout: number = 4, wakePorts: readonly number[] = []): Promise<DiscoveryResult | null> {
-        const services = await unicast([address], [this.#service], timeout, wakePorts);
+        const services = await mdnsUnicast([address], [this.#service], timeout, wakePorts);
         const match = services.find(service => service.address === address);
 
         return match ? toDiscoveryResult(match) : null;
@@ -93,7 +93,7 @@ export class Discovery {
         const missing = [...new Set(services)].filter(service => {
             const cached = Discovery.#cache.get(service);
 
-            if (useCache && cached && cached.expiresAt > Date.now()) {
+            if (useCache && cached && cached.expiresAt > performance.now()) {
                 result.set(service, cached.results);
 
                 return false;
@@ -110,13 +110,13 @@ export class Discovery {
         let scan = Discovery.#scans.get(key);
 
         if (!scan) {
-            scan = multicast(missing, 4).then(records => {
+            scan = mdnsMulticast(missing, 4).then(records => {
                 const found = new Map<string, DiscoveryResult[]>();
 
                 for (const service of missing) {
                     const results = records.filter(record => record.type === service || `${record.type}.local` === service).map(toDiscoveryResult);
                     found.set(service, results);
-                    Discovery.#cache.set(service, {results, expiresAt: Date.now() + CACHE_TTL});
+                    Discovery.#cache.set(service, {results, expiresAt: performance.now() + CACHE_TTL});
                 }
 
                 return found;
@@ -150,15 +150,11 @@ function toDiscoveryResult(service: MdnsService): DiscoveryResult {
         id: `${hostname}.local`,
         fqdn: `${hostname}.local`,
         address: service.address,
-        // Apple services advertise the model as `model` or `am`.
-        modelName: txt.model ?? txt.am ?? '',
-        familyName: null,
         txt,
         service: {
             port: service.port,
             protocol: service.type.includes('._tcp') ? 'tcp' : 'udp',
             type: service.type
-        },
-        packet: null as any
+        }
     };
 }

@@ -24,6 +24,10 @@ export {
     discover
 } from './discovery/discover';
 
+export type {
+    DiscoverOptions
+} from '@corewire/core/discovery';
+
 export {
     WAKE_PORTS
 } from './lifecycle/resolve';
@@ -67,7 +71,6 @@ export type {
     DeviceState,
     DeviceTarget,
     DiscoveredDevice,
-    DiscoverOptions,
     HomePodCapability,
     LinkState,
     LogEntry,

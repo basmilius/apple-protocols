@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '@corewire/airplay';
 import { buildResponse } from '@corewire/airplay/rtsp';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { HKDF } from '@corewire/core/crypto';
 import { type DiscoveryResult, MdnsResponder } from '@corewire/core/discovery';
 import { Plist } from '@corewire/core/encoding';
 import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
@@ -284,7 +284,7 @@ class AirPlaySession {
         }));
 
         if (basePath === '/pair-verify' && this.#verifyServer.pairingId && this.#verifyServer.sharedSecret) {
-            const {readKey, writeKey} = deriveEncryptionKeys(this.#verifyServer.sharedSecret, 'Control-Salt', 'Control-Write-Encryption-Key', 'Control-Read-Encryption-Key');
+            const {readKey, writeKey} = HKDF.deriveEncryptionKeys(this.#verifyServer.sharedSecret, 'Control-Salt', 'Control-Write-Encryption-Key', 'Control-Read-Encryption-Key');
             this.#controller?.enableEncryption(readKey, writeKey);
             this.#context.logger.info('[proxy]', 'Controller pair-verify complete; control channel encrypted.');
         }
@@ -322,7 +322,7 @@ class AirPlaySession {
 
         const keys = await verify.start(this.#options.credentials);
         this.#deviceSharedSecret = keys.sharedSecret;
-        const {readKey, writeKey} = deriveEncryptionKeys(keys.sharedSecret, 'Control-Salt', 'Control-Read-Encryption-Key', 'Control-Write-Encryption-Key');
+        const {readKey, writeKey} = HKDF.deriveEncryptionKeys(keys.sharedSecret, 'Control-Salt', 'Control-Read-Encryption-Key', 'Control-Write-Encryption-Key');
         device.enableEncryption(readKey, writeKey);
 
         this.#context.logger.info('[proxy]', 'Device pair-verify complete; relaying control channel.');

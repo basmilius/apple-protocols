@@ -3,6 +3,7 @@ import type { Context } from '@corewire/core/transport';
 import { describeFlags } from './airplayFeatures';
 import type { ControlChannel } from './channels/control';
 import { parseReceiverFeatures } from './features';
+import { resolveIdentity } from './identity';
 
 /** What `GET /info` told us about the receiver. */
 export type ReceiverInfo = {
@@ -22,7 +23,7 @@ export type ReceiverInfo = {
  * the answer lacks keep their earlier value too.
  */
 export async function fetchInfo(control: ControlChannel, context: Context, previous?: ReceiverInfo): Promise<ReceiverInfo> {
-    const ourVersion = String(context.identity.sourceVersion);
+    const ourVersion = String(resolveIdentity(context).sourceVersion);
     const response = await control.get('/info');
 
     if (response.status !== 200) {

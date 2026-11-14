@@ -1,4 +1,4 @@
-import { Aes, Chacha20, deriveEncryptionKeys, hkdf } from '../crypto';
+import { AES, ChaCha20, HKDF } from '../crypto';
 import { TLV8 } from '../encoding';
 import type { Context } from '../transport';
 
@@ -10,7 +10,7 @@ export type PairingCipher = {
 
 /** HKDF-SHA512 with string salt and info, as every HAP pairing key uses. */
 export function deriveKey(key: Buffer, salt: string, info: string, length: number = 32): Buffer {
-    return hkdf({
+    return HKDF.derive({
         hash: 'sha512',
         key,
         length,
@@ -30,24 +30,24 @@ export function pairingCipher(phase: 'Pair-Setup' | 'Pair-Verify', sharedSecret:
         const iv = deriveKey(sharedSecret, '', `${phase}-AES-IV`, 16);
 
         return {
-            seal: (_, plaintext) => Aes.encrypt(key, iv, plaintext),
-            open: (_, sealed) => Aes.decrypt(key, iv, sealed)
+            seal: (_, plaintext) => AES.encrypt(key, iv, plaintext),
+            open: (_, sealed) => AES.decrypt(key, iv, sealed)
         };
     }
 
     return {
         seal: (nonce, plaintext) => {
-            const {authTag, ciphertext} = Chacha20.encrypt(sessionKey, Buffer.from(nonce), null, plaintext);
+            const {authTag, ciphertext} = ChaCha20.encrypt(sessionKey, Buffer.from(nonce), null, plaintext);
 
             return Buffer.concat([ciphertext, authTag]);
         },
-        open: (nonce, sealed) => Chacha20.decrypt(sessionKey, Buffer.from(nonce), null, sealed.subarray(0, -16), sealed.subarray(-16))
+        open: (nonce, sealed) => ChaCha20.decrypt(sessionKey, Buffer.from(nonce), null, sealed.subarray(0, -16), sealed.subarray(-16))
     };
 }
 
 /** The HAP channel keys, named from the controller's side: we decrypt with `Control-Read-Encryption-Key`. */
 export function deriveControlKeys(sharedSecret: Buffer): {accessoryToControllerKey: Buffer; controllerToAccessoryKey: Buffer} {
-    const {readKey, writeKey} = deriveEncryptionKeys(sharedSecret, 'Control-Salt', 'Control-Read-Encryption-Key', 'Control-Write-Encryption-Key');
+    const {readKey, writeKey} = HKDF.deriveEncryptionKeys(sharedSecret, 'Control-Salt', 'Control-Read-Encryption-Key', 'Control-Write-Encryption-Key');
 
     return {
         accessoryToControllerKey: readKey,

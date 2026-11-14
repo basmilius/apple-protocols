@@ -1,6 +1,7 @@
 import type { EventEmitter } from 'node:events';
 import { ConnectionClosedError } from '@corewire/core';
 import type { DataChannel } from '../channels/data';
+import { resolveIdentity } from '../identity';
 import type { AirPlaySession } from '../session';
 import { Artwork } from './artwork';
 import type { MrpMessage, MrpMessageName } from './codec';
@@ -179,7 +180,7 @@ export class MediaRemote {
     async #start(): Promise<void> {
         const channel = this.#channel;
 
-        await channel.exchange(Messages.deviceInfo(this.#session.pairingId, this.#session.context.identity));
+        await channel.exchange(Messages.deviceInfo(this.#session.pairingId, resolveIdentity(this.#session.context)));
         channel.send(Messages.setConnectionState());
         channel.send(Messages.clientUpdatesConfig(true, true, true, true));
         // The receiver answers with unidentified SET_STATE pushes, never with a reply to this identifier.

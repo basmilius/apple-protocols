@@ -1,3 +1,5 @@
+import { TLV8PairingError } from '../errors';
+
 /**
  * TLV8 pairing flags used during HAP pair-setup and pair-verify.
  * Sent as part of the TLV8 Flags (0x13) value.
@@ -69,25 +71,6 @@ export const Value = {
     Name: 0x11,
     Flags: 0x13
 } as const;
-
-/**
- * Error thrown when a TLV8 pairing exchange fails.
- * Carries the numeric error code from the accessory when available.
- */
-export class TLV8PairingError extends Error {
-    /** The TLV8 error code from the accessory, if present. */
-    readonly code: number | undefined;
-
-    /**
-     * @param message - Human-readable error description.
-     * @param code - The TLV8 error code from the accessory response.
-     */
-    constructor(message: string, code?: number) {
-        super(message);
-        this.name = 'TLV8PairingError';
-        this.code = code;
-    }
-}
 
 /**
  * Inspects a decoded TLV8 response for error or back-off conditions and throws

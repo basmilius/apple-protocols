@@ -21,13 +21,18 @@ export function buildNonce(counter: number, format: NonceFormat): Buffer {
  */
 export class EncryptionAwareConnection<TEventMap extends EventMap> extends Connection<TEventMap> {
     get isEncrypted(): boolean {
-        return !!this._encryption;
+        return !!this.#encryption;
     }
 
-    _encryption?: EncryptionState;
+    /** Keys and counters once {@link enableEncryption} ran; for the subclass that frames the messages. */
+    protected get encryption(): EncryptionState | undefined {
+        return this.#encryption;
+    }
+
+    #encryption?: EncryptionState;
 
     enableEncryption(readKey: Buffer, writeKey: Buffer): void {
-        this._encryption = new EncryptionState(readKey, writeKey);
+        this.#encryption = new EncryptionState(readKey, writeKey);
     }
 }
 

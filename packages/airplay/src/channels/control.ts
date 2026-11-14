@@ -1,7 +1,8 @@
-import { HTTP_TIMEOUT } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
 import { type CloseReason, type Context, EncryptionState } from '@corewire/core/transport';
+import { HTTP_TIMEOUT } from '../const';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '../identifiers';
+import { resolveIdentity } from '../identity';
 import { RtspClient } from '../rtsp';
 import { chacha20DecryptFrames, chacha20Encrypt } from './encryption';
 
@@ -69,7 +70,7 @@ export class ControlChannel extends RtspClient {
         return {
             'Active-Remote': this.#activeRemoteId,
             'DACP-ID': this.#dacpId,
-            'User-Agent': `AirPlay/${this.context.identity.sourceVersion}`,
+            'User-Agent': `AirPlay/${resolveIdentity(this.context).sourceVersion}`,
             'X-Apple-ProtocolVersion': 1,
             'X-Apple-Session-ID': this.#sessionId
         };

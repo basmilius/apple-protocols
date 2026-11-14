@@ -1,12 +1,5 @@
 import { ChaCha20Poly1305 } from '@stablelib/chacha20poly1305';
-
-/** Authentication failure caused by altered ciphertext or an incorrect key/nonce. */
-export class DecryptionError extends Error {
-    constructor(message: string = 'Decryption failed: authentication tag mismatch') {
-        super(message);
-        this.name = 'DecryptionError';
-    }
-}
+import { DecryptionError } from '../errors';
 
 /** Length in bytes of the Poly1305 authentication tag appended to ciphertext. */
 export const CHACHA20_AUTH_TAG_LENGTH = 16;

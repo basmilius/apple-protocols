@@ -36,7 +36,7 @@ export abstract class EncryptedChannel<TEventMap extends EventMap = {}> extends 
 
     /** Encrypts and writes a plaintext frame. */
     protected writeEncrypted(data: Buffer): void {
-        this.write(chacha20Encrypt(this._encryption, data));
+        this.write(chacha20Encrypt(this.encryption, data));
     }
 
     /**
@@ -55,7 +55,7 @@ export abstract class EncryptedChannel<TEventMap extends EventMap = {}> extends 
 
             this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, data]);
 
-            const decrypted = chacha20DecryptFrames(this._encryption, this.#encryptedBuffer);
+            const decrypted = chacha20DecryptFrames(this.encryption, this.#encryptedBuffer);
             this.#encryptedBuffer = Buffer.from(this.#encryptedBuffer.subarray(decrypted.consumed));
             this.#buffer = Buffer.concat([this.#buffer, decrypted.data]);
 

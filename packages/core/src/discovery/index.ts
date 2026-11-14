@@ -4,9 +4,9 @@ export {
 } from './discovery';
 
 export {
-    multicast as mdnsMulticast,
-    unicast as mdnsUnicast,
-    type MdnsService
+    type MdnsService,
+    mdnsMulticast,
+    mdnsUnicast
 } from './mdns';
 
 export {
@@ -15,5 +15,6 @@ export {
 } from './responder';
 
 export type {
+    DiscoverOptions,
     DiscoveryResult
 } from './types';

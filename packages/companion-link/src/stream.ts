@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { ConnectionClosedError, reporter, TimeoutError } from '@corewire/core';
-import { Chacha20 } from '@corewire/core/crypto';
+import { ChaCha20 } from '@corewire/core/crypto';
 import { OPack } from '@corewire/core/encoding';
 import { buildNonce, type Connection, type Context, EncryptionAwareConnection } from '@corewire/core/transport';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
@@ -123,11 +123,11 @@ export class Stream extends EncryptionAwareConnection<StreamEventMap> {
 
     /** Writes one frame; encrypted once encryption is on, except NoOp, which stays plaintext. */
     send(type: number, payload: Buffer): void {
-        const encryption = type === FrameType.NoOp ? undefined : this._encryption;
+        const encryption = type === FrameType.NoOp ? undefined : this.encryption;
         const header = Buffer.allocUnsafe(HEADER_SIZE);
 
         header.writeUint8(type, 0);
-        header.writeUintBE(payload.byteLength + (encryption ? Chacha20.CHACHA20_AUTH_TAG_LENGTH : 0), 1, 3);
+        header.writeUintBE(payload.byteLength + (encryption ? ChaCha20.CHACHA20_AUTH_TAG_LENGTH : 0), 1, 3);
 
         this.context.logger.raw('[companion-link]', 'Sending data frame', this.isEncrypted, type);
 
@@ -138,7 +138,7 @@ export class Stream extends EncryptionAwareConnection<StreamEventMap> {
         }
 
         const nonce = buildNonce(encryption.writeCount++, 'counter-at-0');
-        const encrypted = Chacha20.encrypt(encryption.writeKey, nonce, header, payload);
+        const encrypted = ChaCha20.encrypt(encryption.writeKey, nonce, header, payload);
 
         this.write(Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]));
     }
@@ -147,16 +147,16 @@ export class Stream extends EncryptionAwareConnection<StreamEventMap> {
         const header = frame.subarray(0, HEADER_SIZE);
         const payloadLength = header.readUintBE(1, 3);
 
-        if (payloadLength < Chacha20.CHACHA20_AUTH_TAG_LENGTH) {
+        if (payloadLength < ChaCha20.CHACHA20_AUTH_TAG_LENGTH) {
             throw new Error(`Encrypted frame payload too short: ${payloadLength} bytes (minimum 16 for auth tag)`);
         }
 
         const payload = frame.subarray(HEADER_SIZE, HEADER_SIZE + payloadLength);
-        const authTag = payload.subarray(payload.byteLength - Chacha20.CHACHA20_AUTH_TAG_LENGTH);
-        const ciphertext = payload.subarray(0, payload.byteLength - Chacha20.CHACHA20_AUTH_TAG_LENGTH);
-        const nonce = buildNonce(this._encryption.readCount++, 'counter-at-0');
+        const authTag = payload.subarray(payload.byteLength - ChaCha20.CHACHA20_AUTH_TAG_LENGTH);
+        const ciphertext = payload.subarray(0, payload.byteLength - ChaCha20.CHACHA20_AUTH_TAG_LENGTH);
+        const nonce = buildNonce(this.encryption.readCount++, 'counter-at-0');
 
-        return Buffer.concat([header, Chacha20.decrypt(this._encryption.readKey, nonce, header, ciphertext, authTag)]);
+        return Buffer.concat([header, ChaCha20.decrypt(this.encryption.readKey, nonce, header, ciphertext, authTag)]);
     }
 
     /**

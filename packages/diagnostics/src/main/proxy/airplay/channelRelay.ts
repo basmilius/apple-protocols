@@ -1,6 +1,6 @@
 import type { Socket } from 'node:net';
 import { buildNonce, type Context } from '@corewire/core/transport';
-import { Chacha20 } from '@corewire/core/crypto';
+import { ChaCha20 } from '@corewire/core/crypto';
 
 /** Chunk size AirPlay splits an encrypted stream into. */
 const FRAME_LENGTH = 1024;
@@ -63,7 +63,7 @@ export class AirPlayCipher {
             const ciphertext = this.#buffer.subarray(offset + 2, offset + 2 + frameLength);
             const authTag = this.#buffer.subarray(offset + 2 + frameLength, end);
 
-            out.push(Chacha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
+            out.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
             offset = end;
         }
 
@@ -88,7 +88,7 @@ export class AirPlayCipher {
             const length = Buffer.allocUnsafe(2);
             length.writeUInt16LE(frame.length, 0);
 
-            const encrypted = Chacha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
+            const encrypted = ChaCha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
             out.push(length, encrypted.ciphertext, encrypted.authTag);
         }
 

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
 import { FrameType, PairingFrameTypes } from '@corewire/companion-link';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { HKDF } from '@corewire/core/crypto';
 import { type DiscoveryResult, MdnsResponder } from '@corewire/core/discovery';
 import { OPack } from '@corewire/core/encoding';
 import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
@@ -163,7 +163,7 @@ class ProxySession {
             this.#controller.send(FrameType.PairVerifyNext, Buffer.from(OPack.encode({_pd: response, _auTy: 4})));
 
             if (this.#verifyServer.pairingId && this.#verifyServer.sharedSecret) {
-                const {readKey, writeKey} = deriveEncryptionKeys(this.#verifyServer.sharedSecret, '', 'ClientEncrypt-main', 'ServerEncrypt-main');
+                const {readKey, writeKey} = HKDF.deriveEncryptionKeys(this.#verifyServer.sharedSecret, '', 'ClientEncrypt-main', 'ServerEncrypt-main');
                 this.#controller.enableEncryption(readKey, writeKey);
                 this.#context.logger.info('[proxy]', 'Controller pair-verify complete, connecting to device…');
 
@@ -202,7 +202,7 @@ class ProxySession {
         });
 
         const keys = await verify.start(this.#options.credentials);
-        const {readKey, writeKey} = deriveEncryptionKeys(keys.sharedSecret, '', 'ServerEncrypt-main', 'ClientEncrypt-main');
+        const {readKey, writeKey} = HKDF.deriveEncryptionKeys(keys.sharedSecret, '', 'ServerEncrypt-main', 'ClientEncrypt-main');
         device.enableEncryption(readKey, writeKey);
 
         this.#context.logger.info('[proxy]', 'Device pair-verify complete, relaying.');

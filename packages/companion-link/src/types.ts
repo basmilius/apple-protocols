@@ -23,7 +23,7 @@ export type ConnectOptions = {
     readonly context?: Context;
 
     /** Overrides of the identity of the context; ignored when a context is passed. */
-    readonly identity?: Partial<DeviceIdentity>;
+    readonly identity?: DeviceIdentity;
 
     /**
      * The iCloud account (alternate DSID) to announce as active during the startup, as an iOS

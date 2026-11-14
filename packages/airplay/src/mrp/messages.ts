@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { create, DescExtension, type Extendee, type ExtensionValueShape, getExtension as _getExtension, setExtension } from '@bufbuild/protobuf';
-import { uint16ToBE } from '@corewire/core';
-import type { DeviceIdentity } from '@corewire/core/transport';
+import type { ResolvedIdentity } from '../identity';
+import { uint16ToBE } from '../utils';
 import * as Proto from './proto';
 
 /**
@@ -72,7 +72,7 @@ export function configureConnection(groupId: string): [Proto.ProtocolMessage, De
  * @param pairingId - Pairing identifier from pair-verify.
  * @param identity - Device identity with name, model, and version info.
  */
-export function deviceInfo(pairingId: Buffer, identity: DeviceIdentity): [Proto.ProtocolMessage, DescExtension] {
+export function deviceInfo(pairingId: Buffer, identity: ResolvedIdentity): [Proto.ProtocolMessage, DescExtension] {
     const protocolMessage = protocol(Proto.ProtocolMessage_Type.DEVICE_INFO_MESSAGE);
     const message = create(Proto.DeviceInfoMessageSchema, {
         uniqueIdentifier: pairingId.toString(),

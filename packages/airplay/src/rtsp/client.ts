@@ -1,6 +1,7 @@
-import { ConnectionClosedError, ConnectionTimeoutError, HTTP_TIMEOUT, InvalidResponseError, reporter, TimeoutError } from '@corewire/core';
+import { ConnectionClosedError, ConnectionTimeoutError, InvalidResponseError, reporter, TimeoutError } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
 import { type CloseReason, Connection, type Context } from '@corewire/core/transport';
+import { HTTP_TIMEOUT } from '../const';
 import { type Method, parseResponse } from './encoding';
 
 /**

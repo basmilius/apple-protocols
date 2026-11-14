@@ -1,4 +1,4 @@
-import { Chacha20 } from '@corewire/core/crypto';
+import { ChaCha20 } from '@corewire/core/crypto';
 import { buildNonce, type EncryptionState } from '@corewire/core/transport';
 
 /** Frames we send carry at most this much plaintext. */
@@ -31,7 +31,7 @@ export function chacha20DecryptFrames(state: EncryptionState, data: Buffer): {da
             break;
         }
 
-        const plaintext = Chacha20.decrypt(state.readKey, nonce(state.readCount), data.subarray(offset, offset + 2), data.subarray(offset + 2, end - 16), data.subarray(end - 16, end));
+        const plaintext = ChaCha20.decrypt(state.readKey, nonce(state.readCount), data.subarray(offset, offset + 2), data.subarray(offset + 2, end - 16), data.subarray(end - 16, end));
         state.readCount++;
         output.push(plaintext);
         offset = end;
@@ -51,7 +51,7 @@ export function chacha20Encrypt(state: EncryptionState, data: Buffer): Buffer {
         const leLength = Buffer.allocUnsafe(2);
         leLength.writeUInt16LE(frame.length, 0);
 
-        const encrypted = Chacha20.encrypt(state.writeKey, nonce(state.writeCount++), leLength, frame);
+        const encrypted = ChaCha20.encrypt(state.writeKey, nonce(state.writeCount++), leLength, frame);
 
         result.push(leLength, encrypted.ciphertext, encrypted.authTag);
     }

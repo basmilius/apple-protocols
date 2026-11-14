@@ -555,7 +555,7 @@ export function knock(address: string, ports: readonly number[]): Promise<void> 
  * @param wakePorts - Ports to knock on before querying; none by default.
  * @returns An array of resolved mDNS services.
  */
-export function unicast(hosts: string[], services: string[], timeout: number = 4, wakePorts: readonly number[] = []): Promise<MdnsService[]> {
+export function mdnsUnicast(hosts: string[], services: string[], timeout: number = 4, wakePorts: readonly number[] = []): Promise<MdnsService[]> {
     const expectedCount = hosts.length * services.length;
 
     return new Promise((resolve) => {
@@ -619,7 +619,7 @@ export function unicast(hosts: string[], services: string[], timeout: number = 4
  * @param timeout - Discovery duration in seconds, default 4.
  * @returns Resolved services.
  */
-export function multicast(services: string[], timeout: number = 4): Promise<MdnsService[]> {
+export function mdnsMulticast(services: string[], timeout: number = 4): Promise<MdnsService[]> {
     return new Promise((resolve) => {
         const collector = new ServiceCollector();
         const queries = createQueryPackets(services);

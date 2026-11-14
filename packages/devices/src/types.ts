@@ -322,8 +322,3 @@ export type DiscoveredDevice = {
         readonly raop?: ServiceRecord;
     };
 };
-
-export type DiscoverOptions = {
-    /** Reuse a scan that is less than 30 seconds old. Default: true. */
-    readonly useCache?: boolean;
-};

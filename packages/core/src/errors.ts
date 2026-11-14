@@ -139,3 +139,23 @@ export class PlaybackError extends AppleProtocolError {
         this.name = 'PlaybackError';
     }
 }
+
+/** The authentication tag of a ChaCha20-Poly1305 message did not match: altered ciphertext, or a wrong key or nonce. */
+export class DecryptionError extends EncryptionError {
+    constructor(message: string = 'Decryption failed: authentication tag mismatch') {
+        super(message);
+        this.name = 'DecryptionError';
+    }
+}
+
+/** The accessory answered a pairing message with a TLV8 error or back-off. */
+export class TLV8PairingError extends PairingError {
+    /** The TLV8 error code from the accessory, if present. */
+    readonly code: number | undefined;
+
+    constructor(message: string, code?: number) {
+        super(message);
+        this.name = 'TLV8PairingError';
+        this.code = code;
+    }
+}

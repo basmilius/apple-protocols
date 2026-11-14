@@ -1,30 +1,19 @@
 import { Logger, type LogSink } from '../reporter';
 
 /**
- * Describes the identity that this client presents to Apple devices during pairing
- * and protocol negotiation. Mimics a real Apple device to ensure compatibility.
+ * Overrides of the identity this client presents to Apple devices during pairing and protocol
+ * negotiation. Each protocol fills what is missing with its own defaults.
  */
 export type DeviceIdentity = {
-    name: string;
-    model: string;
-    osName: string;
-    osVersion: string;
-    osBuildVersion: string;
-    sourceVersion: string;
-    applicationBundleIdentifier: string;
-    applicationBundleVersion: string;
-};
-
-/** Default identity mimicking an iPhone running the Apple TV Remote app. */
-const DEFAULT_IDENTITY: DeviceIdentity = {
-    name: 'apple-protocols',
-    model: 'iPhone17,3',
-    osName: 'iPhone OS',
-    osVersion: '26.3',
-    osBuildVersion: '25D63',
-    sourceVersion: '935.7.1',
-    applicationBundleIdentifier: 'com.apple.TVRemote',
-    applicationBundleVersion: '700'
+    /** The name the device shows for this client, such as in its list of paired devices. */
+    readonly name?: string;
+    readonly model?: string;
+    readonly osName?: string;
+    readonly osVersion?: string;
+    readonly osBuildVersion?: string;
+    readonly sourceVersion?: string;
+    readonly applicationBundleIdentifier?: string;
+    readonly applicationBundleVersion?: string;
 };
 
 /**
@@ -38,7 +27,7 @@ export class Context {
         return this.#deviceId;
     }
 
-    /** The identity this client presents to the Apple device. */
+    /** The identity overrides this client presents; a protocol fills the rest with its defaults. */
     get identity(): DeviceIdentity {
         return this.#identity;
     }
@@ -54,12 +43,12 @@ export class Context {
 
     /**
      * @param deviceId - Unique identifier of the target device.
-     * @param identity - Optional partial override of the default device identity.
+     * @param identity - Overrides of the identity this client presents.
      * @param sink - Also receives every log record of this context.
      */
-    constructor(deviceId: string, identity?: Partial<DeviceIdentity>, sink?: LogSink) {
+    constructor(deviceId: string, identity: DeviceIdentity = {}, sink?: LogSink) {
         this.#deviceId = deviceId;
-        this.#identity = { ...DEFAULT_IDENTITY, ...identity };
+        this.#identity = {...identity};
         this.#logger = new Logger(deviceId, sink);
     }
 }

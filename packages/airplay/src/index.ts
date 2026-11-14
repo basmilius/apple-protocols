@@ -96,7 +96,6 @@ export {
     AIRPLAY_SERVICE,
     type AirPlayDiscoveryResult,
     discover,
-    type DiscoverOptions,
     toTarget,
     withFeatures
 } from './discovery';

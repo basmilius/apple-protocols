@@ -31,6 +31,11 @@ export type CombinedDiscoveryResult = {
     raop?: DiscoveryResult;
 };
 
+/** The model identifier from the TXT record; Apple services advertise it as `model` or `am`. */
+export function modelOf(result: DiscoveryResult): string {
+    return result.txt.model ?? result.txt.am ?? '';
+}
+
 function deviceTypeOf(modelName: string): DeviceType {
     if (!modelName) {
         return 'unknown';
@@ -68,10 +73,10 @@ export async function discoverDevices(useCache: boolean): Promise<DiscoveredDevi
     for (const result of results.get(AIRPLAY_SERVICE).map(withFeatures)) {
         byAddress.set(result.address, {
             id: result.id,
-            name: result.familyName ?? result.fqdn,
+            name: result.fqdn,
             address: result.address,
-            modelName: result.modelName,
-            deviceType: deviceTypeOf(result.modelName),
+            modelName: modelOf(result),
+            deviceType: deviceTypeOf(modelOf(result)),
             services: {airplay: result}
         });
     }
@@ -83,10 +88,10 @@ export async function discoverDevices(useCache: boolean): Promise<DiscoveredDevi
             ? {...existing, services: {...existing.services, companionLink: result}}
             : {
                 id: result.id,
-                name: result.familyName ?? result.fqdn,
+                name: result.fqdn,
                 address: result.address,
-                modelName: result.modelName,
-                deviceType: deviceTypeOf(result.modelName),
+                modelName: modelOf(result),
+                deviceType: deviceTypeOf(modelOf(result)),
                 services: {companionLink: result}
             });
     }

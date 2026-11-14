@@ -1,12 +1,12 @@
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
-import { ConnectionClosedError, randomInt32, reporter, TimeoutError } from '@corewire/core';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { ConnectionClosedError, reporter, TimeoutError } from '@corewire/core';
+import { HKDF } from '@corewire/core/crypto';
 import { Plist } from '@corewire/core/encoding';
 import type { Context } from '@corewire/core/transport';
 import { encodeVarint, messageKind, type MrpMessageMap, type MrpMessageName, parseMessages } from '../mrp/codec';
 import { describeProtocolMessage } from '../mrp/describe';
 import * as Proto from '../mrp/proto';
-import { buildHeader, buildReply, parseHeaderSeqno } from '../utils';
+import { buildHeader, buildReply, parseHeaderSeqno, randomInt32 } from '../utils';
 import { EncryptedChannel } from './encrypted';
 
 /** Size of the frame header in bytes. */
@@ -40,7 +40,7 @@ export class DataChannel extends EncryptedChannel<DataChannelEventMap> {
     #seqno: bigint;
 
     constructor(context: Context, address: string, port: number, sharedSecret: Buffer, seed: bigint) {
-        super(context, address, port, deriveEncryptionKeys(sharedSecret, `DataStream-Salt${seed}`, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key'));
+        super(context, address, port, HKDF.deriveEncryptionKeys(sharedSecret, `DataStream-Salt${seed}`, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key'));
 
         this.#seqno = 0x100000000n + BigInt(randomInt32());
 

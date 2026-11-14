@@ -1,4 +1,4 @@
-import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@corewire/core/discovery';
 import { parseFeatures } from './features';
 import type { AirPlayTarget } from './types';
 
@@ -7,11 +7,6 @@ export const AIRPLAY_SERVICE = '_airplay._tcp.local';
 /** An AirPlay service with the feature mask from its TXT record, when that parses. */
 export type AirPlayDiscoveryResult = DiscoveryResult & {
     readonly features?: bigint;
-};
-
-export type DiscoverOptions = {
-    /** Reuse a scan that is less than 30 seconds old. Default: true. */
-    readonly useCache?: boolean;
 };
 
 /** Finds the AirPlay receivers on the local network. */

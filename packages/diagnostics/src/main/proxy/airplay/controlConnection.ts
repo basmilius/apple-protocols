@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
 import { buildNonce, type Context } from '@corewire/core/transport';
-import { Chacha20 } from '@corewire/core/crypto';
+import { ChaCha20 } from '@corewire/core/crypto';
 import { parseRequest, parseResponse, type RtspRequest } from '@corewire/airplay/rtsp';
 
 /** Chunk size AirPlay splits the control stream into when encrypting. */
@@ -125,7 +125,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             const length = Buffer.allocUnsafe(2);
             length.writeUInt16LE(frame.length, 0);
 
-            const encrypted = Chacha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
+            const encrypted = ChaCha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
             out.push(length, encrypted.ciphertext, encrypted.authTag);
         }
 
@@ -179,7 +179,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             const ciphertext = this.#encBuffer.subarray(offset + 2, offset + 2 + frameLength);
             const authTag = this.#encBuffer.subarray(offset + 2 + frameLength, end);
 
-            out.push(Chacha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
+            out.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
             offset = end;
         }
 

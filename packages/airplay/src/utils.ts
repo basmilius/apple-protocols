@@ -1,3 +1,6 @@
+import { randomBytes } from 'node:crypto';
+import { networkInterfaces } from 'node:os';
+
 /**
  * Builds a 32-byte DataStream frame header with the 'sync'/'comm' command format.
  *
@@ -60,4 +63,49 @@ export function parseHeaderSeqno(header: Buffer): bigint {
     }
 
     return header.readBigUInt64BE(20);
+}
+
+/**
+ * Finds the first non-internal MAC address on this machine.
+ *
+ * @returns The MAC address in uppercase colon-separated format, or '00:00:00:00:00:00' if none is found.
+ */
+export function getMacAddress(): string {
+    const interfaces = networkInterfaces();
+
+    for (const iface of Object.values(interfaces)) {
+        if (!iface) {
+            continue;
+        }
+
+        for (const net of iface) {
+            if (net.internal || net.family !== 'IPv4') {
+                continue;
+            }
+
+            if (net.mac && net.mac !== '00:00:00:00:00:00') {
+                return net.mac.toUpperCase();
+            }
+        }
+    }
+
+    return '00:00:00:00:00:00';
+}
+
+/** A cryptographically random unsigned 32-bit integer. */
+export function randomInt32(): number {
+    return randomBytes(4).readUInt32BE(0);
+}
+
+/** A cryptographically random unsigned 64-bit integer. */
+export function randomInt64(): bigint {
+    return randomBytes(8).readBigUint64LE(0);
+}
+
+/** A 16-bit unsigned integer as two big-endian bytes. */
+export function uint16ToBE(value: number): Buffer {
+    const buffer = Buffer.allocUnsafe(2);
+    buffer.writeUInt16BE(value, 0);
+
+    return buffer;
 }

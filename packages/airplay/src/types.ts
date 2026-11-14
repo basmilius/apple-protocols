@@ -30,7 +30,7 @@ export type ConnectOptions = {
     readonly context?: Context;
 
     /** Overrides of the identity this client presents; ignored when a context is passed. */
-    readonly identity?: Partial<DeviceIdentity>;
+    readonly identity?: DeviceIdentity;
 
     /** NTP timing server to announce in every SETUP. Without one, SETUP announces no timing. */
     readonly timing?: TimingServer;

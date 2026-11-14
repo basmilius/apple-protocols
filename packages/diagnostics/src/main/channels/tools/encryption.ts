@@ -1,4 +1,4 @@
-import { Aes, Chacha20, Curve25519, Ed25519, hkdf } from '@corewire/core/crypto';
+import { AES, ChaCha20, Curve25519, Ed25519, HKDF } from '@corewire/core/crypto';
 import type { ToolInputOption } from '@shared/contract';
 import { parseBytes, readBoolean, readNumber, readString, toHex } from './bytes';
 import { keyInput, type ToolDefinition } from './registry';
@@ -137,7 +137,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
             const nonce = buildNonce(readString(args, 'layout', 'airplay') as NonceLayout, readNumber(args, 'counter'), readString(args, 'nonce'));
             const aad = readString(args, 'aad').trim();
             const plaintext = readBoolean(args, 'asText') ? Buffer.from(readString(args, 'plaintext'), 'utf8') : parseBytes(args.plaintext, 'plaintext');
-            const sealed = Chacha20.encrypt(parseBytes(args.key, 'key'), nonce, aad.length === 0 ? null : parseBytes(aad, 'aad'), plaintext);
+            const sealed = ChaCha20.encrypt(parseBytes(args.key, 'key'), nonce, aad.length === 0 ? null : parseBytes(aad, 'aad'), plaintext);
 
             return {
                 nonce: nonce.toString('hex'),
@@ -168,8 +168,8 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
             const tagText = readString(args, 'authTag').trim();
             const sealed = parseBytes(args.ciphertext, 'ciphertext');
             const [ciphertext, authTag] =
-                tagText.length === 0 ? [sealed.subarray(0, -Chacha20.CHACHA20_AUTH_TAG_LENGTH), sealed.subarray(-Chacha20.CHACHA20_AUTH_TAG_LENGTH)] : [sealed, parseBytes(tagText, 'authTag')];
-            const plaintext = Chacha20.decrypt(parseBytes(args.key, 'key'), nonce, aad.length === 0 ? null : parseBytes(aad, 'aad'), Buffer.from(ciphertext), Buffer.from(authTag));
+                tagText.length === 0 ? [sealed.subarray(0, -ChaCha20.CHACHA20_AUTH_TAG_LENGTH), sealed.subarray(-ChaCha20.CHACHA20_AUTH_TAG_LENGTH)] : [sealed, parseBytes(tagText, 'authTag')];
+            const plaintext = ChaCha20.decrypt(parseBytes(args.key, 'key'), nonce, aad.length === 0 ? null : parseBytes(aad, 'aad'), Buffer.from(ciphertext), Buffer.from(authTag));
 
             return {
                 nonce: nonce.toString('hex'),
@@ -213,7 +213,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
                 info,
                 length,
                 hash,
-                key: hkdf({hash, key: parseBytes(args.key, 'key'), length, salt: Buffer.from(salt, 'utf8'), info: Buffer.from(info, 'utf8')}).toString('hex')
+                key: HKDF.derive({hash, key: parseBytes(args.key, 'key'), length, salt: Buffer.from(salt, 'utf8'), info: Buffer.from(info, 'utf8')}).toString('hex')
             };
         }
     },
@@ -231,7 +231,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         ],
         run: args => {
             const plaintext = readBoolean(args, 'asText') ? Buffer.from(readString(args, 'plaintext'), 'utf8') : parseBytes(args.plaintext, 'plaintext');
-            const encrypted = Aes.encrypt(parseBytes(args.key, 'key'), parseBytes(args.iv, 'iv'), plaintext);
+            const encrypted = AES.encrypt(parseBytes(args.key, 'key'), parseBytes(args.iv, 'iv'), plaintext);
 
             return {hex: encrypted.toString('hex'), length: encrypted.length};
         }
@@ -244,7 +244,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         section: 'AES',
         inputs: [keyInput('key', 'Key'), keyInput('iv', 'IV'), {name: 'ciphertext', label: 'Ciphertext', type: 'textarea', placeholder: 'Hex', rows: 3}],
         run: args => {
-            const plaintext = Aes.decrypt(parseBytes(args.key, 'key'), parseBytes(args.iv, 'iv'), parseBytes(args.ciphertext, 'ciphertext'));
+            const plaintext = AES.decrypt(parseBytes(args.key, 'key'), parseBytes(args.iv, 'iv'), parseBytes(args.ciphertext, 'ciphertext'));
             return {hex: plaintext.toString('hex'), text: plaintext.toString('utf8'), length: plaintext.length};
         }
     }

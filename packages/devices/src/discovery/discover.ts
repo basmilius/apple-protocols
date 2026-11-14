@@ -1,11 +1,11 @@
 import { AIRPLAY_SERVICE } from '@corewire/airplay';
 import { RAOP_SERVICE } from '@corewire/airplay/raop';
 import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@corewire/core/discovery';
 import { AppleTV, type AppleTVOptions, HomePod } from '../device';
 import { DeviceFamily, getDeviceFamily, lookupDeviceModel } from '../deviceModel';
 import { macOf } from '../lifecycle/resolve';
-import type { DiscoveredDevice, DiscoverOptions, ServiceRecord } from '../types';
+import type { DiscoveredDevice, ServiceRecord } from '../types';
 
 type Services = {
     airplay?: DiscoveryResult;
@@ -33,16 +33,16 @@ function familyOf(modelName: string): DeviceFamily {
 }
 
 function recordOf(result: DiscoveryResult | undefined): ServiceRecord | undefined {
-    return result ? {name: result.familyName ?? result.fqdn, port: result.service.port, txt: result.txt} : undefined;
+    return result ? {name: result.fqdn, port: result.service.port, txt: result.txt} : undefined;
 }
 
 function describe(address: string, services: Services): DiscoveredDevice {
     const primary = services.airplay ?? services.companionLink ?? services.raop;
-    const modelName = services.airplay?.txt.model ?? primary.modelName ?? primary.txt.model ?? '';
+    const modelName = services.airplay?.txt.model ?? primary.txt.model ?? primary.txt.am ?? '';
 
     return {
         id: primary.id,
-        name: primary.familyName ?? primary.fqdn,
+        name: primary.fqdn,
         address,
         model: lookupDeviceModel(modelName),
         modelName,

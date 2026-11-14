@@ -1,6 +1,7 @@
 import type { DiscoveryResult } from '@corewire/core/discovery';
 import { discover as discoverRaop, pctToDbfs, RaopClient } from '@corewire/airplay/raop';
 import type { RaopServiceInfo, RaopStatus } from '@shared/contract';
+import { modelOf } from '../../discovery';
 import { handle } from '../../ipc';
 import { serialize } from '../../serialize';
 import type { ChannelContext } from '../context';
@@ -58,7 +59,7 @@ export function registerRaopChannels(context: ChannelContext): void {
             streaming: state.streaming,
             serviceId: state.service?.id ?? null,
             address: state.service?.address ?? null,
-            modelName: state.service?.modelName ?? null,
+            modelName: (state.service ? modelOf(state.service) : null),
             info: state.client === null ? null : (serialize(state.client.info) as Record<string, unknown>),
             source: state.source,
             lastEvent: state.lastEvent,
@@ -227,7 +228,7 @@ function describe(service: DiscoveryResult): RaopServiceInfo {
         fqdn: service.fqdn,
         address: service.address,
         port: service.service.port,
-        modelName: service.modelName
+        modelName: modelOf(service)
     };
 }
 

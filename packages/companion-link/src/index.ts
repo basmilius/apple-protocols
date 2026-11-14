@@ -13,7 +13,6 @@ export {
 export {
     COMPANION_LINK_SERVICE,
     discover,
-    type DiscoverOptions,
     toTarget
 } from './discovery';
 

@@ -1,5 +1,5 @@
 import { reporter } from '@corewire/core';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { HKDF } from '@corewire/core/crypto';
 import { Plist } from '@corewire/core/encoding';
 import type { Context } from '@corewire/core/transport';
 import { decodeNestedCommand, type PlayQueueCommand } from '../playback/playQueue';
@@ -106,7 +106,7 @@ export class EventChannel extends EncryptedChannel<EventChannelEventMap> {
  * receiver writes, which we read.
  */
 function eventKeys(sharedSecret: Buffer): ChannelKeys {
-    const {readKey, writeKey} = deriveEncryptionKeys(sharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+    const {readKey, writeKey} = HKDF.deriveEncryptionKeys(sharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
 
     return {
         readKey: writeKey,

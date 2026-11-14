@@ -1,5 +1,5 @@
 import { ConnectionClosedError, InvalidResponseError, PairingError } from '@corewire/core';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { HKDF } from '@corewire/core/crypto';
 import { type AccessoryCredentials, type AccessoryKeys, PairSetup, type PairingTransport, PairVerify } from '@corewire/core/pairing';
 import { Context } from '@corewire/core/transport';
 import { FrameType } from './frame';
@@ -37,7 +37,7 @@ export async function verifyPairing(stream: Stream, context: Context, credential
     const verify = new PairVerify(context, frameTransport(stream, FrameType.PairVerifyStart, FrameType.PairVerifyNext, {_auTy: 4}));
     const keys = await verify.start(credentials);
 
-    const {readKey: accessoryToControllerKey, writeKey: controllerToAccessoryKey} = deriveEncryptionKeys(
+    const {readKey: accessoryToControllerKey, writeKey: controllerToAccessoryKey} = HKDF.deriveEncryptionKeys(
         keys.sharedSecret,
         '',
         'ServerEncrypt-main',

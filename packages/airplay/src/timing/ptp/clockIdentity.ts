@@ -1,4 +1,4 @@
-import { getMacAddress } from '@corewire/core';
+import { getMacAddress } from '../../utils';
 
 /**
  * Generates an IEEE EUI-64 clock identity from this machine's MAC-48 address.

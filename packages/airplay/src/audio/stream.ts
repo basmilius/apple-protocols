@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
-import { EncryptionError, randomInt32, randomInt64, SetupError } from '@corewire/core';
-import { Chacha20 } from '@corewire/core/crypto';
+import { EncryptionError, SetupError } from '@corewire/core';
+import { ChaCha20 } from '@corewire/core/crypto';
 import { NTP, Plist } from '@corewire/core/encoding';
 import type { Context } from '@corewire/core/transport';
 import type { ControlChannel } from '../channels/control';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from '../const';
+import { randomInt32, randomInt64 } from '../utils';
 import { LatencyManager } from './latency';
 import { streamWithTiming } from './pacing';
 import type { AudioSource } from './source';
@@ -658,7 +659,7 @@ export class AudioStream {
         const nonceBytes = Buffer.alloc(12, 0);
         nonceBytes.writeUInt32LE(seqNumber, 4);
 
-        const result = Chacha20.encrypt(
+        const result = ChaCha20.encrypt(
             this.#sharedKey,
             nonceBytes,
             aad,

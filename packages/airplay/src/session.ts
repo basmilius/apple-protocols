@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { ConnectionClosedError, getMacAddress, PlaybackError, randomInt64, SetupError, TimeoutError } from '@corewire/core';
+import { ConnectionClosedError, PlaybackError, SetupError, TimeoutError } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
 import type { AccessoryKeys } from '@corewire/core/pairing';
 import { type CloseReason, Context } from '@corewire/core/transport';
@@ -14,12 +14,14 @@ import { DataChannel } from './channels/data';
 import { EventChannel } from './channels/event';
 import { DEFAULT_PORT, FEEDBACK_INTERVAL } from './const';
 import { encodeFeatures } from './features';
+import { resolveIdentity } from './identity';
 import { fetchInfo, type ReceiverInfo } from './info';
 import * as Proto from './mrp/proto';
 import { transientPairing, verifyPairing } from './pairing';
 import { UrlPlayback } from './playback/playback';
 import { type PtpMaster, selectTimingStrategy } from './timing';
 import type { AirPlayTarget, ConnectOptions, PlayUrlOptions, RemoteControl, RemoteControlOptions, SessionCloseReason, StreamAudioOptions } from './types';
+import { getMacAddress, randomInt64 } from './utils';
 
 /**
  * How long the keepalive may go without a successful `/feedback` before the receiver counts as gone.
@@ -630,7 +632,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
     /** The common SETUP body: identity, features, our MAC and the session UUID. */
     #setupBody(features: bigint): Record<string, unknown> {
-        const identity = this.#context.identity;
+        const identity = resolveIdentity(this.#context);
 
         return {
             deviceID: this.#keys.pairingId.toString(),

@@ -1,6 +1,6 @@
 import { connect, createServer, type Server, type Socket } from 'node:net';
 import type { Context } from '@corewire/core/transport';
-import { deriveEncryptionKeys } from '@corewire/core/crypto';
+import { HKDF } from '@corewire/core/crypto';
 import { parseRequest, parseResponse } from '@corewire/airplay/rtsp';
 import { parseMessages } from '@corewire/airplay/mrp';
 import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
@@ -95,8 +95,8 @@ export class EventChannelServer extends ChannelServer {
 
     /** @inheritDoc */
     protected ciphers(): {controller: AirPlayCipher; device: AirPlayCipher} {
-        const c = deriveEncryptionKeys(this.#controllerSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
-        const d = deriveEncryptionKeys(this.#deviceSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+        const c = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+        const d = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
 
         // Controller side: the proxy is the "receiver" — read what the controller writes (Events-Read), write
         // what it reads (Events-Write). Device side: the proxy is the "controller" — mirror of EventStream.
@@ -159,8 +159,8 @@ export class DataChannelServer extends ChannelServer {
     /** @inheritDoc */
     protected ciphers(): {controller: AirPlayCipher; device: AirPlayCipher} {
         const salt = `DataStream-Salt${this.#seed}`;
-        const c = deriveEncryptionKeys(this.#controllerSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
-        const d = deriveEncryptionKeys(this.#deviceSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
+        const c = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
+        const d = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
 
         // The client reads with Input and writes with Output (see DataStream.setup). Device side mirrors the
         // client; controller side mirrors the device (read what the controller writes = Output).

@@ -1,10 +1,12 @@
-import { getMacAddress, PlaybackError, waitFor } from '@corewire/core';
+import { PlaybackError, waitFor } from '@corewire/core';
 import { Plist } from '@corewire/core/encoding';
 import type { Context } from '@corewire/core/transport';
 import { AirPlayFeatureFlags, hasFeatureFlag } from '../airplayFeatures';
 import type { ControlChannel } from '../channels/control';
 import type { EventChannel } from '../channels/event';
+import { resolveIdentity } from '../identity';
 import type { AirPlaySession } from '../session';
+import { getMacAddress } from '../utils';
 import { PlayQueueSession, type PlayQueueState } from './playQueue';
 
 /** Maximum number of attempts of `POST /play` while it answers 500. */
@@ -230,7 +232,7 @@ async function startPlayQueue(channels: UrlPlaybackChannels, url: string, positi
 /** `POST /play`, retrying 500 responses because the receiver may need time to prepare, then the playback properties. */
 async function playLegacy(channels: UrlPlaybackChannels, url: string, position: number): Promise<void> {
     const {context, control} = channels;
-    const identity = context.identity;
+    const identity = resolveIdentity(context);
     let lastStatus = 0;
 
     for (let retry = 0; retry < PLAY_RETRIES; retry++) {

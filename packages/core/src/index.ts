@@ -1,10 +1,5 @@
 /// <reference types="node" preserve="true" />
 export {
-    HTTP_TIMEOUT,
-    SOCKET_TIMEOUT
-} from './const';
-
-export {
     AppleProtocolError,
     AuthenticationError,
     CommandError,
@@ -12,13 +7,15 @@ export {
     ConnectionError,
     ConnectionTimeoutError,
     CredentialsError,
+    DecryptionError,
     DiscoveryError,
     EncryptionError,
     InvalidResponseError,
     PairingError,
     PlaybackError,
     SetupError,
-    TimeoutError
+    TimeoutError,
+    TLV8PairingError
 } from './errors';
 
 export {
@@ -37,12 +34,6 @@ export {
 } from './reporter';
 
 export {
-    getLocalIP,
-    getMacAddress,
-    randomInt32,
-    randomInt64,
-    uint16ToBE,
-    uint53ToLE,
     waitFor
 } from './utils';
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AnimatedArtworkResult, LyricsResult } from '@corewire/devices';
+import type { AnimatedArtwork as AnimatedArtworkResult, Lyrics as LyricsResult } from '@corewire/devices';
 import { formatDuration, isBytes } from '@shared/helpers';
 import { useAppleMusic } from '@/state/apple-music';
 import { useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
@@ -63,7 +63,7 @@ export function NowPlayingPanel({deviceId}: PanelProps) {
         const generation = ++lyricsGeneration.current;
         setLyricsResult(undefined);
 
-        const result = await call('device', catalog ? 'media.getLyricsFromCatalog' : 'media.getLyrics', catalog ? [{bearerToken, musicUserToken, storefront}] : []);
+        const result = await call('device', catalog ? 'media.getLyricsFromCatalog' : 'nowPlaying.lyrics', catalog ? [{bearerToken, musicUserToken, storefront}] : []);
 
         if (generation === lyricsGeneration.current) {
             setLyricsResult(result as LyricsResult | null);

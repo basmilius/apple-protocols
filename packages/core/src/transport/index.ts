@@ -15,11 +15,6 @@ export {
     type NonceFormat
 } from './encryption';
 
-export {
-    ConnectionRecovery,
-    type ConnectionRecoveryOptions
-} from './recovery';
-
 export type {
     CloseReason,
     ConnectionState

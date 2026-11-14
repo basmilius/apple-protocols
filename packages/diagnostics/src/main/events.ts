@@ -1,52 +1,26 @@
 /** EventEmitter cannot enumerate possible events. Add new protocol events here to forward them to the renderer. */
 
-export const DEVICE_EVENTS = ['connected', 'disconnected', 'recovering', 'recoveryFailed', 'power', 'textInput'] as const;
+export const DEVICE_EVENTS = ['status'] as const;
 
-export const STATE_EVENTS = [
-    'nowPlayingChanged',
-    'playbackStateChanged',
-    'volumeChanged',
-    'volumeMutedChanged',
-    'artworkChanged',
-    'activeAppChanged',
-    'supportedCommandsChanged',
-    'clusterChanged'
-] as const;
+/** The events of `device.nowPlaying`; volume, power and text each have one `change` event. */
+export const STATE_EVENTS = ['change', 'state', 'artwork'] as const;
 
 export const AIRPLAY_STATE_EVENTS = [
-    'clients',
-    'configureConnection',
-    'deviceInfo',
-    'deviceInfoUpdate',
-    'keyboard',
-    'nowPlayingChanged',
-    'originClientProperties',
-    'playerClientProperties',
-    'removeClient',
-    'removePlayer',
-    'sendCommandResult',
-    'setArtwork',
-    'setDefaultSupportedCommands',
-    'setNowPlayingClient',
-    'setNowPlayingPlayer',
-    'setState',
-    'updateClient',
-    'updateContentItem',
-    'updateContentItemArtwork',
-    'updatePlayer',
-    'updateOutputDevice',
-    'volumeControlAvailability',
-    'volumeControlCapabilitiesDidChange',
-    'volumeDidChange',
-    'volumeMutedDidChange',
     'activePlayerChanged',
     'artworkChanged',
+    'clients',
+    'clusterChanged',
+    'keyboardChanged',
     'lyricsEvent',
+    'nowPlayingChanged',
+    'outputDevicesChanged',
+    'participantsChanged',
     'playbackQueueChanged',
     'playbackStateChanged',
     'supportedCommandsChanged',
-    'clusterChanged',
-    'playerClientParticipantsUpdate'
+    'volumeChanged',
+    'volumeControlChanged',
+    'volumeMutedChanged'
 ] as const;
 
 export const DATA_STREAM_EVENTS = [
@@ -120,9 +94,8 @@ export const DATA_STREAM_EVENTS = [
 
 export const EVENT_STREAM_EVENTS = ['command', 'duckAudio', 'unduckAudio', 'sessionDied'] as const;
 
+/** The events of the Companion Link model. */
 export const COMPANION_LINK_EVENTS = [
-    'connected',
-    'disconnected',
     'attentionStateChanged',
     'mediaControlFlagsChanged',
     'nowPlayingInfoChanged',
@@ -131,4 +104,4 @@ export const COMPANION_LINK_EVENTS = [
     'volumeAvailabilityChanged'
 ] as const;
 
-export const ARTWORK_EVENTS: readonly string[] = ['artworkChanged', 'nowPlayingChanged', 'setArtwork', 'updateContentItemArtwork'];
+export const ARTWORK_EVENTS: readonly string[] = ['artworkChanged', 'nowPlayingChanged', 'setArtwork', 'updateContentItemArtwork', 'nowPlaying.artwork', 'nowPlaying.change'];

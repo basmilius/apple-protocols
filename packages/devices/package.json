@@ -42,6 +42,10 @@
         ".": {
             "types": "./dist/index.d.mts",
             "default": "./dist/index.mjs"
+        },
+        "./catalog": {
+            "types": "./dist/catalog.d.mts",
+            "default": "./dist/catalog.mjs"
         }
     },
     "dependencies": {

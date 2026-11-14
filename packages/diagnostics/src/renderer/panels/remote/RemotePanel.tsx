@@ -4,6 +4,7 @@ import { asCard, Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { BUTTON_PRESS_ITEMS, COMPANION_HID_ITEMS, EventFeed, HID_PRESETS, NotConnected, NumberInput, numberOf, PanelBody, ResultBlock, Row, hex } from '@/panels/sdk-shared';
+import { keyOf } from './commands';
 import { RemoteFace } from './RemoteFace';
 import { TouchPad } from './TouchPad';
 
@@ -25,8 +26,8 @@ const EXTRA_KEYS: readonly { readonly label: string; readonly path: string; read
 ];
 
 const COMPANION_SHORTCUTS = ['Siri', 'Screensaver', 'Guide', 'Info', 'PageUp', 'PageDown', 'Power'];
-const TEXT_INPUT_SOURCES = ['device', 'companionLink'] as const;
-const TEXT_INPUT_EVENTS = ['textInput', 'textInputChanged'];
+const TEXT_INPUT_SOURCES = ['state', 'companionLink'] as const;
+const TEXT_INPUT_EVENTS = ['text.change', 'textInputChanged'];
 
 function TextInputSection({deviceId, call, connected, companionConnected}: { readonly deviceId: string | null; readonly call: DeviceCall; readonly connected: boolean; readonly companionConnected: boolean }) {
     const {snapshot} = useDevice(deviceId);
@@ -45,15 +46,15 @@ function TextInputSection({deviceId, call, connected, companionConnected}: { rea
             </KeyValueList>
             <TextArea label="Text to send" rows={3} value={text} onChange={event => setText(event.target.value)} placeholder="What to type on the device"/>
             <Row>
-                <CommandButton label="Type" variant="primary" tooltip="keyboard.type" run={() => call('device', 'keyboard.type', [text])} disabled={!connected}/>
-                <CommandButton label="Append" tooltip="keyboard.append" run={() => call('device', 'keyboard.append', [text])} disabled={!connected}/>
-                <CommandButton label="Clear" variant="danger" tooltip="keyboard.clear" run={() => call('device', 'keyboard.clear')} disabled={!connected}/>
+                <CommandButton label="Type" variant="primary" tooltip="text.set" run={() => call('device', 'text.set', [text])} disabled={!connected}/>
+                <CommandButton label="Append" tooltip="text.append" run={() => call('device', 'text.append', [text])} disabled={!connected}/>
+                <CommandButton label="Clear" variant="danger" tooltip="text.clear" run={() => call('device', 'text.clear')} disabled={!connected}/>
             </Row>
             <Row>
-                <ResultBlock label="Session" tooltip="keyboard.getSession" run={() => call('device', 'keyboard.getSession')} disabled={!connected} defaultDepth={3}/>
+                <ResultBlock label="Session" tooltip="text.state" run={() => call('device', 'text.state')} disabled={!connected} defaultDepth={3}/>
                 <ResultBlock label="State" tooltip="airplayState.keyboardState" run={() => call('airplayState', 'keyboardState')} disabled={!connected}/>
                 <ResultBlock label="Attributes" tooltip="airplayState.keyboardAttributes" run={() => call('airplayState', 'keyboardAttributes')} disabled={!connected} defaultDepth={3}/>
-                <ResultBlock label="Companion state" tooltip="companionLink.textInputState" run={() => call('companionLink', 'textInputState')} disabled={!companionConnected} defaultDepth={3}/>
+                <ResultBlock label="Companion state" tooltip="companionLink.textInputState" run={() => call('companionLink', 'state.textInputState')} disabled={!companionConnected} defaultDepth={3}/>
             </Row>
         </Section>
     );
@@ -102,10 +103,10 @@ export function RemotePanel({deviceId}: PanelProps) {
                                         icon={swipe.icon}
                                         label={`Swipe ${swipe.direction}`}
                                         disabled={!companionConnected}
-                                        onClick={() => void call('companionLink', 'swipe', [swipe.direction, numberOf(swipeDuration, 200)])}
+                                        onClick={() => void call('device', 'touch.swipe', [swipe.direction, numberOf(swipeDuration, 200)])}
                                     />
                                 ))}
-                                <IconButton icon={Circle} label="Tap to select" disabled={!companionConnected} onClick={() => void call('companionLink', 'tap')}/>
+                                <IconButton icon={Circle} label="Tap to select" disabled={!companionConnected} onClick={() => void call('device', 'touch.tap')}/>
                             </ButtonGroup>
                         </ControlRow>
                     </Section>
@@ -119,7 +120,7 @@ export function RemotePanel({deviceId}: PanelProps) {
                 <Section title="Extra keys" icon={ICONS.remote} collapsible defaultOpen={false}>
                     <Row>
                         {EXTRA_KEYS.map(key => (
-                            <CommandButton key={key.path} label={key.label} icon={key.icon} tooltip={key.path} run={() => call('device', key.path)} disabled={!connected}/>
+                            <CommandButton key={key.path} label={key.label} icon={key.icon} tooltip={key.path} run={() => call('device', 'remote.press', [keyOf(key.path)])} disabled={!connected}/>
                         ))}
                     </Row>
                 </Section>
@@ -135,9 +136,9 @@ export function RemotePanel({deviceId}: PanelProps) {
                         <NumberInput label="Hold duration in milliseconds" value={holdDuration} onValueChange={setHoldDuration}/>
                     </ControlRow>
                     <Row>
-                        <CommandButton label="Press and release" tooltip="remote.pressAndRelease" run={() => call('device', 'remote.pressAndRelease', [hidPage, hidUsage])} disabled={!connected}/>
-                        <CommandButton label="Long press" tooltip="remote.longPress" run={() => call('device', 'remote.longPress', [hidPage, hidUsage, numberOf(holdDuration, 1000)])} disabled={!connected}/>
-                        <CommandButton label="Double press" tooltip="remote.doublePress" run={() => call('device', 'remote.doublePress', [hidPage, hidUsage])} disabled={!connected}/>
+                        <CommandButton label="Press and release" tooltip="airplay.hid.press" run={() => call('airplay', 'hid.press', [hidPage, hidUsage])} disabled={!connected}/>
+                        <CommandButton label="Long press" tooltip="airplay.hid.longPress" run={() => call('airplay', 'hid.longPress', [hidPage, hidUsage, numberOf(holdDuration, 1000)])} disabled={!connected}/>
+                        <CommandButton label="Double press" tooltip="airplay.hid.doublePress" run={() => call('airplay', 'hid.doublePress', [hidPage, hidUsage])} disabled={!connected}/>
                     </Row>
                     <ControlRow label="Presets" icon={ICONS.remote}>
                         {HID_PRESETS.map(preset => (
@@ -169,13 +170,13 @@ export function RemotePanel({deviceId}: PanelProps) {
                             <CommandButton
                                 label="Press"
                                 variant="primary"
-                                tooltip="companionLink.pressButton"
-                                run={() => call('companionLink', 'pressButton', [companionCommand, companionType, numberOf(companionHold, 500)])}
+                                tooltip="companionLink.hid.press"
+                                run={() => call('companionLink', 'hid.press', [companionCommand, companionType, numberOf(companionHold, 500)])}
                             />
                         </ControlRow>
                         <ControlRow label="Shortcuts" icon={ICONS.companionLink}>
                             {COMPANION_SHORTCUTS.map(command => (
-                                <CommandButton key={command} label={command} run={() => call('companionLink', 'pressButton', [command, companionType, numberOf(companionHold, 500)])}/>
+                                <CommandButton key={command} label={command} run={() => call('companionLink', 'hid.press', [command, companionType, numberOf(companionHold, 500)])}/>
                             ))}
                         </ControlRow>
                     </Section>

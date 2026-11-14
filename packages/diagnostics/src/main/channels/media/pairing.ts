@@ -1,12 +1,15 @@
+import * as AirPlay from '@corewire/airplay';
 import * as CompanionLink from '@corewire/companion-link';
-import { PairingSession } from '@corewire/devices';
 import type { AccessoryCredentials } from '@corewire/core/pairing';
 import type { DiscoveryResult } from '@corewire/core/discovery';
 import type { PairRequest, PairStage, PairStatus, ProtocolName } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';
 
-/** AirPlay uses {@link PairingSession}, Companion Link its own `pair()`. */
+/**
+ * Each protocol pairs with its own `pair()`. Storage keeps the raw credentials, so AirPlay pairs
+ * through the protocol package too; `AppleTV.pair()` sends the same messages.
+ */
 class PairingAttempt {
     readonly deviceId: string;
     readonly protocol: ProtocolName;
@@ -14,7 +17,7 @@ class PairingAttempt {
 
     #stage: PairStage = 'idle';
     #error: string | null = null;
-    #airplay: PairingSession | null = null;
+    #airplay: AirPlay.PinPairing | null = null;
     #companion: CompanionLink.PinPairing | null = null;
     #abort: AbortController | null = null;
 
@@ -58,14 +61,14 @@ class PairingAttempt {
 
     /** Connects and asks the device to show its PIN. */
     async start(service: DiscoveryResult): Promise<void> {
+        this.#abort = new AbortController();
+
         if (this.protocol === 'airplay') {
-            this.#airplay = new PairingSession(service);
-            await this.#airplay.start();
+            this.#airplay = await AirPlay.pair(AirPlay.toTarget(service), {signal: this.#abort.signal});
 
             return;
         }
 
-        this.#abort = new AbortController();
         this.#companion = await CompanionLink.pair(CompanionLink.toTarget(service), {signal: this.#abort.signal});
     }
 
@@ -76,9 +79,10 @@ class PairingAttempt {
                 throw new Error('Pairing has not been started.');
             }
 
-            await this.#airplay.pin(pin);
+            const credentials = await this.#airplay.pin(pin);
+            this.#airplay.close();
 
-            return await this.#airplay.end();
+            return credentials;
         }
 
         if (this.#companion === null) {
@@ -91,12 +95,7 @@ class PairingAttempt {
     abort(): void {
         this.#abort?.abort();
 
-        try {
-            this.#airplay?.abort();
-        } catch {
-            /* Cancellation may happen before the pairing session connects. */
-        }
-
+        this.#airplay?.close();
         this.#companion?.close();
 
         this.#airplay = null;

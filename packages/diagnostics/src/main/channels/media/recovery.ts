@@ -1,91 +1,42 @@
-import type { EventEmitter } from 'node:events';
-import { ConnectionRecovery } from '@corewire/core/transport';
 import { Discovery } from '@corewire/core/discovery';
-import { AIRPLAY_PROTOCOL, WAKE_PORTS } from '@corewire/devices';
-import type { DeviceEvent, RecoveryOptionsInfo, RecoveryStatus } from '@shared/contract';
+import { WAKE_PORTS } from '@corewire/devices';
+import type { RecoveryOptionsInfo, RecoveryStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';
 import type { ChannelContext } from '../context';
 
-const DEFAULT_OPTIONS: RecoveryOptionsInfo = {
+/** The quick phase of the device's own schedule, shown in the panel; it is not configurable. */
+const DEVICE_OPTIONS: RecoveryOptionsInfo = {
     baseDelay: 1000,
-    maxDelay: 30000,
+    maxDelay: 4000,
     maxAttempts: 3
 };
 
-type RecoveryEntry = {
-    enabled: boolean;
-    options: RecoveryOptionsInfo;
-    recovery: ConnectionRecovery | null;
-    attempt: number;
-    recovering: boolean;
-    lastEvent: string | null;
-    error: string | null;
-    detach: (() => void) | null;
-};
-
-let sequence = 0;
-
-/** The SDK does not instantiate `ConnectionRecovery`. Register one per device and forward its events. */
+/**
+ * The device recovers by itself now; these channels report its status and keep the drop and wake
+ * tools. Arming and disarming are accepted and change nothing, until step 2 reworks the panel.
+ */
 export function registerRecoveryChannels(context: ChannelContext): void {
-    const entries = new Map<string, RecoveryEntry>();
-
-    const entryOf = (deviceId: string): RecoveryEntry => {
-        const existing = entries.get(deviceId);
-
-        if (existing) {
-            return existing;
-        }
-
-        const created: RecoveryEntry = {
-            enabled: false,
-            options: DEFAULT_OPTIONS,
-            recovery: null,
-            attempt: 0,
-            recovering: false,
-            lastEvent: null,
-            error: null,
-            detach: null
-        };
-
-        entries.set(deviceId, created);
-
-        return created;
-    };
+    const lastEvents = new Map<string, string>();
 
     const statusOf = (deviceId: string): RecoveryStatus => {
-        const entry = entryOf(deviceId);
+        const status = context.sessions.sessions.get(deviceId)?.device?.status;
+        const airplay = status?.airplay;
 
         return {
             deviceId,
-            enabled: entry.enabled,
-            options: entry.options,
-            recovering: entry.recovering,
-            attempt: entry.attempt,
-            lastEvent: entry.lastEvent,
-            error: entry.error,
+            enabled: true,
+            options: DEVICE_OPTIONS,
+            recovering: status?.state === 'recovering' || status?.state === 'offline',
+            attempt: airplay?.attempt ?? 0,
+            lastEvent: lastEvents.get(deviceId) ?? status?.state ?? null,
+            error: status?.error?.message ?? null,
             updatedAt: Date.now()
         };
     };
 
     const push = (deviceId: string): void => {
         context.send('recovery:status', statusOf(deviceId));
-    };
-
-    /* Use decreasing sequence numbers to avoid collisions with session events. */
-    const forward = (deviceId: string, name: string, payload: readonly unknown[]): void => {
-        sequence += 1;
-
-        const event: DeviceEvent = {
-            deviceId,
-            source: 'device',
-            name,
-            payload,
-            timestamp: Date.now(),
-            sequence: -sequence
-        };
-
-        context.send('device:event', event);
     };
 
     const sessionOf = (deviceId: string): DeviceSession => {
@@ -98,104 +49,9 @@ export function registerRecoveryChannels(context: ChannelContext): void {
         return session;
     };
 
-    const disable = (deviceId: string): void => {
-        const entry = entryOf(deviceId);
-
-        entry.detach?.();
-        entry.detach = null;
-        entry.recovery?.dispose();
-        entry.recovery = null;
-        entry.enabled = false;
-        entry.recovering = false;
-        entry.attempt = 0;
-    };
-
-    /* Reconnecting builds a new device, so the listener has to move with it or recovery fires once. */
-    const attach = (deviceId: string, recovery: ConnectionRecovery): void => {
-        const entry = entryOf(deviceId);
-        const emitter = context.sessions.sessions.get(deviceId)?.device as unknown as EventEmitter | undefined;
-
-        entry.detach?.();
-        entry.detach = null;
-
-        if (!emitter) {
-            return;
-        }
-
-        const listener = (unexpected: boolean): void => recovery.handleDisconnect(unexpected);
-
-        emitter.on('disconnected', listener);
-        entry.detach = () => emitter.off('disconnected', listener);
-    };
-
-    const enable = (deviceId: string, options: RecoveryOptionsInfo): void => {
-        disable(deviceId);
-
-        const entry = entryOf(deviceId);
-
-        // Recovery listens for the device's own disconnect, so arming without a session is a no-op.
-        const requireCompanion = (sessionOf(deviceId).device as {companionLink?: {isConnected: boolean}})?.companionLink?.isConnected === true;
-
-        const recovery = new ConnectionRecovery({
-            baseDelay: options.baseDelay,
-            maxDelay: options.maxDelay,
-            maxAttempts: options.maxAttempts,
-            onReconnect: async () => {
-                const snapshot = await context.sessions.connect(deviceId);
-                if (!snapshot.connection.airplay.connected || (requireCompanion && !snapshot.connection.companionLink.connected)) {
-                    throw new Error('The required device protocols did not reconnect.');
-                }
-                attach(deviceId, recovery);
-            }
-        });
-
-        recovery.on('recovering', attempt => {
-            entry.recovering = true;
-            entry.attempt = attempt;
-            entry.lastEvent = `recovering (attempt ${attempt})`;
-            forward(deviceId, 'recovering', [attempt]);
-            push(deviceId);
-        });
-
-        recovery.on('recovered', () => {
-            entry.recovering = false;
-            entry.attempt = 0;
-            entry.error = null;
-            entry.lastEvent = 'recovered';
-            forward(deviceId, 'recovered', []);
-            push(deviceId);
-        });
-
-        recovery.on('failed', errors => {
-            entry.recovering = false;
-            entry.error = errors.map(error => error.message).join('; ');
-            entry.lastEvent = 'failed';
-            forward(deviceId, 'recoveryFailed', [entry.error]);
-            push(deviceId);
-        });
-
-        attach(deviceId, recovery);
-
-        entry.recovery = recovery;
-        entry.options = options;
-        entry.enabled = true;
-        entry.lastEvent = 'armed';
-    };
-
     handle('recovery:status', request => statusOf(request.deviceId));
 
     handle('recovery:configure', request => {
-        const entry = entryOf(request.deviceId);
-        const options: RecoveryOptionsInfo = {...entry.options, ...request.options};
-
-        if (request.enabled) {
-            enable(request.deviceId, options);
-        } else {
-            disable(request.deviceId);
-            entry.options = options;
-            entry.lastEvent = 'disarmed';
-        }
-
         const status = statusOf(request.deviceId);
         context.send('recovery:status', status);
 
@@ -204,14 +60,13 @@ export function registerRecoveryChannels(context: ChannelContext): void {
 
     /* Destroying the socket is the only way to produce the unexpected disconnect recovery is for. */
     handle('recovery:simulateDrop', request => {
-        const session = sessionOf(request.deviceId);
-        const device = session.device;
+        const device = sessionOf(request.deviceId).device;
 
         if (device === null) {
             throw new Error('This device is not connected, so there is nothing to drop.');
         }
 
-        const airplay = device.airplay[AIRPLAY_PROTOCOL];
+        const airplay = device.sessions.airplay;
         const kind = request.stream ?? 'data';
         if (!['control', 'data', 'event'].includes(kind)) throw new Error('Unknown stream to drop.');
         const stream = kind === 'control' ? airplay?.control : kind === 'event' ? airplay?.remoteControl?.events : airplay?.remoteControl?.data;
@@ -220,8 +75,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
             throw new Error('This device has no selected stream socket to drop.');
         }
 
-        const entry = entryOf(request.deviceId);
-        entry.lastEvent = 'socket destroyed';
+        lastEvents.set(request.deviceId, 'socket destroyed');
         push(request.deviceId);
 
         stream.destroy(new Error('Simulated drop.'));
@@ -236,8 +90,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
 
         await Discovery.wake(discovered.address, WAKE_PORTS);
 
-        const entry = entryOf(request.deviceId);
-        entry.lastEvent = `wake knocked on ${discovered.address}`;
+        lastEvents.set(request.deviceId, `wake knocked on ${discovered.address}`);
         push(request.deviceId);
     });
 }

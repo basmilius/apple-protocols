@@ -28,9 +28,9 @@ export type StreamEventMap = {
 };
 
 type Pending = {
-    readonly resolve: (frame: [number, unknown]) => void;
-    readonly reject: (error: Error) => void;
     readonly timer: NodeJS.Timeout;
+    resolve(frame: [number, unknown]): void;
+    reject(error: Error): void;
 };
 
 /**

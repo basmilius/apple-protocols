@@ -1,4 +1,4 @@
-import { Logger } from '../reporter';
+import { Logger, type LogSink } from '../reporter';
 
 /**
  * Describes the identity that this client presents to Apple devices during pairing
@@ -55,10 +55,11 @@ export class Context {
     /**
      * @param deviceId - Unique identifier of the target device.
      * @param identity - Optional partial override of the default device identity.
+     * @param sink - Also receives every log record of this context.
      */
-    constructor(deviceId: string, identity?: Partial<DeviceIdentity>) {
+    constructor(deviceId: string, identity?: Partial<DeviceIdentity>, sink?: LogSink) {
         this.#deviceId = deviceId;
         this.#identity = { ...DEFAULT_IDENTITY, ...identity };
-        this.#logger = new Logger(deviceId);
+        this.#logger = new Logger(deviceId, sink);
     }
 }

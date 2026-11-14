@@ -94,7 +94,7 @@ export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
                 const result = await invoke('device:call', {
                     deviceId,
                     root: 'companionLink',
-                    path: 'tap',
+                    path: 'touch.tap',
                     args: durationMs >= HOLD_MS ? [durationMs] : []
                 });
 

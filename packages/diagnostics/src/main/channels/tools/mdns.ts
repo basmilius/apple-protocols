@@ -1,4 +1,4 @@
-import { Discovery, mdnsMulticast } from '@corewire/core/discovery';
+import { Discovery, mdnsMulticast, mdnsUnicast } from '@corewire/core/discovery';
 import {
     AIRPLAY_SERVICE,
     describeFlags,
@@ -10,8 +10,9 @@ import {
 } from '@corewire/airplay';
 import { RAOP_SERVICE } from '@corewire/airplay/raop';
 import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import { discoverAll as discoverAllDevices, getDeviceModelName, lookupDeviceModel, mdnsUnicast, WAKE_PORTS } from '@corewire/devices';
+import { getDeviceModelName, lookupDeviceModel, WAKE_PORTS } from '@corewire/devices';
 import type { DiscoveryService, MdnsCombinedRecord, MdnsFeatures, MdnsQuery, MdnsRecord } from '@shared/contract';
+import { discoverAllDevices } from '../../discovery';
 
 const DEFAULT_TIMEOUT_MS = 4000;
 
@@ -83,7 +84,7 @@ export async function scan(query: MdnsQuery): Promise<readonly MdnsRecord[]> {
         throw new Error('A unicast scan needs at least one address.');
     }
 
-    const found = query.mode === 'unicast' ? await mdnsUnicast(hosts, services, timeout) : await mdnsMulticast(services, timeout);
+    const found = query.mode === 'unicast' ? await mdnsUnicast(hosts, services, timeout, WAKE_PORTS) : await mdnsMulticast(services, timeout);
 
     return found.map(service => toRecord(service.name, service.type, service.address, service.port, service.properties));
 }

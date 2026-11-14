@@ -24,9 +24,9 @@ export type DataChannelEventMap = {
 } & { readonly [K in MrpMessageName]: [MrpMessageMap[K]] };
 
 type Outstanding = {
-    readonly resolve: (message: Proto.ProtocolMessage) => void;
-    readonly reject: (error: Error) => void;
     readonly timer: NodeJS.Timeout;
+    resolve(message: Proto.ProtocolMessage): void;
+    reject(error: Error): void;
 };
 
 /**

@@ -1,5 +1,4 @@
 import { app, BrowserWindow } from 'electron';
-import { configure } from '@corewire/devices';
 import { type DeviceEvent, type EventChannel, type EventMap, type StateSnapshot } from '@shared/contract';
 import { AgentServer } from './agent/server';
 import { ResumeList } from './agent/resume';
@@ -116,7 +115,6 @@ const start = async (): Promise<void> => {
     });
 
     await storage.load();
-    configure({storage: storage.storage});
 
     registerChannels();
 

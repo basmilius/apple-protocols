@@ -7,7 +7,7 @@ import { EventFeed, MissingDevice } from '@/panels/sdk-shared';
 import { useStatus } from '@/panels/shared-media/hooks';
 import { Banner, Button, Field, FormError, Icon, ICONS, KeyValue, KeyValueList, PanelBody, RelativeTime, Section, StatusPill, TextInput, Toggle, useAsyncAction } from '@/ui';
 
-const CONNECTION_EVENTS: readonly string[] = ['connected', 'disconnected', 'recovering', 'recovered', 'recoveryFailed'];
+const CONNECTION_EVENTS: readonly string[] = ['status'];
 const DEVICE_SOURCE = ['device'] as const;
 
 /** Arms `ConnectionRecovery` in main; simulate-drop destroys the DataStream socket to test recovery. */

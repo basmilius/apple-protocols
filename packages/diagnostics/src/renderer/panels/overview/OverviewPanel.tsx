@@ -36,7 +36,7 @@ function MiniPlayer({snapshot, connected, call}: { readonly snapshot: StateSnaps
             <ButtonGroup className="shrink-0">
                 <IconButton icon={SkipBack} label="Previous" disabled={!connected} onClick={() => void call('device', 'playback.previous')}/>
                 <Tooltip label="Play or pause">
-                    <Button variant="primary" aria-label="Play or pause" disabled={!connected} onClick={() => void call('device', 'playback.playPause')}>
+                    <Button variant="primary" aria-label="Play or pause" disabled={!connected} onClick={() => void call('device', 'playback.togglePlayPause')}>
                         <Icon icon={ICONS.playPause} size={16}/>
                     </Button>
                 </Tooltip>

@@ -1,76 +1,98 @@
-export type { AppleMusicLyricsOptions } from './internal/apple-music-lyrics';
 /// <reference types="node" preserve="true" />
-export type { AnimatedArtworkResult } from './internal';
-export type { LyricsResult } from './controller/media';
-// --- Devices ---
-export { AbstractDevice, AppleTV, type AppleTVOptions, HomePod, HomePodMini } from './device';
-
-// --- Controllers ---
 export {
-    AccountsController,
-    AppsController,
-    ArtworkController,
-    KeyboardController,
-    MediaController,
-    MultiroomController,
-    PlaybackController,
-    PowerController,
-    RemoteController,
-    StateController,
-    SystemController,
-    VolumeController
-} from './controller';
+    AppleDevice,
+    AppleTV,
+    type AppleTVOptions,
+    HomePod
+} from './device';
 
-// --- Pairing ---
-export { PairingSession, type PairingOptions, type PairingResult } from './pairing';
-
-// --- Internals (for advanced/diagnostics use) ---
 export {
-    AirPlayArtwork,
-    AirPlayClient,
-    AirPlayManager,
-    AirPlayPlayer,
-    AirPlayRemote,
-    AirPlayState,
-    AirPlayVolume,
-    CompanionLinkManager,
-    CompanionLinkState,
-    AIRPLAY_PROTOCOL,
-    COMPANION_LINK_PROTOCOL
-} from './internal';
+    Credentials
+} from './credentials/credentials';
 
-// --- Discovery ---
-export { discover, discoverAll, createDevice, type CombinedDiscoveryResult, type DiscoveredDevice, type DiscoverOptions, mdnsUnicast, WAKE_PORTS } from './discover';
-export { DeviceFamily, DeviceModel, getDeviceFamily, getDeviceModelName, isAirPort, isAppleTV, isHomePod, lookupDeviceModel } from './deviceModel';
+export {
+    Pairing,
+    type PairOptions
+} from './pairing/pairing';
 
-// --- Configuration ---
-export { configure, type SdkConfig } from './configure';
+export {
+    UnavailableError
+} from './errors';
 
-// --- Types ---
+export {
+    createDevice,
+    discover
+} from './discovery/discover';
+
+export {
+    WAKE_PORTS
+} from './lifecycle/resolve';
+
+export {
+    DeviceFamily,
+    DeviceModel,
+    getDeviceFamily,
+    getDeviceModelName,
+    isAirPort,
+    isAppleTV,
+    isHomePod,
+    lookupDeviceModel
+} from './deviceModel';
+
+export type { AccountsControl } from './accounts/accounts';
+export type { AppsControl } from './apps/apps';
+export type { ArtworkControl } from './artwork/artwork';
+export type { MediaControl, MediaPlayback } from './media/media';
+export type { MultiroomControl } from './multiroom/multiroom';
+export type { NowPlayingControl } from './nowPlaying/nowPlaying';
+export type { PlaybackControl } from './playback/playback';
+export type { PowerControl } from './power/power';
+export type { RemoteControl } from './remote/remote';
+export type { SystemControl } from './system/system';
+export type { TextControl } from './text/text';
+export type { TouchControl } from './touch/touch';
+export type { VolumeControl } from './volume/volume';
+
 export type {
-    AccessoryCredentials,
-    AppleTVEventMap,
-    ArtworkResult,
-    AttentionState,
-    ConnectOptions,
-    DeviceEventMap,
+    Account,
+    AnimatedArtwork,
+    App,
+    AppleTVCapability,
+    Artwork,
+    AudioSource,
+    Capability,
+    ClientIdentity,
     DeviceOptions,
-    DeviceType,
-    DiscoveryResult,
-    MediaCapabilities,
-    RecoveryOptions,
-    StateEventMap,
-    TextInputState
+    DeviceSessions,
+    DeviceState,
+    DeviceTarget,
+    DiscoveredDevice,
+    DiscoverOptions,
+    HomePodCapability,
+    LinkState,
+    LogEntry,
+    LogLevel,
+    Lyrics,
+    MediaKind,
+    NowPlaying,
+    NowPlayingCommand,
+    NowPlayingSeries,
+    PlaybackState,
+    PlayUrlOptions,
+    PowerState,
+    PressMode,
+    PressOptions,
+    ProtocolStatus,
+    RemoteKey,
+    RepeatMode,
+    RetryPhase,
+    ServiceRecord,
+    ShuffleMode,
+    Status,
+    StatusReason,
+    StreamAudioOptions,
+    SwipeDirection,
+    TextState,
+    VolumeMode,
+    VolumeState
 } from './types';
-
-export { SendCommandError } from './types';
-
-// --- Re-exports from protocol packages ---
-export { AIRPLAY_SERVICE, type AudioSource, TimingServer } from '@corewire/airplay';
-export { Proto } from '@corewire/airplay/mrp';
-export { RAOP_SERVICE } from '@corewire/airplay/raop';
-export { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-export { type DebugGroup, reporter, type ReporterEntry, type ReporterSink, type ReporterSinkOptions, type TrafficDirection, type TrafficEntry, type TrafficProtocol, type TrafficSink } from '@corewire/core';
-export { mdnsMulticast, type MdnsService } from '@corewire/core/discovery';
-export { JsonStorage, MemoryStorage, type ProtocolType, Storage } from '@corewire/core/storage';
-export { ConnectionRecovery } from '@corewire/core/transport';

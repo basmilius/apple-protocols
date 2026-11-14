@@ -1,4 +1,3 @@
-import { AIRPLAY_PROTOCOL, AppleTV, COMPANION_LINK_PROTOCOL } from '@corewire/devices';
 import type { CallResult } from '@shared/contract';
 import { handle } from '../../ipc';
 import { serialize, serializeError } from '../../serialize';
@@ -37,8 +36,7 @@ function targetsOf(session: DeviceSession): RawTargets {
         return {};
     }
 
-    const airplay = device.airplay[AIRPLAY_PROTOCOL];
-    const companionLink = device instanceof AppleTV ? device.companionLink?.[COMPANION_LINK_PROTOCOL] : undefined;
+    const {airplay, companionLink} = device.sessions;
 
     return {
         dataStream: airplay?.remoteControl?.data as unknown as RawTargets['dataStream'],

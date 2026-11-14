@@ -117,20 +117,25 @@ export function callFor(command: FaceCommand, gesture: Gesture, transport: Trans
         const doubled = gesture === 'double' || (gesture === 'tap' && command.doubleTap === true);
         const press = gesture === 'hold' ? 'Hold' : (doubled ? 'DoubleTap' : 'SingleTap');
 
-        return {root: 'companionLink', path: 'pressButton', args: [command.companion, press, heldMs]};
+        return {root: 'companionLink', path: 'hid.press', args: [command.companion, press, heldMs]};
     }
 
     if (gesture === 'hold') {
         if (command.holdPath !== undefined) {
-            return {root: 'device', path: command.holdPath, args: []};
+            return {root: 'device', path: 'remote.press', args: [keyOf(command.holdPath)]};
         }
 
-        return {root: 'device', path: 'remote.longPress', args: [command.page, command.usage, heldMs]};
+        return {root: 'airplay', path: 'hid.longPress', args: [command.page, command.usage, heldMs]};
     }
 
     if (gesture === 'double' || command.doubleTap === true) {
-        return {root: 'device', path: 'remote.doublePress', args: [command.page, command.usage]};
+        return {root: 'airplay', path: 'hid.doublePress', args: [command.page, command.usage]};
     }
 
-    return {root: 'device', path: command.path, args: []};
+    return {root: 'device', path: 'remote.press', args: [keyOf(command.path)]};
+}
+
+/** The remote key of a `remote.<key>` path; a tap on the device goes over AirPlay HID as before. */
+export function keyOf(path: string): string {
+    return path.replace(/^remote\./, '');
 }

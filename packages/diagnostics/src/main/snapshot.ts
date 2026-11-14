@@ -1,4 +1,5 @@
-import { type AirPlayClient, type AirPlayPlayer, type AirPlayState, AppleTV, type HomePod, Proto } from '@corewire/devices';
+import { type Client as AirPlayClient, MediaRemoteState as AirPlayState, type Player as AirPlayPlayer, Proto } from '@corewire/airplay/mrp';
+import type { AppleTV, AppleTVCapability, HomePod, PlaybackState } from '@corewire/devices';
 import type {
     ClientSnapshot,
     ConnectionSnapshot,
@@ -25,6 +26,20 @@ const PLAYBACK_STATE: Record<number, string> = {
     [Proto.PlaybackState_Enum.Interrupted]: 'Interrupted',
     [Proto.PlaybackState_Enum.Seeking]: 'Seeking'
 };
+
+const PLAYBACK_LABEL: Record<PlaybackState, string> = {
+    unknown: 'Unknown',
+    playing: 'Playing',
+    paused: 'Paused',
+    stopped: 'Stopped',
+    interrupted: 'Interrupted',
+    seeking: 'Seeking'
+};
+
+const CAPABILITIES: readonly AppleTVCapability[] = ['remote', 'nowPlaying', 'playback', 'volume', 'artwork', 'multiroom', 'streamAudio', 'playUrl', 'text', 'power', 'apps', 'accounts', 'system', 'touch'];
+
+/** What the snapshot reads while AirPlay is down. */
+const EMPTY_STATE = new AirPlayState();
 
 const SHUFFLE = ['Unknown', 'Off', 'Albums', 'Songs'];
 const REPEAT = ['Unknown', 'Off', 'One', 'All'];
@@ -71,7 +86,7 @@ export function buildSnapshot(input: SnapshotInput): StateSnapshot {
         return {...emptySnapshot(input.deviceId, input.status, input.error)};
     }
 
-    const state = device.airplay.state;
+    const state = device.sessions.mediaRemote?.state ?? EMPTY_STATE;
     const client = state.nowPlayingClient;
     const player = client?.activePlayer ?? null;
 
@@ -96,26 +111,33 @@ export function buildSnapshot(input: SnapshotInput): StateSnapshot {
 }
 
 function connectionOf(device: Device, status: DeviceSessionStatus, error: string | null): ConnectionSnapshot {
-    const companionLink = device instanceof AppleTV ? (device.companionLink ?? null) : null;
+    const airplay = device.status.airplay.state === 'connected';
+    const companionLink = device.status.companionLink;
 
     return {
         status,
-        connected: device.airplay.isConnected,
-        airplay: {available: true, connected: device.airplay.isConnected},
-        companionLink: {available: companionLink !== null, connected: companionLink?.isConnected ?? false},
+        connected: airplay,
+        airplay: {available: true, connected: airplay},
+        companionLink: {available: companionLink !== undefined && companionLink.state !== 'off', connected: companionLink?.state === 'connected'},
         error
     };
 }
 
 function infoOf(device: Device, deviceType: DeviceType): DeviceInfoSnapshot {
+    const capabilities: Record<string, boolean> = {};
+
+    for (const capability of CAPABILITIES) {
+        capabilities[capability] = (device as AppleTV).supports(capability);
+    }
+
     return {
         id: device.id,
         name: device.name,
         address: device.address,
-        modelName: device.airplay.discoveryResult.modelName ?? '',
+        modelName: device.modelName,
         deviceType,
-        receiverInfo: (device.receiverInfo as Record<string, unknown> | undefined) ?? null,
-        capabilities: (device.capabilities as Record<string, unknown> | undefined) ?? null
+        receiverInfo: (device.sessions.airplay?.info as Record<string, unknown> | undefined) ?? null,
+        capabilities
     };
 }
 
@@ -137,21 +159,25 @@ function emptyNowPlaying(): NowPlayingSnapshot {
 }
 
 function nowPlayingOf(device: Device, artworkUrl: string | null): NowPlayingSnapshot {
-    const state = device.state;
+    const item = device.nowPlaying.current;
+
+    if (!item) {
+        return {...emptyNowPlaying(), artworkUrl};
+    }
 
     return {
-        title: state.title,
-        artist: state.artist,
-        album: state.album,
-        genre: state.genre,
-        duration: state.duration,
-        elapsedTime: state.elapsedTime,
-        playbackRate: state.playbackRate,
-        playbackState: label(PLAYBACK_STATE, state.playbackState),
-        mediaType: indexed(MEDIA_TYPE, state.mediaType),
+        title: item.title,
+        artist: item.artist,
+        album: item.album,
+        genre: item.genre,
+        duration: item.duration,
+        elapsedTime: device.nowPlaying.elapsed,
+        playbackRate: item.rate,
+        playbackState: PLAYBACK_LABEL[item.state],
+        mediaType: item.kind === 'audio' ? 'Audio' : item.kind === 'video' ? 'Video' : 'Unknown',
         artworkUrl,
-        appName: state.activeApp?.displayName ?? null,
-        bundleIdentifier: state.activeApp?.bundleIdentifier ?? null
+        appName: item.app.name,
+        bundleIdentifier: item.app.bundleId
     };
 }
 

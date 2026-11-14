@@ -1,4 +1,4 @@
-import { reporter, type TrafficEntry } from '@corewire/devices';
+import { reporter, type TrafficEntry } from '@corewire/core';
 import type { TrafficProtocol, TrafficRecord } from '@shared/contract';
 import { Ring } from './ring';
 import { serialize } from './serialize';

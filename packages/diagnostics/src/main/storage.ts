@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { JsonStorage } from '@corewire/devices';
+import { JsonStorage } from '@corewire/core/storage';
 
 /** Queues credential saves in call order. */
 export class StorageQueue {

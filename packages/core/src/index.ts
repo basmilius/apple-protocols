@@ -24,6 +24,7 @@ export {
 export {
     type DebugGroup,
     Logger,
+    type LogSink,
     type Reporter,
     type ReporterEntry,
     type ReporterSink,

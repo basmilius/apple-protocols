@@ -1,17 +1,10 @@
 import type { EventEmitter } from 'node:events';
-import {
-    AIRPLAY_PROTOCOL,
-    AppleTV,
-    COMPANION_LINK_PROTOCOL,
-    createDevice,
-    discover,
-    type DiscoveredDevice,
-    HomePod,
-    type Storage,
-    TimingServer
-} from '@corewire/devices';
+import { TimingServer } from '@corewire/airplay';
+import type { Storage } from '@corewire/core/storage';
+import { AppleTV, Credentials, HomePod, type Status } from '@corewire/devices';
 import type { CallRequest, CallResult, DeviceEvent, DeviceEventSource, DeviceSessionStatus, DiscoveredDeviceInfo, ProtocolName, ServiceInfo, StateSnapshot } from '@shared/contract';
 import { runCall, type CallRoots } from './call';
+import { type DiscoveredDevice, discoverDevices, targetOf } from './discovery';
 import {
     AIRPLAY_STATE_EVENTS,
     ARTWORK_EVENTS,
@@ -26,8 +19,17 @@ import { buildSnapshot, emptySnapshot } from './snapshot';
 
 type Device = AppleTV | HomePod;
 
-/** The sources whose events change what a snapshot reports. A raw data stream frame does not. */
-const SNAPSHOT_SOURCES: readonly DeviceEventSource[] = ['device', 'state', 'airplayState', 'companionLink'];
+/** The sources whose events change what a snapshot reports. The model no longer echoes messages, so the data stream counts too. */
+const SNAPSHOT_SOURCES: readonly DeviceEventSource[] = ['device', 'state', 'airplayState', 'companionLink', 'dataStream'];
+
+const SESSION_STATUS: Record<Status['state'], DeviceSessionStatus> = {
+    disconnected: 'disconnected',
+    connecting: 'connecting',
+    connected: 'connected',
+    degraded: 'connected',
+    recovering: 'recovering',
+    offline: 'failed'
+};
 
 export type SessionHost = {
     emitEvent(event: DeviceEvent): void;
@@ -40,6 +42,7 @@ export class DeviceSession {
     readonly #host: SessionHost;
     readonly #timingServer: TimingServer;
     readonly #unsubscribes: (() => void)[] = [];
+    readonly #sessionUnsubscribes: (() => void)[] = [];
 
     #discovered: DiscoveredDevice;
     #device: Device | null = null;
@@ -50,6 +53,7 @@ export class DeviceSession {
     #snapshotQueued = false;
     #connecting?: Promise<StateSnapshot>;
     #generation = 0;
+    #watched: readonly unknown[] = [];
 
     constructor(discovered: DiscoveredDevice, host: SessionHost, timingServer: TimingServer) {
         this.#discovered = discovered;
@@ -96,29 +100,34 @@ export class DeviceSession {
         this.#error = null;
         this.#host.emitDiscovery();
 
-        const device = createDevice(this.#discovered);
-        device.timingServer = this.#timingServer;
+        let device: Device;
+
+        try {
+            device = this.#create(storage);
+        } catch (error) {
+            this.#status = 'failed';
+            this.#error = error instanceof Error ? error.message : String(error);
+            this.#host.emitDiscovery();
+
+            throw error;
+        }
+
         this.#device = device;
 
         this.#watch('device', device as unknown as EventEmitter, DEVICE_EVENTS);
-        this.#watch('state', device.state as unknown as EventEmitter, STATE_EVENTS);
-        this.#watch('airplayState', device.airplay.state as unknown as EventEmitter, AIRPLAY_STATE_EVENTS);
+        this.#watch('state', device.nowPlaying as unknown as EventEmitter, STATE_EVENTS, 'nowPlaying.');
+        this.#watch('state', device.volume as unknown as EventEmitter, ['change'], 'volume.');
+
+        if (device instanceof AppleTV) {
+            this.#watch('state', device.power as unknown as EventEmitter, ['change'], 'power.');
+            this.#watch('state', device.text as unknown as EventEmitter, ['change'], 'text.');
+        }
 
         try {
-            if (device instanceof AppleTV) {
-                const credentials = storage.getCredentials(this.#discovered.services.airplay?.id ?? this.#discovered.id, 'airplay');
-
-                if (!credentials) {
-                    throw new Error('No AirPlay credentials stored for this device. Pair first.');
-                }
-
-                await device.connect(credentials);
-            } else {
-                await device.connect();
-            }
+            await device.connect();
             if (generation !== this.#generation || this.#device !== device) throw new Error('Device connect cancelled.');
         } catch (error) {
-            try {device.disconnect();} catch {}
+            void device.disconnect().catch(() => undefined);
             if (generation !== this.#generation || this.#device !== device) throw error;
             this.#status = 'failed';
             this.#error = error instanceof Error ? error.message : String(error);
@@ -130,12 +139,7 @@ export class DeviceSession {
         }
 
         this.#status = 'connected';
-        this.#watchStreams(device);
-
-        if (device instanceof AppleTV && device.companionLink) {
-            this.#watch('companionLink', device.companionLink as unknown as EventEmitter, COMPANION_LINK_EVENTS);
-        }
-
+        this.#watchSessions(device);
         this.#host.emitDiscovery();
         void this.refreshArtwork();
 
@@ -152,11 +156,7 @@ export class DeviceSession {
         this.#artworkUrl = null;
 
         if (device !== null) {
-            try {
-                device.disconnect();
-            } catch {
-                /* An already-closed socket needs no further cleanup. */
-            }
+            await device.disconnect().catch(() => undefined);
         }
 
         this.#host.emitDiscovery();
@@ -182,7 +182,7 @@ export class DeviceSession {
         return await runCall(this.roots(), request);
     }
 
-    /** The objects a `device:call` path may start from. */
+    /** The objects a `device:call` path may start from: the device and the sessions it uses now. */
     roots(): CallRoots {
         const device = this.#device;
 
@@ -190,15 +190,15 @@ export class DeviceSession {
             return {};
         }
 
-        const companionLink = device instanceof AppleTV ? device.companionLink : undefined;
+        const sessions = device.sessions;
 
         return {
             device,
-            airplay: device.airplay,
-            airplayState: device.airplay.state,
-            companionLink,
-            airplayProtocol: device.airplay[AIRPLAY_PROTOCOL],
-            companionLinkProtocol: companionLink?.[COMPANION_LINK_PROTOCOL]
+            airplay: sessions.mediaRemote,
+            airplayState: sessions.mediaRemote?.state,
+            companionLink: sessions.companionLink,
+            airplayProtocol: sessions.airplay,
+            companionLinkProtocol: sessions.companionLink
         };
     }
 
@@ -232,21 +232,59 @@ export class DeviceSession {
         this.#host.emitSnapshot(this.snapshot());
     }
 
-    #watchStreams(device: Device): void {
-        const remote = device.airplay[AIRPLAY_PROTOCOL]?.remoteControl;
+    #create(storage: Storage): Device {
+        const target = targetOf(this.#discovered);
+
+        if (this.#discovered.deviceType !== 'appletv') {
+            return new HomePod(target, {timing: this.#timingServer});
+        }
+
+        const credentials = storage.getCredentials(this.#discovered.services.airplay?.id ?? this.#discovered.id, 'airplay');
+
+        if (!credentials) {
+            throw new Error('No AirPlay credentials stored for this device. Pair first.');
+        }
+
+        return new AppleTV(target, {credentials: Credentials.from(credentials), timing: this.#timingServer});
+    }
+
+    /** A recovery brings new sessions; the channel and model watchers follow them. */
+    #watchSessions(device: Device): void {
+        const sessions = device.sessions;
+        const watched = [sessions.airplay, sessions.mediaRemote, sessions.companionLink];
+
+        if (watched.every((session, index) => session === this.#watched[index])) {
+            return;
+        }
+
+        for (const unsubscribe of this.#sessionUnsubscribes.splice(0)) {
+            unsubscribe();
+        }
+
+        this.#watched = watched;
+
+        const remote = sessions.airplay?.remoteControl;
 
         if (remote) {
-            this.#watch('dataStream', remote.data as unknown as EventEmitter, DATA_STREAM_EVENTS);
-            this.#watch('eventStream', remote.events as unknown as EventEmitter, EVENT_STREAM_EVENTS);
+            this.#watch('dataStream', remote.data as unknown as EventEmitter, DATA_STREAM_EVENTS, '', this.#sessionUnsubscribes);
+            this.#watch('eventStream', remote.events as unknown as EventEmitter, EVENT_STREAM_EVENTS, '', this.#sessionUnsubscribes);
+        }
+
+        if (sessions.mediaRemote) {
+            this.#watch('airplayState', sessions.mediaRemote.state as unknown as EventEmitter, AIRPLAY_STATE_EVENTS, '', this.#sessionUnsubscribes);
+        }
+
+        if (sessions.companionLink) {
+            this.#watch('companionLink', sessions.companionLink.state as unknown as EventEmitter, COMPANION_LINK_EVENTS, '', this.#sessionUnsubscribes);
         }
     }
 
-    #watch(source: DeviceEventSource, emitter: EventEmitter, names: readonly string[]): void {
+    #watch(source: DeviceEventSource, emitter: EventEmitter, names: readonly string[], prefix: string = '', unsubscribes: (() => void)[] = this.#unsubscribes): void {
         for (const name of names) {
-            const listener = (...args: unknown[]): void => this.#forward(source, name, args);
+            const listener = (...args: unknown[]): void => this.#forward(source, `${prefix}${name}`, args);
 
             emitter.on(name, listener);
-            this.#unsubscribes.push(() => emitter.off(name, listener));
+            unsubscribes.push(() => emitter.off(name, listener));
         }
     }
 
@@ -260,19 +298,8 @@ export class DeviceSession {
             sequence: nextSequence()
         });
 
-        if (source === 'device' && (name === 'connected' || name === 'disconnected')) {
-            this.#status = name === 'connected' ? 'connected' : 'disconnected';
-            this.#host.emitDiscovery();
-        }
-
-        if (source === 'device' && name === 'recovering') {
-            this.#status = 'recovering';
-            this.#host.emitDiscovery();
-        }
-
-        if (source === 'device' && name === 'recoveryFailed') {
-            this.#status = 'failed';
-            this.#host.emitDiscovery();
+        if (source === 'device' && name === 'status') {
+            this.#onStatus(args[0] as Status);
         }
 
         if (ARTWORK_EVENTS.includes(name)) {
@@ -283,6 +310,17 @@ export class DeviceSession {
         if (SNAPSHOT_SOURCES.includes(source)) {
             this.#scheduleSnapshot();
         }
+    }
+
+    #onStatus(status: Status): void {
+        if (this.#connecting || this.#device === null) {
+            return;
+        }
+
+        this.#status = SESSION_STATUS[status.state];
+        this.#error = status.error?.message ?? null;
+        this.#watchSessions(this.#device);
+        this.#host.emitDiscovery();
     }
 
     /* Coalesce protocol bursts into one snapshot per tick; each snapshot walks all clients and players. */
@@ -300,11 +338,14 @@ export class DeviceSession {
     }
 
     #teardown(): void {
-        for (const unsubscribe of this.#unsubscribes.splice(0)) {
+        for (const unsubscribe of [...this.#unsubscribes.splice(0), ...this.#sessionUnsubscribes.splice(0)]) {
             unsubscribe();
         }
+
+        this.#watched = [];
     }
 }
+
 
 /** Shares one timing server across sessions so disconnecting one device does not interrupt the others. */
 export class SessionManager {
@@ -334,7 +375,7 @@ export class SessionManager {
      * @param rescan - Skips the discovery cache and queries mDNS again.
      */
     async discover(rescan = false): Promise<readonly DiscoveredDeviceInfo[]> {
-        const found = await discover({useCache: !rescan});
+        const found = await discoverDevices(!rescan);
         this.#discovered = new Map(found.map(device => [device.id, device]));
 
         for (const [id, session] of this.#sessions) {

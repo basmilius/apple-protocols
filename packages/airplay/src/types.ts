@@ -62,7 +62,7 @@ export type RemoteControlOptions = {
      * Runs after the data channel exists and before it connects, so a listener misses no message
      * the receiver sends right away, such as DEVICE_INFO.
      */
-    readonly subscribe?: (data: DataChannel) => void;
+    subscribe?(data: DataChannel): void;
 };
 
 export type PlayUrlOptions = {

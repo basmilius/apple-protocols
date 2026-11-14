@@ -64,6 +64,9 @@ export type TrafficEntry = {
 
 export type TrafficSink = (entry: TrafficEntry) => void;
 
+/** Receives every record of one {@link Logger}, whichever groups the global reporter prints. */
+export type LogSink = (group: DebugGroup, args: readonly unknown[]) => void;
+
 const ALL_GROUPS: readonly DebugGroup[] = ['debug', 'error', 'info', 'net', 'raw', 'warn'];
 
 /**
@@ -84,41 +87,44 @@ export class Logger {
 
     readonly #id: string;
     readonly #label: string;
+    readonly #sink?: LogSink;
 
     /**
      * @param id - Identifier used as a prefix in log output (typically a device ID or component name).
+     * @param sink - Also receives every record of this logger, next to the global reporter.
      */
-    constructor(id: string) {
+    constructor(id: string, sink?: LogSink) {
         this.#id = id;
         this.#label = `\u001b[36m[${id}]\u001b[39m`;
+        this.#sink = sink;
     }
 
     /**
      * Logs a debug-level message (cyan). Only printed when the 'debug' group is enabled.
      */
     debug(...data: any[]): void {
-        write('debug', this.#id, this.#label, data);
+        this.#write('debug', data);
     }
 
     /**
      * Logs an error-level message (red). Only printed when the 'error' group is enabled.
      */
     error(...data: any[]): void {
-        write('error', this.#id, this.#label, data);
+        this.#write('error', data);
     }
 
     /**
      * Logs an info-level message (green). Only printed when the 'info' group is enabled.
      */
     info(...data: any[]): void {
-        write('info', this.#id, this.#label, data);
+        this.#write('info', data);
     }
 
     /**
      * Logs a network-level message (yellow). Only printed when the 'net' group is enabled.
      */
     net(...data: any[]): void {
-        write('net', this.#id, this.#label, data);
+        this.#write('net', data);
     }
 
     /**
@@ -126,14 +132,14 @@ export class Logger {
      * Typically used for hex dumps and binary protocol data.
      */
     raw(...data: any[]): void {
-        write('raw', this.#id, this.#label, data);
+        this.#write('raw', data);
     }
 
     /**
      * Logs a warning-level message (yellow). Only printed when the 'warn' group is enabled.
      */
     warn(...data: any[]): void {
-        write('warn', this.#id, this.#label, data);
+        this.#write('warn', data);
     }
 
     /**
@@ -148,6 +154,20 @@ export class Logger {
      */
     traffic(protocol: TrafficProtocol, direction: TrafficDirection, summary: string, decoded?: unknown, bytes?: Uint8Array): void {
         reporter.reportTraffic({deviceId: this.#id, protocol, direction, summary, decoded, bytes, timestamp: Date.now()});
+    }
+
+    #write(group: DebugGroup, data: readonly unknown[]): void {
+        write(group, this.#id, this.#label, data);
+
+        if (!this.#sink) {
+            return;
+        }
+
+        try {
+            this.#sink(group, data);
+        } catch {
+            /* Sink errors must not interrupt protocol operations. */
+        }
     }
 }
 

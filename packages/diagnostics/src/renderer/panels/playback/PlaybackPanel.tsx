@@ -89,7 +89,7 @@ function Scrubber({elapsed, duration, connected, call}: { readonly elapsed: numb
                 onValueChange={setDragging}
                 onValueCommitted={next => {
                     setDragging(null);
-                    void call('device', 'playback.seekTo', [next]);
+                    void call('device', 'playback.seek', [next]);
                 }}
             />
             <span className="w-12 shrink-0 text-xs tabular-nums text-text-muted">{formatDuration(duration)}</span>
@@ -195,7 +195,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                     <div className="flex flex-wrap items-center gap-3">
                         <ButtonGroup>
                             <TransportKey {...context} label="Previous" command="PreviousTrack" path="playback.previous" icon={SkipBack}/>
-                            <TransportKey {...context} primary label="Play or pause" command="TogglePlayPause" path="playback.playPause" icon={ICONS.playPause}/>
+                            <TransportKey {...context} primary label="Play or pause" command="TogglePlayPause" path="playback.togglePlayPause" icon={ICONS.playPause}/>
                             <TransportKey {...context} label="Next" command="NextTrack" path="playback.next" icon={SkipForward}/>
                         </ButtonGroup>
                         <ButtonGroup>

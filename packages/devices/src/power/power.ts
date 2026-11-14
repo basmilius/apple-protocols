@@ -1,0 +1,53 @@
+import { EventEmitter } from 'node:events';
+import type { MediaRemote } from '@corewire/airplay/mrp';
+import type { CompanionLinkState } from '@corewire/companion-link';
+import { UnavailableError } from '../errors';
+import type { PowerState } from '../types';
+
+type EventMap = {
+    change: [state: PowerState];
+};
+
+/**
+ * Power of an Apple TV. The state comes from Companion Link and `change` fires on every report,
+ * including the one each Companion Link connect fetches, so a consumer can resync then. Waking and
+ * sleeping are AirPlay HID keys.
+ */
+export class PowerControl extends EventEmitter<EventMap> {
+    /** The last reported state; `unknown` before Companion Link reported one. */
+    get state(): PowerState {
+        return this.#state;
+    }
+
+    readonly #remote: () => MediaRemote | undefined;
+    #state: PowerState = 'unknown';
+
+    constructor(companionLinkState: CompanionLinkState, remote: () => MediaRemote | undefined) {
+        super();
+
+        this.#remote = remote;
+
+        companionLinkState.on('attentionStateChanged', state => {
+            this.#state = state;
+            this.emit('change', state);
+        });
+    }
+
+    async wake(): Promise<void> {
+        await this.#hid().wake();
+    }
+
+    async sleep(): Promise<void> {
+        await this.#hid().suspend();
+    }
+
+    #hid(): MediaRemote['hid'] {
+        const remote = this.#remote();
+
+        if (!remote) {
+            throw new UnavailableError('power', 'disconnected');
+        }
+
+        return remote.hid;
+    }
+}

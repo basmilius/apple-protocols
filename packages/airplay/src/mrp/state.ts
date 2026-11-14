@@ -35,45 +35,25 @@ type NowPlayingSnapshot = {
 };
 
 /**
- * A message the state applied is announced under its own name, once the state it carries is in
- * place; a message it rejects, such as a SET_STATE without a client, is not. The derived events
- * (`nowPlayingChanged`, `activePlayerChanged`, ...) come with the resolved client and player.
+ * What the state derives from the messages, announced once the new values are in place. The
+ * messages themselves are the events of the data channel; the state does not repeat them.
  */
 export type MediaRemoteStateEventMap = {
-    readonly clients: [Record<string, Client>];
-    readonly configureConnection: [Proto.ConfigureConnectionMessage];
-    readonly deviceInfo: [Proto.DeviceInfoMessage];
-    readonly deviceInfoUpdate: [Proto.DeviceInfoMessage];
-    readonly keyboard: [Proto.KeyboardMessage];
-    readonly nowPlayingChanged: [client: Client | null, player: Player | null];
-    readonly originClientProperties: [Proto.OriginClientPropertiesMessage];
-    readonly playerClientProperties: [Proto.PlayerClientPropertiesMessage];
-    readonly removeClient: [Proto.RemoveClientMessage];
-    readonly removePlayer: [Proto.RemovePlayerMessage];
-    readonly sendCommandResult: [Proto.SendCommandResultMessage];
-    readonly setArtwork: [Proto.SetArtworkMessage];
-    readonly setDefaultSupportedCommands: [Proto.SetDefaultSupportedCommandsMessage];
-    readonly setNowPlayingClient: [Proto.SetNowPlayingClientMessage];
-    readonly setNowPlayingPlayer: [Proto.SetNowPlayingPlayerMessage];
-    readonly setState: [Proto.SetStateMessage];
-    readonly updateClient: [Proto.UpdateClientMessage];
-    readonly updateContentItem: [Proto.UpdateContentItemMessage];
-    readonly updateContentItemArtwork: [Proto.UpdateContentItemArtworkMessage];
-    readonly updatePlayer: [Proto.UpdatePlayerMessage];
-    readonly updateOutputDevice: [Proto.UpdateOutputDeviceMessage];
-    readonly volumeControlAvailability: [boolean, Proto.VolumeCapabilities_Enum];
-    readonly volumeControlCapabilitiesDidChange: [boolean, Proto.VolumeCapabilities_Enum];
-    readonly volumeDidChange: [number];
-    readonly volumeMutedDidChange: [boolean];
-
     readonly activePlayerChanged: [client: Client | null, player: Player | null];
     readonly artworkChanged: [client: Client, player: Player];
+    readonly clients: [Record<string, Client>];
+    readonly clusterChanged: [clusterID: string | null, isLeader: boolean];
+    readonly keyboardChanged: [state: Proto.KeyboardState_Enum, attributes: Proto.TextEditingAttributes | null];
     readonly lyricsEvent: [event: Proto.LyricsEvent, playerPath: Proto.PlayerPath | undefined];
+    readonly nowPlayingChanged: [client: Client | null, player: Player | null];
+    readonly outputDevicesChanged: [devices: Proto.AVOutputDeviceDescriptor[]];
+    readonly participantsChanged: [participants: Proto.PlaybackQueueParticipant[]];
     readonly playbackQueueChanged: [client: Client, player: Player];
     readonly playbackStateChanged: [client: Client, player: Player, oldState: Proto.PlaybackState_Enum, newState: Proto.PlaybackState_Enum];
     readonly supportedCommandsChanged: [client: Client, player: Player, commands: Proto.CommandInfo[]];
-    readonly clusterChanged: [clusterID: string | null, isLeader: boolean];
-    readonly playerClientParticipantsUpdate: [Proto.PlayerClientParticipantsUpdateMessage];
+    readonly volumeChanged: [volume: number];
+    readonly volumeControlChanged: [available: boolean, capabilities: Proto.VolumeCapabilities_Enum];
+    readonly volumeMutedChanged: [muted: boolean];
 };
 
 /**
@@ -236,24 +216,15 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
      */
     apply(...[name, message]: MrpMessage): void {
         switch (name) {
-            case 'configureConnection':
-                return this.#onConfigureConnection(message);
             case 'keyboard':
                 return this.#onKeyboard(message);
             case 'deviceInfo':
-                return this.#onDeviceInfo(message);
             case 'deviceInfoUpdate':
-                return this.#onDeviceInfoUpdate(message);
-            case 'originClientProperties':
-                return this.#onOriginClientProperties(message);
-            case 'playerClientProperties':
-                return this.#onPlayerClientProperties(message);
+                return this.#updateDeviceInfo(message);
             case 'removeClient':
                 return this.#onRemoveClient(message);
             case 'removePlayer':
                 return this.#onRemovePlayer(message);
-            case 'sendCommandResult':
-                return this.#onSendCommandResult(message);
             case 'sendLyricsEvent':
                 return this.#onSendLyricsEvent(message);
             case 'setArtwork':
@@ -314,16 +285,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     }
 
     /**
-     * Handles a ConfigureConnection message from the Apple TV.
-     *
-     * @param message - The configure connection message.
-     */
-    #onConfigureConnection(message: Proto.ConfigureConnectionMessage): void {
-        this.emit('configureConnection', message);
-    }
-
-    /**
-     * Handles keyboard state changes. Updates internal state and emits 'keyboard'.
+     * Handles keyboard state changes.
      *
      * @param message - The keyboard message with state and attributes.
      */
@@ -331,45 +293,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#keyboardState = message.state;
         this.#keyboardAttributes = message.attributes ?? null;
 
-        this.emit('keyboard', message);
-    }
-
-    /**
-     * Handles initial device info. Updates output device UID and cluster info.
-     *
-     * @param message - The device info message.
-     */
-    #onDeviceInfo(message: Proto.DeviceInfoMessage): void {
-        this.#updateDeviceInfo(message);
-        this.emit('deviceInfo', message);
-    }
-
-    /**
-     * Handles device info updates (e.g. cluster changes). Updates output device UID and cluster info.
-     *
-     * @param message - The device info update message.
-     */
-    #onDeviceInfoUpdate(message: Proto.DeviceInfoMessage): void {
-        this.#updateDeviceInfo(message);
-        this.emit('deviceInfoUpdate', message);
-    }
-
-    /**
-     * Handles origin client properties updates.
-     *
-     * @param message - The origin client properties message.
-     */
-    #onOriginClientProperties(message: Proto.OriginClientPropertiesMessage): void {
-        this.emit('originClientProperties', message);
-    }
-
-    /**
-     * Handles player client properties updates.
-     *
-     * @param message - The player client properties message.
-     */
-    #onPlayerClientProperties(message: Proto.PlayerClientPropertiesMessage): void {
-        this.emit('playerClientProperties', message);
+        this.emit('keyboardChanged', this.#keyboardState, this.#keyboardAttributes);
     }
 
     /**
@@ -395,22 +319,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             this.#nowPlayingClientBundleIdentifier = null;
         }
 
-        this.emit('removeClient', message);
         this.emit('clients', this.#clients);
 
         if (wasActive) {
             this.#emitActivePlayerChanged();
             this.#emitNowPlayingChangedIfNeeded();
         }
-    }
-
-    /**
-     * Handles command result notifications from the Apple TV.
-     *
-     * @param message - The send command result message.
-     */
-    #onSendCommandResult(message: Proto.SendCommandResultMessage): void {
-        this.emit('sendCommandResult', message);
     }
 
     /**
@@ -434,8 +348,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             this.#artworkJpegData = message.jpegData;
         }
 
-        this.emit('setArtwork', message);
-
         const client = this.nowPlayingClient;
         const player = client?.activePlayer;
 
@@ -455,8 +367,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
             client.setDefaultSupportedCommands(message.supportedCommands.supportedCommands);
         }
-
-        this.emit('setDefaultSupportedCommands', message);
     }
 
     /**
@@ -472,8 +382,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         if (message.client?.bundleIdentifier && message.client?.displayName) {
             this.#client(message.client.bundleIdentifier, message.client.displayName);
         }
-
-        this.emit('setNowPlayingClient', message);
 
         if (oldBundleId !== this.#nowPlayingClientBundleIdentifier) {
             this.#emitActivePlayerChanged();
@@ -500,7 +408,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             }
         }
 
-        this.emit('setNowPlayingPlayer', message);
         this.#emitNowPlayingChangedIfNeeded();
     }
 
@@ -552,8 +459,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             }
         }
 
-        this.emit('setState', message);
-
         if (isActiveClient) {
             this.#emitNowPlayingChangedIfNeeded();
         }
@@ -578,8 +483,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         for (const item of message.contentItems) {
             player.updateContentItem(item);
         }
-
-        this.emit('updateContentItem', message);
 
         if (bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
             this.#emitNowPlayingChangedIfNeeded();
@@ -608,8 +511,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             }
         }
 
-        this.emit('updateContentItemArtwork', message);
-
         const client = this.nowPlayingClient;
         const player = client?.activePlayer;
 
@@ -628,8 +529,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
             client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
         }
-
-        this.emit('updatePlayer', message);
     }
 
     /**
@@ -646,8 +545,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
                 client.removePlayer(message.playerPath.player.identifier);
             }
         }
-
-        this.emit('removePlayer', message);
 
         if (message.playerPath?.client?.bundleIdentifier === this.#nowPlayingClientBundleIdentifier) {
             this.#emitActivePlayerChanged();
@@ -667,7 +564,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
 
         this.#client(message.client.bundleIdentifier, message.client.displayName);
 
-        this.emit('updateClient', message);
         this.emit('clients', this.#clients);
     }
 
@@ -678,7 +574,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
      */
     #onPlayerClientParticipantsUpdate(message: Proto.PlayerClientParticipantsUpdateMessage): void {
         this.#participants = message.participants ?? [];
-        this.emit('playerClientParticipantsUpdate', message);
+        this.emit('participantsChanged', this.#participants);
     }
 
     /**
@@ -691,7 +587,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             ? message.clusterAwareOutputDevices
             : message.outputDevices;
 
-        this.emit('updateOutputDevice', message);
+        this.emit('outputDevicesChanged', this.#outputDevices);
     }
 
     /**
@@ -703,7 +599,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#volumeAvailable = message.volumeControlAvailable;
         this.#volumeCapabilities = message.volumeCapabilities;
 
-        this.emit('volumeControlAvailability', message.volumeControlAvailable, message.volumeCapabilities);
+        this.emit('volumeControlChanged', this.#volumeAvailable, this.#volumeCapabilities);
     }
 
     /**
@@ -719,7 +615,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#volumeAvailable = message.capabilities.volumeControlAvailable;
         this.#volumeCapabilities = message.capabilities.volumeCapabilities;
 
-        this.emit('volumeControlCapabilitiesDidChange', message.capabilities.volumeControlAvailable, message.capabilities.volumeCapabilities);
+        this.emit('volumeControlChanged', this.#volumeAvailable, this.#volumeCapabilities);
     }
 
     /**
@@ -730,7 +626,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     #onVolumeDidChange(message: Proto.VolumeDidChangeMessage): void {
         this.#volume = message.volume;
 
-        this.emit('volumeDidChange', message.volume);
+        this.emit('volumeChanged', message.volume);
     }
 
     /**
@@ -741,7 +637,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     #onVolumeMutedDidChange(message: Proto.VolumeMutedDidChangeMessage): void {
         this.#volumeMuted = message.isMuted;
 
-        this.emit('volumeMutedDidChange', this.#volumeMuted);
+        this.emit('volumeMutedChanged', this.#volumeMuted);
     }
 
     /**

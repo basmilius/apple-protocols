@@ -21,8 +21,8 @@ type Context = {
     readonly connected: boolean;
 };
 
-const POWER_SOURCES = ['device', 'companionLink'] as const;
-const POWER_EVENTS = ['power', 'attentionStateChanged'];
+const POWER_SOURCES = ['state', 'companionLink'] as const;
+const POWER_EVENTS = ['power.change', 'attentionStateChanged'];
 
 function AppsSection({call, connected}: Context) {
     const [apps, setApps] = useState<readonly LaunchableApp[]>([]);

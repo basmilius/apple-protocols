@@ -1,7 +1,7 @@
 import { dialog } from 'electron';
 import { type AudioPlayback, connect, PtpMaster, toTarget } from '@corewire/airplay';
 import type { AccessoryCredentials } from '@corewire/core/pairing';
-import type { MediaController } from '@corewire/devices';
+import type { MediaControl, MediaPlayback } from '@corewire/devices';
 import type { AudioSourceKind, AudioStatus, AudioTelemetry, PtpTelemetry } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';
@@ -35,7 +35,14 @@ type AudioState = {
     ptpPlayback: AudioPlayback | null;
     ptpMaster: PtpMaster | null;
     telemetry: NodeJS.Timeout | null;
+    urlPlayback: MediaPlayback | null;
+    audioPlayback: MediaPlayback | null;
 };
+
+/** The device takes 0 to 1 and sends `20 * log10(volume)` dB; -20 dB maps back to exactly -20. */
+function fractionOf(volumeDb: number): number {
+    return volumeDb <= -144 ? 0 : 10 ** (volumeDb / 20);
+}
 
 /** URL playback uses a receiver-owned session; PCM streaming uses a separate RTP session. */
 export function registerAudioChannels(context: ChannelContext): void {
@@ -61,7 +68,9 @@ export function registerAudioChannels(context: ChannelContext): void {
             ptpAbort: null,
             ptpPlayback: null,
             ptpMaster: null,
-            telemetry: null
+            telemetry: null,
+            urlPlayback: null,
+            audioPlayback: null
         };
 
         states.set(deviceId, created);
@@ -79,7 +88,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         return session;
     };
 
-    const mediaOf = (deviceId: string): MediaController => {
+    const mediaOf = (deviceId: string): MediaControl => {
         const device = sessionOf(deviceId).device;
 
         if (device === null) {
@@ -89,10 +98,10 @@ export function registerAudioChannels(context: ChannelContext): void {
         return device.media;
     };
 
-    /* The SDK streams over a connection of its own, which is where the counters live. */
+    /* The counters live on the stream's own connection; the device does not expose it, so only the PTP experiment reports them for now. */
     const readTelemetry = (deviceId: string): AudioTelemetry | null => {
         const state = stateOf(deviceId);
-        const playback = state.ptpPlayback ?? context.sessions.sessions.get(deviceId)?.device?.airplay.audioPlayback ?? null;
+        const playback = state.ptpPlayback;
         const stats = playback?.stats ?? null;
 
         if (stats === null) {
@@ -145,6 +154,8 @@ export function registerAudioChannels(context: ChannelContext): void {
         state.ptpAbort = null;
         state.ptpPlayback = null;
         state.ptpMaster = null;
+        state.urlPlayback = null;
+        state.audioPlayback = null;
         state.playing = false;
         state.mode = 'idle';
         state.error = error === null ? null : error instanceof Error ? error.message : String(error);
@@ -168,7 +179,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         push(request.deviceId);
 
         try {
-            await media.playUrl(request.url, request.position ?? 0);
+            state.urlPlayback = await media.playUrl(request.url, {position: request.position ?? 0});
         } catch (error) {
             finish(request.deviceId, error, generation);
 
@@ -179,14 +190,16 @@ export function registerAudioChannels(context: ChannelContext): void {
     });
 
     handle('audio:stopUrl', request => {
-        stateOf(request.deviceId).generation++;
-        mediaOf(request.deviceId).stopPlayUrl();
+        const state = stateOf(request.deviceId);
+        state.generation++;
+        state.urlPlayback?.stop();
         finish(request.deviceId, null);
     });
 
     handle('audio:waitForEnd', async request => {
-        const generation = stateOf(request.deviceId).generation;
-        await mediaOf(request.deviceId).waitForPlaybackEnd();
+        const state = stateOf(request.deviceId);
+        const generation = state.generation;
+        await state.urlPlayback?.ended;
         finish(request.deviceId, null, generation);
     });
 
@@ -227,7 +240,15 @@ export function registerAudioChannels(context: ChannelContext): void {
         push(request.deviceId);
 
         const credentials = context.storage.storage.getCredentials(session.discovered.services.airplay?.id ?? session.discovered.id, 'airplay');
-        const running = ptp ? streamOverPtp(session, state, built, volumeDb, credentials) : mediaOf(request.deviceId).streamAudio(built.source, volumeDb);
+        const running = ptp
+            ? streamOverPtp(session, state, built, volumeDb, credentials)
+            : mediaOf(request.deviceId).streamAudio(built.source, {volume: fractionOf(volumeDb)}).then(playback => {
+                if (state.generation === generation) {
+                    state.audioPlayback = playback;
+                }
+
+                return playback.ended;
+            });
 
         running.then(
             () => finish(request.deviceId, null, generation),
@@ -242,7 +263,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         if (state.ptpAbort !== null) {
             state.ptpAbort.abort();
         } else {
-            mediaOf(request.deviceId).stopStreamAudio();
+            state.audioPlayback?.stop();
         }
 
         finish(request.deviceId, null);

@@ -16,15 +16,11 @@ import { Volume } from './volume';
 
 /** The messages the state derives something from. */
 const STATE_MESSAGES: readonly MrpMessageName[] = [
-    'configureConnection',
     'keyboard',
     'deviceInfo',
     'deviceInfoUpdate',
-    'originClientProperties',
-    'playerClientProperties',
     'removeClient',
     'removePlayer',
-    'sendCommandResult',
     'sendLyricsEvent',
     'setArtwork',
     'setDefaultSupportedCommands',

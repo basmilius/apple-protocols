@@ -1,11 +1,11 @@
 set -e
 
-bun --cwd packages/core build
-
-# Bundled from the core source; their dist may import nothing but node:* builtins.
+# Published without dependencies; their dist may import nothing but node:* builtins.
 bun --cwd packages/opack build
 bun --cwd packages/tlv8 build
 bun tools/check-standalone.ts packages/opack packages/tlv8
+
+bun --cwd packages/core build
 
 bun --cwd packages/airplay build
 bun --cwd packages/companion-link build

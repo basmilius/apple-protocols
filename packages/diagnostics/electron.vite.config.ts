@@ -14,7 +14,9 @@ const protocolAliases = {
     '@corewire/audio-source': `${packages}/audio-source/src`,
     '@corewire/companion-link': `${packages}/companion-link/src`,
     '@corewire/core': `${packages}/core/src`,
-    '@corewire/devices': `${packages}/devices/src`
+    '@corewire/devices': `${packages}/devices/src`,
+    'opack': `${packages}/opack/src`,
+    'tlv8': `${packages}/tlv8/src`
 };
 
 /* `DIAGNOSTICS_OUT_DIR` builds elsewhere than `out/`, so a check build never rewrites the files of a running app. */

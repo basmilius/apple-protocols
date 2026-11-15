@@ -46,6 +46,12 @@
             ],
             "@corewire/devices/*": [
                 "./../devices/src/*"
+            ],
+            "opack": [
+                "./../opack/src"
+            ],
+            "tlv8": [
+                "./../tlv8/src"
             ]
         }
     },

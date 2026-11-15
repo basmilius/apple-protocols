@@ -17,7 +17,7 @@
         "declaration": true,
         "isolatedDeclarations": true,
         "isolatedModules": true,
-        "rootDir": "..",
+        "rootDir": ".",
         "outDir": "dist",
         "experimentalDecorators": true,
         "noEmit": true,

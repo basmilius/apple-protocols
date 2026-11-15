@@ -1,1 +1,1 @@
-export { decode, decodeEntries, encode } from '../../core/src/encoding/tlv8';
+export { decode, decodeEntries, encode } from './tlv8';

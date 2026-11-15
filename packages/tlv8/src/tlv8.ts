@@ -1,5 +1,3 @@
-// A pure codec without imports from the rest of core, so the standalone `tlv8` package bundles this file as is.
-
 /**
  * Encodes `[type, value]` entries; a number value is a single byte. A value longer than 255 bytes
  * becomes consecutive fragments of the same type, as TLV8 requires.

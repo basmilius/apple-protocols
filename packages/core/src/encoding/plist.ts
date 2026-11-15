@@ -31,9 +31,8 @@ const UTF16_BE = new TextDecoder('utf-16be');
 /**
  * Parses a binary plist.
  *
- * Integers of 1, 2 and 4 bytes are unsigned, as in CFBinaryPList.c; only 8-byte integers
- * carry a sign. `@plist/binary.parse` reads all of them as signed, which turned 200 into -56
- * and 44100 into -21436. An 8-byte integer comes back as a `bigint`.
+ * Integers of 1, 2 and 4 bytes are unsigned; only 8-byte integers carry a sign. A signed
+ * read turns 200 into -56 and 44100 into -21436. An 8-byte integer comes back as a `bigint`.
  *
  * @throws Error when the buffer is not a well-formed binary plist.
  */

@@ -8,7 +8,7 @@ import { decodeTlv, deriveKey, type PairingCipher, pairingCipher } from './ciphe
 import type { AccessoryIdentity, ControllerResolver, PairedController, PairingOptions } from './types';
 
 /**
- * Accessory side of HAP pair-setup: answers M1, M3 and M5 with M2, M4 and M6. After M5,
+ * Answers HAP pair-setup as the accessory, M1, M3 and M5 with M2, M4 and M6. After M5,
  * {@link controller} holds the verified controller identity to persist.
  */
 export class PairSetupServer {
@@ -16,7 +16,7 @@ export class PairSetupServer {
         return this.#controller;
     }
 
-    /** Available after M3. */
+    /** The SRP session key, available after M3. */
     get sharedSecret(): Buffer | undefined {
         return this.#sharedSecret;
     }
@@ -37,6 +37,8 @@ export class PairSetupServer {
     }
 
     /**
+     * Answers one pair-setup request with the next message.
+     *
      * @throws {PairingError} If the request carries an unexpected state.
      * @throws {AuthenticationError} If the PIN proof or the controller signature is wrong.
      */
@@ -129,16 +131,16 @@ export class PairSetupServer {
 }
 
 /**
- * Accessory side of HAP pair-verify, the mirror of the controller's pair-verify. After M3,
- * {@link sharedSecret} feeds the channel key derivation.
+ * Answers HAP pair-verify as the accessory, M1 and M3 with M2 and M4. Once M3 verifies the
+ * controller, {@link sharedSecret} feeds the channel key derivation.
  */
 export class PairVerifyServer {
-    /** The verified controller's pairing identifier, available after M3. */
+    /** The pairing identifier of the verified controller, available after M3. */
     get pairingId(): Buffer | undefined {
         return this.#pairingId;
     }
 
-    /** Available after M1. */
+    /** The Curve25519 shared secret, available after M1. */
     get sharedSecret(): Buffer | undefined {
         return this.#sharedSecret;
     }
@@ -161,6 +163,8 @@ export class PairVerifyServer {
     }
 
     /**
+     * Answers one pair-verify request with the next message.
+     *
      * @throws {PairingError} If the request carries an unexpected state.
      * @throws {AuthenticationError} If the controller is unknown or its signature is wrong.
      */
@@ -232,7 +236,7 @@ export class PairVerifyServer {
     }
 }
 
-/** A fresh accessory identity: a random MAC-like identifier and a new Ed25519 key pair. */
+/** Generates an accessory identity with a random MAC-style identifier and a new Ed25519 key pair. */
 export function generateAccessoryIdentity(): AccessoryIdentity {
     const keyPair = Ed25519.generateKeyPair();
     const identifier = Array.from(randomBytes(6)).map((byte) => byte.toString(16).padStart(2, '0').toUpperCase()).join(':');

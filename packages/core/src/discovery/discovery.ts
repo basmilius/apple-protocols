@@ -14,13 +14,12 @@ const CACHE_TTL = 30_000;
 const logger = new Logger('discovery');
 
 /**
- * mDNS service discovery for any service type. Which service type a protocol advertises, and what
- * its TXT record means, is the knowledge of that protocol's package.
+ * Finds the services of one mDNS service type. Each protocol package knows its own service
+ * type and what its TXT record means.
  *
- * Results are cached for 30 seconds per service type, and concurrent scans for the same set of
- * types share one multicast query. The cache is shared by all instances on purpose: protocol
- * packages and `@corewire/devices` scan through separate instances but should not flood the
- * network with one query each.
+ * Results stay cached for 30 seconds per service type, and concurrent scans for the same types
+ * share one multicast query. All instances share the cache on purpose, so protocol packages and
+ * `@corewire/devices` do not each flood the network with their own query.
  */
 export class Discovery {
     static #cache: Map<string, CacheEntry> = new Map();
@@ -32,7 +31,7 @@ export class Discovery {
 
     readonly #service: string;
 
-    /** @param service - The mDNS service type, e.g. '_hap._tcp.local'. */
+    /** @param service - The mDNS service type, such as `_hap._tcp.local`. */
     constructor(service: string) {
         this.#service = service;
     }
@@ -87,9 +86,10 @@ export class Discovery {
         return match ? toDiscoveryResult(match) : null;
     }
 
-    /** One multicast scan, and one in-flight operation, for a group of service types. */
+    /** Scans for several service types with one multicast query, shared with a scan in flight for the same types. */
     static async findServices(services: readonly string[], useCache: boolean = true): Promise<Map<string, DiscoveryResult[]>> {
         const result = new Map<string, DiscoveryResult[]>();
+
         const missing = [...new Set(services)].filter(service => {
             const cached = Discovery.#cache.get(service);
 

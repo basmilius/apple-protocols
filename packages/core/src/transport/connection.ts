@@ -39,7 +39,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         return this.#state === 'connected';
     }
 
-    /** Local IP address of the socket, or '0.0.0.0' when not connected. */
+    /** The local IP address of the socket, or `0.0.0.0` when it is not connected. */
     get localAddress(): string {
         return this.#socket?.localAddress ?? '0.0.0.0';
     }
@@ -57,10 +57,12 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
     readonly #port: number;
     readonly #context: Context;
     readonly #controller: AbortController = new AbortController();
+
     #connectPromise?: {
         resolve: () => void;
         reject: (error: Error) => void;
     };
+
     #debug: boolean = false;
     #socket?: Socket;
     #state: ConnectionState = 'disconnected';
@@ -182,7 +184,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         });
     }
 
-    /** The single exit: closes the socket, settles a pending connect, aborts the signal and emits `closed`. */
+    /** Ends the connection, the one exit for every path. It closes the socket, settles a pending connect, aborts the signal and emits `closed`. */
     #end(reason: CloseReason, error?: Error): void {
         if (this.signal.aborted) {
             return;
@@ -194,8 +196,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
 
         if (socket) {
             socket.removeAllListeners();
-            socket.on('error', () => {
-            });
+            socket.on('error', () => {});
             socket.destroy();
         }
 
@@ -251,7 +252,7 @@ export class Connection<TEventMap extends EventMap = {}> extends EventEmitter<Co
         this.#end('error', error);
     }
 
-    /** Only fires while connecting; the idle timeout is switched off once the socket opens. */
+    /** Fires only while connecting, because the idle timeout goes off once the socket opens. */
     #onTimeout(): void {
         this.#context.logger.error('Connection timed out.');
         this.#end('timeout', new ConnectionTimeoutError());

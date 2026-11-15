@@ -2,13 +2,12 @@ import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
 import type { Logger } from '../reporter';
 
-/** IPv4 multicast address for mDNS (RFC 6762). */
+/** The IPv4 multicast address of mDNS, from RFC 6762. */
 const MDNS_ADDRESS = '224.0.0.251';
 
-/** Standard mDNS port. */
 const MDNS_PORT = 5353;
 
-/** DNS record type codes. */
+/** The DNS record types that the responder writes. */
 const Type = {
     A: 0x01,
     PTR: 0x0C,
@@ -22,26 +21,31 @@ const CLASS_FLUSH = 0x8001;
 /** Class IN, used for the shared PTR record. */
 const CLASS_IN = 0x0001;
 
-/** Default record TTL in seconds. */
+/** The TTL of every record in seconds. */
 const TTL = 120;
 
-/** Describes the service the responder advertises. */
+/** The service that an {@link MdnsResponder} advertises. */
 export type AdvertisedService = {
-    /** The Bonjour instance name (e.g. "AppleProtocols Proxy"). */
+    /** The DNS-SD instance name, which controllers show to the user. */
     readonly instance: string;
-    /** The service type (e.g. "_companion-link._tcp.local"). */
+
+    /** The service type, such as `_companion-link._tcp.local`. */
     readonly type: string;
-    /** The host name to publish (e.g. "apple-protocols-proxy.local"). */
+
+    /** The host name that the SRV and A records publish, ending in `.local`. */
     readonly host: string;
+
     /** The TCP port the service listens on. */
     readonly port: number;
-    /** The TXT record key/value pairs. */
+
+    /** The properties of the TXT record. An empty value publishes the bare key. */
     readonly txt: Record<string, string>;
 };
 
 /**
- * Advertises one service through periodic PTR/SRV/TXT/A multicasts and replies to queries mentioning its type.
- * Does not fully parse DNS questions; intended for quiet test networks. Controller discovery may require device-specific instance names and TXT records.
+ * Advertises one service with PTR, SRV, TXT and A records every 2 seconds, and again on each
+ * query that mentions its type. It does not parse DNS questions, so it suits quiet test networks.
+ * A controller can need the instance name and TXT record of a real device before it lists the service.
  */
 export class MdnsResponder {
     readonly #logger: Logger;
@@ -51,8 +55,7 @@ export class MdnsResponder {
     #timer?: NodeJS.Timeout;
 
     /**
-     * @param service - The service to advertise.
-     * @param address - The local IPv4 address to publish in the A record.
+     * @param address - The local IPv4 address that the A record publishes.
      */
     constructor(logger: Logger, service: AdvertisedService, address: string = MdnsResponder.localAddress()) {
         this.#logger = logger;
@@ -73,7 +76,7 @@ export class MdnsResponder {
         return '0.0.0.0';
     }
 
-    /** Binds the multicast socket and starts periodically announcing the service. */
+    /** Binds the multicast socket and announces the service every 2 seconds. */
     start(): void {
         const socket = createSocket({type: 'udp4', reuseAddr: true});
 
@@ -82,8 +85,8 @@ export class MdnsResponder {
         });
 
         socket.on('message', (data: Buffer) => {
-            // Re-announce on any query that mentions our service type. The QR bit (top bit of the flags
-            // field at offset 2) is 0 for queries; ignore responses to avoid feedback loops.
+            // Announce again on a query that mentions the service type. The QR bit, the top bit of the
+            // flags at offset 2, is 0 for a query. Answering responses would start a feedback loop.
             const isQuery = (data.readUInt16BE(2) & 0x8000) === 0;
 
             if (isQuery && data.includes(Buffer.from(this.#service.type.split('.')[0]))) {
@@ -96,7 +99,7 @@ export class MdnsResponder {
                 socket.addMembership(MDNS_ADDRESS);
                 socket.setMulticastTTL(255);
             } catch {
-                // Membership may fail if another responder owns the port; we can still send.
+                // Membership fails when another responder owns the port; sending still works.
             }
 
             this.#logger.info('[mdns]', `Advertising ${this.#service.instance} ${this.#service.type} on ${this.#address}:${this.#service.port}`);
@@ -122,7 +125,7 @@ export class MdnsResponder {
         this.#socket = undefined;
     }
 
-    /** Builds and multicasts the full record set. */
+    /** Multicasts the full record set. */
     #announce(): void {
         if (!this.#socket) {
             return;
@@ -137,7 +140,7 @@ export class MdnsResponder {
         }
     }
 
-    /** Encodes the PTR + SRV + TXT + A answer records into a single mDNS response packet. */
+    /** Encodes the PTR, SRV, TXT and A records as one mDNS response. */
     #buildResponse(): Buffer {
         const instanceFqdn = `${this.#service.instance}.${this.#service.type}`;
 
@@ -158,7 +161,7 @@ export class MdnsResponder {
     }
 }
 
-/** Encodes a domain name as length-prefixed DNS labels terminated by a zero byte. */
+/** Encodes a domain name as length-prefixed DNS labels and a closing zero byte. A label keeps at most 63 bytes. */
 function encodeName(name: string): Buffer {
     const parts: Buffer[] = [];
 
@@ -176,7 +179,7 @@ function encodeName(name: string): Buffer {
     return Buffer.concat(parts);
 }
 
-/** Wraps rdata in a resource record (name, type, class, ttl, rdlength, rdata). */
+/** Wraps rdata in a resource record: name, type, class, TTL, rdata length and rdata. */
 function record(name: string, type: number, recordClass: number, rdata: Buffer): Buffer {
     const head = encodeName(name);
     const meta = Buffer.allocUnsafe(10);

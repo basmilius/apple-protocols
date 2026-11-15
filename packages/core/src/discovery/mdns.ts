@@ -1,19 +1,16 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { createConnection } from 'node:net';
 
-/** IPv4 multicast address for mDNS (RFC 6762). */
+/** The IPv4 multicast address of mDNS, from RFC 6762. */
 const MDNS_ADDRESS = '224.0.0.251';
 
-/** Standard mDNS port. */
 const MDNS_PORT = 5353;
-
-/** Query ID used in outgoing mDNS queries. */
 const QUERY_ID = 0x35FF;
 
-/** Maximum number of service queries to pack into a single DNS message. */
+/** The number of service questions in one DNS message. */
 const SERVICES_PER_MSG = 3;
 
-/** DNS record type codes used in mDNS queries and responses. */
+/** The DNS record types that discovery asks for and reads. */
 const QueryType = {
     A: 0x01,
     PTR: 0x0C,
@@ -23,7 +20,7 @@ const QueryType = {
     ANY: 0xFF
 } as const;
 
-/** A resolved mDNS service with its name, type, address, port, and TXT properties. */
+/** An mDNS service instance, resolved to an address and port. */
 export type MdnsService = {
     readonly name: string;
     readonly type: string;
@@ -32,7 +29,7 @@ export type MdnsService = {
     readonly properties: Record<string, string>;
 };
 
-/** Parsed DNS packet header. */
+/** The header of a DNS packet. */
 type DnsHeader = {
     id: number;
     flags: number;
@@ -42,7 +39,7 @@ type DnsHeader = {
     arcount: number;
 };
 
-/** A parsed DNS resource record. */
+/** A DNS resource record. */
 type DnsResource = {
     qname: string;
     qtype: number;
@@ -51,7 +48,7 @@ type DnsResource = {
     rdata: unknown;
 };
 
-/** Parsed SRV record data containing service location information. */
+/** The data of an SRV record, which locates a service instance. */
 type SrvRecord = {
     priority: number;
     weight: number;
@@ -59,13 +56,9 @@ type SrvRecord = {
     target: string;
 };
 
-// --- DNS Packet Encoding ---
-
 /**
- * Encodes a domain name into DNS wire format (length-prefixed labels terminated by 0x00).
- *
- * @param name - The domain name to encode (e.g. "_hap._tcp.local").
- * @returns A buffer containing the encoded QNAME.
+ * Encodes a domain name as DNS labels, each prefixed with its length and the last followed
+ * by a zero byte. A label longer than 63 bytes is cut off.
  */
 const encodeQName = (name: string): Buffer => {
     const parts = [];
@@ -87,21 +80,17 @@ const encodeQName = (name: string): Buffer => {
 };
 
 /**
- * Splits a service name into DNS labels, handling instance names that may contain dots.
- * For example, "Living Room._hap._tcp.local" splits into
- * ["Living Room", "_hap", "_tcp", "local"].
- *
- * @param name - The full service name.
- * @returns An array of DNS labels.
+ * Splits a service name into DNS labels. An instance name can contain dots, so the split
+ * happens at the service type: `Living Room._hap._tcp.local` gives
+ * `['Living Room', '_hap', '_tcp', 'local']`.
  */
 const splitServiceName = (name: string): string[] => {
-    /* Service instance names can contain dots. Split at the service type. */
     const servicePattern = /\._[a-z0-9-]+\._(?:tcp|udp)\.local$/;
     const match = name.match(servicePattern);
 
     if (match) {
         const instanceName = name.substring(0, match.index);
-        const servicePart = match[0].substring(1); // remove leading dot
+        const servicePart = match[0].substring(1);
 
         return [instanceName, ...servicePart.split('.')];
     }
@@ -110,10 +99,7 @@ const splitServiceName = (name: string): string[] => {
 };
 
 /**
- * Encodes a DNS header into a 12-byte buffer.
- *
- * @param header - The header fields to encode.
- * @returns A 12-byte buffer containing the encoded DNS header.
+ * Encodes the 12-byte DNS header.
  */
 const encodeDnsHeader = (header: DnsHeader): Buffer => {
     const buf = Buffer.allocUnsafe(12);
@@ -128,12 +114,9 @@ const encodeDnsHeader = (header: DnsHeader): Buffer => {
 };
 
 /**
- * Encodes a single DNS question section entry.
+ * Encodes one DNS question.
  *
- * @param name - The domain name to query.
- * @param qtype - The query type (e.g. PTR, SRV).
- * @param unicastResponse - Whether to request a unicast response (QU bit).
- * @returns A buffer containing the encoded question.
+ * @param unicastResponse - Sets the QU bit, which asks for a unicast response.
  */
 const encodeDnsQuestion = (name: string, qtype: number, unicastResponse: boolean = false): Buffer => {
     const qname = encodeQName(name);
@@ -145,13 +128,10 @@ const encodeDnsQuestion = (name: string, qtype: number, unicastResponse: boolean
 };
 
 /**
- * Creates one or more DNS query packets for the given service types.
- * Services are batched into groups of {@link SERVICES_PER_MSG} per packet.
+ * Builds the DNS query packets for the service types, {@link SERVICES_PER_MSG} questions per packet.
  *
- * @param services - The mDNS service types to query (e.g. '_hap._tcp.local').
- * @param qtype - The DNS query type. Defaults to PTR.
- * @param unicastResponse - Whether to set the QU (unicast response) bit.
- * @returns An array of encoded DNS query packets.
+ * @param services - The mDNS service types, such as `_hap._tcp.local`.
+ * @param unicastResponse - Sets the QU bit, which asks for a unicast response.
  */
 export function createQueryPackets(services: string[], qtype: number = QueryType.PTR, unicastResponse: boolean = false): Buffer[] {
     const packets: Buffer[] = [];
@@ -159,6 +139,7 @@ export function createQueryPackets(services: string[], qtype: number = QueryType
     for (let i = 0; i < services.length; i += SERVICES_PER_MSG) {
         const chunk = services.slice(i, i + SERVICES_PER_MSG);
         const questions = chunk.map(s => encodeDnsQuestion(s, qtype, unicastResponse));
+
         const header = encodeDnsHeader({
             id: QUERY_ID,
             flags: 0x0000,
@@ -174,17 +155,13 @@ export function createQueryPackets(services: string[], qtype: number = QueryType
     return packets;
 }
 
-// --- DNS Packet Decoding ---
-
-/** Maximum number of pointer jumps allowed during name decompression to prevent infinite loops. */
+/** The number of compression pointers to follow in one name, so a pointer loop ends. */
 const MAX_POINTER_JUMPS = 128;
 
 /**
- * Decodes a DNS QNAME from a buffer, handling name compression pointers (RFC 1035 section 4.1.4).
+ * Decodes a DNS name and follows its compression pointers (RFC 1035 section 4.1.4).
  *
- * @param buf - The DNS packet buffer.
- * @param offset - The byte offset where the QNAME starts.
- * @returns A tuple of [decoded name string, next offset after the QNAME].
+ * @returns The name and the offset after it in the packet.
  */
 const decodeQName = (buf: Buffer, offset: number): [string, number] => {
     const labels: string[] = [];
@@ -204,7 +181,7 @@ const decodeQName = (buf: Buffer, offset: number): [string, number] => {
             break;
         }
 
-        // Name compression pointer (upper 2 bits = 11)
+        // A compression pointer has both upper bits set.
         if ((length & 0xC0) === 0xC0) {
             if (++jumps > MAX_POINTER_JUMPS) {
                 break;
@@ -218,6 +195,7 @@ const decodeQName = (buf: Buffer, offset: number): [string, number] => {
 
             currentOffset = pointer;
             jumped = true;
+
             continue;
         }
 
@@ -239,10 +217,7 @@ const decodeQName = (buf: Buffer, offset: number): [string, number] => {
 };
 
 /**
- * Decodes a 12-byte DNS header from a buffer.
- *
- * @param buf - The DNS packet buffer (must be at least 12 bytes).
- * @returns The parsed DNS header.
+ * Decodes the 12-byte DNS header.
  */
 const decodeDnsHeader = (buf: Buffer): DnsHeader => ({
     id: buf.readUInt16BE(0),
@@ -254,11 +229,9 @@ const decodeDnsHeader = (buf: Buffer): DnsHeader => ({
 });
 
 /**
- * Decodes a DNS question section entry.
+ * Decodes one DNS question.
  *
- * @param buf - The DNS packet buffer.
- * @param offset - The byte offset where the question starts.
- * @returns A tuple of [parsed question, next offset].
+ * @returns The question and the offset after it.
  */
 const decodeQuestion = (buf: Buffer, offset: number): [{ qname: string; qtype: number; qclass: number }, number] => {
     const [qname, newOffset] = decodeQName(buf, offset);
@@ -269,13 +242,8 @@ const decodeQuestion = (buf: Buffer, offset: number): [{ qname: string; qtype: n
 };
 
 /**
- * Decodes a DNS TXT record into key-value pairs. Each entry is a length-prefixed
- * UTF-8 string in "key=value" format.
- *
- * @param buf - The DNS packet buffer.
- * @param offset - The byte offset where the TXT rdata starts.
- * @param length - The total length of the TXT rdata.
- * @returns A record of key-value pairs.
+ * Decodes the data of a TXT record into properties. Each entry is a length-prefixed UTF-8
+ * `key=value` string; an entry without `=` gets an empty value.
  */
 const decodeTxtRecord = (buf: Buffer, offset: number, length: number): Record<string, string> => {
     const properties: Record<string, string> = {};
@@ -306,11 +274,7 @@ const decodeTxtRecord = (buf: Buffer, offset: number, length: number): Record<st
 };
 
 /**
- * Decodes a DNS SRV record containing service priority, weight, port, and target hostname.
- *
- * @param buf - The DNS packet buffer.
- * @param offset - The byte offset where the SRV rdata starts.
- * @returns The parsed SRV record.
+ * Decodes the data of an SRV record.
  */
 const decodeSrvRecord = (buf: Buffer, offset: number): SrvRecord => {
     const priority = buf.readUInt16BE(offset);
@@ -322,12 +286,10 @@ const decodeSrvRecord = (buf: Buffer, offset: number): SrvRecord => {
 };
 
 /**
- * Decodes a DNS resource record (answer, authority, or additional section).
- * Dispatches to type-specific decoders for A, AAAA, PTR, SRV, and TXT records.
+ * Decodes one resource record. The data of A, AAAA, PTR, SRV and TXT records is parsed;
+ * other types keep their raw bytes.
  *
- * @param buf - The DNS packet buffer.
- * @param offset - The byte offset where the resource record starts.
- * @returns A tuple of [parsed resource record, next offset].
+ * @returns The record and the offset after it, or null when the packet ends inside the record header.
  */
 const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | null => {
     const [qname, nameEnd] = decodeQName(buf, offset);
@@ -347,6 +309,7 @@ const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | nu
     switch (qtype) {
         case QueryType.A:
             rdata = `${buf[rdOffset]}.${buf[rdOffset + 1]}.${buf[rdOffset + 2]}.${buf[rdOffset + 3]}`;
+
             break;
 
         case QueryType.AAAA: {
@@ -357,21 +320,25 @@ const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | nu
             }
 
             rdata = parts.join(':');
+
             break;
         }
 
         case QueryType.PTR: {
             const [name] = decodeQName(buf, rdOffset);
             rdata = name;
+
             break;
         }
 
         case QueryType.SRV:
             rdata = decodeSrvRecord(buf, rdOffset);
+
             break;
 
         case QueryType.TXT:
             rdata = decodeTxtRecord(buf, rdOffset, rdLength);
+
             break;
 
         default:
@@ -382,11 +349,8 @@ const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | nu
 };
 
 /**
- * Decodes a complete DNS response packet into its header, answer records,
- * and additional resource records. Skips question and authority sections.
- *
- * @param buf - The raw DNS response packet.
- * @returns The parsed header, answer records, and additional resource records.
+ * Decodes a DNS response into its header, answers and additional records. The question and
+ * authority sections are skipped.
  */
 export function decodeDnsResponse(buf: Buffer): { header: DnsHeader; answers: DnsResource[]; resources: DnsResource[] } {
     const header = decodeDnsHeader(buf);
@@ -438,29 +402,25 @@ export function decodeDnsResponse(buf: Buffer): { header: DnsHeader; answers: Dn
     return { header, answers, resources };
 }
 
-// --- Service Collector (aggregates records across multiple responses) ---
-
 /**
- * Aggregates DNS records from multiple mDNS responses and resolves them
- * into complete service descriptions. Correlates PTR, SRV, TXT, and A records
- * to produce fully-resolved {@link MdnsService} instances.
+ * Collects the records of several mDNS responses and joins their PTR, SRV, TXT and A records
+ * into {@link MdnsService} values.
  */
 class ServiceCollector {
-    /** Maps service types to sets of instance QNAMEs (from PTR records). */
+    /** The instance names per service type, from PTR records. */
     readonly #ptrMap = new Map<string, Set<string>>();
-    /** Maps instance QNAMEs to their SRV records (port and target host). */
+
+    /** The SRV record per instance name. */
     readonly #srvMap = new Map<string, SrvRecord>();
-    /** Maps instance QNAMEs to their TXT record properties. */
+
+    /** The TXT properties per instance name. */
     readonly #txtMap = new Map<string, Record<string, string>>();
-    /** Maps hostnames to IPv4 addresses (from A records). */
+
+    /** The IPv4 address per hostname, from A records. */
     readonly #addressMap = new Map<string, string>();
 
     /**
-     * Ingests DNS answer and additional resource records, categorizing them
-     * by type into the internal maps.
-     *
-     * @param answers - Answer section records.
-     * @param resources - Additional section records.
+     * Sorts answer and additional records into the maps by record type.
      */
     addRecords(answers: DnsResource[], resources: DnsResource[]): void {
         for (const record of [...answers, ...resources]) {
@@ -479,22 +439,25 @@ class ServiceCollector {
 
                 case QueryType.SRV:
                     this.#srvMap.set(record.qname, record.rdata as SrvRecord);
+
                     break;
 
                 case QueryType.TXT:
                     this.#txtMap.set(record.qname, record.rdata as Record<string, string>);
+
                     break;
 
                 case QueryType.A:
                     this.#addressMap.set(record.qname, record.rdata as string);
+
                     break;
             }
         }
     }
 
     /**
-     * Resolves all collected records into complete service descriptions.
-     * Only returns services where all required data (PTR, SRV with non-zero port, A record) is present.
+     * The services that have a PTR record, an SRV record with a nonzero port and an A record
+     * for the SRV target.
      */
     get services(): MdnsService[] {
         const results: MdnsService[] = [];
@@ -527,11 +490,9 @@ class ServiceCollector {
     }
 }
 
-// --- Scanners ---
-
 /**
- * Sends a TCP connection attempt ("knock") to each port to wake a sleeping device before querying
- * it. Which ports wake a device is the caller's knowledge. Resolves once every attempt settled.
+ * Opens a TCP connection to each port to wake a sleeping device before a query. The caller
+ * knows which ports wake it. Resolves once every attempt settled.
  */
 export function knock(address: string, ports: readonly number[]): Promise<void> {
     const promises = ports.map(port => new Promise<void>((resolve) => {
@@ -545,15 +506,12 @@ export function knock(address: string, ports: readonly number[]): Promise<void> 
 }
 
 /**
- * Performs unicast DNS-SD queries to specific hosts. First knocks on `wakePorts` of each host,
- * then repeatedly sends DNS queries via UDP to port 5353 on each host, collecting responses for
- * the specified duration.
+ * Queries hosts with unicast DNS-SD. It knocks on the `wakePorts` of each host first, then
+ * sends the queries to port 5353 of each host every second. It stops when `timeout` ends or
+ * every host answered for every service.
  *
- * @param hosts - IP addresses of the specific devices to query.
- * @param services - mDNS service types to discover.
- * @param timeout - Discovery duration in seconds. Defaults to 4.
- * @param wakePorts - Ports to knock on before querying; none by default.
- * @returns An array of resolved mDNS services.
+ * @param hosts - IP addresses of the hosts to query.
+ * @param timeout - Duration in seconds.
  */
 export function mdnsUnicast(hosts: string[], services: string[], timeout: number = 4, wakePorts: readonly number[] = []): Promise<MdnsService[]> {
     const expectedCount = hosts.length * services.length;
@@ -613,11 +571,10 @@ export function mdnsUnicast(hosts: string[], services: string[], timeout: number
 }
 
 /**
- * Discovers services via multicast DNS-SD on all local interfaces.
- * Uses a port-5353 socket when available and one random-port socket per interface.
+ * Discovers services with multicast DNS-SD on every local interface. It binds port 5353 when
+ * it can, plus one socket on a random port per interface.
  *
- * @param timeout - Discovery duration in seconds, default 4.
- * @returns Resolved services.
+ * @param timeout - Duration in seconds.
  */
 export function mdnsMulticast(services: string[], timeout: number = 4): Promise<MdnsService[]> {
     return new Promise((resolve) => {
@@ -699,16 +656,16 @@ export function mdnsMulticast(services: string[], timeout: number = 4): Promise<
         };
 
         const setup = async () => {
-            // Socket on 0.0.0.0:5353 to receive multicast responses (may fail on Homey)
+            // Port 5353 receives multicast responses. Binding it can fail, as it does on Homey.
             await addSocket(null, MDNS_PORT);
 
-            // One socket per local interface on random port, with multicast membership
             for (const address of getPrivateAddresses()) {
                 await addSocket(address, 0);
             }
 
             if (sockets.length === 0) {
                 resolve([]);
+
                 return;
             }
 

@@ -9,7 +9,7 @@ import { TRANSIENT_PAIRING_PIN } from './const';
 import type { AccessoryCredentials, AccessoryKeys, PairingOptions, PairingTransport } from './types';
 
 /**
- * Controller side of HAP pair-setup (SRP-6a, then an Ed25519 identity exchange).
+ * Runs HAP pair-setup as the controller, with SRP-6a followed by an Ed25519 identity exchange.
  *
  * A PIN pairing runs M1 to M6 and yields long-term credentials. A transient pairing stops after M4
  * with the fixed {@link TRANSIENT_PAIRING_PIN} and yields session keys only. The steps are public
@@ -38,7 +38,11 @@ export class PairSetup {
         this.#secretKey = Buffer.from(keyPair.secretKey);
     }
 
-    /** @throws {PairingError} If a step fails. */
+    /**
+     * Runs a PIN pairing from M1 to M6. It calls `askPin` after M1, once the accessory shows the PIN.
+     *
+     * @throws {PairingError} If a step fails.
+     */
     async pin(askPin: () => Promise<string>): Promise<AccessoryCredentials> {
         const m1 = await this.m1();
         const m2 = await this.m2(m1, await askPin());
@@ -54,7 +58,7 @@ export class PairSetup {
         return m6;
     }
 
-    /** M1 to M4 without a PIN; the keys hold for this connection only. */
+    /** Runs a transient pairing from M1 to M4 without a PIN. The keys hold for this connection only. */
     async transient(): Promise<AccessoryKeys> {
         const m1 = await this.m1([[TLV8.Value.Flags, TLV8.Flags.TransientPairing]]);
         const m2 = await this.m2(m1);
@@ -182,7 +186,7 @@ export class PairSetup {
 }
 
 /**
- * Controller side of HAP pair-verify: an ephemeral Curve25519 exchange that proves both long-term
+ * Runs HAP pair-verify as the controller. An ephemeral Curve25519 exchange proves both long-term
  * identities from an earlier pair-setup, so every session gets fresh keys without the PIN.
  */
 export class PairVerify {
@@ -199,7 +203,8 @@ export class PairVerify {
     }
 
     /**
-     * Returns the shared secret only; the protocol derives its channel keys from it.
+     * Verifies the pairing and returns the shared secret. The channel keys stay empty, because
+     * each protocol derives its own from the secret.
      *
      * @throws {AuthenticationError} If the accessory's identity does not match the credentials.
      */
@@ -294,8 +299,9 @@ type PairM4 = {
 };
 
 type PairM5 = {
-    /** Still sealed; {@link PairSetup.m6} opens it. */
+    /** The sealed identity of the accessory, which {@link PairSetup.m6} opens. */
     readonly encryptedData: Buffer;
+
     readonly sessionKey: Buffer;
 };
 

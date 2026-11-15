@@ -1,21 +1,17 @@
 /**
- * Maps four-character DAAP tag codes to their human-readable DMAP/DAAP content code names.
- * Used to identify the semantic meaning of tags in DAAP protocol messages.
+ * Maps four-character DAAP tag codes to their DMAP/DAAP content code names.
  */
 export const ContentCode = {
-    // Container tags
     mlit: 'dmap.listingitem',
     mlcl: 'dmap.listing',
     msrv: 'dmap.serverinforesponse',
     mcon: 'dmap.container',
 
-    // Item metadata
     miid: 'dmap.itemid',
     minm: 'dmap.itemname',
     mikd: 'dmap.itemkind',
     mper: 'dmap.persistentid',
 
-    // Song metadata
     asal: 'daap.songalbum',
     asar: 'daap.songartist',
     asaa: 'daap.songalbumartist',
@@ -31,70 +27,60 @@ export const ContentCode = {
     assr: 'daap.songsamplerate',
     assz: 'daap.songsize',
 
-    // Playback status
     caps: 'daap.songplaystatus',
     cash: 'daap.songshufflestate',
     carp: 'daap.songrepeatstate',
     cavs: 'daap.songvisiblestate',
 
-    // Album art
     aePP: 'com.apple.itunes.photo-properties'
 } as const;
 
 /**
- * Maps four-character DAAP tag codes to their data type identifiers.
+ * Maps four-character DAAP tag codes to the type the decoder reads their value as.
  *
  * Type values: 1=byte, 2=unsigned byte, 3=short, 4=unsigned short,
  * 5=int, 6=unsigned int, 7=long, 8=unsigned long,
  * 9=string, 10=date, 11=version, 12=container.
- *
- * Used by the decoder to determine how to interpret the raw bytes of each tag.
  */
 export const TagType = {
-    // 1 = byte, 2 = unsigned byte, 3 = short, 4 = unsigned short,
-    // 5 = int, 6 = unsigned int, 7 = long, 8 = unsigned long,
-    // 9 = string, 10 = date, 11 = version, 12 = container
+    mlit: 12,
+    mlcl: 12,
+    mcon: 12,
+    msrv: 12,
 
-    mlit: 12, // container
-    mlcl: 12, // container
-    mcon: 12, // container
-    msrv: 12, // container
+    miid: 5,
+    minm: 9,
+    mikd: 1,
+    mper: 7,
 
-    miid: 5,  // int
-    minm: 9,  // string
-    mikd: 1,  // byte
-    mper: 7,  // long
+    asal: 9,
+    asar: 9,
+    asaa: 9,
+    ascp: 9,
+    asgn: 9,
+    astm: 5, // milliseconds
+    astn: 3,
+    asdc: 3,
+    asdn: 3,
+    astc: 3,
+    asyr: 3,
+    asbr: 3,
+    assr: 5,
+    assz: 5,
 
-    asal: 9,  // string
-    asar: 9,  // string
-    asaa: 9,  // string
-    ascp: 9,  // string
-    asgn: 9,  // string
-    astm: 5,  // int (milliseconds)
-    astn: 3,  // short
-    asdc: 3,  // short
-    asdn: 3,  // short
-    astc: 3,  // short
-    asyr: 3,  // short
-    asbr: 3,  // short
-    assr: 5,  // int
-    assz: 5,  // int
+    caps: 1,
+    cash: 1,
+    carp: 1,
+    cavs: 1,
 
-    caps: 1,  // byte (play status)
-    cash: 1,  // byte (shuffle state)
-    carp: 1,  // byte (repeat state)
-    cavs: 1,  // byte (visible state)
-
-    aePP: 9   // string
+    aePP: 9
 } as const;
 
 /**
- * Encodes a single DAAP tag with an automatically sized value.
- * Numbers are encoded in the smallest big-endian representation that fits.
+ * Encodes a single DAAP tag. A number takes the smallest big-endian size that fits.
  *
- * @param tag - Four-character ASCII tag code (e.g. 'minm', 'asar').
- * @param value - The value to encode: string (UTF-8), number (auto-sized BE), bigint (8-byte BE), or raw Buffer.
- * @returns A buffer containing the tag, length, and value.
+ * @param tag - Four-character ASCII tag code, such as `minm`.
+ * @param value - A string is written as UTF-8, a bigint as 8 bytes and a Buffer as is.
  * @throws Error if the tag is not exactly 4 characters.
  */
 export function encodeTag(tag: string, value: Buffer | string | number | bigint): Buffer {
@@ -135,11 +121,9 @@ export function encodeTag(tag: string, value: Buffer | string | number | bigint)
 }
 
 /**
- * Encodes a DAAP container tag that wraps other encoded tags.
+ * Encodes a DAAP container tag around tags that are already encoded.
  *
- * @param tag - Four-character ASCII container tag code (e.g. 'mlit', 'mlcl').
- * @param content - Pre-encoded buffer containing the container's child tags.
- * @returns A buffer containing the container tag, length, and nested content.
+ * @param tag - Four-character ASCII container tag code, such as `mlit`.
  * @throws Error if the tag is not exactly 4 characters.
  */
 export function encodeContainer(tag: string, content: Buffer): Buffer {
@@ -155,11 +139,7 @@ export function encodeContainer(tag: string, content: Buffer): Buffer {
 }
 
 /**
- * Encodes playback status fields (playing, shuffle, repeat) into DAAP tags.
- * Only includes tags for fields that are defined in the status object.
- *
- * @param status - The playback status to encode.
- * @returns A buffer containing the encoded DAAP status tags.
+ * Encodes the playback status into DAAP tags, one tag per defined field.
  */
 export function encodePlaybackStatus(status: PlaybackStatus): Buffer {
     const tags: Buffer[] = [];
@@ -183,13 +163,10 @@ export function encodePlaybackStatus(status: PlaybackStatus): Buffer {
 }
 
 /**
- * Encodes a DAAP tag with an explicitly specified byte size for the numeric value.
- * Useful when the protocol requires a specific size regardless of the value magnitude.
+ * Encodes a numeric DAAP tag with a fixed value size, for tags whose size the protocol fixes.
  *
  * @param tag - Four-character ASCII tag code.
- * @param value - The numeric value to encode.
- * @param byteSize - The exact number of bytes to use for the value (1, 2, 4, or 8).
- * @returns A buffer containing the tag, length, and fixed-size value.
+ * @param byteSize - Size of the big-endian value in bytes.
  * @throws Error if the tag is not exactly 4 characters.
  */
 export function encodeTagWithSize(tag: string, value: number, byteSize: 1 | 2 | 4 | 8): Buffer {
@@ -203,15 +180,22 @@ export function encodeTagWithSize(tag: string, value: number, byteSize: 1 | 2 | 
     switch (byteSize) {
         case 1:
             valueBuffer.writeUInt8(value, 0);
+
             break;
+
         case 2:
             valueBuffer.writeUInt16BE(value, 0);
+
             break;
+
         case 4:
             valueBuffer.writeUInt32BE(value, 0);
+
             break;
+
         case 8:
             valueBuffer.writeBigUInt64BE(BigInt(value), 0);
+
             break;
     }
 
@@ -222,12 +206,8 @@ export function encodeTagWithSize(tag: string, value: number, byteSize: 1 | 2 | 
 }
 
 /**
- * Encodes track metadata into a DAAP listing item (`mlit`) container.
- * Only includes tags for fields that are defined in the metadata object.
- * Duration is converted from seconds to milliseconds for the `astm` tag.
- *
- * @param metadata - The track metadata to encode.
- * @returns A buffer containing an `mlit` container with all defined metadata tags.
+ * Encodes track metadata into a DAAP listing item (`mlit`), one tag per defined field.
+ * The duration goes from seconds to the milliseconds of `astm`.
  */
 export function encodeTrackMetadata(metadata: TrackMetadata): Buffer {
     const tags: Buffer[] = [];
@@ -257,7 +237,6 @@ export function encodeTrackMetadata(metadata: TrackMetadata): Buffer {
     }
 
     if (metadata.duration !== undefined) {
-        // Duration in milliseconds
         tags.push(encodeTagWithSize('astm', Math.floor(metadata.duration * 1000), 4));
     }
 
@@ -299,11 +278,7 @@ export function encodeTrackMetadata(metadata: TrackMetadata): Buffer {
 }
 
 /**
- * Decodes all DAAP tags from a buffer sequentially.
- * Stops when the buffer is exhausted or a tag cannot be fully decoded.
- *
- * @param buffer - The raw DAAP-encoded buffer.
- * @returns An array of decoded tags with their raw value buffers.
+ * Decodes the DAAP tags in a buffer, up to its end or the first incomplete tag.
  */
 export function decode(buffer: Buffer): DecodedTag[] {
     const tags: DecodedTag[] = [];
@@ -322,11 +297,9 @@ export function decode(buffer: Buffer): DecodedTag[] {
 }
 
 /**
- * Decodes a single DAAP tag from the start of a buffer.
- * Returns the decoded tag and the remaining unconsumed buffer.
+ * Decodes the DAAP tag at the start of a buffer.
  *
- * @param buffer - The buffer to decode from. Must contain at least 8 bytes (4 tag + 4 length).
- * @returns A tuple of the decoded tag and remaining buffer, or null if the buffer is too short.
+ * @returns The tag and the rest of the buffer, or null when the buffer holds no complete tag.
  */
 export function decodeTag(buffer: Buffer): [DecodedTag, Buffer] | null {
     if (buffer.length < 8) {
@@ -347,11 +320,8 @@ export function decodeTag(buffer: Buffer): [DecodedTag, Buffer] | null {
 }
 
 /**
- * Decodes a DAAP buffer into a plain object, interpreting values based on {@link TagType}.
- * Container tags (type 12) are recursively decoded. Unknown tags are kept as raw buffers.
- *
- * @param buffer - The raw DAAP-encoded buffer.
- * @returns An object mapping tag codes to their decoded values.
+ * Decodes a DAAP buffer into an object keyed by tag code, with values read as {@link TagType} says.
+ * Containers decode recursively; a tag of unknown type keeps its raw buffer.
  */
 export function decodeToObject(buffer: Buffer): Record<string, unknown> {
     const result: Record<string, unknown> = {};
@@ -361,7 +331,6 @@ export function decodeToObject(buffer: Buffer): Record<string, unknown> {
         const tagType = TagType[tag as keyof typeof TagType] as number | undefined;
 
         if (tagType === undefined) {
-            // Unknown tag type - keep as buffer
             result[tag] = value;
         } else if (tagType === 12) {
             result[tag] = decodeToObject(value);
@@ -376,7 +345,6 @@ export function decodeToObject(buffer: Buffer): Record<string, unknown> {
         } else if (tagType === 7 || tagType === 8) {
             result[tag] = value.readBigUInt64BE(0);
         } else {
-            // Unknown type - keep as buffer
             result[tag] = value;
         }
     }
@@ -385,12 +353,8 @@ export function decodeToObject(buffer: Buffer): Record<string, unknown> {
 }
 
 /**
- * Decodes a DAAP buffer into a structured {@link TrackMetadata} object.
- * Handles both bare tag lists and `mlit`-wrapped containers.
- * Duration is converted from the DAAP millisecond `astm` value back to seconds.
- *
- * @param buffer - The raw DAAP-encoded buffer containing track metadata.
- * @returns The decoded track metadata.
+ * Decodes track metadata from a bare tag list or an `mlit` container.
+ * The duration goes from the milliseconds of `astm` back to seconds.
  */
 export function decodeTrackMetadata(buffer: Buffer): TrackMetadata {
     const obj = decodeToObject(buffer);
@@ -415,59 +379,70 @@ export function decodeTrackMetadata(buffer: Buffer): TrackMetadata {
     };
 }
 
-/** Union type of all valid four-character DAAP content code keys. */
+/** A four-character DAAP content code from {@link ContentCode}. */
 export type ContentCodeKey = keyof typeof ContentCode;
 
-/** Represents a single decoded DAAP tag with its raw value buffer. */
+/** A decoded DAAP tag with its raw value bytes. */
 export type DecodedTag = {
-    /** The four-character ASCII tag code. */
     readonly tag: string;
-    /** The byte length of the value. */
+
+    /** The length of the value in bytes. */
     readonly length: number;
-    /** The raw undecoded value bytes. */
+
     readonly value: Buffer;
 };
 
-/** Represents the playback state of a DAAP media player. */
+/** The playback state that DAAP sends as `caps`, `cash` and `carp`. */
 export type PlaybackStatus = {
-    /** Whether the player is currently playing. */
     readonly playing?: boolean;
-    /** Whether shuffle mode is enabled. */
     readonly shuffle?: boolean;
-    /** The repeat mode: off, repeat one track, or repeat all. */
     readonly repeat?: 'off' | 'one' | 'all';
 };
 
-/** Metadata for a single media track in the DAAP protocol. */
+/** The metadata of a track, with the DAAP tag that carries each field. */
 export type TrackMetadata = {
-    /** Track title (DAAP tag `minm`). */
+    /** The title, sent as `minm`. */
     readonly title?: string;
-    /** Track artist (DAAP tag `asar`). */
+
+    /** The artist, sent as `asar`. */
     readonly artist?: string;
-    /** Album artist (DAAP tag `asaa`). */
+
+    /** The album artist, sent as `asaa`. */
     readonly albumArtist?: string;
-    /** Album name (DAAP tag `asal`). */
+
+    /** The album name, sent as `asal`. */
     readonly album?: string;
-    /** Composer name (DAAP tag `ascp`). */
+
+    /** The composer, sent as `ascp`. */
     readonly composer?: string;
-    /** Genre name (DAAP tag `asgn`). */
+
+    /** The genre, sent as `asgn`. */
     readonly genre?: string;
-    /** Track duration in seconds. Converted to/from milliseconds during encoding/decoding. */
+
+    /** The duration in seconds, sent as milliseconds in `astm`. */
     readonly duration?: number;
-    /** Track number within the album (DAAP tag `astn`). */
+
+    /** The track number on the album, sent as `astn`. */
     readonly trackNumber?: number;
-    /** Total number of tracks on the album (DAAP tag `astc`). */
+
+    /** The number of tracks on the album, sent as `astc`. */
     readonly trackCount?: number;
-    /** Disc number within the set (DAAP tag `asdn`). */
+
+    /** The disc number in the set, sent as `asdn`. */
     readonly discNumber?: number;
-    /** Total number of discs in the set (DAAP tag `asdc`). */
+
+    /** The number of discs in the set, sent as `asdc`. */
     readonly discCount?: number;
-    /** Release year (DAAP tag `asyr`). */
+
+    /** The release year, sent as `asyr`. */
     readonly year?: number;
-    /** Bitrate in kbps (DAAP tag `asbr`). */
+
+    /** The bitrate in kbps, sent as `asbr`. */
     readonly bitrate?: number;
-    /** Sample rate in Hz (DAAP tag `assr`). */
+
+    /** The sample rate in Hz, sent as `assr`. */
     readonly sampleRate?: number;
-    /** File size in bytes (DAAP tag `assz`). */
+
+    /** The file size in bytes, sent as `assz`. */
     readonly size?: number;
 };

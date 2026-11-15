@@ -75,7 +75,7 @@ export class CompanionLinkProxy implements ProtocolProxy {
         });
         this.#responder.start();
 
-        this.#context.logger.info('[proxy]', `Listening for controllers on port ${this.#options.listenPort}. Pair with PIN ${this.#options.pin}.`);
+        this.#context.logger.info('[proxy]', `Listening for Companion Link controllers on port ${this.#options.listenPort}. Pair with PIN ${this.#options.pin}.`);
     }
 
     async stop(): Promise<void> {
@@ -113,7 +113,7 @@ class ProxySession {
         controller.onFrame((type, payload) => this.#onControllerFrame(type, payload));
         controller.on('close', () => this.#teardown());
         controller.on('error', error => {
-            this.#context.logger.warn('[proxy]', 'controller connection error', error.message);
+            this.#context.logger.warn('[proxy]', 'Controller connection failed.', error.message);
             this.#teardown();
         });
     }
@@ -144,7 +144,7 @@ class ProxySession {
                 const {readKey, writeKey} = HKDF.deriveEncryptionKeys(this.#verifyServer.sharedSecret, '', 'ClientEncrypt-main', 'ServerEncrypt-main');
 
                 this.#controller.enableEncryption(readKey, writeKey);
-                this.#context.logger.info('[proxy]', 'Controller pair-verify complete, connecting to device…');
+                this.#context.logger.info('[proxy]', 'Controller pair-verify complete, connecting to the device.');
 
                 await this.#connectDevice();
             }
@@ -170,7 +170,7 @@ class ProxySession {
         device.onFrame((type, payload) => this.#onDeviceFrame(type, payload));
         device.on('close', () => this.#teardown());
         device.on('error', error => {
-            this.#context.logger.warn('[proxy]', 'device connection error', error.message);
+            this.#context.logger.warn('[proxy]', 'Device connection failed.', error.message);
             this.#teardown();
         });
 
@@ -185,7 +185,7 @@ class ProxySession {
 
         device.enableEncryption(readKey, writeKey);
 
-        this.#context.logger.info('[proxy]', 'Device pair-verify complete, relaying.');
+        this.#context.logger.info('[proxy]', 'Device pair-verify complete, relaying Companion Link.');
         this.#deviceReady = true;
 
         for (const [type, payload] of this.#pending) {
@@ -253,7 +253,7 @@ class ProxySession {
         try {
             this.#options.tap.record(direction, type, OPack.decode(payload), payload, Date.now());
         } catch (error) {
-            this.#context.logger.warn('[proxy]', 'failed to decode relayed frame', (error as Error).message);
+            this.#context.logger.warn('[proxy]', 'Could not decode a relayed frame.', (error as Error).message);
         }
     }
 

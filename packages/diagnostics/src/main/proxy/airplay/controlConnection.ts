@@ -142,7 +142,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
             this.#plainBuffer = Buffer.concat([this.#plainBuffer, this.#encrypted ? this.#decryptFrames(chunk) : chunk]);
         } catch (error) {
-            this.#context.logger.error('[proxy]', 'AirPlay control decrypt failed', error);
+            this.#context.logger.error('[proxy]', 'Could not decrypt the AirPlay control stream.', error);
             this.close();
             this.emit('error', error as Error);
 
@@ -210,7 +210,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
                 this.#flow();
             }
         } catch (error) {
-            this.#context.logger.error('[proxy]', 'AirPlay control drain failed', error);
+            this.#context.logger.error('[proxy]', 'AirPlay control message handler failed.', error);
             this.close();
             this.emit('error', error as Error);
         } finally {

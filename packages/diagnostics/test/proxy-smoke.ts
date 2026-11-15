@@ -33,11 +33,11 @@ void generateAccessoryIdentity;
 void responder;
 
 if (!identity.identifier.includes(':') || identity.publicKey.byteLength !== 32) {
-    throw new Error('accessory identity looks wrong');
+    throw new Error('The accessory identity looks wrong.');
 }
 
 if (tap.counts['controller->device'] !== 1) {
-    throw new Error('the tap did not count the recorded message');
+    throw new Error('The tap did not count the recorded message.');
 }
 
 console.log('✓ proxy modules load and construct; accessory identity', identity.identifier, '| local address', MdnsResponder.localAddress());

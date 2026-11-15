@@ -28,7 +28,7 @@ export class ProxyTap {
 
         if (capturePath) {
             this.#file = createWriteStream(capturePath, {flags: 'a', mode: 0o600});
-            this.#file.on('error', error => this.#context.logger.warn('[proxy]', 'Capture file failed', error.message));
+            this.#file.on('error', error => this.#context.logger.warn('[proxy]', 'Could not write the capture file.', error.message));
         }
     }
 

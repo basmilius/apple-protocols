@@ -158,7 +158,7 @@ export class ChannelRelay {
                 (target === this.#deviceSocket ? this.#controllerSocket : this.#deviceSocket).pause();
             }
         } catch (error) {
-            this.#context.logger.warn('[proxy]', `AirPlay channel relay error (${direction})`, (error as Error).message);
+            this.#context.logger.warn('[proxy]', `AirPlay channel relay failed (${direction}).`, (error as Error).message);
             this.#controllerSocket.destroy();
             this.#deviceSocket.destroy();
         }

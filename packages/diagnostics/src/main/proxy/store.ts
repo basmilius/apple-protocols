@@ -54,7 +54,7 @@ export class ProxyStore {
             chmodSync(this.#path, 0o600);
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-                throw new Error(`Cannot load proxy identities from ${this.#path}`, {cause: error});
+                throw new Error(`Cannot load proxy identities from ${this.#path}.`, {cause: error});
             }
 
             this.#data = {version: 1, identities: {}, controllers: {}};

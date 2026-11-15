@@ -200,7 +200,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
                 }
             }
         } catch (error) {
-            this.#context.logger.error('[proxy]', 'FramedConnection.drain()', error);
+            this.#context.logger.error('[proxy]', 'Proxy frame handler failed.', error);
 
             if (!this.#closed) {
                 this.#fail(error as Error);

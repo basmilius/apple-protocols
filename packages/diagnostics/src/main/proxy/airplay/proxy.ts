@@ -121,12 +121,12 @@ class AirPlaySession {
         controller.onMessage(message => this.#onControllerMessage(message));
         controller.on('close', () => this.#teardown());
         controller.on('error', error => {
-            this.#context.logger.warn('[proxy]', 'controller connection error', error.message);
+            this.#context.logger.warn('[proxy]', 'Controller connection failed.', error.message);
             this.#teardown();
         });
 
         this.#connectDevice().catch(error => {
-            this.#context.logger.error('[proxy]', 'device connect/verify failed', error);
+            this.#context.logger.error('[proxy]', 'Could not connect to or pair-verify with the device.', error);
             this.#teardown();
         });
     }
@@ -207,7 +207,7 @@ class AirPlaySession {
                 return response.raw;
             }
 
-            this.#context.logger.info('[proxy]', 'Rewrote SETUP response — relaying event/data channels.');
+            this.#context.logger.info('[proxy]', 'Rewrote the SETUP response to relay the event and data channels.');
 
             const headers = Object.fromEntries(response.headers.entries());
             delete headers['content-length'];
@@ -220,7 +220,7 @@ class AirPlaySession {
                 protocol: requestProtocol(response.raw)
             });
         } catch (error) {
-            this.#context.logger.warn('[proxy]', 'SETUP interception failed; passing through', (error as Error).message);
+            this.#context.logger.warn('[proxy]', 'Could not rewrite the SETUP response, passing it through as is.', (error as Error).message);
 
             return response.raw;
         }
@@ -238,7 +238,7 @@ class AirPlaySession {
         const cseq = request.headers['CSeq'];
 
         if (basePath === '/pair-pin-start') {
-            this.#context.logger.info('[proxy]', `Controller is pairing — enter PIN ${this.#options.pin} on the controller.`);
+            this.#context.logger.info('[proxy]', `Controller is pairing. Enter PIN ${this.#options.pin} on the controller.`);
             this.#controller?.send(buildResponse({status: 200, statusText: 'OK', protocol, headers: cseq ? {CSeq: cseq} : {}}));
 
             return;
@@ -268,7 +268,7 @@ class AirPlaySession {
             const {readKey, writeKey} = HKDF.deriveEncryptionKeys(this.#verifyServer.sharedSecret, 'Control-Salt', 'Control-Write-Encryption-Key', 'Control-Read-Encryption-Key');
 
             this.#controller?.enableEncryption(readKey, writeKey);
-            this.#context.logger.info('[proxy]', 'Controller pair-verify complete; control channel encrypted.');
+            this.#context.logger.info('[proxy]', 'Controller pair-verify complete, control channel encrypted.');
         }
     }
 
@@ -291,7 +291,7 @@ class AirPlaySession {
 
         device.on('close', () => this.#teardown());
         device.on('error', error => {
-            this.#context.logger.warn('[proxy]', 'device connection error', error.message);
+            this.#context.logger.warn('[proxy]', 'Device connection failed.', error.message);
             this.#teardown();
         });
 
@@ -307,7 +307,7 @@ class AirPlaySession {
         this.#deviceSharedSecret = keys.sharedSecret;
         device.enableEncryption(readKey, writeKey);
 
-        this.#context.logger.info('[proxy]', 'Device pair-verify complete; relaying control channel.');
+        this.#context.logger.info('[proxy]', 'Device pair-verify complete, relaying the control channel.');
         this.#deviceReady = true;
 
         for (const raw of this.#pending) {

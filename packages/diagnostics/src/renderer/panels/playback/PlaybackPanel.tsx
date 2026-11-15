@@ -262,7 +262,6 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                         <PlaybackCommand {...context} root="mediaRemote" label="Request queue" command="GetPlaybackQueue" path="playbackQueue.request" args={[numberOf(queueLength, 10)]}/>
                     </ControlRow>
                 </Section>
-
             </PanelGroup>
 
             {companionConnected && (

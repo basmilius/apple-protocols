@@ -23,7 +23,7 @@ type Artwork = {
 const LYRICS_SOURCES = ['airplayState'] as const;
 const LYRICS_EVENTS = ['lyricsEvent'];
 
-/* Convert IPC hex bytes to base64 for an image data URL. */
+/* IPC carries bytes as hex; an image data URL needs base64. */
 function dataUrlOf(mimeType: string, hex: string): string {
     let binary = '';
 

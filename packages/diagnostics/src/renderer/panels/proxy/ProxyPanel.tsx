@@ -152,7 +152,7 @@ function ProxyCard({proxy}: { readonly proxy: ProxyStatus }) {
 
 asCard(ProxyCard);
 
-/** A man-in-the-middle for a real device: a controller pairs with this app, which relays to the device and taps both sides. */
+/** Sits between a controller and a real device. The controller pairs with this app, which relays to the device and taps both sides. */
 export function ProxyPanel() {
     const {proxies, error} = useProxyStatus();
 

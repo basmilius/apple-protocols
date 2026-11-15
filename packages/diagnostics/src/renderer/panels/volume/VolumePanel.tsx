@@ -132,7 +132,6 @@ export function VolumePanel({deviceId}: PanelProps) {
                         </div>
                     )}
                 </Section>
-
             </PanelGroup>
 
             <PanelGroup title="Capabilities and sound modes" icon={ICONS.info}>

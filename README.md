@@ -26,7 +26,7 @@ bun add @corewire/devices
 bun add @corewire/audio-source   # only to stream audio from your own process
 ```
 
-`npm install` and `pnpm add` work as well. Install a protocol package directly (`@corewire/airplay`, `@corewire/companion-link`) when you want the protocol without the device layer.
+`npm install` and `pnpm add` work too. For a protocol without the device layer, install `@corewire/airplay` or `@corewire/companion-link` directly.
 
 ## Apple TV and HomePod
 
@@ -45,7 +45,7 @@ const credentials = await pairing.pin('1234');
 await save(credentials.toString());
 ```
 
-`Credentials.parse()` reads that string back. It also reads the hex object older versions of the Homey app stored, and `toFields()` writes that object form for storage an older release still has to read. The Apple TV lists the pairing under the name `CoreWire`; pass `identity: {name}` to `pair()` to choose another.
+`Credentials.parse()` reads that string back. It also reads the hex object that older versions of the Homey app stored. `toFields()` writes that object form, for storage an older release still has to read. The Apple TV lists the pairing as `CoreWire`. Pass `identity: {name}` to `pair()` for another name.
 
 ### Connect and stay connected
 
@@ -82,7 +82,7 @@ await tv.disconnect();
 
 `connect()` resolves once the device is usable. After that the device keeps itself connected until `disconnect()`. When a connection drops it retries after 1, 2 and 4 seconds. An Apple TV then tries every 2 minutes for half an hour and every 15 minutes after that. A HomePod goes straight to every 15 minutes. Neither gives up. Before every retry the device looks up its address again, so a new DHCP lease does not strand it.
 
-`degraded` means AirPlay works and Companion Link does not yet. Remote, now playing and volume keep working, and the device attaches Companion Link as soon as it answers. Capabilities such as `tv.apps` always exist. `supports()` tells you whether one works right now, and a call that cannot work throws an `UnavailableError`. Every error class comes from `@corewire/devices`; a playback command the device refuses throws a `CommandRefusedError` with a `reason` and a `status`.
+`degraded` means AirPlay works and Companion Link does not yet. Remote, now playing and volume keep working, and the device attaches Companion Link as soon as it answers. Capabilities such as `tv.apps` always exist. `supports()` tells you whether one works right now, and a call that cannot work throws an `UnavailableError`. Every error class comes from `@corewire/devices`. A playback command the device refuses throws a `CommandRefusedError` with a `reason` and a `status`.
 
 ### Find devices
 
@@ -130,7 +130,7 @@ Volume is always 0 to 1 on a device. Lyrics and animated artwork from the Apple 
 
 ### AirPlay and MRP
 
-`connect()` returns a session that is ready to use: pair-verify, encryption, `/info` and the keepalive are done. A session lives once. It ends with a reason (`local`, `remote`, `timeout` or `error`) and does not reconnect.
+`connect()` returns a session that is ready to use. Pair-verify, encryption, `/info` and the keepalive are done. A session lives once. It ends with a reason (`local`, `remote`, `timeout` or `error`) and does not reconnect.
 
 ```ts
 import { connect, discover, pair, toTarget } from '@corewire/airplay';
@@ -191,7 +191,7 @@ bun --cwd packages/diagnostics dev
 
 `bun --cwd packages/diagnostics pack` builds installers for macOS, Linux and Windows into `packages/diagnostics/release/`.
 
-Start it with `dev:agent` and the `diag` CLI drives the running app from a terminal. It can connect, press keys, read traffic, events and logs, and start or stop the proxy:
+Started with `dev:agent`, the app accepts the `diag` CLI from a terminal. It connects, presses keys, reads traffic, events and logs, and starts or stops the proxy:
 
 ```bash
 bun --cwd packages/diagnostics dev:agent
@@ -215,7 +215,7 @@ bun run packages/diagnostics/test/proxy-smoke.ts
 bun --cwd website build
 ```
 
-`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`, and diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the five libraries to npm with provenance, and a push to `main` that touches `website/` deploys [corewire.dev](https://corewire.dev).
+`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`. Diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the five libraries to npm with provenance, and a push to `main` that touches `website/` deploys [corewire.dev](https://corewire.dev).
 
 Build or watch a single package:
 
@@ -230,7 +230,7 @@ Regenerate the MRP protobuf code after changing one of the 155 `.proto` files in
 bun --cwd packages/airplay gen:proto   # writes packages/airplay/src/mrp/proto/
 ```
 
-There is no automated test suite yet. Changes are checked with the builds, the two scripts above and diagnostics against real devices.
+There is no automated test suite yet. I check changes with the builds, the two scripts above and diagnostics against real devices.
 
 ## License
 

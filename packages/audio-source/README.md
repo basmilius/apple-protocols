@@ -1,6 +1,6 @@
 # @corewire/audio-source
 
-Audio sources for AirPlay streaming. Each one delivers 44100 Hz, 16-bit, stereo PCM: decoded files and URLs (MP3, OGG Vorbis, WAV, FLAC, QOA), raw PCM, FFmpeg, a sine wave and a live ring buffer.
+Audio sources for AirPlay streaming, each delivering 44100 Hz 16-bit stereo PCM. There are decoders for files and URLs (MP3, OGG Vorbis, WAV, FLAC, QOA), raw PCM, FFmpeg, a sine wave and a live ring buffer.
 
 Part of [CoreWire](https://corewire.dev).
 

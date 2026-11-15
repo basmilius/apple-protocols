@@ -8,9 +8,9 @@
 [![Build checks](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml)
 [![Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)
 
-CoreWire is a set of TypeScript implementations of AirPlay 2, the Media Remote Protocol (MRP), RAOP and Companion Link, published under the `@corewire` scope. They run on Node.js 18.17 or later (20.3 or later on the 20 line) and on Bun, without native dependencies. The documentation lives at [corewire.dev](https://corewire.dev).
+CoreWire talks to Apple TVs and HomePods from TypeScript. It implements AirPlay 2, the Media Remote Protocol (MRP), RAOP and Companion Link, and publishes them under the `@corewire` scope. It runs on Node.js 18.17 and later (20.3 and later on the 20 line) and on Bun, with no native dependencies. The documentation is at [corewire.dev](https://corewire.dev).
 
-I wrote most of this by studying network traffic and reading other implementations of Apple's undocumented protocols. The rewrite to TypeScript started so the [Homey app](https://github.com/basmilius/homey-apple) could control Apple TVs and HomePods without a Python runtime. That app is still the main user, and it shapes what `@corewire/devices` promises to keep stable.
+Apple documents none of these protocols. I worked out most of it from network captures. CoreWire exists for my [Homey app](https://github.com/basmilius/homey-apple), which controls Apple TVs and HomePods on Homey hubs. That app is still the main user, so it decides what `@corewire/devices` keeps stable.
 
 ## Packages
 
@@ -18,9 +18,9 @@ I wrote most of this by studying network traffic and reading other implementatio
 |----------------------------|--------------------------------------------------------------------------------------------------------------|
 | `@corewire/devices`        | `AppleTV` and `HomePod`. They connect, recover on their own and expose remote, now playing, volume, multiroom, apps and media. Start here. |
 | `@corewire/airplay`        | The AirPlay 2 session with its control, event and data channels, URL playback, audio streaming and timing. MRP lives on `@corewire/airplay/mrp`, RAOP on `/raop`, RTSP on `/rtsp`. |
-| `@corewire/companion-link` | The Companion Link session of an Apple TV: HID, touch, text input, power, apps, accounts, media, system settings. |
+| `@corewire/companion-link` | The Companion Link session of an Apple TV, with HID, touch, text input, power, apps, accounts, media and system settings. |
 | `@corewire/audio-source`   | Audio sources for streaming: MP3, OGG, WAV, FLAC and QOA decoders, PCM, FFmpeg, URLs, live input and a sine wave. |
-| `@corewire/core`           | What the protocols share: TLV8, OPack, plist and DAAP codecs, ChaCha20, Ed25519, Curve25519, SRP, HAP pairing, encrypted transport and mDNS. It knows no protocol. |
+| `@corewire/core`           | The parts every protocol uses: TLV8, OPack, plist and DAAP codecs, ChaCha20, Ed25519, Curve25519, SRP, HAP pairing, encrypted transport and mDNS. No protocol logic. |
 
 The protocol packages depend only on `core`. `devices` is the one place where AirPlay and Companion Link meet. All packages share one version.
 
@@ -50,7 +50,7 @@ const credentials = await pairing.pin('1234');
 await save(credentials.toString());
 ```
 
-`Credentials.parse()` reads that string back. It also reads the hex object that older versions of the Homey app stored. `toFields()` writes that object form, for storage an older release still has to read. The Apple TV lists the pairing as `CoreWire`. Pass `identity: {name}` to `pair()` for another name.
+`Credentials.parse()` reads that string back. It also reads the hex object that older versions of the Homey app stored, and `toFields()` writes that object for storage an older release still reads. The Apple TV lists the pairing as `CoreWire`. Pass `identity: {name}` to `pair()` for another name.
 
 ### Connect and stay connected
 
@@ -85,7 +85,7 @@ if (tv.supports('apps')) {
 await tv.disconnect();
 ```
 
-`connect()` resolves once the device is usable. After that the device keeps itself connected until `disconnect()`. When a connection drops it retries after 1, 2 and 4 seconds. An Apple TV then tries every 2 minutes for half an hour and every 15 minutes after that. A HomePod goes straight to every 15 minutes. Neither gives up. Before every retry the device looks up its address again, so a new DHCP lease does not strand it.
+`connect()` resolves once the device is usable, and the device stays connected until `disconnect()`. When a connection drops, it retries after 1, 2 and 4 seconds. An Apple TV then tries every 2 minutes for half an hour and every 15 minutes after that. A HomePod goes straight to every 15 minutes. Neither gives up. Before every retry the device looks up its address again, so a new DHCP lease does not strand it.
 
 `degraded` means AirPlay works and Companion Link does not yet. Remote, now playing and volume keep working, and the device attaches Companion Link as soon as it answers. Capabilities such as `tv.apps` always exist. `supports()` tells you whether one works right now, and a call that cannot work throws an `UnavailableError`. Every error class comes from `@corewire/devices`. A playback command the device refuses throws a `CommandRefusedError` with a `reason` and a `status`.
 
@@ -163,7 +163,7 @@ await remote.commands.pause();
 await session.close();
 ```
 
-`MediaRemote.state` is a model without I/O. Feed it recorded messages with `apply()` and it behaves the same as on a live session. `session.playUrl()` and `session.streamAudio()` open their own connections inside the package.
+`MediaRemote.state` is a model without I/O. Feed it recorded messages with `apply()` and it behaves the same as on a live session. `session.playUrl()` and `session.streamAudio()` each open their own connection to the device; you never manage those sockets yourself.
 
 ### Companion Link
 

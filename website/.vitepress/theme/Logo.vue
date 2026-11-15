@@ -9,18 +9,17 @@
             fill="none"
             viewBox="0 0 24 24"
             aria-hidden="true">
-            <rect
-                x="1"
-                y="1"
-                width="22"
-                height="22"
-                rx="6"
+            <circle
+                cx="12"
+                cy="12"
+                r="2.75"
                 fill="currentColor"/>
             <path
-                stroke="var(--vp-c-bg)"
+                stroke="currentColor"
                 stroke-linecap="round"
                 stroke-width="2"
-                d="M6 12h3l2-4 2 8 2-4h3"/>
+                opacity="0.55"
+                d="M8.11 8.11a5.5 5.5 0 0 0 0 7.78M15.89 8.11a5.5 5.5 0 0 1 0 7.78M5.28 5.28a9.5 9.5 0 0 0 0 13.44M18.72 5.28a9.5 9.5 0 0 1 0 13.44"/>
         </svg>
         <span :class="$style.word">CoreWire</span>
     </span>

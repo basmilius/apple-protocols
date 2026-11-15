@@ -27,12 +27,12 @@ jobs:
 
             -   uses: actions/setup-node@v6
                 with:
-                    node-version: '25'
+                    node-version: '24'
                     registry-url: 'https://registry.npmjs.org'
 
-            # Trusted publishing (OIDC) needs npm 11.5.1 or newer.
+            # Trusted publishing (OIDC) needs npm 11.5.1 or newer; npm 12 drops support for some Node versions.
             -   name: 📦️ Update npm
-                run: npm install --global npm@latest
+                run: npm install --global npm@^11.5.1
 
             # The tag may start with a v; the package version never does.
             -   name: ✏️ Version ${{ env.RELEASE_TAG }}

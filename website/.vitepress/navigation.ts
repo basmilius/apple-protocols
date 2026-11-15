@@ -17,9 +17,7 @@ const PACKAGES: [string, string][] = [
     ['@corewire/airplay/rtsp', '/reference/airplay-rtsp'],
     ['@corewire/companion-link', '/reference/companion-link'],
     ['@corewire/audio-source', '/reference/audio-source'],
-    ['@corewire/core', '/reference/core'],
-    ['opack', '/reference/opack'],
-    ['tlv8', '/reference/tlv8']
+    ['@corewire/core', '/reference/core']
 ];
 
 export const nav: DefaultTheme.NavItem[] = [

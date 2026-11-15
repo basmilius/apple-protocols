@@ -16,10 +16,8 @@ I wrote most of this by studying network traffic and reading other implementatio
 | `@corewire/companion-link` | The Companion Link session of an Apple TV: HID, touch, text input, power, apps, accounts, media, system settings. |
 | `@corewire/audio-source`   | Audio sources for streaming: MP3, OGG, WAV, FLAC and QOA decoders, PCM, FFmpeg, URLs, live input and a sine wave. |
 | `@corewire/core`           | What the protocols share: TLV8, OPack, plist and DAAP codecs, ChaCha20, Ed25519, Curve25519, SRP, HAP pairing, encrypted transport and mDNS. It knows no protocol. |
-| `opack`                    | The OPack codec, without dependencies. `core` re-exports it as `OPack`. |
-| `tlv8`                     | The TLV8 codec, without dependencies. `core` re-exports it as `TLV8` and adds the HAP constants. |
 
-The protocol packages depend only on `core`, and `core` only on `opack` and `tlv8`. `devices` is the one place where AirPlay and Companion Link meet. `opack` and `tlv8` sit outside the `@corewire` scope and have no dependencies. All packages share one version.
+The protocol packages depend only on `core`. `devices` is the one place where AirPlay and Companion Link meet. All packages share one version.
 
 ## Install
 
@@ -217,7 +215,7 @@ bun run packages/diagnostics/test/proxy-smoke.ts
 bun --cwd website build
 ```
 
-`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`. Diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the seven libraries to npm with provenance, and a push to `main` that touches `website/` deploys [corewire.dev](https://corewire.dev).
+`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`. Diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the five libraries to npm with provenance, and a push to `main` that touches `website/` deploys [corewire.dev](https://corewire.dev).
 
 Build or watch a single package:
 

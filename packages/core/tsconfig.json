@@ -17,21 +17,13 @@
         "declaration": true,
         "isolatedDeclarations": true,
         "isolatedModules": true,
-        "rootDir": "..",
+        "rootDir": ".",
         "outDir": "dist",
         "experimentalDecorators": true,
         "noEmit": true,
         "types": [
             "node"
-        ],
-        "paths": {
-            "opack": [
-                "../opack/src"
-            ],
-            "tlv8": [
-                "../tlv8/src"
-            ]
-        }
+        ]
     },
     "include": [
         "src/**/*.ts",

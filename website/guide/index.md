@@ -14,8 +14,6 @@ CoreWire is a set of TypeScript packages that talk to Apple TVs and HomePods on 
 
 The protocol packages depend only on `core`. AirPlay and Companion Link meet only in `devices`. All packages share one version.
 
-The OPack and TLV8 codecs are standalone packages without dependencies, which `core` re-exports: [`opack`](/reference/opack) and [`tlv8`](/reference/tlv8). They also serve projects that need the format but not CoreWire.
-
 ## How these docs are organized
 
 - The **Guide** covers `@corewire/devices`. It finds a device, connects, pairs and uses every capability of an Apple TV or HomePod.

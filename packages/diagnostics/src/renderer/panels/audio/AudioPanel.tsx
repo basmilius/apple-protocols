@@ -73,7 +73,7 @@ export function AudioPanel({deviceId}: PanelProps) {
                             label="Timing"
                             icon={ICONS.timing}
                             value={ptp ? 'PTP' : 'NTP'}
-                            hint="NTP through the shared timing server is the proven path. PTP runs this stream with a grandmaster of our own, which is known to yield silent playback on PTP-capable receivers."
+                            hint="NTP through the shared timing server is the proven path. PTP runs this stream with its own grandmaster. So far, PTP-capable receivers play it silent."
                         >
                             <Toggle label="Run the PTP experiment" checked={ptp} disabled={playing} onCheckedChange={setPtp}/>
                         </ControlRow>
@@ -93,7 +93,7 @@ export function AudioPanel({deviceId}: PanelProps) {
             ) : (
                 <>
                     <Section title="Media URL" icon={ICONS.app}>
-                        <Field label="URL" hint="The device fetches this itself over a session of its own. Nothing is sent from here beyond the URL.">
+                        <Field label="URL" hint="The device fetches this itself over a session of its own. This app sends only the URL.">
                             <TextInput label="URL" placeholder="https://example.com/video.mp4" value={url} disabled={playing} onChange={event => setUrl(event.target.value)} mono/>
                         </Field>
                         <Field label="Start position (s)">

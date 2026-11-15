@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ScrollArea } from '@adecore/ui';
 import { Captions, Ear, Link2, MapPin, Mic, Package, Play, SunMoon, Tag } from 'lucide-react';
-import { asCard, Banner, ButtonGroup, CommandButton, ControlRow, CountPill, EmptyState, IconButton, ICONS, PanelBody, PanelGroup, Section, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { EventFeed, NotConnected, ResultBlock, Row } from '@/panels/sdk-shared';
+import { asCard, Banner, ButtonGroup, CommandButton, ControlRow, CountPill, EmptyState, IconButton, ICONS, PanelBody, PanelGroup, Section, TextInput } from '@/ui';
 
 type LaunchableApp = {
     readonly bundleId: string;
@@ -108,7 +108,7 @@ function AccountsSection({call, connected}: Context) {
                     ))}
                 </div>
             )}
-            <ControlRow label="Account id" icon={ICONS.identifier}>
+            <ControlRow label="Account ID" icon={ICONS.identifier}>
                 <TextInput label="Account identifier" mono className="h-7 min-w-0 flex-1 basis-40" value={accountId} onChange={event => setAccountId(event.target.value)}/>
                 <CommandButton label="Switch" tooltip="accounts.switch" run={() => call('device', 'accounts.switch', [accountId.trim()])} disabled={!connected || accountId.trim().length === 0}/>
             </ControlRow>
@@ -218,7 +218,7 @@ export function AppleTVPanel({deviceId}: PanelProps) {
         <PanelBody>
             {!connected && <NotConnected/>}
             {connected && !companionConnected && (
-                <Banner placement="inline" tone="attention" icon={ICONS.companionLink} message="Companion Link is not connected, so apps, accounts, system and up next will refuse."/>
+                <Banner placement="inline" tone="attention" icon={ICONS.companionLink} message="Companion Link is not connected, so the apps, accounts, system and up next commands fail."/>
             )}
 
             <PanelGroup>

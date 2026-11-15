@@ -18,7 +18,7 @@ export type ControlMessage =
     | {readonly kind: 'request'; readonly raw: Buffer; readonly request: RtspRequest}
     | {readonly kind: 'response'; readonly raw: Buffer; readonly status: number; readonly statusText: string; readonly headers: Headers; readonly body: Buffer};
 
-/** Lifecycle events (messages are delivered via {@link ControlConnection.onMessage}). */
+/** Messages go to {@link ControlConnection.onMessage}, not through an event. */
 type ControlConnectionEvents = {
     close: [];
     error: [error: Error];
@@ -34,7 +34,6 @@ const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
  * Await each handler before parsing the next message: pairing handlers can enable encryption for subsequent bytes.
  */
 export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
-    /** Whether encryption has been enabled for this connection. */
     get isEncrypted(): boolean {
         return this.#encrypted;
     }
@@ -47,7 +46,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     #writeKey?: Buffer;
     #readCount = 0;
     #writeCount = 0;
-    #encBuffer: Buffer = Buffer.alloc(0);
+    #encryptedBuffer: Buffer = Buffer.alloc(0);
     #plainBuffer: Buffer = Buffer.alloc(0);
     #draining = false;
     #closed = false;
@@ -55,10 +54,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     #activeBytes = 0;
     #handler?: (message: ControlMessage) => void | Promise<void>;
 
-    /**
-     * @param socket - The already-open TCP socket.
-     * @param mode - Whether to parse incoming bytes as requests (server) or responses (client).
-     */
+    /** @param socket - Already connected. */
     constructor(context: Context, socket: Socket, mode: ControlMode) {
         super();
 
@@ -67,15 +63,23 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         this.#mode = mode;
 
         this.#socket.on('data', (data: Buffer) => this.#onData(data));
-        this.#socket.on('close', () => {this.#closed = true; this.#encBuffer = this.#plainBuffer = Buffer.alloc(0); this.emit('close');});
-        this.#socket.on('drain', () => {this.#writeBlocked = false; this.#flow();});
         this.#socket.on('error', (error: Error) => this.emit('error', error));
+
+        this.#socket.on('close', () => {
+            this.#closed = true;
+            this.#encryptedBuffer = this.#plainBuffer = Buffer.alloc(0);
+            this.emit('close');
+        });
+
+        this.#socket.on('drain', () => {
+            this.#writeBlocked = false;
+            this.#flow();
+        });
     }
 
     /**
-     * Registers the serial message handler. Messages buffered before this is set are delivered once it is.
-     *
-     * @param handler - Invoked per parsed message; awaited before the next one is parsed.
+     * Sets the handler, which gets the messages one at a time and is awaited before the next one. Messages
+     * that arrived before it was set are delivered then.
      */
     onMessage(handler: (message: ControlMessage) => void | Promise<void>): void {
         this.#handler = handler;
@@ -83,10 +87,8 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     }
 
     /**
-     * Enables AirPlay control-stream encryption with the given directional keys.
-     *
-     * @param readKey - The 32-byte key for decrypting incoming frames.
-     * @param writeKey - The 32-byte key for encrypting outgoing frames.
+     * @param readKey - 32 bytes, decrypts incoming frames.
+     * @param writeKey - 32 bytes, encrypts outgoing frames.
      */
     enableEncryption(readKey: Buffer, writeKey: Buffer): void {
         this.#readKey = readKey;
@@ -94,18 +96,13 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         this.#encrypted = true;
     }
 
-    /** Destroys the socket. */
     close(): void {
         this.#closed = true;
-        this.#encBuffer = this.#plainBuffer = Buffer.alloc(0);
+        this.#encryptedBuffer = this.#plainBuffer = Buffer.alloc(0);
         this.#socket.destroy();
     }
 
-    /**
-     * Sends raw RTSP bytes, wrapping them in encrypted frames once encryption is enabled.
-     *
-     * @param raw - The plaintext RTSP bytes to send.
-     */
+    /** Sends plaintext RTSP bytes, in encrypted frames once encryption is on. */
     send(raw: Buffer): void {
         if (!this.#socket.writable) {
             return;
@@ -113,10 +110,11 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
         if (!this.#encrypted) {
             this.#write(raw);
+
             return;
         }
 
-        const out: Buffer[] = [];
+        const frames: Buffer[] = [];
 
         for (let offset = 0; offset < raw.length;) {
             const frame = raw.subarray(offset, offset + FRAME_LENGTH);
@@ -126,26 +124,28 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             length.writeUInt16LE(frame.length, 0);
 
             const encrypted = ChaCha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
-            out.push(length, encrypted.ciphertext, encrypted.authTag);
+            frames.push(length, encrypted.ciphertext, encrypted.authTag);
         }
 
-        this.#write(Buffer.concat(out));
+        this.#write(Buffer.concat(frames));
     }
 
-    /**
-     * Handles incoming socket data: decrypt complete frames into the plaintext buffer, then drain.
-     *
-     * @param chunk - The raw data chunk from the socket.
-     */
     #onData(chunk: Buffer): void {
         try {
-            if (this.#closed) return;
-            if (this.#plainBuffer.length + this.#encBuffer.length + this.#activeBytes + chunk.length > 1024 * 1024) throw new Error('Control receive buffer limit exceeded.');
+            if (this.#closed) {
+                return;
+            }
+
+            if (this.#plainBuffer.length + this.#encryptedBuffer.length + this.#activeBytes + chunk.length > 1024 * 1024) {
+                throw new Error('Control receive buffer limit exceeded.');
+            }
+
             this.#plainBuffer = Buffer.concat([this.#plainBuffer, this.#encrypted ? this.#decryptFrames(chunk) : chunk]);
         } catch (error) {
-            this.#context.logger.error('[proxy]', 'AirPlay control decrypt failed', error);
+            this.#context.logger.error('[proxy]', 'Could not decrypt the AirPlay control stream.', error);
             this.close();
             this.emit('error', error as Error);
+
             return;
         }
 
@@ -153,44 +153,39 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         void this.#drain();
     }
 
-    /**
-     * Consumes whole encrypted frames from the internal buffer and returns their concatenated plaintext.
-     * Partial trailing frames remain buffered for the next chunk.
-     *
-     * @param chunk - Newly received encrypted bytes.
-     * @returns The plaintext recovered from the complete frames.
-     */
+    /** Returns the plaintext of every complete frame; a partial trailing frame waits for the next chunk. */
     #decryptFrames(chunk: Buffer): Buffer {
-        this.#encBuffer = Buffer.concat([this.#encBuffer, chunk]);
+        this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, chunk]);
 
-        const out: Buffer[] = [];
+        const plaintexts: Buffer[] = [];
         let offset = 0;
 
-        while (offset + 2 <= this.#encBuffer.length) {
-            const frameLength = this.#encBuffer.readUInt16LE(offset);
-            if (frameLength === 0) throw new Error('Invalid control frame length.');
+        while (offset + 2 <= this.#encryptedBuffer.length) {
+            const frameLength = this.#encryptedBuffer.readUInt16LE(offset);
+
+            if (frameLength === 0) {
+                throw new Error('Invalid control frame length.');
+            }
+
             const end = offset + 2 + frameLength + AUTH_TAG_LENGTH;
 
-            if (end > this.#encBuffer.length) {
+            if (end > this.#encryptedBuffer.length) {
                 break;
             }
 
-            const aad = this.#encBuffer.subarray(offset, offset + 2);
-            const ciphertext = this.#encBuffer.subarray(offset + 2, offset + 2 + frameLength);
-            const authTag = this.#encBuffer.subarray(offset + 2 + frameLength, end);
+            const aad = this.#encryptedBuffer.subarray(offset, offset + 2);
+            const ciphertext = this.#encryptedBuffer.subarray(offset + 2, offset + 2 + frameLength);
+            const authTag = this.#encryptedBuffer.subarray(offset + 2 + frameLength, end);
 
-            out.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
+            plaintexts.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
             offset = end;
         }
 
-        this.#encBuffer = Buffer.from(this.#encBuffer.subarray(offset));
+        this.#encryptedBuffer = Buffer.from(this.#encryptedBuffer.subarray(offset));
 
-        return Buffer.concat(out);
+        return Buffer.concat(plaintexts);
     }
 
-    /**
-     * Parses complete RTSP messages from the plaintext buffer and delivers them serially.
-     */
     async #drain(): Promise<void> {
         if (this.#closed || this.#draining || !this.#handler) {
             return;
@@ -208,12 +203,14 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
                 this.#activeBytes = message.raw.length;
                 this.#flow();
+
                 await this.#handler(message);
+
                 this.#activeBytes = 0;
                 this.#flow();
             }
         } catch (error) {
-            this.#context.logger.error('[proxy]', 'AirPlay control drain failed', error);
+            this.#context.logger.error('[proxy]', 'AirPlay control message handler failed.', error);
             this.close();
             this.emit('error', error as Error);
         } finally {
@@ -222,22 +219,36 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     }
 
     #write(data: Buffer): void {
-        if (this.#closed) return;
+        if (this.#closed) {
+            return;
+        }
+
         if (this.#socket.writableLength + data.length > 1024 * 1024) {
             this.close();
             this.emit('error', new Error('Control write buffer limit exceeded.'));
+
             return;
         }
-        if (!this.#socket.write(data)) {this.#writeBlocked = true; this.#flow();}
+
+        if (!this.#socket.write(data)) {
+            this.#writeBlocked = true;
+            this.#flow();
+        }
     }
 
     #flow(): void {
-        if (this.#closed) return;
-        if (this.#writeBlocked || this.#plainBuffer.length + this.#encBuffer.length + this.#activeBytes >= 512 * 1024) this.#socket.pause();
-        else this.#socket.resume();
+        if (this.#closed) {
+            return;
+        }
+
+        if (this.#writeBlocked || this.#plainBuffer.length + this.#encryptedBuffer.length + this.#activeBytes >= 512 * 1024) {
+            this.#socket.pause();
+        } else {
+            this.#socket.resume();
+        }
     }
 
-    /** Parses one RTSP request from the plaintext buffer, advancing it, or returns null if incomplete. */
+    /** Takes one RTSP request off the plaintext buffer, or returns null while it is incomplete. */
     #parseRequest(): ControlMessage | null {
         const request = parseRequest(this.#plainBuffer);
 
@@ -251,7 +262,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         return {kind: 'request', raw, request};
     }
 
-    /** Parses one RTSP response from the plaintext buffer, advancing it, or returns null if incomplete. */
+    /** Takes one RTSP response off the plaintext buffer, or returns null while it is incomplete. */
     #parseResponse(): ControlMessage | null {
         const parsed = parseResponse(this.#plainBuffer);
 

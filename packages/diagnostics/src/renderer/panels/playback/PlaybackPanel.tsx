@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import { Bookmark, ChevronsRight, FastForward, ListMusic, ListPlus, type LucideIcon, Pause, Play, Repeat, Rewind, RotateCcw, RotateCw, Shuffle, SkipBack, SkipForward, Square, ThumbsDown, ThumbsUp, Timer } from 'lucide-react';
 import type { CallRoot } from '@shared/contract';
 import { formatDuration } from '@shared/helpers';
-import { Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
@@ -17,6 +16,7 @@ import {
     Row,
     SHUFFLE_MODE_ITEMS
 } from '@/panels/sdk-shared';
+import { Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 
 type CommandContext = {
     readonly call: DeviceCall;
@@ -223,7 +223,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                         <PlaybackCommand {...context} root="mediaRemote" label="Previous" command="PreviousChapter" path="commands.previousChapter"/>
                         <PlaybackCommand {...context} root="mediaRemote" label="Next" command="NextChapter" path="commands.nextChapter"/>
                     </ControlRow>
-                    <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. It still runs, to see what the device does.</p>
+                    <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. You can still run it to see what the device does.</p>
                 </Section>
             </PanelGroup>
 
@@ -262,7 +262,6 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                         <PlaybackCommand {...context} root="mediaRemote" label="Request queue" command="GetPlaybackQueue" path="playbackQueue.request" args={[numberOf(queueLength, 10)]}/>
                     </ControlRow>
                 </Section>
-
             </PanelGroup>
 
             {companionConnected && (

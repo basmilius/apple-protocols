@@ -1,7 +1,7 @@
 import * as AirPlay from '@corewire/airplay';
 import * as CompanionLink from '@corewire/companion-link';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
 import type { DiscoveryResult } from '@corewire/core/discovery';
+import type { AccessoryCredentials } from '@corewire/core/pairing';
 import type { PairRequest, PairStage, PairStatus, ProtocolName } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';
@@ -76,7 +76,7 @@ class PairingAttempt {
     async submit(pin: string): Promise<AccessoryCredentials> {
         if (this.protocol === 'airplay') {
             if (this.#airplay === null) {
-                throw new Error('Pairing has not been started.');
+                throw new Error('AirPlay pairing has not been started.');
             }
 
             const credentials = await this.#airplay.pin(pin);

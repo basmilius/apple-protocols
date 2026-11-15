@@ -8,18 +8,17 @@ const FRAME_LENGTH = 1024;
 /** ChaCha20-Poly1305 auth tag length. */
 const AUTH_TAG_LENGTH = 16;
 
-/** The direction a relayed chunk travelled. */
 export type RelayDirection = 'controller->device' | 'device->controller';
 
-/** Callback invoked with each decrypted chunk as it is relayed, for logging. */
+/** Receives each decrypted chunk as it is relayed. */
 export type RelayLogger = (direction: RelayDirection, plaintext: Buffer) => void;
 
 const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
 
 /**
- * Stateful ChaCha20-Poly1305 cipher for one AirPlay stream direction-pair. The wire format is a sequence
- * of frames `[2-byte LE length][ciphertext][16-byte tag]`, the length doubling as the AAD, with an
- * incrementing per-direction counter. Partial trailing frames are buffered until completed.
+ * ChaCha20-Poly1305 cipher for both directions of one AirPlay stream. Frames are
+ * `[2-byte LE length][ciphertext][16-byte tag]`, the length is the AAD and each direction has its own
+ * counter. A partial trailing frame stays buffered until the rest arrives.
  */
 export class AirPlayCipher {
     readonly #readKey: Buffer;
@@ -37,22 +36,24 @@ export class AirPlayCipher {
         this.#writeKey = writeKey;
     }
 
-    /**
-     * Consumes complete encrypted frames from the buffered input and returns their concatenated plaintext.
-     *
-     * @param chunk - Newly received encrypted bytes.
-     * @returns The recovered plaintext (possibly empty if no frame completed).
-     */
+    /** Returns the plaintext of every complete frame so far, empty when no frame completed. */
     decrypt(chunk: Buffer): Buffer {
-        if (this.#buffer.length + chunk.length > 1024 * 1024) throw new Error('AirPlay relay buffer limit exceeded.');
+        if (this.#buffer.length + chunk.length > 1024 * 1024) {
+            throw new Error('AirPlay relay buffer limit exceeded.');
+        }
+
         this.#buffer = Buffer.concat([this.#buffer, chunk]);
 
-        const out: Buffer[] = [];
+        const plaintexts: Buffer[] = [];
         let offset = 0;
 
         while (offset + 2 <= this.#buffer.length) {
             const frameLength = this.#buffer.readUInt16LE(offset);
-            if (frameLength === 0) throw new Error('Invalid encrypted AirPlay frame length.');
+
+            if (frameLength === 0) {
+                throw new Error('Invalid encrypted AirPlay frame length.');
+            }
+
             const end = offset + 2 + frameLength + AUTH_TAG_LENGTH;
 
             if (end > this.#buffer.length) {
@@ -63,23 +64,17 @@ export class AirPlayCipher {
             const ciphertext = this.#buffer.subarray(offset + 2, offset + 2 + frameLength);
             const authTag = this.#buffer.subarray(offset + 2 + frameLength, end);
 
-            out.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
+            plaintexts.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
             offset = end;
         }
 
         this.#buffer = Buffer.from(this.#buffer.subarray(offset));
 
-        return Buffer.concat(out);
+        return Buffer.concat(plaintexts);
     }
 
-    /**
-     * Encrypts plaintext into AirPlay frames.
-     *
-     * @param data - The plaintext to encrypt.
-     * @returns The encrypted frames.
-     */
     encrypt(data: Buffer): Buffer {
-        const out: Buffer[] = [];
+        const frames: Buffer[] = [];
 
         for (let offset = 0; offset < data.length;) {
             const frame = data.subarray(offset, offset + FRAME_LENGTH);
@@ -89,17 +84,17 @@ export class AirPlayCipher {
             length.writeUInt16LE(frame.length, 0);
 
             const encrypted = ChaCha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
-            out.push(length, encrypted.ciphertext, encrypted.authTag);
+            frames.push(length, encrypted.ciphertext, encrypted.authTag);
         }
 
-        return Buffer.concat(out);
+        return Buffer.concat(frames);
     }
 }
 
 /**
- * Relays one AirPlay side-channel (event or data stream) between a controller-facing socket and a
- * device-facing socket. Each side has its own {@link AirPlayCipher} (keyed from the respective pairing's
- * shared secret), so bytes are decrypted on ingress, handed to the logger, and re-encrypted on egress.
+ * Relays one AirPlay side channel (event or data stream) between the controller and the device. Each
+ * side has its own {@link AirPlayCipher} from its own pairing, so a chunk is decrypted, logged and
+ * encrypted again for the other side.
  */
 export class ChannelRelay {
     readonly #context: Context;
@@ -109,13 +104,6 @@ export class ChannelRelay {
     readonly #deviceCipher: AirPlayCipher;
     readonly #logger: RelayLogger;
 
-    /**
-     * @param controllerSocket - The socket facing the controller.
-     * @param controllerCipher - The cipher for the controller side.
-     * @param deviceSocket - The socket facing the real device.
-     * @param deviceCipher - The cipher for the device side.
-     * @param logger - Invoked with each decrypted chunk for capture.
-     */
     constructor(context: Context, controllerSocket: Socket, controllerCipher: AirPlayCipher, deviceSocket: Socket, deviceCipher: AirPlayCipher, logger: RelayLogger) {
         this.#context = context;
         this.#controllerSocket = controllerSocket;
@@ -125,7 +113,6 @@ export class ChannelRelay {
         this.#logger = logger;
     }
 
-    /** Wires up the bidirectional relay. */
     start(): void {
         this.#controllerSocket.on('data', (data: Buffer) => this.#forward('controller->device', data, this.#controllerCipher, this.#deviceCipher, this.#deviceSocket));
         this.#deviceSocket.on('drain', () => this.#controllerSocket.resume());
@@ -143,16 +130,8 @@ export class ChannelRelay {
         this.#deviceSocket.on('error', teardown);
     }
 
-    /**
-     * Decrypts a chunk from one side, logs it, and re-encrypts it onto the other side.
-     *
-     * @param direction - The travel direction (for logging).
-     * @param data - The raw encrypted chunk.
-     * @param from - The cipher to decrypt with.
-     * @param to - The cipher to re-encrypt with.
-     * @param out - The destination socket.
-     */
-    #forward(direction: RelayDirection, data: Buffer, from: AirPlayCipher, to: AirPlayCipher, out: Socket): void {
+    /** Decrypts a chunk with `from`, logs it and writes it to `target` encrypted with `to`. */
+    #forward(direction: RelayDirection, data: Buffer, from: AirPlayCipher, to: AirPlayCipher, target: Socket): void {
         try {
             const plaintext = from.decrypt(data);
 
@@ -162,19 +141,24 @@ export class ChannelRelay {
 
             this.#logger(direction, plaintext);
 
-            if (out.writable) {
-                const encrypted = to.encrypt(plaintext);
-                if (out.writableLength + encrypted.length > 1024 * 1024) {
-                    this.#controllerSocket.destroy();
-                    this.#deviceSocket.destroy();
-                    return;
-                }
-                if (!out.write(encrypted)) {
-                    (out === this.#deviceSocket ? this.#controllerSocket : this.#deviceSocket).pause();
-                }
+            if (!target.writable) {
+                return;
+            }
+
+            const encrypted = to.encrypt(plaintext);
+
+            if (target.writableLength + encrypted.length > 1024 * 1024) {
+                this.#controllerSocket.destroy();
+                this.#deviceSocket.destroy();
+
+                return;
+            }
+
+            if (!target.write(encrypted)) {
+                (target === this.#deviceSocket ? this.#controllerSocket : this.#deviceSocket).pause();
             }
         } catch (error) {
-            this.#context.logger.warn('[proxy]', `AirPlay channel relay error (${direction})`, (error as Error).message);
+            this.#context.logger.warn('[proxy]', `AirPlay channel relay failed (${direction}).`, (error as Error).message);
             this.#controllerSocket.destroy();
             this.#deviceSocket.destroy();
         }

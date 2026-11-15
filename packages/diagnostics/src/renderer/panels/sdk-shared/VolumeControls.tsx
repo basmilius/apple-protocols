@@ -37,7 +37,7 @@ export function VolumeControls({volume, connected, call}: VolumeControlsProps) {
     const level = dragging ?? volume?.level ?? 0;
 
     if (!connected) {
-        return <p className="text-xs text-text-muted">Not connected, so the device reports no volume control yet.</p>;
+        return <p className="text-xs text-text-muted">Connect the device to see its volume control.</p>;
     }
 
     if (control === 'none') {

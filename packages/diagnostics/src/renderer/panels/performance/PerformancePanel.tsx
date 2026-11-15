@@ -3,8 +3,8 @@ import { RotateCcw } from 'lucide-react';
 import { formatBytes } from '@adecore/ui/format';
 import type { PerformanceStatus } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
+import { Sparkline } from '@/panels/shared-media/Telemetry';
 import { EmptyState, FormError, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, RelativeTime, Section, StatusBar } from '@/ui';
-import { Sparkline } from '../shared-media/Telemetry';
 
 const ms = (value: number): string => `${value.toFixed(1)} ms`;
 
@@ -96,7 +96,7 @@ export function PerformancePanel() {
                         </KeyValue>
                     ))}
                 </KeyValueList>
-                <p className="text-xs text-text-muted">Older entries are evicted at the byte or entry limit. Binary previews keep their original length and mark the cut.</p>
+                <p className="text-xs text-text-muted">Each buffer drops its oldest entries at the byte or entry limit. Binary previews keep their original length and mark the cut.</p>
             </Section>
         </PanelBody>
     );

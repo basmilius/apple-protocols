@@ -18,6 +18,7 @@ const DEFAULTS: Credentials = {bearerToken: '', musicUserToken: '', storefront: 
 function restore(): Credentials {
     try {
         const value = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+
         return {
             bearerToken: typeof value?.bearerToken === 'string' ? value.bearerToken : '',
             musicUserToken: typeof value?.musicUserToken === 'string' ? value.musicUserToken : '',
@@ -33,12 +34,15 @@ export const useAppleMusic = create<AppleMusicState>((set, get) => ({
     storageError: null,
     update(values) {
         const current = get();
+
         const credentials: Credentials = {
             bearerToken: values.bearerToken ?? current.bearerToken,
             musicUserToken: values.musicUserToken ?? current.musicUserToken,
             storefront: values.storefront ?? current.storefront
         };
+
         let storageError: string | null = null;
+
         try {
             if (credentials.bearerToken || credentials.musicUserToken) {
                 localStorage.setItem(KEY, JSON.stringify(credentials));
@@ -46,8 +50,9 @@ export const useAppleMusic = create<AppleMusicState>((set, get) => ({
                 localStorage.removeItem(KEY);
             }
         } catch {
-            storageError = 'Could not update local Apple Music storage.';
+            storageError = 'Could not store the Apple Music tokens.';
         }
+
         set({...credentials, storageError});
     },
     clearTokens() {

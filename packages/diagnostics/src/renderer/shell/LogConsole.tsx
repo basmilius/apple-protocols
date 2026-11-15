@@ -136,6 +136,7 @@ export function LogConsole() {
         if (event.key === 'Escape' && detailId !== null) {
             event.preventDefault();
             setDetailId(null);
+
             return;
         }
 
@@ -191,7 +192,7 @@ export function LogConsole() {
                 <div className="relative min-h-0 min-w-0 grow">
                     <ScrollArea axis="both" viewportRef={scroller} onScroll={onScroll} role="region" aria-label="Log messages" tabIndex={0} className="h-full bg-code-bg">
                         {shown.length === 0 ? (
-                            <EmptyState>Nothing logged yet. Connect a device to see its protocol traffic.</EmptyState>
+                            <EmptyState>No log lines to show.</EmptyState>
                         ) : (
                             <div className="relative w-full" style={{height: virtualizer.getTotalSize()}}>
                                 {virtualizer.getVirtualItems().map(item => {
@@ -209,6 +210,7 @@ export function LogConsole() {
                                             onClick={event => {
                                                 if (event.metaKey || event.ctrlKey) {
                                                     setSelected(current => toggleIn(current, entry.id));
+
                                                     return;
                                                 }
 

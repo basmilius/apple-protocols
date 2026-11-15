@@ -1,7 +1,6 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
 import type { Context } from '@corewire/core/transport';
 
-/** The direction a relayed message travelled through the proxy. */
 export type TapDirection = 'controller->device' | 'device->controller';
 
 /** Deep enough for a nested now-playing message, short of a runaway graph. */
@@ -29,7 +28,7 @@ export class ProxyTap {
 
         if (capturePath) {
             this.#file = createWriteStream(capturePath, {flags: 'a', mode: 0o600});
-            this.#file.on('error', error => this.#context.logger.warn('[proxy]', 'Capture file failed', error.message));
+            this.#file.on('error', error => this.#context.logger.warn('[proxy]', 'Could not write the capture file.', error.message));
         }
     }
 
@@ -39,11 +38,9 @@ export class ProxyTap {
     }
 
     /**
-     * Records a single relayed message.
-     *
-     * @param frameType - The wire frame type byte; 0 where the protocol has none.
+     * @param frameType - The frame type byte on the wire, 0 where the protocol has none.
      * @param raw - The plaintext frame.
-     * @param at - Capture timestamp in epoch milliseconds.
+     * @param at - Epoch milliseconds.
      */
     record(direction: TapDirection, frameType: number, message: unknown, raw: Buffer, at: number): void {
         const normalized = normalize(message, 0);
@@ -57,7 +54,6 @@ export class ProxyTap {
         }
     }
 
-    /** Closes the capture file, if any. */
     close(): void {
         this.#file?.end();
     }

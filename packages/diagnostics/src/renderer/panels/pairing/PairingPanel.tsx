@@ -184,7 +184,7 @@ export function PairingPanel({deviceId}: PanelProps) {
                 open={forgetting !== null}
                 onOpenChange={open => setForgetting(open ? forgetting : null)}
                 title="Forget these credentials?"
-                description={`The ${PROTOCOLS.find(entry => entry.id === forgetting)?.label ?? ''} credentials of ${device.name} are deleted. Pairing again is the only way back.`}
+                description={`This deletes the ${PROTOCOLS.find(entry => entry.id === forgetting)?.label ?? ''} credentials of ${device.name}. Only pairing again brings them back.`}
                 confirmLabel="Forget"
                 onConfirm={async () => {
                     if (forgetting !== null) {

@@ -76,6 +76,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [jsonInput()],
         run: args => {
             const encoded = OPack.encode(readJson(args, 'value'));
+
             return {hex: toHex(encoded), length: encoded.length};
         }
     },
@@ -88,6 +89,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [bytesInput()],
         run: args => {
             const input = parseBytes(args.data, 'data');
+
             return roundTrip(input, Buffer.from(OPack.encode(OPack.decode(input))));
         }
     },
@@ -109,6 +111,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [jsonInput()],
         run: args => {
             const encoded = Buffer.from(Plist.serialize(readJson(args, 'value') as never));
+
             return {hex: encoded.toString('hex'), length: encoded.length};
         }
     },
@@ -121,6 +124,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [bytesInput()],
         run: args => {
             const input = parseBytes(args.data, 'data');
+
             return roundTrip(input, Buffer.from(Plist.serialize(Plist.parse(toArrayBuffer(input)))));
         }
     },
@@ -142,6 +146,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [{name: 'value', label: 'Entries (JSON)', type: 'textarea', placeholder: '[["State", "01"], ["Method", "00"]]', rows: 5}],
         run: args => {
             const encoded = TLV8.encode(tlv8Entries(readJson(args, 'value')));
+
             return {hex: encoded.toString('hex'), length: encoded.length};
         }
     },
@@ -155,6 +160,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         run: args => {
             const input = parseBytes(args.data, 'data');
             const decoded = TLV8.decode(input);
+
             return roundTrip(input, TLV8.encode(Array.from(decoded.entries())));
         }
     },
@@ -209,6 +215,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [bytesInput()],
         run: args => {
             const input = parseBytes(args.data, 'data');
+
             return roundTrip(input, DAAP.encodeTrackMetadata(DAAP.decodeTrackMetadata(input)));
         }
     },
@@ -224,6 +231,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         ],
         run: args => {
             const archive = Plist.parse(toArrayBuffer(parseBytes(args.data, 'data')));
+
             return args.asArray === true || args.asArray === 'true' ? NSKeyedArchiver.decodeAsArray(archive) : NSKeyedArchiver.decode(archive);
         }
     },
@@ -265,6 +273,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [{name: 'value', label: 'Fields (JSON)', type: 'textarea', placeholder: '{"proto": 128, "type": 210, "seqno": 0, "padding": 0, "reftime_sec": 0, "reftime_frac": 0, "recvtime_sec": 0, "recvtime_frac": 0, "sendtime_sec": 0, "sendtime_frac": 0}', rows: 6}],
         run: args => {
             const encoded = NTP.encode(readJson(args, 'value') as never);
+
             return {hex: encoded.toString('hex'), length: encoded.length};
         }
     },
@@ -277,6 +286,7 @@ export const ENCODING_TOOLS: readonly ToolDefinition[] = [
         inputs: [bytesInput('data', 'Packet (hex or base64)', 3)],
         run: args => {
             const input = parseBytes(args.data, 'data');
+
             return roundTrip(input, NTP.encode(NTP.decode(input)));
         }
     }

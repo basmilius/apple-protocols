@@ -16,7 +16,7 @@ export function RaopPanel({deviceId}: PanelProps) {
     const [services, setServices] = useState<readonly RaopServiceInfo[]>([]);
     const [serviceId, setServiceId] = useState<string | null>(null);
     const [source, setSource] = useState<AudioSourceSpec>(DEFAULT_SOURCE);
-    const [title, setTitle] = useState('Apple Protocols Diagnostics');
+    const [title, setTitle] = useState('CoreWire Diagnostics');
     const [artist, setArtist] = useState('');
     const [volume, setVolume] = useState(30);
     const action = useAsyncAction();
@@ -52,9 +52,9 @@ export function RaopPanel({deviceId}: PanelProps) {
                 actions={<IconButton icon={RefreshCw} label="Rescan RAOP services" size="sm" disabled={action.busy} onClick={() => void action.run(async () => setServices(await invoke('raop:services', {rescan: true})))}/>}
             >
                 {services.length === 0 ? (
-                    <p className="text-xs text-text-muted">No RAOP services found on the network yet. Rescan, or the device does not advertise one.</p>
+                    <p className="text-xs text-text-muted">No RAOP service found yet. Rescan, or check that the device advertises one.</p>
                 ) : (
-                    <Field label="RAOP service" hint={onAddress.length > 0 ? `${onAddress.length} service on this device's address.` : 'Nothing on this device’s address. Pick another service to test against.'}>
+                    <Field label="RAOP service" hint={onAddress.length > 0 ? `${onAddress.length} ${onAddress.length === 1 ? 'service' : 'services'} on this device's address.` : 'Nothing on this device\'s address. Pick another service to test against.'}>
                         <Select<string>
                             label="RAOP service"
                             value={chosen}

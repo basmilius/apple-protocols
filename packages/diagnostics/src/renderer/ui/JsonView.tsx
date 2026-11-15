@@ -1,8 +1,8 @@
 import { useState, type ReactElement } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { isBytes } from '@shared/helpers';
 import { Icon } from '@adecore/ui';
+import { isBytes } from '@shared/helpers';
 
 /** Rows past this are folded away behind a count; a playback queue is thousands of items long. */
 const PREVIEW = 100;
@@ -114,5 +114,6 @@ function summaryOf(value: unknown, count: number): string {
 function hexPreview(hex: string): string {
     const head = hex.slice(0, 32);
     const grouped = head.match(/.{1,2}/g)?.join(' ') ?? '';
+
     return hex.length > 32 ? `${grouped} ...` : grouped;
 }

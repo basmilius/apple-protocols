@@ -85,7 +85,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
             : kind === 'control' ? airplay?.control : kind === 'event' ? airplay?.remoteControl?.events : airplay?.remoteControl?.data;
 
         if (!stream?.destroy) {
-            throw new Error('This device has no selected stream socket to drop.');
+            throw new Error('The selected stream has no socket to drop.');
         }
 
         lastEvents.set(request.deviceId, `${kind} socket destroyed`);
@@ -103,7 +103,7 @@ export function registerRecoveryChannels(context: ChannelContext): void {
 
         await Discovery.wake(discovered.address, WAKE_PORTS);
 
-        lastEvents.set(request.deviceId, `wake knocked on ${discovered.address}`);
+        lastEvents.set(request.deviceId, `wake knock sent to ${discovered.address}`);
         push(request.deviceId);
     });
 }

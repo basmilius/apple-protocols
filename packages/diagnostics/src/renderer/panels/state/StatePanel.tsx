@@ -4,10 +4,10 @@ import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { ListRow, ScrollArea } from '@adecore/ui';
 import type { ClientSnapshot, PlayerSnapshot, StateSnapshot } from '@shared/contract';
 import { formatDuration } from '@shared/helpers';
-import { BoolValue, CommandButton, CountPill, EmptyState, Icon, ICONS, JsonView, KeyValue, KeyValueList, Pill, Section, StatusPill, Table } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { EventFeed, NotConnected, PanelBody, ResultBlock, Row } from '@/panels/sdk-shared';
+import { BoolValue, CommandButton, CountPill, EmptyState, Icon, ICONS, JsonView, KeyValue, KeyValueList, Pill, Section, StatusPill, Table } from '@/ui';
 
 type Getter = {
     /* A path under the device. */

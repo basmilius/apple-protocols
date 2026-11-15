@@ -61,6 +61,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         inputs: [],
         run: () => {
             const pair = Ed25519.generateKeyPair();
+
             return {publicKey: toHex(pair.publicKey), secretKey: toHex(pair.secretKey)};
         }
     },
@@ -77,6 +78,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         ],
         run: args => {
             const message = readBoolean(args, 'asText') ? Buffer.from(readString(args, 'message'), 'utf8') : parseBytes(args.message, 'message');
+
             return {signature: toHex(Ed25519.sign(message, parseBytes(args.secretKey, 'secretKey')))};
         }
     },
@@ -94,6 +96,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         ],
         run: args => {
             const message = readBoolean(args, 'asText') ? Buffer.from(readString(args, 'message'), 'utf8') : parseBytes(args.message, 'message');
+
             return {valid: Ed25519.verify(message, parseBytes(args.signature, 'signature'), parseBytes(args.publicKey, 'publicKey'))};
         }
     },
@@ -106,6 +109,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         inputs: [],
         run: () => {
             const pair = Curve25519.generateKeyPair();
+
             return {publicKey: toHex(pair.publicKey), secretKey: toHex(pair.secretKey)};
         }
     },
@@ -182,7 +186,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
     {
         id: 'hkdf.derive',
         title: 'Derive a key with HKDF',
-        description: 'The presets carry the salt and info strings this stack derives with; pick Custom to type your own.',
+        description: 'The presets hold the salt and info strings CoreWire derives with. Pick Custom to enter your own.',
         category: 'encryption',
         section: 'HKDF',
         inputs: [
@@ -245,6 +249,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
         inputs: [keyInput('key', 'Key'), keyInput('iv', 'IV'), {name: 'ciphertext', label: 'Ciphertext', type: 'textarea', placeholder: 'Hex', rows: 3}],
         run: args => {
             const plaintext = AES.decrypt(parseBytes(args.key, 'key'), parseBytes(args.iv, 'iv'), parseBytes(args.ciphertext, 'ciphertext'));
+
             return {hex: plaintext.toString('hex'), text: plaintext.toString('utf8'), length: plaintext.length};
         }
     }

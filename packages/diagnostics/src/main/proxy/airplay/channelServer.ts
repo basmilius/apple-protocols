@@ -3,16 +3,16 @@ import type { Context } from '@corewire/core/transport';
 import { HKDF } from '@corewire/core/crypto';
 import { parseRequest, parseResponse } from '@corewire/airplay/rtsp';
 import { parseMessages } from '@corewire/airplay/mrp';
-import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
 import type { ProxyTap } from '../core/tap';
+import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
 
 /** Size of the AirPlay DataStream frame header. */
 const DATA_HEADER_LENGTH = 32;
 
 /**
- * Base for an AirPlay side-channel proxy server. Listens on an ephemeral local port; when the controller
- * connects, it dials the real device's channel port and starts a {@link ChannelRelay} with per-side ciphers
- * derived from the respective pairing's shared secret. Subclasses provide the ciphers and the logger.
+ * Listens for one AirPlay side channel on an ephemeral port. When the controller connects, it dials the
+ * channel port of the device and starts a {@link ChannelRelay}. Subclasses provide the ciphers and the
+ * logger.
  */
 abstract class ChannelServer {
     protected readonly context: Context;
@@ -21,11 +21,7 @@ abstract class ChannelServer {
     protected readonly tap: ProxyTap;
     #server?: Server;
 
-    /**
-     * @param deviceAddress - The real device's IP address.
-     * @param devicePort - The real device's channel port (from the SETUP response).
-     * @param tap - The tap that records relayed messages.
-     */
+    /** @param devicePort - The channel port of the device, from its SETUP response. */
     constructor(context: Context, deviceAddress: string, devicePort: number, tap: ProxyTap) {
         this.context = context;
         this.deviceAddress = deviceAddress;
@@ -33,30 +29,20 @@ abstract class ChannelServer {
         this.tap = tap;
     }
 
-    /**
-     * Starts listening on an ephemeral local port.
-     *
-     * @returns The bound local port to advertise back to the controller in the rewritten SETUP response.
-     */
+    /** Returns the local port, which goes into the rewritten SETUP response for the controller. */
     async listen(): Promise<number> {
-        const server = createServer((socket) => this.#handle(socket));
+        const server = createServer(socket => this.#handle(socket));
         this.#server = server;
 
-        await new Promise<void>((resolve) => server.listen(0, resolve));
+        await new Promise<void>(resolve => server.listen(0, resolve));
 
         return (server.address() as {port: number}).port;
     }
 
-    /** Stops the channel server. */
     stop(): void {
         this.#server?.close();
     }
 
-    /**
-     * Bridges an accepted controller connection to the real device.
-     *
-     * @param controllerSocket - The controller's socket.
-     */
     #handle(controllerSocket: Socket): void {
         const deviceSocket = connect({host: this.deviceAddress, port: this.devicePort});
         const {controller, device} = this.ciphers();
@@ -64,27 +50,23 @@ abstract class ChannelServer {
         new ChannelRelay(this.context, controllerSocket, controller, deviceSocket, device, this.logger()).start();
     }
 
-    /** Builds the controller- and device-facing ciphers for this channel. */
     protected abstract ciphers(): {controller: AirPlayCipher; device: AirPlayCipher};
 
-    /** Builds the stateful logger that decodes and records this channel's traffic. */
+    /** Builds a stateful logger that decodes and records the traffic of this channel. */
     protected abstract logger(): RelayLogger;
 }
 
 /**
- * Proxies the AirPlay reverse **event** channel: the device acts as the HTTP client (`POST /command`), so
- * device→controller traffic is parsed as RTSP requests and controller→device as RTSP responses.
+ * Proxies the reverse event channel. The device is the HTTP client here (`POST /command`), so traffic
+ * from the device parses as RTSP requests and traffic from the controller as RTSP responses.
  */
 export class EventChannelServer extends ChannelServer {
     readonly #controllerSharedSecret: Buffer;
     readonly #deviceSharedSecret: Buffer;
 
     /**
-     * @param deviceAddress - The real device's IP address.
-     * @param devicePort - The device's event port (from the SETUP response).
-     * @param controllerSharedSecret - The controller↔proxy pair-verify shared secret.
-     * @param deviceSharedSecret - The proxy↔device pair-verify shared secret.
-     * @param tap - The tap that records relayed messages.
+     * @param controllerSharedSecret - From the pair-verify between controller and proxy.
+     * @param deviceSharedSecret - From the pair-verify between proxy and device.
      */
     constructor(context: Context, deviceAddress: string, devicePort: number, controllerSharedSecret: Buffer, deviceSharedSecret: Buffer, tap: ProxyTap) {
         super(context, deviceAddress, devicePort, tap);
@@ -95,14 +77,14 @@ export class EventChannelServer extends ChannelServer {
 
     /** @inheritDoc */
     protected ciphers(): {controller: AirPlayCipher; device: AirPlayCipher} {
-        const c = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
-        const d = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+        const controllerKeys = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+        const deviceKeys = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
 
-        // Controller side: the proxy is the "receiver" — read what the controller writes (Events-Read), write
-        // what it reads (Events-Write). Device side: the proxy is the "controller" — mirror of EventStream.
+        // Toward the controller the proxy is the receiver, so it reads with Events-Read and writes with
+        // Events-Write. Toward the device it is the controller, so the keys swap as in EventChannel.
         return {
-            controller: new AirPlayCipher(c.readKey, c.writeKey),
-            device: new AirPlayCipher(d.writeKey, d.readKey)
+            controller: new AirPlayCipher(controllerKeys.readKey, controllerKeys.writeKey),
+            device: new AirPlayCipher(deviceKeys.writeKey, deviceKeys.readKey)
         };
     }
 
@@ -132,8 +114,8 @@ export class EventChannelServer extends ChannelServer {
 }
 
 /**
- * Proxies the AirPlay **data stream** (MRP/MediaRemote protobufs). Both peers send and receive; the relay
- * forwards verbatim and best-effort-decodes the embedded `ProtocolMessage` protobufs for logging.
+ * Proxies the data stream with the MRP protobufs. The relay forwards the plaintext as is and tries to
+ * decode the `ProtocolMessage` protobufs in it for the log.
  */
 export class DataChannelServer extends ChannelServer {
     readonly #controllerSharedSecret: Buffer;
@@ -141,12 +123,9 @@ export class DataChannelServer extends ChannelServer {
     readonly #seed: unknown;
 
     /**
-     * @param deviceAddress - The real device's IP address.
-     * @param devicePort - The device's data port (from the SETUP response).
-     * @param controllerSharedSecret - The controller↔proxy pair-verify shared secret.
-     * @param deviceSharedSecret - The proxy↔device pair-verify shared secret.
-     * @param seed - The DataStream seed from the SETUP request (part of the HKDF salt).
-     * @param tap - The tap that records relayed messages.
+     * @param controllerSharedSecret - From the pair-verify between controller and proxy.
+     * @param deviceSharedSecret - From the pair-verify between proxy and device.
+     * @param seed - From the SETUP request, part of the HKDF salt.
      */
     constructor(context: Context, deviceAddress: string, devicePort: number, controllerSharedSecret: Buffer, deviceSharedSecret: Buffer, seed: unknown, tap: ProxyTap) {
         super(context, deviceAddress, devicePort, tap);
@@ -159,14 +138,14 @@ export class DataChannelServer extends ChannelServer {
     /** @inheritDoc */
     protected ciphers(): {controller: AirPlayCipher; device: AirPlayCipher} {
         const salt = `DataStream-Salt${this.#seed}`;
-        const c = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
-        const d = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
+        const controllerKeys = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
+        const deviceKeys = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
 
-        // The client reads with Input and writes with Output (see DataStream.setup). Device side mirrors the
-        // client; controller side mirrors the device (read what the controller writes = Output).
+        // A client reads with Input and writes with Output. Toward the device the proxy is the client;
+        // toward the controller it is the device, so it reads with Output.
         return {
-            controller: new AirPlayCipher(c.writeKey, c.readKey),
-            device: new AirPlayCipher(d.readKey, d.writeKey)
+            controller: new AirPlayCipher(controllerKeys.writeKey, controllerKeys.readKey),
+            device: new AirPlayCipher(deviceKeys.readKey, deviceKeys.writeKey)
         };
     }
 
@@ -181,12 +160,9 @@ export class DataChannelServer extends ChannelServer {
 }
 
 /**
- * Best-effort decode of a decrypted DataStream chunk into MRP protobuf messages. The wire frame is a
- * 32-byte header followed by the payload carrying length-prefixed `ProtocolMessage` protobufs; this tries
- * the payload after the header and falls back to the whole chunk.
- *
- * @param chunk - The decrypted DataStream bytes.
- * @returns The decoded messages as JSON, or null if nothing decoded.
+ * Decodes the MRP messages in a decrypted data stream chunk, or returns null. A frame is a 32-byte
+ * header and length-prefixed `ProtocolMessage` protobufs, so this tries the bytes after the header
+ * first and then the whole chunk.
  */
 function decodeDataStream(chunk: Buffer): unknown {
     for (const candidate of [chunk.subarray(DATA_HEADER_LENGTH), chunk]) {
@@ -201,14 +177,14 @@ function decodeDataStream(chunk: Buffer): unknown {
                 return messages;
             }
         } catch {
-            // try the next candidate
+            // Not MRP from this offset, try the next candidate.
         }
     }
 
     return null;
 }
 
-/** Renders an RTSP body for logging: text if printable, else hex. */
+/** Printable bodies log as text, the rest as hex. */
 function describeBody(body: Buffer): unknown {
     if (body.byteLength === 0) {
         return null;

@@ -5,14 +5,14 @@ import { invoke } from '@/client';
 import { Button, Field, Icon, Segmented, Select, TextInput } from '@/ui';
 
 const KIND_LABELS: Record<AudioSourceKind, string> = {
-    url: 'Url',
+    url: 'URL',
     file: 'File',
-    wav: 'Wav',
-    mp3: 'Mp3',
+    wav: 'WAV',
+    mp3: 'MP3',
     ogg: 'Ogg',
-    pcm: 'Pcm',
-    sineWave: 'SineWave',
-    ffmpeg: 'Ffmpeg',
+    pcm: 'PCM',
+    sineWave: 'Sine wave',
+    ffmpeg: 'FFmpeg',
     live: 'Live'
 };
 
@@ -23,9 +23,9 @@ const KIND_HINTS: Record<AudioSourceKind, string> = {
     mp3: 'Decodes MP3, from a URL or from disk.',
     ogg: 'Decodes Ogg Vorbis, from a URL or from disk.',
     pcm: 'Raw signed 16-bit little-endian stereo samples.',
-    sineWave: 'Generated tone, useful to check whether anything is audible at all.',
-    ffmpeg: 'Runs ffmpeg over the file and reads PCM off its stdout.',
-    live: 'Ring buffer fed a generated tone, which exercises the live path.'
+    sineWave: 'A generated tone, to check that anything plays at all.',
+    ffmpeg: 'Runs FFmpeg over the file and reads PCM from its stdout.',
+    live: 'A ring buffer fed with a generated tone, to test the live path.'
 };
 
 /** Decoders that read either a URL or a local file. */

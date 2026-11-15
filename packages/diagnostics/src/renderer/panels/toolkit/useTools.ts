@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ToolCategory, ToolInfo } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
 
-/** The descriptors main declares, cached for the window: the list never changes while it runs. */
+/** Cached for the lifetime of the window, because main never changes the list while it runs. */
 let cache: readonly ToolInfo[] | null = null;
 let pending: Promise<readonly ToolInfo[]> | null = null;
 
@@ -42,7 +42,7 @@ export function useTools(category: ToolCategory): ToolsHandle {
             },
             failure => {
                 if (alive) {
-                    setError(messageOf(failure, 'The tool list could not be read.'));
+                    setError(messageOf(failure, 'Could not read the tool list.'));
                     setLoading(false);
                 }
             }

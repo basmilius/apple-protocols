@@ -58,7 +58,7 @@ export const FEATURE_TOOLS: readonly ToolDefinition[] = [
     {
         id: 'features.catalog',
         title: 'List every known flag',
-        description: 'Every flag name this stack knows, with the bit it occupies.',
+        description: 'Every flag name CoreWire knows, with the bit it occupies.',
         category: 'features',
         section: 'Feature flags',
         inputs: [],

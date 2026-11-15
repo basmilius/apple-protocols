@@ -193,7 +193,7 @@ function startError(error: unknown, protocol: ProxyProtocol, port: number): Erro
 
     if (code === 'EADDRINUSE') {
         const hint = protocol === 'airplay' && port === 7000
-            ? 'On macOS the AirPlay Receiver holds it: turn that off in System Settings, General, AirDrop & Handoff, or start the proxy on another port.'
+            ? 'On macOS the AirPlay Receiver holds it. Turn that off in System Settings > General > AirDrop & Handoff, or start the proxy on another port.'
             : 'Stop what uses it, or start the proxy on another port.';
 
         return new Error(`Port ${port} is already in use. ${hint}`, {cause: error});

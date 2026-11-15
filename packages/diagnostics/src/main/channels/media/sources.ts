@@ -3,7 +3,7 @@ import { FfmpegSource, FileSource, LiveSource, Mp3Source, OggSource, PcmSource, 
 import type { AudioSource } from '@corewire/airplay';
 import type { AudioSourceSpec } from '@shared/contract';
 
-/** 44100 Hz, 16 bit, stereo: the format every AirPlay receiver in this repo negotiates. */
+/** 44100 Hz, 16 bit, stereo: the format the AirPlay streams negotiate. */
 const SAMPLE_RATE = 44100;
 const CHANNELS = 2;
 const BYTES_PER_CHANNEL = 2;
@@ -15,43 +15,52 @@ export type BuiltSource = {
     readonly source: AudioSource;
     readonly description: string;
     bufferStats(): {bufferedBytes: number; peakBufferedBytes: number; bufferLimit: number; paused: boolean} | null;
+
     /** Stops whatever keeps feeding the source, for {@link LiveSource}. */
     dispose(): void;
 };
 
 /** Constructs an audio source from the renderer's serializable specification. */
 export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
-    if (!spec || typeof spec !== 'object') throw new Error('An audio source specification is required.');
+    if (!spec || typeof spec !== 'object') {
+        throw new Error('An audio source specification is required.');
+    }
+
     for (const key of ['frequency', 'duration', 'bufferDuration', 'sampleRate'] as const) {
         const value = spec[key as keyof AudioSourceSpec];
-        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) throw new RangeError(`Audio ${key} must be a positive finite number.`);
+
+        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) {
+            throw new RangeError(`Audio ${key} must be a positive finite number.`);
+        }
     }
+
     switch (spec.kind) {
         case 'url':
-            return plain(await UrlSource.fromUrl(demand(spec.url, 'url')), `Url ${spec.url}`);
+            return plain(await UrlSource.fromUrl(demand(spec.url, 'url')), `URL ${spec.url}`);
 
         case 'file':
             return plain(await FileSource.fromPath(demand(spec.path, 'path')), `File ${spec.path}`);
 
         case 'wav':
-            return plain(await decoded(spec, WavSource), `Wav ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, WavSource), `WAV ${describeOrigin(spec)}`);
 
         case 'mp3':
-            return plain(await decoded(spec, Mp3Source), `Mp3 ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, Mp3Source), `MP3 ${describeOrigin(spec)}`);
 
         case 'ogg':
             return plain(await decoded(spec, OggSource), `Ogg ${describeOrigin(spec)}`);
 
         case 'pcm': {
             const buffer = await readFile(demand(spec.path, 'path'));
-            return plain(new PcmSource(buffer, {sampleRate: spec.sampleRate ?? SAMPLE_RATE}), `Pcm ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
+
+            return plain(new PcmSource(buffer, {sampleRate: spec.sampleRate ?? SAMPLE_RATE}), `PCM ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
         }
 
         case 'sineWave':
-            return plain(new SineWaveSource({duration: spec.duration, frequency: spec.frequency}), `SineWave ${spec.frequency} Hz for ${spec.duration}s`);
+            return plain(new SineWaveSource({duration: spec.duration, frequency: spec.frequency}), `Sine wave ${spec.frequency} Hz for ${spec.duration}s`);
 
         case 'ffmpeg':
-            return plain(new FfmpegSource({path: demand(spec.path, 'path'), duration: spec.duration}), `Ffmpeg ${spec.path}`);
+            return plain(new FfmpegSource({path: demand(spec.path, 'path'), duration: spec.duration}), `FFmpeg ${spec.path}`);
 
         case 'live':
             return live(spec);
@@ -120,7 +129,14 @@ function describeOrigin(spec: Extract<AudioSourceSpec, { from: 'url' | 'file' }>
 }
 
 function plain(source: AudioSource, description: string): BuiltSource {
-    return {source, description, bufferStats: () => source instanceof FfmpegSource ? source.stats : null, dispose: () => {void source.stop().catch(() => {});}};
+    return {
+        source,
+        description,
+        bufferStats: () => source instanceof FfmpegSource ? source.stats : null,
+        dispose: () => {
+            void source.stop().catch(() => {});
+        }
+    };
 }
 
 function demand(value: string | undefined, name: string): string {

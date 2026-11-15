@@ -13,13 +13,11 @@ import type { ProxyStore } from '../store';
 import { DataChannelServer, EventChannelServer } from './channelServer';
 import { ControlConnection, type ControlMessage } from './controlConnection';
 
-/** AirPlay control service type advertised over mDNS. */
 const SERVICE_TYPE = '_airplay._tcp.local';
 
-/** Pairing endpoints terminated by the proxy (never relayed). */
+/** The proxy answers these itself and never relays them. */
 const PAIRING_PATHS = ['/pair-pin-start', '/pair-setup', '/pair-verify'];
 
-/** Configuration for an {@link AirPlayProxy}. */
 export type AirPlayProxyOptions = {
     /** Tags the logs and the tapped traffic, normally with the id of the device relayed to. */
     readonly context: Context;
@@ -33,10 +31,10 @@ export type AirPlayProxyOptions = {
 };
 
 /**
- * A man-in-the-middle proxy for the AirPlay **control** channel (RTSP on port 7000). It advertises itself
- * as an AirPlay receiver, terminates the controller's HAP pairing over the `/pair-*` endpoints, connects
- * to the real device with stored credentials, and relays the (decrypted) RTSP requests/responses both ways
- * while logging them. Audio, the reverse event channel and timing are out of scope.
+ * Man-in-the-middle proxy for AirPlay. It advertises itself as a receiver, answers the HAP pairing of
+ * the controller on the `/pair-*` endpoints and connects to the device with the stored credentials. It
+ * relays and logs the decrypted RTSP traffic, plus the event and data channels from SETUP. Audio and
+ * timing are not relayed.
  */
 export class AirPlayProxy implements ProtocolProxy {
     readonly name = 'airplay';
@@ -51,16 +49,12 @@ export class AirPlayProxy implements ProtocolProxy {
         this.#options = options;
     }
 
-    /**
-     * Starts the RTSP listener and the mDNS advertisement.
-     *
-     * @throws {Error} When the port cannot be bound, such as `EADDRINUSE`.
-     */
+    /** @throws {Error} When the port cannot be bound, such as `EADDRINUSE`. */
     async start(): Promise<void> {
         const identity = this.#options.store.accessoryIdentity(`airplay:${this.#options.device.id}`);
         const host = `${sanitize(this.#options.instanceName)}.local`;
 
-        this.#server = createServer((socket) => {
+        this.#server = createServer(socket => {
             this.#context.logger.info('[proxy]', `Controller connected from ${socket.remoteAddress}`);
             new AirPlaySession(this.#context, this.#options, identity).start(socket);
         });
@@ -79,16 +73,13 @@ export class AirPlayProxy implements ProtocolProxy {
         this.#context.logger.info('[proxy]', `Listening for AirPlay controllers on port ${this.#options.listenPort}. Pair with PIN ${this.#options.pin}.`);
     }
 
-    /** Stops advertising and closes the listener. */
     async stop(): Promise<void> {
         this.#responder?.stop();
         this.#server?.close();
     }
 }
 
-/**
- * A single controller↔proxy↔device AirPlay control-channel relay session.
- */
+/** Relays the control channel of one controller to the device. */
 class AirPlaySession {
     readonly #context: Context;
     readonly #options: AirPlayProxyOptions;
@@ -106,14 +97,13 @@ class AirPlaySession {
     #pending: Buffer[] = [];
     #channels: (EventChannelServer | DataChannelServer)[] = [];
 
-    /**
-     * @param identity - The accessory identity the proxy presents to the controller.
-     */
+    /** @param identity - What the proxy presents to the controller. */
     constructor(context: Context, options: AirPlayProxyOptions, identity: AccessoryIdentity) {
         this.#context = context;
         this.#options = options;
         this.#pairServer = new PairSetupServer(context, identity, options.pin);
-        this.#verifyServer = new PairVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
+        this.#verifyServer = new PairVerifyServer(context, identity, pairingId => options.store.controller(pairingId));
+
         this.#deviceHeaders = {
             'Active-Remote': generateActiveRemoteId(),
             'DACP-ID': generateDacpId(),
@@ -123,33 +113,25 @@ class AirPlaySession {
         };
     }
 
-    /**
-     * Begins the session on an accepted controller socket and connects to the real device.
-     *
-     * @param socket - The controller's TCP socket.
-     */
+    /** Takes the socket of the controller and connects to the device. */
     start(socket: Socket): void {
         const controller = new ControlConnection(this.#context, socket, 'server');
         this.#controller = controller;
 
-        controller.onMessage((message) => this.#onControllerMessage(message));
+        controller.onMessage(message => this.#onControllerMessage(message));
         controller.on('close', () => this.#teardown());
-        controller.on('error', (error) => {
-            this.#context.logger.warn('[proxy]', 'controller connection error', error.message);
+        controller.on('error', error => {
+            this.#context.logger.warn('[proxy]', 'Controller connection failed.', error.message);
             this.#teardown();
         });
 
-        this.#connectDevice().catch((error) => {
-            this.#context.logger.error('[proxy]', 'device connect/verify failed', error);
+        this.#connectDevice().catch(error => {
+            this.#context.logger.error('[proxy]', 'Could not connect to or pair-verify with the device.', error);
             this.#teardown();
         });
     }
 
-    /**
-     * Handles a control-channel request from the controller: pairing termination or relay to the device.
-     *
-     * @param message - The parsed control message (always a request on the server side).
-     */
+    /** Answers a pairing request itself and relays everything else to the device. */
     async #onControllerMessage(message: ControlMessage): Promise<void> {
         if (message.kind !== 'request') {
             return;
@@ -160,6 +142,7 @@ class AirPlaySession {
 
         if (PAIRING_PATHS.includes(basePath)) {
             await this.#handlePairing(message);
+
             return;
         }
 
@@ -169,19 +152,18 @@ class AirPlaySession {
 
         if (response) {
             const outRaw = request.method === 'SETUP' ? await this.#interceptSetup(message, response) : response.raw;
+
             this.#options.tap.record('device->controller', 0, {status: response.status, statusText: response.statusText, body: describeBody(response.body)}, outRaw, Date.now());
             this.#controller?.send(outRaw);
         }
     }
 
     /**
-     * Intercepts a SETUP response: starts local proxy servers for the event/data channels the device
-     * assigned, rewrites their ports to the local ones, and returns the re-serialized response. Falls back
-     * to the original bytes if the shared secrets are not ready or nothing needed rewriting.
+     * Starts a local server for each event and data channel the device assigned in its SETUP response
+     * and puts the local ports in the response for the controller. Returns the original bytes when the
+     * shared secrets are not ready or nothing changed.
      *
-     * @param request - The controller's SETUP request (carries the data-stream seed).
-     * @param response - The device's SETUP response.
-     * @returns The (possibly rewritten) raw response bytes to send to the controller.
+     * @param request - Carries the data stream seed.
      */
     async #interceptSetup(request: ControlMessage, response: Extract<ControlMessage, {kind: 'response'}>): Promise<Buffer> {
         const controllerSharedSecret = this.#verifyServer.sharedSecret;
@@ -198,6 +180,7 @@ class AirPlaySession {
 
             if (typeof plist.eventPort === 'number' && plist.eventPort !== 0) {
                 const server = new EventChannelServer(this.#context, this.#options.device.address, plist.eventPort & 0xFFFF, controllerSharedSecret, deviceSharedSecret, this.#options.tap);
+
                 plist.eventPort = await server.listen();
                 this.#channels.push(server);
                 changed = true;
@@ -212,6 +195,7 @@ class AirPlaySession {
                     if (stream && typeof stream.dataPort === 'number' && stream.dataPort !== 0) {
                         const seed = requestPlist?.streams?.[index]?.seed ?? requestPlist?.streams?.[0]?.seed;
                         const server = new DataChannelServer(this.#context, this.#options.device.address, stream.dataPort & 0xFFFF, controllerSharedSecret, deviceSharedSecret, seed, this.#options.tap);
+
                         stream.dataPort = await server.listen();
                         this.#channels.push(server);
                         changed = true;
@@ -223,7 +207,7 @@ class AirPlaySession {
                 return response.raw;
             }
 
-            this.#context.logger.info('[proxy]', 'Rewrote SETUP response — relaying event/data channels.');
+            this.#context.logger.info('[proxy]', 'Rewrote the SETUP response to relay the event and data channels.');
 
             const headers = Object.fromEntries(response.headers.entries());
             delete headers['content-length'];
@@ -236,17 +220,13 @@ class AirPlaySession {
                 protocol: requestProtocol(response.raw)
             });
         } catch (error) {
-            this.#context.logger.warn('[proxy]', 'SETUP interception failed; passing through', (error as Error).message);
+            this.#context.logger.warn('[proxy]', 'Could not rewrite the SETUP response, passing it through as is.', (error as Error).message);
+
             return response.raw;
         }
     }
 
-    /**
-     * Terminates a controller pairing request (`/pair-pin-start`, `/pair-setup`, `/pair-verify`) using the
-     * server-side HAP state machines and replies over the control channel.
-     *
-     * @param message - The pairing request message.
-     */
+    /** Answers a pairing request of the controller with the server side of HAP pairing. */
     async #handlePairing(message: ControlMessage): Promise<void> {
         if (message.kind !== 'request') {
             return;
@@ -258,8 +238,9 @@ class AirPlaySession {
         const cseq = request.headers['CSeq'];
 
         if (basePath === '/pair-pin-start') {
-            this.#context.logger.info('[proxy]', `Controller is pairing — enter PIN ${this.#options.pin} on the controller.`);
+            this.#context.logger.info('[proxy]', `Controller is pairing. Enter PIN ${this.#options.pin} on the controller.`);
             this.#controller?.send(buildResponse({status: 200, statusText: 'OK', protocol, headers: cseq ? {CSeq: cseq} : {}}));
+
             return;
         }
 
@@ -285,15 +266,13 @@ class AirPlaySession {
 
         if (basePath === '/pair-verify' && this.#verifyServer.pairingId && this.#verifyServer.sharedSecret) {
             const {readKey, writeKey} = HKDF.deriveEncryptionKeys(this.#verifyServer.sharedSecret, 'Control-Salt', 'Control-Write-Encryption-Key', 'Control-Read-Encryption-Key');
+
             this.#controller?.enableEncryption(readKey, writeKey);
-            this.#context.logger.info('[proxy]', 'Controller pair-verify complete; control channel encrypted.');
+            this.#context.logger.info('[proxy]', 'Controller pair-verify complete, control channel encrypted.');
         }
     }
 
-    /**
-     * Connects to the real device and pair-verifies with it (proxy as AirPlay client), then enables the
-     * device-side encryption and flushes any buffered relayed requests.
-     */
+    /** Pair-verifies with the device as an AirPlay client, then sends the requests that waited for it. */
     async #connectDevice(): Promise<void> {
         const socket = connect({host: this.#options.device.address, port: this.#options.device.service.port});
         const device = new ControlConnection(this.#context, socket, 'client');
@@ -304,28 +283,31 @@ class AirPlaySession {
             socket.once('error', reject);
         });
 
-        device.onMessage((message) => {
+        device.onMessage(message => {
             const resolve = this.#devicePending;
             this.#devicePending = undefined;
             resolve?.(message);
         });
+
         device.on('close', () => this.#teardown());
-        device.on('error', (error) => {
-            this.#context.logger.warn('[proxy]', 'device connection error', error.message);
+        device.on('error', error => {
+            this.#context.logger.warn('[proxy]', 'Device connection failed.', error.message);
             this.#teardown();
         });
 
-        const verify = new PairVerify(this.#context, async (tlv) => {
+        const verify = new PairVerify(this.#context, async tlv => {
             const response = await this.#deviceExchange(this.#buildDeviceRequest('/pair-verify', tlv));
+
             return response.kind === 'response' ? response.body : Buffer.alloc(0);
         });
 
         const keys = await verify.start(this.#options.credentials);
-        this.#deviceSharedSecret = keys.sharedSecret;
         const {readKey, writeKey} = HKDF.deriveEncryptionKeys(keys.sharedSecret, 'Control-Salt', 'Control-Read-Encryption-Key', 'Control-Write-Encryption-Key');
+
+        this.#deviceSharedSecret = keys.sharedSecret;
         device.enableEncryption(readKey, writeKey);
 
-        this.#context.logger.info('[proxy]', 'Device pair-verify complete; relaying control channel.');
+        this.#context.logger.info('[proxy]', 'Device pair-verify complete, relaying the control channel.');
         this.#deviceReady = true;
 
         for (const raw of this.#pending) {
@@ -336,18 +318,19 @@ class AirPlaySession {
         this.#pendingBytes = 0;
     }
 
-    /**
-     * Relays a raw RTSP request to the device and resolves with the device's response, buffering until the
-     * device session is ready.
-     *
-     * @param raw - The raw RTSP request bytes from the controller.
-     * @returns The device's response message, or null if the device is not ready.
-     */
+    /** Returns the response of the device, or null when the request waits for the device session. */
     async #relayToDevice(raw: Buffer): Promise<Extract<ControlMessage, {kind: 'response'}> | null> {
         if (!this.#deviceReady || !this.#device) {
             this.#pendingBytes += raw.length;
-            if (this.#pendingBytes > 1024 * 1024) {this.#teardown(); return null;}
+
+            if (this.#pendingBytes > 1024 * 1024) {
+                this.#teardown();
+
+                return null;
+            }
+
             this.#pending.push(raw);
+
             return null;
         }
 
@@ -356,17 +339,12 @@ class AirPlaySession {
         return response.kind === 'response' ? response : null;
     }
 
-    /**
-     * Sends raw RTSP bytes to the device and resolves with the next response message.
-     *
-     * @param raw - The raw RTSP request bytes.
-     * @returns The next response message from the device.
-     */
+    /** Resolves with the next message from the device. */
     #deviceExchange(raw: Buffer): Promise<ControlMessage> {
         return new Promise<ControlMessage>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('Device control exchange timed out.')), 30000);
 
-            this.#devicePending = (message) => {
+            this.#devicePending = message => {
                 clearTimeout(timer);
                 resolve(message);
             };
@@ -375,13 +353,7 @@ class AirPlaySession {
         });
     }
 
-    /**
-     * Builds a raw RTSP request for the device side (used during device pair-verify).
-     *
-     * @param path - The request path.
-     * @param body - The request body (TLV8).
-     * @returns The serialized RTSP request bytes.
-     */
+    /** Builds an RTSP request for the pair-verify with the device, with a TLV8 body. */
     #buildDeviceRequest(path: string, body: Buffer): Buffer {
         const headers: Record<string, string> = {
             ...this.#deviceHeaders,
@@ -396,11 +368,11 @@ class AirPlaySession {
         return Buffer.concat([Buffer.from(head), body]);
     }
 
-    /** Tears down both connections and any channel servers. */
     #teardown(): void {
         this.#pending = [];
         this.#pendingBytes = 0;
         this.#deviceReady = false;
+
         for (const channel of this.#channels) {
             channel.stop();
         }
@@ -413,12 +385,12 @@ class AirPlaySession {
     }
 }
 
-/** Returns a standalone ArrayBuffer view of a Buffer (for Plist.parse). */
+/** Copies the bytes into their own ArrayBuffer, which `Plist.parse` needs. */
 function toArrayBuffer(buffer: Buffer): ArrayBuffer {
     return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 }
 
-/** Renders a request/response body for logging: a binary plist or text preview, else hex. */
+/** Printable bodies log as text, the rest as hex. */
 function describeBody(body: Buffer): unknown {
     if (body.byteLength === 0) {
         return null;
@@ -433,7 +405,7 @@ function describeBody(body: Buffer): unknown {
     return {'@bytes': body.toString('hex')};
 }
 
-/** Extracts the protocol token (RTSP/1.0 or HTTP/1.1) from a raw request's first line. */
+/** Reads the protocol from the first line of a request. */
 function requestProtocol(raw: Buffer): 'RTSP/1.0' | 'HTTP/1.1' {
     const lineEnd = raw.indexOf('\r\n');
     const line = raw.toString('latin1', 0, lineEnd < 0 ? raw.byteLength : lineEnd);
@@ -442,13 +414,8 @@ function requestProtocol(raw: Buffer): 'RTSP/1.0' | 'HTTP/1.1' {
 }
 
 /**
- * Builds the `_airplay._tcp` TXT record for the proxy: the real device's properties with the identity
- * fields (`pk`, `pi`, `deviceid`) replaced by proxy-specific stable values so a controller treats the
- * proxy as a distinct device and performs a fresh pair-setup.
- *
- * @param identity - The proxy's accessory identity.
- * @param base - The real device's TXT properties.
- * @returns The TXT record to advertise.
+ * Copies the TXT record of the device and replaces `pk`, `pi` and `deviceid` with stable values of the
+ * proxy, so a controller sees a different device and runs a fresh pair-setup.
  */
 function proxyTxt(identity: AccessoryIdentity, base: Record<string, string>): Record<string, string> {
     const hash = createHash('sha256').update(identity.publicKey).digest('hex');
@@ -461,7 +428,7 @@ function proxyTxt(identity: AccessoryIdentity, base: Record<string, string>): Re
     };
 }
 
-/** Sanitizes a name into a DNS-safe host label. */
+/** Turns a name into a DNS host label. */
 function sanitize(name: string): string {
     return name.replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'apple-protocols-proxy';
 }

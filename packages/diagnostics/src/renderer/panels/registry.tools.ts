@@ -9,9 +9,15 @@ import { PerformancePanel } from './performance/PerformancePanel';
 import { ProxyPanel } from './proxy/ProxyPanel';
 import { StoragePanel } from './storage/StoragePanel';
 
-/* Tools also work in cells without a device. */
+/* Tools belong to no device, so they apply everywhere. */
 export const TOOLS_PANELS: readonly PanelDefinition[] = [
-    {id: 'performance', title: 'Performance', icon: Gauge, appliesTo: () => true, component: PerformancePanel},
+    {
+        id: 'performance',
+        title: 'Performance',
+        icon: Gauge,
+        appliesTo: () => true,
+        component: PerformancePanel
+    },
     {
         id: 'encoding',
         title: 'Encoding',

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { RefreshCw, TrendingDown, Volume2, VolumeX } from 'lucide-react';
-import { ButtonGroup, CommandButton, ControlRow, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
+import { ButtonGroup, CommandButton, ControlRow, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 
 const toDevice = (percent: number): number => percent / 100;
 
@@ -132,7 +132,6 @@ export function VolumePanel({deviceId}: PanelProps) {
                         </div>
                     )}
                 </Section>
-
             </PanelGroup>
 
             <PanelGroup title="Capabilities and sound modes" icon={ICONS.info}>
@@ -145,7 +144,7 @@ export function VolumePanel({deviceId}: PanelProps) {
                 </Section>
 
                 <Section title="Sound modes" icon={ICONS.experimental} collapsible defaultOpen={false}>
-                    <p className="text-xs text-text-muted">These go straight at the AirPlay session and its MRP remote. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
+                    <p className="text-xs text-text-muted">These go straight to the AirPlay session and its MRP remote. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
                     <ControlRow label="Audio mode" icon={ICONS.audio}>
                         <TextInput label="Audio mode" mono className="h-7 min-w-0 flex-1 basis-40" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
                         <CommandButton label="Set" tooltip="airplay.control.setAudioMode" run={() => call('airplay', 'control.setAudioMode', [audioMode])} disabled={!connected}/>

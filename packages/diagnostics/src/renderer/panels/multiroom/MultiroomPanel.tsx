@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { BoolValue, Checkbox, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Pill, Section, StatusPill, TextInput } from '@/ui';
 import { useDevices } from '@/state/devices';
 import { useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { NotConnected, ResultBlock, Row } from '@/panels/sdk-shared';
+import { BoolValue, Checkbox, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Pill, Section, StatusPill, TextInput } from '@/ui';
 
 type Candidate = {
     readonly uid: string;
@@ -74,7 +74,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                 }
             >
                 <KeyValueList>
-                    <KeyValue label="Cluster id" icon={ICONS.identifier}>{cluster?.clusterId ?? '-'}</KeyValue>
+                    <KeyValue label="Cluster ID" icon={ICONS.identifier}>{cluster?.clusterId ?? '-'}</KeyValue>
                     <KeyValue label="Leader" icon={ICONS.leader}>
                         <BoolValue value={cluster?.isLeader ?? false}/>
                     </KeyValue>
@@ -83,7 +83,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                     </KeyValue>
                 </KeyValueList>
                 <Row>
-                    <ResultBlock label="Cluster id" tooltip="multiroom.clusterId" run={() => call('device', 'multiroom.clusterId')} disabled={!connected}/>
+                    <ResultBlock label="Cluster ID" tooltip="multiroom.clusterId" run={() => call('device', 'multiroom.clusterId')} disabled={!connected}/>
                     <ResultBlock label="Leader" tooltip="multiroom.isLeader" run={() => call('device', 'multiroom.isLeader')} disabled={!connected}/>
                     <ResultBlock label="Cluster aware" tooltip="multiroom.isClusterAware" run={() => call('device', 'multiroom.isClusterAware')} disabled={!connected}/>
                     <ResultBlock label="Cluster type" tooltip="mediaRemote.state.clusterType" run={() => call('mediaRemote', 'state.clusterType')} disabled={!connected}/>
@@ -101,7 +101,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                 }
             >
                 {candidates.length === 0 ? (
-                    <p className="text-xs text-text-muted">Nothing to offer. This device plays on itself and no other device was discovered; add a uid below.</p>
+                    <p className="text-xs text-text-muted">No candidates. This device plays only on itself and discovery found no other device. Add a UID below.</p>
                 ) : (
                     <div className="flex flex-col divide-y divide-border-soft">
                         {candidates.map(candidate => (
@@ -116,12 +116,12 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                         ))}
                     </div>
                 )}
-                <ControlRow label="Add by uid" icon={ICONS.identifier}>
+                <ControlRow label="Add by UID" icon={ICONS.identifier}>
                     <TextInput
-                        label="Output device uid"
+                        label="Output device UID"
                         mono
                         className="h-7 min-w-0 flex-1 basis-40"
-                        placeholder="Paste an output device uid"
+                        placeholder="Paste an output device UID"
                         value={manualUid}
                         onChange={event => setManualUid(event.target.value)}
                         onKeyDown={event => {
@@ -130,7 +130,7 @@ export function MultiroomPanel({deviceId}: PanelProps) {
                             }
                         }}
                     />
-                    <IconButton icon={Plus} label="Add the uid" size="sm" onClick={addManual}/>
+                    <IconButton icon={Plus} label="Add the UID" size="sm" onClick={addManual}/>
                 </ControlRow>
                 <Row>
                     <CommandButton label="Add to group" tooltip="multiroom.add" run={() => call('device', 'multiroom.add', selected)} disabled={!connected || selected.length === 0}/>

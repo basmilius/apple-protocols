@@ -53,9 +53,8 @@ const pointOf = (event: ReactPointerEvent<HTMLDivElement>): Point => {
 const percent = (value: number): string => `${(value / TOUCH_RANGE) * 100}%`;
 
 /*
- * Send drags through raw `_hidT` because the SDK keeps touch phases private.
- * The HID touch device has no click, so stationary presses send Select.
- * Wait for movement beyond the tap threshold before starting a touch stream.
+ * Drags go through raw `_hidT`, because the SDK keeps touch phases private. The HID touch device has no click, so a
+ * press that stays put sends Select; a touch stream starts only once the pointer moves past the tap threshold.
  */
 export function TouchPad({deviceId, disabled, finger}: TouchPadProps) {
     const [trail, setTrail] = useState<readonly Point[]>([]);
@@ -238,5 +237,5 @@ function describe(gesture: Gesture | null): string {
         return `select held ${gesture.durationMs} ms`;
     }
 
-    return `swipe(${gesture.from.x}, ${gesture.from.y}) to (${gesture.to.x}, ${gesture.to.y}) finger ${gesture.finger}, ${gesture.durationMs} ms`;
+    return `swipe (${gesture.from.x}, ${gesture.from.y}) to (${gesture.to.x}, ${gesture.to.y}), finger ${gesture.finger}, ${gesture.durationMs} ms`;
 }

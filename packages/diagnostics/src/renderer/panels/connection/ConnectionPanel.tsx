@@ -111,7 +111,7 @@ export function ConnectionPanel({deviceId}: PanelProps) {
                 actions={<StatusPill status={state === null ? 'off' : (STATE_TONE[state] ?? 'off')}>{state ?? 'no session'}</StatusPill>}
             >
                 <p className="text-xs text-text-muted">
-                    The device retries by itself until it is disconnected: three quick attempts after 1, 2 and 4 seconds, then on an Apple TV fifteen attempts every two minutes, then every fifteen minutes. A HomePod skips the two-minute phase.
+                    The device retries by itself until you disconnect it. It tries after 1, 2 and 4 seconds, then an Apple TV tries fifteen times every two minutes, then every fifteen minutes. A HomePod skips the two-minute phase.
                 </p>
                 <KeyValueList>
                     <KeyValue label="Reason">{status?.reason ?? '-'}</KeyValue>

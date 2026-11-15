@@ -44,12 +44,16 @@ function optionsOf(source: object): readonly RawParamOption[] {
 }
 
 const asString = (args: Args, name: string): string => String(args[name] ?? '');
+
 const asNumber = (args: Args, name: string, fallback = 0): number => {
     const value = Number(args[name]);
+
     return Number.isFinite(value) ? value : fallback;
 };
+
 const asBoolean = (args: Args, name: string): boolean => args[name] === true;
 const asList = (args: Args, name: string): string[] => (Array.isArray(args[name]) ? (args[name] as unknown[]).map(entry => String(entry)) : []);
+
 const asRecord = (args: Args, name: string): Record<string, unknown> => {
     const value = args[name];
 
@@ -185,7 +189,7 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
     dataStream('playbackSessionMigrateEnd', 'playbackSessionMigrateEnd', 'Playback', 'Closes a playback session migration. Nothing in the SDK calls it.', [], () => Messages.playbackSessionMigrateEnd()),
     dataStream('getVolume', 'getVolume', 'Volume', 'Reads the volume of one output device.', [string('outputDeviceUID', 'Output device UID')], args => Messages.getVolume(asString(args, 'outputDeviceUID'))),
     dataStream('getVolumeMuted', 'getVolumeMuted', 'Volume', 'Reads the mute state of one output device. Nothing in the SDK calls it.', [string('outputDeviceUID', 'Output device UID')], args => Messages.getVolumeMuted(asString(args, 'outputDeviceUID'))),
-    dataStream('setVolume', 'setVolume', 'Volume', 'Sets the volume of one output device, 0 to 1.', [string('outputDeviceUID', 'Output device UID'), number('volume', 'Volume (0-1)', 0.3)], args => Messages.setVolume(asString(args, 'outputDeviceUID'), asNumber(args, 'volume'))),
+    dataStream('setVolume', 'setVolume', 'Volume', 'Sets the volume of one output device, 0 to 1.', [string('outputDeviceUID', 'Output device UID'), number('volume', 'Volume (0 to 1)', 0.3)], args => Messages.setVolume(asString(args, 'outputDeviceUID'), asNumber(args, 'volume'))),
     dataStream('setVolumeMuted', 'setVolumeMuted', 'Volume', 'Mutes or unmutes one output device.', [string('outputDeviceUID', 'Output device UID'), boolean('isMuted', 'Muted', true)], args => Messages.setVolumeMuted(asString(args, 'outputDeviceUID'), asBoolean(args, 'isMuted'))),
     dataStream('adjustVolume', 'adjustVolume', 'Volume', 'Steps the volume up or down.', [choice('adjustment', 'Adjustment', Proto.AdjustVolumeMessage_Adjustment, Proto.AdjustVolumeMessage_Adjustment.IncrementSmall), string('outputDeviceUID', 'Output device UID')], args =>
         Messages.adjustVolume(asNumber(args, 'adjustment'), asString(args, 'outputDeviceUID'))
@@ -205,10 +209,10 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
     dataStream('registerHIDDevice', 'registerHIDDevice', 'Input', 'Claims a virtual touch device and answers with the identifier a touch event has to carry.', [number('screenWidth', 'Screen width', 1000), number('screenHeight', 'Screen height', 1000), boolean('absolute', 'Absolute', true), boolean('integratedDisplay', 'Integrated display', false)], args =>
         Messages.registerHIDDevice(asNumber(args, 'screenWidth', 1000), asNumber(args, 'screenHeight', 1000), asBoolean(args, 'absolute'), asBoolean(args, 'integratedDisplay'))
     ),
-    dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1), number('deviceId', 'Device id', 1)], args =>
+    dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1), number('deviceId', 'Device ID', 1)], args =>
         Messages.sendVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'finger', 1), asNumber(args, 'deviceId', 1))
     ),
-    dataStream('sendPackedVirtualTouchEvent', 'sendPackedVirtualTouchEvent', 'Input', 'The packed form of a virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('deviceId', 'Device id', 1), number('finger', 'Finger', 1)], args =>
+    dataStream('sendPackedVirtualTouchEvent', 'sendPackedVirtualTouchEvent', 'Input', 'The packed form of a virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('deviceId', 'Device ID', 1), number('finger', 'Finger', 1)], args =>
         Messages.sendPackedVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'deviceId', 1), asNumber(args, 'finger', 1))
     ),
     dataStream('wakeDevice', 'wakeDevice', 'Power', 'Wakes the device over the data stream.', [], () => Messages.wakeDevice())
@@ -284,13 +288,13 @@ function callOn(target: ControlStreamTarget | undefined, name: string, method: s
         throw new Error(`This device has no ${name}. Connect over AirPlay first.`);
     }
 
-    const fn = target[method];
+    const member = target[method];
 
-    if (typeof fn !== 'function') {
+    if (typeof member !== 'function') {
         throw new Error(`'${method}' is not available on the ${name}.`);
     }
 
-    return fn.apply(target, args as never[]);
+    return member.apply(target, args as never[]);
 }
 
 export const RAW_ENTRIES: readonly RawEntry[] = [...DATA_STREAM_ENTRIES, ...COMPANION_LINK_ENTRIES, ...CONTROL_STREAM_ENTRIES];
@@ -309,26 +313,56 @@ export function rawEntry(transport: RawTransport, id: string): RawEntry {
 
 export function validateRawRequest(request: RawMessageRequest): void {
     const entry = rawEntry(request.transport, request.id);
-    if (!request.args || typeof request.args !== 'object' || Array.isArray(request.args)) throw new Error('Raw arguments must be an object.');
-    for (const name of Object.keys(request.args)) {
-        if (!entry.params.some(param => param.name === name)) throw new Error(`Unknown raw argument '${name}'.`);
+
+    if (!request.args || typeof request.args !== 'object' || Array.isArray(request.args)) {
+        throw new Error('Raw arguments must be an object.');
     }
+
+    for (const name of Object.keys(request.args)) {
+        if (!entry.params.some(param => param.name === name)) {
+            throw new Error(`Unknown raw argument '${name}'.`);
+        }
+    }
+
     for (const param of entry.params) {
         const value = request.args[param.name];
-        if (value === undefined && (param.optional || param.defaultValue !== undefined)) continue;
+
+        if (value === undefined && (param.optional || param.defaultValue !== undefined)) {
+            continue;
+        }
+
         let valid = false;
+
         switch (param.type) {
-            case 'number': valid = typeof value === 'number' && Number.isFinite(value); break;
-            case 'boolean': valid = typeof value === 'boolean'; break;
-            case 'string': valid = typeof value === 'string'; break;
-            case 'enum': valid = param.options?.some(option => option.value === value) === true; break;
-            case 'stringList': valid = Array.isArray(value) && value.every(item => typeof item === 'string'); break;
+            case 'number':
+                valid = typeof value === 'number' && Number.isFinite(value);
+                break;
+
+            case 'boolean':
+                valid = typeof value === 'boolean';
+                break;
+
+            case 'string':
+                valid = typeof value === 'string';
+                break;
+
+            case 'enum':
+                valid = param.options?.some(option => option.value === value) === true;
+                break;
+
+            case 'stringList':
+                valid = Array.isArray(value) && value.every(item => typeof item === 'string');
+                break;
+
             case 'json': {
                 const parsed = typeof value === 'string' ? JSON.parse(value) : value;
                 valid = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
                 break;
             }
         }
-        if (!valid) throw new Error(`Invalid raw argument '${param.name}': expected ${param.type}.`);
+
+        if (!valid) {
+            throw new Error(`Invalid raw argument '${param.name}': expected ${param.type}.`);
+        }
     }
 }

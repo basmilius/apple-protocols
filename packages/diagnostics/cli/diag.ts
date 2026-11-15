@@ -8,7 +8,7 @@ import type { CallResult, DeviceEvent, DiscoveredDeviceInfo, LogEntry, ProxyStat
 
 const CONFIG = join(homedir(), '.config', 'apple-protocols');
 
-const HELP = `diag: drive the running diagnostics app and read what it captured.
+const HELP = `diag: drive the running CoreWire Diagnostics app and read what it captured.
 
   status                                  bridge, cursors and devices
   wait-ready [--timeout 60]               wait for the app (after a restart) and its reconnects
@@ -67,7 +67,7 @@ async function readState(): Promise<AgentState> {
     try {
         return JSON.parse(await readFile(join(CONFIG, AGENT_STATE_FILE), 'utf8'));
     } catch {
-        throw new Error('The diagnostics app is not running with its agent bridge. Ask the user to start it: bun --cwd packages/diagnostics dev:agent');
+        throw new Error('CoreWire Diagnostics is not running with its agent bridge. Ask the user to start it with bun --cwd packages/diagnostics dev:agent');
     }
 }
 
@@ -145,7 +145,7 @@ async function bufferQuery(): Promise<URLSearchParams> {
     return query;
 }
 
-/** A mark from before a main-process restart refers to discarded buffers. Read from the start in that case. */
+/** A mark from before a restart of main points into buffers that are gone, so read from the start. */
 async function cursorFor(kind: AgentKind): Promise<number> {
     if (flags.after !== undefined) {
         return Number(flags.after);
@@ -319,6 +319,7 @@ async function main(): Promise<void> {
 
             print(result);
             process.exitCode = result.ok ? 0 : 1;
+
             return;
         }
 
@@ -357,6 +358,7 @@ async function main(): Promise<void> {
 
             printPage(kind, page);
             process.exitCode = page.timedOut ? 1 : 0;
+
             return;
         }
 

@@ -31,6 +31,7 @@ const decodeFeatures = (raw: string | undefined): MdnsFeatures | null => {
 
     try {
         const mask = parseFeatures(raw);
+
         return {raw, mask: `0x${mask.toString(16)}`, flags: describeFlags(mask)};
     } catch {
         return {raw, mask: '', flags: []};
@@ -95,11 +96,13 @@ export async function wake(address: string): Promise<void> {
 
 export async function findByAddress(service: DiscoveryService, address: string, timeoutMs?: number): Promise<MdnsRecord | null> {
     const result = await discoveryFor(service).findByAddress(address, seconds(timeoutMs), WAKE_PORTS);
+
     return result === null ? null : fromDiscovery(result as DiscoveryHit);
 }
 
 export async function findUntil(service: DiscoveryService, id: string, tries?: number, timeoutMs?: number): Promise<MdnsRecord> {
     const result = await discoveryFor(service).findUntil(id, tries ?? 10, timeoutMs ?? 1000);
+
     return fromDiscovery(result as DiscoveryHit);
 }
 

@@ -89,12 +89,12 @@ export class JsonStorage {
         const json = JSON.parse(readFileSync(this.#path, 'utf-8'));
 
         if (!isRecord(json) || json.version !== 1 || !isRecord(json.devices) || !isRecord(json.credentials)) {
-            throw new Error('Invalid credential storage schema');
+            throw new Error('Invalid credential storage schema.');
         }
 
         for (const device of Object.values(json.devices)) {
             if (!isRecord(device) || typeof device.identifier !== 'string' || typeof device.name !== 'string') {
-                throw new Error('Invalid stored device');
+                throw new Error('Invalid stored device.');
             }
         }
 
@@ -104,7 +104,7 @@ export class JsonStorage {
                 : isRecord(credentials) && LEGACY_FIELDS.every(field => typeof credentials[field] === 'string');
 
             if (!valid) {
-                throw new Error('Invalid stored credentials');
+                throw new Error('Invalid stored credentials.');
             }
         }
 

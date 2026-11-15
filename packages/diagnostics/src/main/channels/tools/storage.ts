@@ -6,6 +6,7 @@ const SECRET_FIELDS: readonly string[] = ['accessoryLongTermPublicKey', 'pairing
 
 const mask = (value: unknown): string => {
     const length = typeof value === 'string' ? Buffer.from(value, 'base64').length : 0;
+
     return `[hidden, ${length} bytes]`;
 };
 
@@ -36,6 +37,7 @@ export function listDevices(storage: StorageQueue): readonly StoredDeviceInfo[] 
 
 export function readStorage(storage: StorageQueue, reveal: boolean): StorageDump {
     const data = storage.storage.data;
+
     return {path: storage.path, revealed: reveal, data: reveal ? data : maskData(data)};
 }
 

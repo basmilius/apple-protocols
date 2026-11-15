@@ -34,14 +34,17 @@ export function registerToolsChannels(context: ChannelContext): void {
 
     handle('storage:devices', () => listDevices(context.storage));
     handle('storage:read', request => readStorage(context.storage, request?.reveal === true));
+
     handle('storage:removeCredentials', async request => {
         await removeCredentials(context.storage, request.deviceId, request.protocol);
     });
+
     handle('storage:removeDevice', async request => {
         await removeDevice(context.storage, request.deviceId);
     });
 
     handle('mdns:scan', async request => await mdns.scan(request));
+
     handle('mdns:wake', async request => {
         await mdns.wake(request.address);
     });
@@ -49,13 +52,16 @@ export function registerToolsChannels(context: ChannelContext): void {
     handle('discoverytools:findByAddress', async request => await mdns.findByAddress(request.service, request.address, request.timeoutMs));
     handle('discoverytools:findUntil', async request => await mdns.findUntil(request.service, request.id, request.tries, request.timeoutMs));
     handle('discoverytools:discoverAll', async () => await mdns.discoverAll());
+
     handle('discoverytools:clearCache', () => {
         mdns.clearCache();
     });
 
     handle('proxy:start', async request => await context.proxies.start(request));
+
     handle('proxy:stop', async request => {
         await context.proxies.stop(request?.protocol);
     });
+
     handle('proxy:status', () => context.proxies.status());
 }

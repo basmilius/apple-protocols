@@ -39,6 +39,7 @@ export class Channel {
         const onEvent = (name: string, content: unknown): void => this.#dispatch(name, content);
 
         stream.on('event', onEvent);
+
         signal.addEventListener('abort', () => {
             stream.off('event', onEvent);
             this.#listeners.clear();

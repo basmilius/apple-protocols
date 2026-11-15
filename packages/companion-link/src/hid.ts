@@ -28,17 +28,20 @@ export class Hid {
                 await this.command(command, false);
                 await this.command(command, true);
                 await this.command(command, false);
+
                 break;
 
             case 'Hold':
                 await this.command(command, true);
                 await waitFor(holdDelayMs);
                 await this.command(command, false);
+
                 break;
 
             case 'SingleTap':
                 await this.command(command, true);
                 await this.command(command, false);
+
                 break;
         }
     }

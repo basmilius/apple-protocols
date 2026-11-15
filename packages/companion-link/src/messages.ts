@@ -2,63 +2,34 @@ import { OPack } from '@corewire/core/encoding';
 import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 
-/** An OPack-encoded message to be sent over the Companion Link stream. */
+/** An OPack message for the Companion Link stream. */
 export type OPackMessage = Record<string, unknown>;
 
-/**
- * Creates a standard Companion Link request message.
- *
- * @param identifier - The message identifier (e.g. `_ping`, `_hidC`).
- * @param content - Optional content payload for the `_c` field.
- * @returns The constructed OPack message.
- */
+/** A request; the device replies. */
 function request(identifier: string, content: Record<string, unknown> = {}): OPackMessage {
     return { _i: identifier, _t: MessageType.Request, _c: content };
 }
 
-/**
- * Creates a Companion Link request message with Bluetooth high-priority disabled.
- * Used for messages that should not trigger Bluetooth wake behavior.
- *
- * @param content - Optional content payload for the `_c` field.
- * @returns The constructed OPack message with `_btHP: false`.
- */
+/** A request with Bluetooth high priority off (`_btHP: false`), for messages that should not cause a Bluetooth wake. */
 function requestBtHP(identifier: string, content: Record<string, unknown> = {}): OPackMessage {
     return { _i: identifier, _t: MessageType.Request, _btHP: false, _c: content };
 }
 
-/**
- * Creates a Companion Link event message (fire-and-forget, no response expected).
- *
- * @param content - Optional content payload for the `_c` field.
- * @returns The constructed OPack event message.
- */
+/** An event; the device sends no reply. */
 function event(identifier: string, content: Record<string, unknown> = {}): OPackMessage {
     return { _i: identifier, _t: MessageType.Event, _c: content };
 }
 
-// --- System & Session ---
-
-/**
- * Builds the `_systemInfo` message sent during the initial handshake.
- * Announces the controller's identity, model and supported services to the Apple TV.
- *
- * @param pairingId - The controller's pairing identifier.
- * @param name - Display name of this controller.
- * @param model - Device model identifier (e.g. `iPhone16,2`).
- * @param sourceVersion - Protocol source version string.
- * @returns The system info request message.
- */
+/** The `_systemInfo` request of the startup: the identity, model and services of this controller. */
 export function systemInfo(pairingId: Buffer, name: string, model: string = 'iPhone16,2', sourceVersion: string = '715.2'): OPackMessage {
     return requestBtHP('_systemInfo', {
         // _bf: build flags, _cf: capability flags, _clFl: Companion Link flags
         _bf: 0,
         _cf: 512,
         _clFl: 128,
-        // TODO: These identifiers are hardcoded. Ideally they should be persisted per-controller
-        // so the Apple TV recognizes the same remote across sessions. Using random IDs causes the
-        // Apple TV to treat each connection as a new remote.
-        // _i: device identifier (MAC-like), _pubID: public Bluetooth MAC address,
+        // Fixed identifiers, because random ones make the Apple TV see a new remote on every connection.
+        // todo: persist them per controller.
+        // _i: device id (MAC-like), _pubID: public Bluetooth MAC address,
         // _sf: supported features bitmask, _lP: local port, _dC: device category
         _i: 'b561af32aea6',
         _idsID: pairingId.toString(),
@@ -99,12 +70,7 @@ export function systemInfo(pairingId: Buffer, name: string, model: string = 'iPh
     });
 }
 
-/**
- * Builds a session start request for the `com.apple.tvremoteservices` service.
- *
- * @param localSid - The locally generated session identifier.
- * @returns The session start request message.
- */
+/** Starts a session with the `com.apple.tvremoteservices` service under a session id of our own. */
 export function sessionStart(localSid: number): OPackMessage {
     return {
         _i: '_sessionStart',
@@ -114,495 +80,234 @@ export function sessionStart(localSid: number): OPackMessage {
     };
 }
 
-/**
- * Builds a session stop request to terminate the active service session.
- *
- * @param localSid - The local session identifier to terminate.
- * @returns The session stop request message.
- */
 export function sessionStop(localSid: number): OPackMessage {
     return request('_sessionStop', { _srvT: 'com.apple.tvremoteservices', _sid: localSid });
 }
 
-/**
- * Builds a TV Remote Control session start request.
- * Initiates the `tvremoted` process on the Apple TV for remote interaction.
- *
- * @returns The TVRC session start request message.
- */
+/** Starts a TV Remote Control session, which `tvremoted` handles on the Apple TV. */
 export function tvrcSessionStart(): OPackMessage {
     return { _i: 'TVRCSessionStart', _t: MessageType.Request, _btHP: false, _inUseProc: 'tvremoted', _c: { ProtocolVersionKey: '1.2' } };
 }
 
-/**
- * Builds a TV Remote Control session stop request.
- *
- * @returns The TVRC session stop request message.
- */
 export function tvrcSessionStop(): OPackMessage {
     return request('TVRCSessionStop');
 }
 
-// --- HID Commands ---
-
-/**
- * Builds a HID button command message for remote control input.
- *
- * @param commandId - The HID command identifier from {@link HidCommand}.
- * @param down - Whether this is a button-down (`true`) or button-up (`false`) event.
- * @returns The HID command request message.
- */
+/** One button edge of a {@link HidCommand}; `down` false sends the release. */
 export function hidCommand(commandId: number, down: boolean): OPackMessage {
     return request('_hidC', { _hBtS: down ? 1 : 2, _hidC: commandId });
 }
 
-// --- Touch ---
-
-/**
- * Builds a touch session start message to initialize the virtual touchpad.
- *
- * @param width - Width of the virtual touchpad coordinate space.
- * @param height - Height of the virtual touchpad coordinate space.
- * @returns The touch start request message.
- */
+/** Starts the virtual touchpad; the size sets its coordinate space. */
 export function touchStart(width: number = 1000.0, height: number = 1000.0): OPackMessage {
     return requestBtHP('_touchStart', { _height: OPack.float(height), _tFl: 0, _width: OPack.float(width) });
 }
 
-/**
- * Builds a touch session stop message to end the virtual touchpad.
- *
- * @returns The touch stop request message.
- */
 export function touchStop(): OPackMessage {
     return request('_touchStop', { _i: 1 });
 }
 
 /**
- * Builds a touch event message with finger position and phase.
+ * A `_touchC` event, in the coordinate space of the touchpad.
  *
- * @param finger - The finger index (0-based, supports multi-touch).
- * @param phase - The touch phase (see {@link TouchPhase}).
- * @param x - Horizontal position in the virtual touchpad coordinate space.
- * @param y - Vertical position in the virtual touchpad coordinate space.
- * @returns The touch event request message.
+ * @param finger - 0-based.
+ * @param phase - See {@link TouchPhase}.
  */
 export function touchEvent(finger: number, phase: number, x: number, y: number): OPackMessage {
     return event('_touchC', { _tFg: finger, _tPh: phase, _tX: OPack.float(x), _tY: OPack.float(y) });
 }
 
 /**
- * Builds a HID touch event (`_hidT`) — the transport a real Apple controller uses for touchpad gestures
- * (observed over the wire). Unlike {@link touchEvent}, coordinates are integers in the virtual touchpad
- * space and the event carries a monotonic nanosecond timestamp.
+ * A `_hidT` event, the form an Apple remote sends touchpad gestures in on the wire. Unlike
+ * {@link touchEvent}, the coordinates are integers and the event carries a timestamp.
  *
- * @param finger - The finger index (1-based).
- * @param phase - The HID touch phase (see {@link HidTouchPhase}): 1 = began, 2 = moved, 3 = stationary, 4 = ended, 5 = cancelled.
- * @param x - Horizontal position in the virtual touchpad coordinate space.
- * @param y - Vertical position in the virtual touchpad coordinate space.
- * @param timestamp - Monotonic event timestamp in nanoseconds.
- * @returns The HID touch event message.
+ * @param finger - 1-based.
+ * @param phase - See {@link HidTouchPhase}.
+ * @param timestamp - Monotonic, in nanoseconds.
  */
 export function hidTouchEvent(finger: number, phase: number, x: number, y: number, timestamp: number = Number(process.hrtime.bigint())): OPackMessage {
     return event('_hidT', { _ns: OPack.sizedInteger(timestamp, 8), _tFg: finger, _cx: Math.round(x), _tPh: phase, _cy: Math.round(y) });
 }
 
-// --- Text Input ---
-
-/**
- * Builds a text input session start message.
- * Initiates RTI (Remote Text Input) to receive keyboard session info from the Apple TV.
- *
- * @returns The text input start request message.
- */
+/** Starts remote text input (RTI); the reply carries the keyboard session. */
 export function tiStart(): OPackMessage {
     return requestBtHP('_tiStart', {_tiV: 1});
 }
 
-/**
- * Builds a text input session stop message.
- *
- * @returns The text input stop request message.
- */
 export function tiStop(): OPackMessage {
     return requestBtHP('_tiStop');
 }
 
-/**
- * Builds a text input change event containing an RTI payload.
- * Sent as a fire-and-forget event (no response expected).
- *
- * @param tiD - The serialized RTI (RTITextOperations) payload.
- * @returns The text input change event message.
- */
+/** A `_tiC` event with serialized RTITextOperations. */
 export function tiChange(tiD: Buffer): OPackMessage {
     return event('_tiC', { _tiV: 1, _tiD: tiD });
 }
 
-// --- Media Control ---
-
 /**
- * Builds a media control command message.
+ * A `_mcc` request.
  *
- * @param commandId - The media control command identifier from {@link MediaControlCommand}.
- * @param content - Optional additional content (e.g. volume level for SetVolume).
- * @returns The media control request message.
+ * @param commandId - From {@link MediaControlCommand}.
+ * @param content - Extra fields, such as the volume for `SetVolume`.
  */
 export function mediaControlCommand(commandId: number, content?: Record<string, unknown>): OPackMessage {
     return request('_mcc', {_mcc: commandId, ...(content ?? {})});
 }
 
-/**
- * Builds a media control command to skip forward or backward by a given number of seconds.
- *
- * @param seconds - Number of seconds to skip (positive = forward, negative = backward).
- * @returns The skip-by-seconds request message.
- */
+/** Skips forward, or backward for a negative number of seconds. */
 export function mediaSkipBySeconds(seconds: number): OPackMessage {
     return request('_mcc', {_mcc: MediaControlCommand.SkipBy, _ski: seconds});
 }
 
-/**
- * Builds a message to get the current caption/subtitle settings.
- *
- * @returns The get caption settings request message.
- */
 export function mediaCaptionSettingGet(): OPackMessage {
     return request('_mcc', {_mcc: MediaControlCommand.GetCaptionSettings});
 }
 
-/**
- * Builds a message to enable or disable captions/subtitles.
- *
- * @returns The set caption settings request message.
- */
 export function mediaCaptionSettingSet(enabled: boolean): OPackMessage {
     return request('_mcc', {_mcc: MediaControlCommand.SetCaptionSettings, _cse: enabled});
 }
 
-// --- App Launch ---
-
-/**
- * Builds a message to launch an app by its bundle identifier.
- *
- * @param bundleId - The bundle identifier of the app to launch (e.g. `com.apple.TVMovies`).
- * @returns The app launch request message.
- */
 export function launchApp(bundleId: string): OPackMessage {
     return request('_launchApp', { _bundleID: bundleId });
 }
 
-/**
- * Builds a message to open a URL on the Apple TV, which will launch the
- * appropriate app via universal links.
- *
- * @returns The URL launch request message.
- */
+/** Opens a URL; the device picks the app through universal links. */
 export function launchUrl(url: string): OPackMessage {
     return request('_launchApp', { _urlS: url });
 }
 
-// --- Fetchers ---
-
-/**
- * Builds a request to fetch the Apple TV's current attention (power) state.
- *
- * @returns The attention state fetch request message.
- */
+/** Asks for the attention (power) state. */
 export function fetchAttentionState(): OPackMessage {
     return request('FetchAttentionState');
 }
 
-/**
- * Builds a request to fetch the list of launchable apps on the Apple TV.
- *
- * @returns The launchable apps fetch request message.
- */
 export function fetchLaunchableApps(): OPackMessage {
     return request('FetchLaunchableApplicationsEvent');
 }
 
-/**
- * Builds a request to fetch the current media control capabilities and status.
- *
- * @returns The media control status fetch request message.
- */
 export function fetchMediaControlStatus(): OPackMessage {
     return request('FetchMediaControlStatus');
 }
 
-/**
- * Builds a request to fetch the current now-playing information.
- *
- * @returns The now-playing info fetch request message.
- */
 export function fetchNowPlayingInfo(): OPackMessage {
     return request('FetchCurrentNowPlayingInfoEvent');
 }
 
-/**
- * Builds a request to fetch Siri Remote hardware/configuration info.
- *
- * @returns The Siri Remote info fetch request message.
- */
 export function fetchSiriRemoteInfo(): OPackMessage {
     return request('FetchSiriRemoteInfo');
 }
 
-/**
- * Builds a request to fetch the list of currently supported remote actions.
- *
- * @returns The supported actions fetch request message.
- */
 export function fetchSupportedActions(): OPackMessage {
     return request('FetchSupportedActionsEvent');
 }
 
-/**
- * Builds a request to fetch the current Top Shelf items from the Apple TV (observed over the wire).
- *
- * @returns The fetch current top shelf items request message.
- */
 export function fetchCurrentTopShelfItems(): OPackMessage {
     return requestBtHP('FetchCurrentTopShelfItemsEvent');
 }
 
-/**
- * Builds a request to fetch the user accounts registered on the Apple TV.
- *
- * @returns The user accounts fetch request message.
- */
 export function fetchUserAccounts(): OPackMessage {
     return request('FetchUserAccountsEvent');
 }
 
-// --- Account ---
-
-/**
- * Builds a request to switch the active user account on the Apple TV.
- *
- * @returns The switch user account request message.
- */
 export function switchUserAccount(accountId: string): OPackMessage {
     return request('SwitchUserAccountEvent', { SwitchAccountID: accountId });
 }
 
 /**
- * Builds the `SwitchActiveUserAccountEvent` that a real iOS Remote sends during the session handshake to
- * tell the Apple TV which iCloud account the controller is currently active on (observed over the wire).
- *
- * @param iCloudAltDSID - The controller's active iCloud account identifier (alternate DSID).
- * @returns The switch active user account request message.
+ * Tells the Apple TV which iCloud account (alternate DSID) this controller is active on. An iOS
+ * remote sends it during the startup.
  */
 export function switchActiveUserAccount(iCloudAltDSID: string): OPackMessage {
     return requestBtHP('SwitchActiveUserAccountEvent', { iCloudAltDSID });
 }
 
-// --- Interests ---
-
-/**
- * Builds an event to subscribe to specific server-sent events.
- *
- * @param events - The event identifiers to subscribe to (e.g. `_iMC`, `SystemStatus`).
- * @returns The interest registration event message.
- */
+/** Registers interest in events the device pushes, such as `_iMC` or `SystemStatus`. */
 export function registerInterests(events: string[]): OPackMessage {
     return event('_interest', { _regEvents: events });
 }
 
-/**
- * Builds an event to unsubscribe from specific server-sent events.
- *
- * @param events - The event identifiers to unsubscribe from.
- * @returns The interest deregistration event message.
- */
 export function deregisterInterests(events: string[]): OPackMessage {
     return event('_interest', { _deregEvents: events });
 }
 
-// --- System Controls ---
-
-/**
- * Builds a request to toggle closed captions on the Apple TV.
- *
- * @returns The toggle captions request message.
- */
 export function toggleCaptions(): OPackMessage {
     return request('ToggleCaptions');
 }
 
-/**
- * Builds a request to toggle the system appearance (light/dark mode).
- *
- * @param light - Whether to switch to light mode (`true`) or dark mode (`false`).
- * @returns The toggle appearance request message.
- */
+/** Light appearance when `light` is true, dark when false. */
 export function toggleSystemAppearance(light: boolean): OPackMessage {
     return request('ToggleSystemAppearance', { SystemAppearanceLight: light });
 }
 
-/**
- * Builds a request to toggle the "Reduce Loud Sounds" audio setting.
- *
- * @param enabled - Whether to enable (`true`) or disable (`false`) the feature.
- * @returns The toggle reduce loud sounds request message.
- */
 export function toggleReduceLoudSounds(enabled: boolean): OPackMessage {
-    /* Apple's protocol key is misspelled `ReduceLoundSoundsEnabled`; keep that spelling. */
+    // The protocol key is misspelled `ReduceLoundSoundsEnabled`; keep that spelling.
     return request('ToggleReduceLoudSounds', { ReduceLoundSoundsEnabled: enabled });
 }
 
-/**
- * Builds a request to toggle Finding Mode (Find My) on the Apple TV.
- *
- * @param enabled - Whether to enable (`true`) or disable (`false`) finding mode.
- * @returns The toggle finding mode request message.
- */
+/** The Find My finding mode. */
 export function toggleFindingMode(enabled: boolean): OPackMessage {
     return request('ToggleFindingMode', { FindingModeEnabledKey: enabled });
 }
 
-// --- Up Next Management ---
-
-/**
- * Builds a request to fetch the Up Next queue from the Apple TV.
- *
- * @param paginationToken - Optional token to fetch the next page of results.
- * @returns The Up Next fetch request message.
- */
+/** @param paginationToken - Fetches the page after the one that returned it. */
 export function fetchUpNext(paginationToken?: string): OPackMessage {
     return request('FetchUpNextInfoEvent', paginationToken ? { PaginationTokenKey: paginationToken } : {});
 }
 
-/**
- * Builds a request to add a media item to the Up Next queue.
- *
- * @param identifier - The content identifier of the media item.
- * @param kind - The content kind (e.g. movie, episode).
- * @returns The add-to-Up-Next request message.
- */
+/** @param kind - Such as movie or episode. */
 export function addToUpNext(identifier: string, kind: string): OPackMessage {
     return request('AddToUpNextEvent', { IdentifierKey: identifier, KindKey: kind });
 }
 
-/**
- * Builds a request to remove a media item from the Up Next queue.
- *
- * @param identifier - The content identifier of the media item.
- * @param kind - The content kind (e.g. movie, episode).
- * @returns The remove-from-Up-Next request message.
- */
 export function removeFromUpNext(identifier: string, kind: string): OPackMessage {
     return request('RemoveFromUpNextEvent', { IdentifierKey: identifier, KindKey: kind });
 }
 
-/**
- * Builds a request to mark a media item as watched.
- *
- * @param identifier - The content identifier of the media item.
- * @param kind - The content kind (e.g. movie, episode).
- * @returns The mark-as-watched request message.
- */
 export function markAsWatched(identifier: string, kind: string): OPackMessage {
     return request('MarkAsWatchedEvent', { IdentifierKey: identifier, KindKey: kind });
 }
 
-/**
- * Builds a request to play a specific media item on the Apple TV.
- *
- * @param item - The media item descriptor with playback parameters.
- * @returns The play media request message.
- */
 export function playMedia(item: Record<string, unknown>): OPackMessage {
     return request('PlayMediaEvent', item);
 }
 
-// --- Siri ---
-
-/**
- * Builds a request to activate Siri (push-to-talk begin).
- *
- * @returns The Siri start request message.
- */
+/** Push-to-talk begin. */
 export function siriStart(): OPackMessage {
     return request('_siriStart');
 }
 
-/**
- * Builds a request to deactivate Siri (push-to-talk end).
- *
- * @returns The Siri stop request message.
- */
+/** Push-to-talk end. */
 export function siriStop(): OPackMessage {
     return request('_siriStop');
 }
 
-// --- Presence ---
-
-// --- Game Controller ---
-
-/**
- * Builds a game controller event message with analog stick position.
- * Sent as a fire-and-forget event (no response expected).
- *
- * @param x - X coordinate of the analog stick (-1.0 to 1.0).
- * @param y - Y coordinate of the analog stick (-1.0 to 1.0).
- * @returns The game controller event message.
- */
+/** One stick position (-1 to 1 per axis) and the button state, as an event without a reply. */
 export function gameControllerEvent(x: number, y: number, isDown: boolean): OPackMessage {
     return event('_gcC', {_gcX: x, _gcY: y, _gcBtS: isDown ? 1 : 0});
 }
 
-/**
- * Builds a game controller session start message.
- *
- * @returns The game controller start request message.
- */
 export function gameControllerStart(): OPackMessage {
     return requestBtHP('_gcStart');
 }
 
-/**
- * Builds a game controller session stop message.
- *
- * @returns The game controller stop request message.
- */
 export function gameControllerStop(): OPackMessage {
     return requestBtHP('_gcStop');
 }
 
-// --- App Sign-In ---
-
 /**
- * Builds a request to proxy an app sign-in flow through the companion device.
- * Used when an Apple TV app requests authentication via a paired iPhone/iPad.
+ * Runs the sign-in of an Apple TV app through this controller, as a paired iPhone or iPad does.
  *
- * @param requestType - The type of sign-in request ('appleID', 'password', or 'custom').
- * @returns The app sign-in request message.
+ * @param requestType - `appleID`, `password` or `custom`.
  */
 export function appSignInRequest(bundleId: string, requestType: string = 'appleID'): OPackMessage {
     return request('_cpsAISR', {_bundleID: bundleId, _reqType: requestType});
 }
 
-// --- TV Provider ---
-
-/**
- * Builds a TV provider authentication request.
- * Used for MVPD (Multichannel Video Programming Distributor) sign-in on Apple TV.
- *
- * @returns The TV provider request message.
- */
+/** A TV provider (MVPD) sign-in request. */
 export function tvProviderRequest(providerUrl: string, providerName: string): OPackMessage {
     return request('_cpsTVPR', {_pvUrl: providerUrl, _pvName: providerName});
 }
 
-// --- Restricted Access ---
-
-/**
- * Builds a restricted access (parental controls) approval request.
- *
- * @returns The restricted access request message.
- */
+/** A restricted access (parental controls) approval request. */
 export function restrictedAccessRequest(restrictionType: string): OPackMessage {
     return request('_cpsRAR', {_raType: restrictionType});
 }

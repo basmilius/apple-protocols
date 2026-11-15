@@ -65,8 +65,8 @@ export class SetupClosedError extends ConnectionClosedError {
 let startup: (session: CompanionLinkSession, credentials: AccessoryCredentials, activeUserAccount?: string) => Promise<void>;
 
 /**
- * Connects to a Companion Link device and returns a ready session: TCP, pair-verify, encryption,
- * then the startup: `_systemInfo`, `_sessionStart`, `TVRCSessionStart`, optionally
+ * Connects to a Companion Link device and returns a ready session. It runs TCP, pair-verify and
+ * encryption, then the startup: `_systemInfo`, `_sessionStart`, `TVRCSessionStart`, optionally
  * `SwitchActiveUserAccountEvent`, `_touchStart` and `_tiStart` as requests, the heartbeat, one
  * `_interest` event per state event, and the attention state and media control status.
  *

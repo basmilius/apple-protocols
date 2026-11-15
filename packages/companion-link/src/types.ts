@@ -27,7 +27,7 @@ export type ConnectOptions = {
 
     /**
      * The iCloud account (alternate DSID) to announce as active during the startup, as an iOS
-     * remote does. Optional; without it no `SwitchActiveUserAccountEvent` is sent.
+     * remote does. Without it the startup sends no `SwitchActiveUserAccountEvent`.
      */
     readonly activeUserAccount?: string;
 
@@ -63,7 +63,7 @@ export type MediaCapabilities = {
     readonly skipBackward: boolean;
 };
 
-/** Represents the attention/power state of the Apple TV. */
+/** The attention (power) state of the Apple TV. */
 export type AttentionState =
     | 'unknown'
     | 'asleep'
@@ -71,48 +71,41 @@ export type AttentionState =
     | 'awake'
     | 'idle';
 
-/** Current state of the remote text input (RTI) session on the Apple TV. */
+/** The remote text input (RTI) session on the Apple TV. */
 export type TextInputState = {
-    /** Whether a text input field is currently focused. */
+    /** True while a text field has focus. */
     readonly isActive: boolean;
-    /** The current text content in the focused input field. */
+
     readonly documentText: string;
-    /** Whether the input field is a secure/password field. */
+
+    /** True for a password field. */
     readonly isSecure: boolean;
-    /** The keyboard type requested by the focused input field. */
+
+    /** The keyboard type the field asks for. */
     readonly keyboardType: number;
-    /** Whether autocorrection is enabled for the focused input field. */
+
     readonly autocorrection: boolean;
-    /** Whether autocapitalization is enabled for the focused input field. */
     readonly autocapitalization: boolean;
 };
 
-/** Supported button press interaction types for HID commands. */
 export type ButtonPressType =
     | 'DoubleTap'
     | 'Hold'
     | 'SingleTap';
 
-/** An app that can be launched on the Apple TV. */
 export type LaunchableApp = {
-    /** The app's bundle identifier (e.g. `com.apple.TVMovies`). */
+    /** Such as `com.apple.TVMovies`. */
     readonly bundleId: string;
-    /** The user-visible display name of the app. */
+
     readonly name: string;
 };
 
-/** A user account registered on the Apple TV. */
 export type UserAccount = {
-    /** The unique identifier of the account. */
     readonly accountId: string;
-    /** The display name of the account. */
     readonly name: string;
 };
 
-/**
- * Touch event phase identifiers, matching UIKit's UITouchPhase values.
- * Used in touch event messages to indicate the lifecycle stage of a finger contact.
- */
+/** The phases of the `_touchC` event, the 0-based `UITouchPhase` values. */
 export const TouchPhase = {
     Began: 0,
     Moved: 1,
@@ -120,14 +113,9 @@ export const TouchPhase = {
     Cancelled: 3,
     Stationary: 4
 } as const;
-
-/** Numeric value of a touch phase. */
 export type TouchPhaseValue = typeof TouchPhase[keyof typeof TouchPhase];
 
-/**
- * Touch phase identifiers for HID touch events (`_hidT`). Unlike {@link TouchPhase} (UIKit's 0-based
- * `UITouchPhase`, used by the `_touchC` event), the HID touch stream observed over the wire is 1-based.
- */
+/** The phases of the `_hidT` event. Unlike {@link TouchPhase}, the HID touch stream on the wire is 1-based. */
 export const HidTouchPhase = {
     Began: 1,
     Moved: 2,
@@ -135,9 +123,6 @@ export const HidTouchPhase = {
     Ended: 4,
     Cancelled: 5
 } as const;
-
-/** Numeric value of a HID touch phase. */
 export type HidTouchPhaseValue = typeof HidTouchPhase[keyof typeof HidTouchPhase];
 
-/** Cardinal direction for swipe gestures on the virtual touchpad. */
 export type SwipeDirection = 'up' | 'down' | 'left' | 'right';

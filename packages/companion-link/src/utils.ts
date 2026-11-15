@@ -1,12 +1,6 @@
 import type { AttentionState } from './types';
 
-/**
- * Converts a numeric attention state value from the Apple TV into
- * its corresponding string representation.
- *
- * @param state - The numeric attention state received from the device.
- * @returns The human-readable attention state string.
- */
+/** Maps the numeric attention state of the Apple TV to its name; `unknown` for any other value. */
 export function convertAttentionState(state: number): AttentionState {
     switch (state) {
         case 0x01:

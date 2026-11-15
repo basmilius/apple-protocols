@@ -1,8 +1,4 @@
-/**
- * HID command identifiers for Apple TV remote control input.
- * These map to USB HID usage IDs used by the Companion Link protocol
- * to simulate Siri Remote button presses.
- */
+/** Siri Remote buttons, as the command ids of the `_hidC` request. */
 export const HidCommand = {
     Up: 1,
     Down: 2,
@@ -35,10 +31,7 @@ export const HidCommand = {
     Power: 30
 } as const;
 
-/**
- * Media control command identifiers for playback and caption control.
- * Sent via the `_mcc` message type over the Companion Link protocol.
- */
+/** Playback and caption commands of the `_mcc` request. */
 export const MediaControlCommand = {
     Play: 1,
     Pause: 2,
@@ -55,10 +48,7 @@ export const MediaControlCommand = {
     SetCaptionSettings: 13
 } as const;
 
-/**
- * Bitmask flags indicating which media controls are currently supported
- * by the Apple TV. Returned in media control status responses.
- */
+/** Bit flags of the media controls the Apple TV supports right now, from the media control status. */
 export const MediaControlFlag = {
     Play: 0x0001,
     Pause: 0x0002,
@@ -71,9 +61,6 @@ export const MediaControlFlag = {
     SkipBackward: 0x0400
 } as const;
 
-/** Union of all valid HID command names. */
 export type HidCommandKey = keyof typeof HidCommand;
-
-/** Union of all valid media control command names. */
 export type MediaControlCommandKey = keyof typeof MediaControlCommand;
 

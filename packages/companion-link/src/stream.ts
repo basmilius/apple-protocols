@@ -5,7 +5,7 @@ import { OPack } from '@corewire/core/encoding';
 import { buildNonce, type Connection, type Context, EncryptionAwareConnection } from '@corewire/core/transport';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
-/** 1 byte frame type and a 3-byte big-endian payload length. */
+/** A 1-byte frame type and a 3-byte big-endian payload length. */
 const HEADER_SIZE = 4;
 
 /** A peer that sends more than this without completing a frame is broken. */

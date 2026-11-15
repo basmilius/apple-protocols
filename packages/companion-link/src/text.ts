@@ -50,6 +50,7 @@ export class Text {
      */
     command(text: string, clearPreviousInput: boolean): Promise<string | null> {
         const generation = this.#generation;
+
         const operation = this.#queue.then(async () => {
             if (generation !== this.#generation) {
                 throw new Error('Text input session changed.');

@@ -179,7 +179,7 @@ export function encodeFollowUp(
  * Encodes a 64-byte Announce message advertising our grandmaster role.
  *
  * @param clockIdentity - Our 8-byte EUI-64 clock identity, also the grandmasterIdentity.
- * @param priority1 - 248 by default, above "slave-only" and below the 246 of an Apple TV.
+ * @param priority1 - Grandmaster priority1; the default 248 is above "slave-only" and below the 246 of an Apple TV.
  */
 export function encodeAnnounce(
     sequenceId: number,

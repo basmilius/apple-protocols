@@ -63,7 +63,7 @@ export class ControlClient extends EventEmitter {
     /**
      * Binds the UDP socket and resolves once it listens. Rejects on a bind error.
      *
-     * @param port - 0 picks a free port.
+     * @param port - Local port to bind; 0 picks a free one.
      */
     async bind(localIp: string, port: number): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -137,7 +137,9 @@ export class ControlClient extends EventEmitter {
         let firstPacket = true;
 
         const sendSync = () => {
-            if (!this.#transport) return;
+            if (!this.#transport) {
+                return;
+            }
 
             const currentTime = ntpFromTs(this.#context.headTs, this.#context.sampleRate, this.#anchorRtp, this.#anchorNtp);
             const [currentSec, currentFrac] = NTP.parts(currentTime);

@@ -60,8 +60,8 @@ export class DataChannel extends EncryptedChannel<DataChannelEventMap> {
      * @throws {ConnectionClosedError} When the channel ends first.
      */
     exchange(message: Proto.ProtocolMessage | [Proto.ProtocolMessage, DescExtension], timeout: number = EXCHANGE_TIMEOUT): Promise<Proto.ProtocolMessage> {
-        const msg = Array.isArray(message) ? message[0] : message;
-        const identifier = msg.identifier || `type_${msg.type}`;
+        const protocolMessage = Array.isArray(message) ? message[0] : message;
+        const identifier = protocolMessage.identifier || `type_${protocolMessage.type}`;
 
         if (this.signal.aborted) {
             return Promise.reject(new ConnectionClosedError());

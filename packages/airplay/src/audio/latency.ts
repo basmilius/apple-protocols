@@ -23,14 +23,14 @@ export class LatencyManager {
 
     /**
      * @param sampleRate - Sample rate in Hz.
-     * @param initialTierIndex - 0 for the lowest latency.
+     * @param initialTierIndex - Starting tier, where 0 is the lowest latency.
      */
     constructor(sampleRate: number, initialTierIndex: number = 0) {
         this.#sampleRate = sampleRate;
         this.#tierIndex = Math.min(Math.max(0, initialTierIndex), LATENCY_TIERS.length - 1);
     }
 
-    /** 0 is the lowest latency, 3 the highest. */
+    /** Index of the current latency tier, from 0 (lowest latency) to 3 (highest). */
     get tierIndex(): number {
         return this.#tierIndex;
     }
@@ -84,7 +84,7 @@ export class LatencyManager {
 
         const windowStart = now - GLITCH_WINDOW_MS;
 
-        this.#glitchTimestamps = this.#glitchTimestamps.filter(ts => ts >= windowStart);
+        this.#glitchTimestamps = this.#glitchTimestamps.filter(timestamp => timestamp >= windowStart);
 
         if (this.#glitchTimestamps.length >= GLITCH_THRESHOLD && !this.isMaxTier) {
             this.#tierIndex++;

@@ -69,7 +69,7 @@ export function buildResponse(options: BuildResponseOptions): Buffer {
 
     const headerLines = [
         `${protocol} ${status} ${statusText}`,
-        ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`),
+        ...Object.entries(headers).map(([name, value]) => `${name}: ${value}`),
         '',
         ''
     ].join('\r\n');

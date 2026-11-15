@@ -54,7 +54,7 @@ export class PacketFifo {
 export const AudioPacketHeader = {
     /**
      * @param header - First byte with version, padding and extension flags, usually 0x80.
-     * @param payloadType - 0xE0 for the first packet, 0x60 after that.
+     * @param payloadType - RTP payload type: 0xE0 for the first packet, 0x60 after that.
      * @param timestamp - 32-bit RTP timestamp in audio frames.
      * @param ssrc - Synchronization source identifier, the session ID.
      */
@@ -83,9 +83,9 @@ export const AudioPacketHeader = {
  */
 export const SyncPacket = {
     /**
-     * @param header - 0x90 for the first sync, 0x80 after that.
-     * @param payloadType - 0xD4 for sync.
-     * @param seqno - Usually 0x0007.
+     * @param header - First byte: 0x90 for the first sync, 0x80 after that.
+     * @param payloadType - Payload type, 0xD4 for sync.
+     * @param seqno - Sequence number, usually 0x0007.
      * @param rtpTimestamp - RTP timestamp of the next packet to play, minus the latency.
      * @param ntpSec - NTP seconds of the current wall-clock time.
      * @param ntpFrac - NTP fraction of the current wall-clock time.

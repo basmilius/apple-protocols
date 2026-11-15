@@ -70,11 +70,22 @@ export function encodeFeatures(features: bigint): {features: bigint; featuresEx:
 }
 
 function parseLegacyFeatures(value: unknown): bigint {
-    if (typeof value === 'bigint' && value >= 0n) return value;
-    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
+    if (typeof value === 'bigint' && value >= 0n) {
+        return value;
+    }
+
+    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+        return BigInt(value);
+    }
+
     if (typeof value === 'string') {
-        if (/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(value)) return BigInt(value);
-        if (/^[0-9a-f]+$/i.test(value)) return BigInt(`0x${value}`);
+        if (/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(value)) {
+            return BigInt(value);
+        }
+
+        if (/^[0-9a-f]+$/i.test(value)) {
+            return BigInt(`0x${value}`);
+        }
     }
 
     throw new TypeError('Invalid or imprecise legacy features');

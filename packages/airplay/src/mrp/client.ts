@@ -6,7 +6,7 @@ import * as Proto from './proto';
  * now-playing getters read from the active player.
  */
 export class Client {
-    /** For example `com.apple.TVMusic`. */
+    /** The bundle identifier of the app, such as `com.apple.TVMusic`. */
     get bundleIdentifier(): string {
         return this.#bundleIdentifier;
     }
@@ -15,7 +15,7 @@ export class Client {
         return this.#displayName;
     }
 
-    /** Keyed by player identifier. */
+    /** The players of this app, keyed by player identifier. */
     get players(): Map<string, Player> {
         return this.#players;
     }
@@ -37,7 +37,7 @@ export class Client {
         return this.activePlayer?.playbackState ?? Proto.PlaybackState_Enum.Unknown;
     }
 
-    /** Timestamp of the last playback state update; -1 without an active player. */
+    /** The timestamp of the last playback state update, or -1 without an active player. */
     get playbackStateTimestamp(): number {
         return this.activePlayer?.playbackStateTimestamp ?? -1;
     }
@@ -54,12 +54,12 @@ export class Client {
             return playerCommands;
         }
 
-        const playerCommandSet = new Set(playerCommands.map(c => c.command));
+        const playerCommandSet = new Set(playerCommands.map(commandInfo => commandInfo.command));
         const merged = [...playerCommands];
 
-        for (const cmd of this.#defaultSupportedCommands) {
-            if (!playerCommandSet.has(cmd.command)) {
-                merged.push(cmd);
+        for (const commandInfo of this.#defaultSupportedCommands) {
+            if (!playerCommandSet.has(commandInfo.command)) {
+                merged.push(commandInfo);
             }
         }
 
@@ -110,12 +110,12 @@ export class Client {
         return this.activePlayer?.contentIdentifier ?? '';
     }
 
-    /** In seconds. */
+    /** The duration of the current item in seconds. */
     get duration(): number {
         return this.activePlayer?.duration ?? 0;
     }
 
-    /** 1 is normal speed, 0 is paused. */
+    /** The playback rate, where 1 is normal speed and 0 is paused. */
     get playbackRate(): number {
         return this.activePlayer?.playbackRate ?? 0;
     }
@@ -132,12 +132,12 @@ export class Client {
         return this.activePlayer?.repeatMode ?? Proto.RepeatMode_Enum.Unknown;
     }
 
-    /** Elapsed seconds, extrapolated to now. */
+    /** The elapsed time in seconds, extrapolated to now. */
     get elapsedTime(): number {
         return this.activePlayer?.elapsedTime ?? 0;
     }
 
-    /** Changes when the artwork changes; null without artwork. */
+    /** An identifier that changes with the artwork, or null without artwork. */
     get artworkId(): string | null {
         return this.activePlayer?.artworkId ?? null;
     }
@@ -160,12 +160,12 @@ export class Client {
         return this.activePlayer?.currentItemMetadata ?? null;
     }
 
-    /** Image bytes embedded in the current item. */
+    /** The image bytes embedded in the current item, or null. */
     get currentItemArtwork(): Uint8Array | null {
         return this.activePlayer?.currentItemArtwork ?? null;
     }
 
-    /** The artwork URL at 600 pixels wide. */
+    /** The artwork URL at 600 pixels wide, or null. */
     get currentItemArtworkUrl(): string | null {
         return this.activePlayer?.currentItemArtworkUrl ?? null;
     }
@@ -185,7 +185,11 @@ export class Client {
         this.#displayName = displayName;
     }
 
-    /** @param displayName - The identifier when omitted, for a new player. */
+    /**
+     * Returns the player with this identifier, created when it does not exist yet.
+     *
+     * @param displayName - The name of a new player; the identifier when omitted.
+     */
     getOrCreatePlayer(identifier: string, displayName?: string): Player {
         let player = this.#players.get(identifier);
 
@@ -201,7 +205,7 @@ export class Client {
         this.#activePlayerId = identifier;
     }
 
-    /** Removing the active player makes the default player active. */
+    /** Removes a player; removing the active one makes the default player active. */
     removePlayer(identifier: string): void {
         this.#players.delete(identifier);
 
@@ -215,15 +219,15 @@ export class Client {
         this.#defaultSupportedCommands = supportedCommands;
     }
 
-    /** Looks in the commands of the active player first, then in the defaults. */
+    /** Finds a command in the list of the active player first, then in the defaults. */
     findCommand(command: Proto.Command): Proto.CommandInfo | null {
-        const playerCmd = this.activePlayer?.findCommand(command) ?? null;
+        const playerCommand = this.activePlayer?.findCommand(command) ?? null;
 
-        if (playerCmd) {
-            return playerCmd;
+        if (playerCommand) {
+            return playerCommand;
         }
 
-        return this.#defaultSupportedCommands.find(c => c.command === command) ?? null;
+        return this.#defaultSupportedCommands.find(commandInfo => commandInfo.command === command) ?? null;
     }
 
     /** Whether {@link findCommand} finds the command and it is not disabled. */

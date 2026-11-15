@@ -222,7 +222,9 @@ export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
         return messages;
     } catch (error) {
         // A length prefix of eight is also the first field tag of a legacy bare message.
-        if (content[0] !== 0x08) throw error;
+        if (content[0] !== 0x08) {
+            throw error;
+        }
 
         return [fromBinary(Proto.ProtocolMessageSchema, content, {readUnknownFields: true})];
     }
@@ -234,19 +236,25 @@ export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
  * @returns The decoded value and the number of bytes consumed.
  * @throws {RangeError} When the varint is truncated or exceeds uint32.
  */
-export function readVariant(buf: Buffer, offset = 0): [number, number] {
+export function readVariant(buffer: Buffer, offset = 0): [number, number] {
     let result = 0;
 
     for (let i = 0; i < 5; i++) {
-        if (offset + i >= buf.length) throw new RangeError('Truncated varint');
+        if (offset + i >= buffer.length) {
+            throw new RangeError('Truncated varint');
+        }
 
-        const byte = buf[offset + i];
+        const byte = buffer[offset + i];
 
-        if (i === 4 && byte > 0x0f) throw new RangeError('Varint exceeds uint32');
+        if (i === 4 && byte > 0x0f) {
+            throw new RangeError('Varint exceeds uint32');
+        }
 
         result += (byte & 0x7f) * 2 ** (7 * i);
 
-        if ((byte & 0x80) === 0) return [result, i + 1];
+        if ((byte & 0x80) === 0) {
+            return [result, i + 1];
+        }
     }
 
     throw new RangeError('Varint exceeds uint32');

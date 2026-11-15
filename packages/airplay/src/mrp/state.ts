@@ -82,7 +82,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         return this.#keyboardState;
     }
 
-    /** Null when the receiver named no now-playing app. */
+    /** The app that plays now, or null when the receiver named none. */
     get nowPlayingClient(): Client | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
@@ -97,12 +97,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         return this.#outputDevices;
     }
 
-    /** Null outside a multiroom cluster. */
+    /** The identifier of the multiroom cluster, or null outside one. */
     get clusterID(): string | null {
         return this.#clusterID;
     }
 
-    /** 0 outside a cluster. */
+    /** The cluster type code, 0 outside a cluster. */
     get clusterType(): number {
         return this.#clusterType;
     }
@@ -115,17 +115,17 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         return this.#isClusterLeader;
     }
 
-    /** For example SharePlay users. */
+    /** The playback queue participants, such as SharePlay users. */
     get participants(): Proto.PlaybackQueueParticipant[] {
         return this.#participants;
     }
 
-    /** The JPEG of the last SET_ARTWORK. */
+    /** The JPEG bytes of the last SET_ARTWORK, or null before one arrived. */
     get artworkJpegData(): Uint8Array | null {
         return this.#artworkJpegData;
     }
 
-    /** 0 to 1. */
+    /** The volume, from 0 to 1. */
     get volume(): number {
         return this.#volume;
     }
@@ -295,10 +295,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     }
 
     #onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
-        if (message.playerPath?.client?.bundleIdentifier && message.supportedCommands) {
-            const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
-            client.setDefaultSupportedCommands(message.supportedCommands.supportedCommands);
+        if (!message.playerPath?.client?.bundleIdentifier || !message.supportedCommands) {
+            return;
         }
+
+        const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+        client.setDefaultSupportedCommands(message.supportedCommands.supportedCommands);
     }
 
     #onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
@@ -424,10 +426,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     }
 
     #onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
-        if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
-            const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
-            client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
+        if (!message.playerPath?.client?.bundleIdentifier || !message.playerPath?.player?.identifier) {
+            return;
         }
+
+        const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
+        client.getOrCreatePlayer(message.playerPath.player.identifier, message.playerPath.player.displayName);
     }
 
     #onRemovePlayer(message: Proto.RemovePlayerMessage): void {
@@ -525,14 +529,14 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             }
 
             return client;
-        } else {
-            const client = new Client(bundleIdentifier, displayName);
-            this.#clients[bundleIdentifier] = client;
-
-            this.emit('clients', this.#clients);
-
-            return client;
         }
+
+        const client = new Client(bundleIdentifier, displayName);
+        this.#clients[bundleIdentifier] = client;
+
+        this.emit('clients', this.#clients);
+
+        return client;
     }
 
     #createNowPlayingSnapshot(): NowPlayingSnapshot {

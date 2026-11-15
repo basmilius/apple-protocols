@@ -200,31 +200,29 @@ export class PtpMaster {
     onEventPacket(buf: Buffer, info: RemoteInfo): void {
         const decoded = decodeMessage(buf);
 
-        if (!decoded) {
+        if (!decoded || decoded.type !== PtpMessageType.DelayReq) {
             return;
         }
 
-        if (decoded.type === PtpMessageType.DelayReq) {
-            this.#delayReqsReceived++;
+        this.#delayReqsReceived++;
 
-            const receiveTimestamp = ptpNow();
-            const response = encodeDelayResp(
-                decoded.header.sequenceId,
-                this.#clockIdentity,
-                receiveTimestamp,
-                decoded.header.sourcePortIdentity
-            );
+        const receiveTimestamp = ptpNow();
+        const response = encodeDelayResp(
+            decoded.header.sequenceId,
+            this.#clockIdentity,
+            receiveTimestamp,
+            decoded.header.sourcePortIdentity
+        );
 
-            this.#generalSocket?.send(response, GENERAL_PORT, info.address, err => {
-                if (err) {
-                    this.#logger.warn(`DelayResp send failed to ${info.address}:${GENERAL_PORT}`, err);
+        this.#generalSocket?.send(response, GENERAL_PORT, info.address, err => {
+            if (err) {
+                this.#logger.warn(`DelayResp send failed to ${info.address}:${GENERAL_PORT}`, err);
 
-                    return;
-                }
+                return;
+            }
 
-                this.#delayRespsSent++;
-            });
-        }
+            this.#delayRespsSent++;
+        });
     }
 
     /**

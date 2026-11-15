@@ -233,7 +233,9 @@ export class AudioStream {
      * @throws SetupError if SETUP fails or returns no stream info.
      */
     async setup(): Promise<{ dataPort: number; controlPort: number }> {
-        if (this.#closed) throw new SetupError('Audio setup cancelled.');
+        if (this.#closed) {
+            throw new SetupError('Audio setup cancelled.');
+        }
 
         this.#sharedKey = Buffer.from(randomBytes(32));
 
@@ -322,7 +324,9 @@ export class AudioStream {
             {'Content-Type': 'application/x-apple-binary-plist'}
         );
 
-        if (this.#closed) throw new SetupError('Audio setup cancelled.');
+        if (this.#closed) {
+            throw new SetupError('Audio setup cancelled.');
+        }
 
         if (response.status !== 200) {
             const text = await response.text();
@@ -334,23 +338,25 @@ export class AudioStream {
 
         this.#context.logger.debug('[audio]', 'Setup stream response:', plist);
 
-        if (plist.streams && plist.streams.length > 0) {
-            const streamInfo = plist.streams[0];
-
-            this.#dataPort = streamInfo.dataPort & 0xFFFF;
-            this.#remoteControlPort = streamInfo.controlPort & 0xFFFF;
-
-            this.#negotiatedSampleRate = sampleRate;
-            this.#negotiatedBytesPerChannel = bytesPerChannel;
-            this.#context.logger.info('[audio]', `Audio stream setup: dataPort=${this.#dataPort}, controlPort=${this.#remoteControlPort}, format=0x${audioFormat.toString(16)}, sr=${sampleRate}, bpc=${bytesPerChannel}`);
-        } else {
+        if (!(plist.streams && plist.streams.length > 0)) {
             throw new SetupError('No stream info in SETUP response.');
         }
+
+        const streamInfo = plist.streams[0];
+
+        this.#dataPort = streamInfo.dataPort & 0xFFFF;
+        this.#remoteControlPort = streamInfo.controlPort & 0xFFFF;
+
+        this.#negotiatedSampleRate = sampleRate;
+        this.#negotiatedBytesPerChannel = bytesPerChannel;
+        this.#context.logger.info('[audio]', `Audio stream setup: dataPort=${this.#dataPort}, controlPort=${this.#remoteControlPort}, format=0x${audioFormat.toString(16)}, sr=${sampleRate}, bpc=${bytesPerChannel}`);
 
         this.#context.logger.debug('[audio]', 'Sending RECORD...');
         await this.#control.record(`/${this.#control.sessionId}`);
 
-        if (this.#closed) throw new SetupError('Audio setup cancelled.');
+        if (this.#closed) {
+            throw new SetupError('Audio setup cancelled.');
+        }
 
         this.#context.logger.debug('[audio]', 'RECORD complete');
 
@@ -369,7 +375,9 @@ export class AudioStream {
             throw new SetupError('Audio stream not setup.');
         }
 
-        if (this.#closed) throw new SetupError('Audio preparation cancelled.');
+        if (this.#closed) {
+            throw new SetupError('Audio preparation cancelled.');
+        }
 
         const socket = this.#dataSocket = createSocket('udp4');
 
@@ -430,7 +438,9 @@ export class AudioStream {
             'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
         });
 
-        if (this.#closed) throw new SetupError('Audio preparation cancelled.');
+        if (this.#closed) {
+            throw new SetupError('Audio preparation cancelled.');
+        }
 
         this.#context.logger.debug('[audio]', 'FLUSH complete');
 

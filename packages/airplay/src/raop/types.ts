@@ -25,7 +25,7 @@ export type MediaMetadata = {
     /** Duration in seconds. */
     readonly duration: number;
 
-    /** JPEG or PNG album artwork. */
+    /** Album artwork as JPEG or PNG. */
     readonly artwork?: Buffer;
 }
 
@@ -131,7 +131,7 @@ export enum EncryptionType {
     Unknown = 0,
     Unencrypted = 1 << 0,
 
-    /** MFi-SAP, used by the AirPort Express. */
+    /** The receiver supports MFi-SAP encryption, as the AirPort Express does. */
     MFiSAP = 1 << 1
 }
 
@@ -139,12 +139,12 @@ export enum EncryptionType {
 export enum MetadataType {
     NotSupported = 0,
 
-    /** Title, artist and album. */
+    /** The receiver shows title, artist and album. */
     Text = 1 << 0,
 
     Artwork = 1 << 1,
 
-    /** Progress and duration. */
+    /** The receiver shows progress and duration. */
     Progress = 1 << 2
 }
 

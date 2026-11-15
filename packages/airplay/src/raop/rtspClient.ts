@@ -99,7 +99,7 @@ export class RaopRtspClient extends RtspClient {
         return this.#sessionId;
     }
 
-    /** `rtsp://<localIp>/<sessionId>` */
+    /** RTSP URI of this session, in the form `rtsp://<localIp>/<sessionId>`. */
     get uri(): string {
         return `rtsp://${this.connection.localIp}/${this.#sessionId}`;
     }
@@ -155,21 +155,23 @@ export class RaopRtspClient extends RtspClient {
                 allowError: true
             });
 
-            if (response.ok) {
-                const buffer = Buffer.from(await response.arrayBuffer());
-
-                if (buffer.length > 0) {
-                    try {
-                        return Plist.parse(buffer.buffer) as Record<string, unknown>;
-                    } catch (err) {
-                        this.context.logger.warn('[raop-rtsp]', 'Failed to parse info plist', err);
-
-                        return {};
-                    }
-                }
+            if (!response.ok) {
+                return {};
             }
 
-            return {};
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            if (buffer.length === 0) {
+                return {};
+            }
+
+            try {
+                return Plist.parse(buffer.buffer) as Record<string, unknown>;
+            } catch (err) {
+                this.context.logger.warn('[raop-rtsp]', 'Failed to parse info plist', err);
+
+                return {};
+            }
         } catch (err) {
             this.context.logger.warn('[raop-rtsp]', 'Failed to get device info', err);
 
@@ -196,7 +198,7 @@ export class RaopRtspClient extends RtspClient {
      * challenge with a password given, it retries with HTTP Digest
      * authentication.
      *
-     * @param bytesPerChannel - 2 for 16-bit.
+     * @param bytesPerChannel - Bytes per sample per channel, 2 for 16-bit.
      * @param sampleRate - Sample rate in Hz.
      */
     async announce(bytesPerChannel: number, channels: number, sampleRate: number, password?: string): Promise<Response> {

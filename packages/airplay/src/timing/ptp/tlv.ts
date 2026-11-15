@@ -22,10 +22,10 @@ const MESSAGE_INTERVAL_REQUEST_SUBTYPE = 2;
  * 4-byte TLV header. It trails every FollowUp body. A sender-only role sends
  * zeros, as macOS senders do.
  *
- * @param cumulativeScaledRateOffset - u32 BE.
- * @param gmTimeBaseIndicator - u16 BE.
- * @param lastGmPhaseChange - 12 bytes, scaled nanoseconds in fixed point.
- * @param scaledLastGmFreqChange - u32 BE.
+ * @param cumulativeScaledRateOffset - Written as u32 BE.
+ * @param gmTimeBaseIndicator - Written as u16 BE.
+ * @param lastGmPhaseChange - 12 bytes of scaled nanoseconds in fixed point.
+ * @param scaledLastGmFreqChange - Written as u32 BE.
  */
 export function encodeFollowUpInfoTlv(
     cumulativeScaledRateOffset: number = 0,

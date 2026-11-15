@@ -37,7 +37,7 @@ export { DEFAULT_PLAYER_ID };
  * timestamp and the playback rate.
  */
 export class Player {
-    /** For example a player path. */
+    /** The player identifier, such as a player path. */
     get identifier(): string {
         return this.#identifier;
     }
@@ -63,7 +63,7 @@ export class Player {
         return this.#playbackState;
     }
 
-    /** Timestamp of the last playback state update; an older update is ignored. */
+    /** The timestamp of the last playback state update; an older update is ignored. */
     get playbackStateTimestamp(): number {
         return this.#playbackStateTimestamp;
     }
@@ -92,22 +92,22 @@ export class Player {
         return this.currentItemMetadata?.seriesName || '';
     }
 
-    /** 0 when unknown. */
+    /** The season number, or 0 when unknown. */
     get seasonNumber(): number {
         return this.currentItemMetadata?.seasonNumber || this.#additionalMetadata?.seasonNumber || 0;
     }
 
-    /** 0 when unknown. */
+    /** The episode number, or 0 when unknown. */
     get episodeNumber(): number {
         return this.currentItemMetadata?.episodeNumber || this.#additionalMetadata?.episodeNumber || 0;
     }
 
-    /** Only the Apple TV app sends it, in its archived now-playing info. */
+    /** The episode title. Only the Apple TV app sends it, in its archived now-playing info. */
     get episodeTitle(): string {
         return this.#additionalMetadata?.episodeTitle || '';
     }
 
-    /** Localized, for example `12+`. */
+    /** The localized content rating, such as `12+`. */
     get contentRating(): string {
         return this.currentItemMetadata?.localizedContentRating || this.#additionalMetadata?.contentRating || '';
     }
@@ -116,17 +116,17 @@ export class Player {
         return this.currentItemMetadata?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType;
     }
 
-    /** For example a store ID. */
+    /** The content identifier of the current item, such as a store ID. */
     get contentIdentifier(): string {
         return this.currentItemMetadata?.contentIdentifier || '';
     }
 
-    /** In seconds. */
+    /** The duration of the current item in seconds. */
     get duration(): number {
         return this.#nowPlayingInfo?.duration || this.currentItemMetadata?.duration || 0;
     }
 
-    /** 1 is normal speed, 0 is paused, 2 is double speed. */
+    /** The playback rate, where 1 is normal speed, 0 is paused and 2 is double speed. */
     get playbackRate(): number {
         return this.#nowPlayingInfo?.playbackRate ?? this.currentItemMetadata?.playbackRate ?? 0;
     }
@@ -135,41 +135,41 @@ export class Player {
         return this.playbackState === Proto.PlaybackState_Enum.Playing;
     }
 
-    /** Read from the info of the ChangeShuffleMode command. */
+    /** The shuffle mode, read from the info of the ChangeShuffleMode command. */
     get shuffleMode(): Proto.ShuffleMode_Enum {
-        const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeShuffleMode);
+        const info = this.#supportedCommands.find(commandInfo => commandInfo.command === Proto.Command.ChangeShuffleMode);
 
         return info?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown;
     }
 
-    /** Read from the info of the ChangeRepeatMode command. */
+    /** The repeat mode, read from the info of the ChangeRepeatMode command. */
     get repeatMode(): Proto.RepeatMode_Enum {
-        const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeRepeatMode);
+        const info = this.#supportedCommands.find(commandInfo => commandInfo.command === Proto.Command.ChangeRepeatMode);
 
         return info?.repeatMode ?? Proto.RepeatMode_Enum.Unknown;
     }
 
     /**
-     * Elapsed seconds, extrapolated from the newer timestamp of the now-playing info and the
-     * content item. Metadata after a track change can report rate 0 during playback, so the
+     * The elapsed time in seconds, extrapolated from the newer timestamp of the now-playing info
+     * and the content item. Metadata after a track change can report rate 0 during playback, so the
      * player's rate fills in. A paused player can still report rate 1, so its position stays put.
      */
     get elapsedTime(): number {
-        const npi = this.#nowPlayingInfo;
-        const meta = this.currentItemMetadata;
+        const info = this.#nowPlayingInfo;
+        const metadata = this.currentItemMetadata;
 
         // Devices occasionally send NaN, which would poison the extrapolation.
-        const npiValid = Number.isFinite(npi?.elapsedTime) && Number.isFinite(npi?.timestamp) && npi.timestamp !== 0;
-        const metaValid = Number.isFinite(meta?.elapsedTime) && Number.isFinite(meta?.elapsedTimeTimestamp) && meta.elapsedTimeTimestamp !== 0;
+        const infoValid = Number.isFinite(info?.elapsedTime) && Number.isFinite(info?.timestamp) && info.timestamp !== 0;
+        const metadataValid = Number.isFinite(metadata?.elapsedTime) && Number.isFinite(metadata?.elapsedTimeTimestamp) && metadata.elapsedTimeTimestamp !== 0;
 
-        if (!npiValid && !metaValid) {
-            return npi?.elapsedTime || meta?.elapsedTime || 0;
+        if (!infoValid && !metadataValid) {
+            return info?.elapsedTime || metadata?.elapsedTime || 0;
         }
 
         // After a track change or a seek, metadata can carry the newer timestamp of the two.
-        const newest = metaValid && (!npiValid || meta.elapsedTimeTimestamp > npi.timestamp)
-            ? {elapsed: meta.elapsedTime, timestamp: meta.elapsedTimeTimestamp, rate: meta.playbackRate}
-            : {elapsed: npi.elapsedTime, timestamp: npi.timestamp, rate: npi.playbackRate};
+        const newest = metadataValid && (!infoValid || metadata.elapsedTimeTimestamp > info.timestamp)
+            ? {elapsed: metadata.elapsedTime, timestamp: metadata.elapsedTimeTimestamp, rate: metadata.playbackRate}
+            : {elapsed: info.elapsedTime, timestamp: info.timestamp, rate: info.playbackRate};
 
         if (this.#playbackState !== Proto.PlaybackState_Enum.Playing && this.#playbackState !== Proto.PlaybackState_Enum.Unknown) {
             return newest.elapsed;
@@ -191,7 +191,7 @@ export class Player {
         return this.currentItem?.metadata ?? null;
     }
 
-    /** Changes when the artwork changes; null when the metadata shows no sign of artwork. */
+    /** An identifier that changes with the artwork, or null when the metadata shows no sign of artwork. */
     get artworkId(): string | null {
         const metadata = this.currentItemMetadata;
 
@@ -234,25 +234,24 @@ export class Player {
             return convertArtworkUrl(item.remoteArtworks[0].artworkURLString);
         }
 
-        if (metadata?.artworkIdentifier) {
-            try {
-                const url = metadata.artworkIdentifier
-                    .replace('{w}', String(width < 1 ? 999999 : width))
-                    .replace('{h}', String(height < 1 ? 999999 : height))
-                    .replace('{c}', 'bb')
-                    .replace('{f}', 'jpg');
+        if (!metadata?.artworkIdentifier) {
+            return null;
+        }
 
-                if (url.startsWith('http://') || url.startsWith('https://')) {
-                    return url;
-                }
-            } catch {
-            }
+        const url = metadata.artworkIdentifier
+            .replace('{w}', String(width < 1 ? 999999 : width))
+            .replace('{h}', String(height < 1 ? 999999 : height))
+            .replace('{c}', 'bb')
+            .replace('{f}', 'jpg');
+
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
         }
 
         return null;
     }
 
-    /** Image bytes embedded in the current item. */
+    /** The image bytes embedded in the current item, or null. */
     get currentItemArtwork(): Uint8Array | null {
         const item = this.currentItem;
 
@@ -271,7 +270,7 @@ export class Player {
         return null;
     }
 
-    /** The artwork URL at 600 pixels wide. */
+    /** The artwork URL at 600 pixels wide, or null. */
     get currentItemArtworkUrl(): string | null {
         return this.artworkUrl();
     }
@@ -299,7 +298,7 @@ export class Player {
     }
 
     findCommand(command: Proto.Command): Proto.CommandInfo | null {
-        return this.#supportedCommands.find(c => c.command === command) ?? null;
+        return this.#supportedCommands.find(commandInfo => commandInfo.command === command) ?? null;
     }
 
     /** Whether the command is in the list and not disabled. */
@@ -337,7 +336,7 @@ export class Player {
             return;
         }
 
-        const existing = this.#playbackQueue.contentItems.find(i => i.identifier === item.identifier);
+        const existing = this.#playbackQueue.contentItems.find(contentItem => contentItem.identifier === item.identifier);
 
         if (!existing) {
             return;

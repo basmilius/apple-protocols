@@ -18,3 +18,4 @@ jobs:
             - run: bash build.sh
             - run: bun run packages/core/test/pairing-server.ts
             - run: bun run packages/diagnostics/test/proxy-smoke.ts
+            - run: bun --cwd website build

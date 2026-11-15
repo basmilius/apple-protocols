@@ -11,7 +11,7 @@ await tv.remote.press('home', {mode: 'double'});
 await tv.remote.press('select', {mode: 'hold', holdMs: 1500});
 ```
 
-`mode` is `tap` (the default), `double` or `hold`. `holdMs` sets how long a hold lasts: 500 ms over Companion Link and 1000 ms over AirPlay when omitted.
+`mode` is `tap` (the default), `double` or `hold`. `holdMs` sets how long a hold lasts. Without it a hold lasts 500 ms over Companion Link and 1000 ms over AirPlay.
 
 ## Which protocol sends the key
 

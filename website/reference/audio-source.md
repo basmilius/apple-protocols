@@ -21,7 +21,7 @@ Every source implements `AudioSource` from `@corewire/airplay` and produces 4410
 | `class FfmpegSource implements AudioSource` | `constructor(options: FfmpegSourceOptions)`. Decodes with `ffmpeg` from the `PATH` while streaming; `stats` reports its buffer (`bufferedBytes`, `peakBufferedBytes`, `bufferLimit`, `paused`). `reset()` makes the next `start()` decode from the beginning |
 | `class LiveSource implements AudioSource` | `constructor(options?: LiveSourceOptions)`. A ring buffer: `write(data: Buffer): number`, `end(): void`, `available`, `capacity`, `ended`. `duration` is `Infinity` |
 
-The classes with a factory have a private constructor. The decoders run in a worker thread (`decode-worker.mjs` in the package); when that file cannot load, decoding runs on the calling thread instead.
+The classes with a factory have a private constructor. The decoders run in a worker thread (`decode-worker.mjs` in the package). When that file cannot load, decoding runs on the calling thread instead.
 
 ## Options
 

@@ -29,7 +29,7 @@ The state comes from Companion Link. Without credentials, or while Companion Lin
 
 ## The change event
 
-`change` fires on every report from the Apple TV, including the one each Companion Link connect fetches. Unlike now playing and volume it does not skip equal values. After a real drop, the first `change` tells you the state as it is now, so use it to resync.
+`change` fires on every report from the Apple TV, including the one each Companion Link connect fetches. Unlike now playing and volume it does not skip equal values. After a real drop, the first `change` carries the current state. Use it to resync.
 
 ## Waking and sleeping
 

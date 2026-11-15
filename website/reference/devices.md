@@ -96,7 +96,7 @@ Start one with `AppleTV.pair()`. The name the Apple TV lists for the pairing is 
 
 ## Errors
 
-The entry point re-exports every error class of `@corewire/core`, so you import all errors from `@corewire/devices`: `AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError` and `TLV8PairingError`. See [Logging and errors](/guide/logging-and-errors#errors) for the hierarchy.
+The entry point re-exports every error class of `@corewire/core`, so all errors import from `@corewire/devices`. These are `AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError` and `TLV8PairingError`. See [Logging and errors](/guide/logging-and-errors#errors) for the hierarchy.
 
 ### CommandRefusedError
 
@@ -136,7 +136,7 @@ The device refused a playback command, for example because nothing plays or the 
 
 ## Capability types
 
-The capabilities are interfaces; the classes behind them are internal. You reach them through a device. The ones with events extend `EventEmitter` with their own event map: `NowPlayingEventMap`, `VolumeEventMap`, `PowerEventMap`, `TextEventMap` and `MultiroomEventMap`.
+The capabilities are interfaces, and the classes behind them are internal. Reach them through a device. The ones with events extend `EventEmitter` with their own event map: `NowPlayingEventMap`, `VolumeEventMap`, `PowerEventMap`, `TextEventMap` and `MultiroomEventMap`.
 
 ### AccountsControl
 
@@ -171,7 +171,7 @@ Both throw `UnavailableError` while AirPlay is down.
 
 ### MediaPlayback
 
-An interface; `instanceof` does not work on it.
+An interface, so `instanceof` does not work on it.
 
 | Member | Description |
 | --- | --- |

@@ -8,7 +8,7 @@ function group(text: string, items: [string, string][]): DefaultTheme.SidebarIte
     };
 }
 
-/* The packages as `[name, reference page]`, in the order the nav and the reference list them. */
+// The nav and the reference sidebar list the packages in this order.
 const PACKAGES: [string, string][] = [
     ['@corewire/devices', '/reference/devices'],
     ['@corewire/airplay', '/reference/airplay'],

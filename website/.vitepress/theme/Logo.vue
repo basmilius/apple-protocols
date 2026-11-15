@@ -1,6 +1,6 @@
 <template>
     <span
-        :class="[$style.logo, { [$style.logoHero]: variant === 'hero' }]"
+        :class="[$style.logo, {[$style.logoHero]: variant === 'hero'}]"
         role="img"
         aria-label="CoreWire">
         <svg

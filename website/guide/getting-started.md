@@ -1,10 +1,10 @@
 # Getting started
 
-This page connects to an Apple TV, reads what plays and presses a few keys. A HomePod works the same way, minus the pairing.
+Connect to an Apple TV, read what plays and press a few keys. A HomePod works the same way, without the pairing.
 
 ## Find the device
 
-`discover()` runs one multicast scan of about four seconds and returns every Apple TV, HomePod and AirPlay receiver it heard, one entry per host.
+`discover()` runs one multicast scan of about four seconds. It returns every Apple TV, HomePod and AirPlay receiver it heard, one entry per host.
 
 ```ts
 import { discover } from '@corewire/devices';
@@ -52,11 +52,11 @@ tv.on('status', status => {
 await tv.connect();
 ```
 
-`connect()` resolves once the device is usable. From then on the device keeps itself connected until you call `disconnect()`. A dropped connection reconnects on its own, and the `status` event tells you what happens. See [Connection and recovery](/guide/connection).
+`connect()` resolves once the device is usable. The device then stays connected until you call `disconnect()`. A dropped connection reconnects by itself, and the `status` event reports each step. See [Connection and recovery](/guide/connection).
 
 ## Use it
 
-Every capability is a property of the device. They exist from the moment you construct it; a call that cannot work right now throws an `UnavailableError`.
+Every capability is a property of the device and exists from the moment you construct it. A call that cannot work right now throws an `UnavailableError`.
 
 ```ts
 tv.nowPlaying.on('change', item => {
@@ -79,7 +79,7 @@ if (tv.supports('apps')) {
 await tv.disconnect();
 ```
 
-`disconnect()` stops every retry, ends running media and closes every protocol session. No capability event fires after it resolved. You can call `connect()` again later.
+`disconnect()` stops every retry, ends running media and closes every protocol session. No capability event fires after it resolves. `connect()` works again afterwards.
 
 ## A HomePod
 
@@ -95,9 +95,9 @@ await pod.playback.pause();
 await pod.disconnect();
 ```
 
-A HomePod connects over AirPlay with a transient pairing. It has remote keys, now playing, playback, volume, artwork, multiroom and audio streaming. It cannot fetch a URL itself; stream the audio instead (see [URLs and audio streams](/guide/media)).
+A HomePod connects over AirPlay with a transient pairing. It has remote keys, now playing, playback, volume, artwork, multiroom and audio streaming. It cannot fetch a URL itself, so stream the audio instead (see [URLs and audio streams](/guide/media)).
 
 ## Next
 
-- [Apple TV and HomePod](/guide/devices) describes the two classes and their options.
-- [Capabilities](/guide/capabilities) lists what each device exposes and how `supports()` works.
+- [Apple TV and HomePod](/guide/devices) covers the two classes and their options.
+- [Capabilities](/guide/capabilities) lists what each device exposes and how `supports()` decides.

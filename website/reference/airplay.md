@@ -38,7 +38,7 @@ See [Sessions and channels](/protocols/airplay) and [URLs and audio streams](/pr
 | `streamAudio(source: AudioSource, options?: StreamAudioOptions): Promise<AudioPlayback>` | An audio stream on a connection of its own. Throws `SetupError` |
 | event `closed` | Fires once, with the reason and an optional error |
 
-The constructor takes the parts of a finished handshake; use `connect()`.
+The constructor takes the parts of a finished handshake. Use `connect()`.
 
 ### PinPairing
 
@@ -52,7 +52,7 @@ The constructor takes the parts of a finished handshake; use `connect()`.
 
 ### ControlChannel
 
-`class ControlChannel extends RtspClient`, the type of `AirPlaySession.control`. The entry point does not export the class; you reach it through a session.
+`class ControlChannel extends RtspClient`, the type of `AirPlaySession.control`. The entry point does not export the class. Reach it through a session.
 
 | Member | Description |
 | --- | --- |
@@ -74,7 +74,7 @@ The constructor takes the parts of a finished handshake; use `connect()`.
 | `stop(): Promise<Response>` | Stops URL playback |
 | `teardown(path: string, headers?, timeout?): Promise<Response \| undefined>` | Ends the session on the receiver; undefined when the receiver closed the connection first |
 
-Requests resolve with any status; the caller checks it.
+Requests resolve with any status. The caller checks it.
 
 ### DataChannel
 
@@ -117,7 +117,7 @@ Requests resolve with any status; the caller checks it.
 
 ### AudioPlayback
 
-Created by `AirPlaySession.streamAudio()`; the constructor takes internal parts.
+`AirPlaySession.streamAudio()` creates it. The constructor takes internal parts.
 
 | Member | Description |
 | --- | --- |
@@ -195,4 +195,4 @@ Experimental IEEE 1588 grandmaster for receivers with PTP support.
 
 ## Client identity
 
-`identity` in `ConnectOptions` and `PairOptions` overrides what the client presents. A field you leave out keeps its default: name `CoreWire` (`DEFAULT_CLIENT_NAME` of `@corewire/core/transport`), model `iPhone17,3`, OS `iPhone OS` 26.3 (`25D63`), source version `935.7.1`, bundle `com.apple.TVRemote` version `700`. The name goes into the SETUP body, the URL playback body, the MRP device info and the pair-setup M5 message.
+`identity` in `ConnectOptions` and `PairOptions` overrides what the client presents. A field you leave out keeps its default. The defaults are name `CoreWire` (`DEFAULT_CLIENT_NAME` of `@corewire/core/transport`), model `iPhone17,3`, OS `iPhone OS` 26.3 (`25D63`), source version `935.7.1`, bundle `com.apple.TVRemote` version `700`. The name goes into the SETUP body, the URL playback body, the MRP device info and the pair-setup M5 message.

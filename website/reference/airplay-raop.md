@@ -19,7 +19,7 @@ See [RAOP](/protocols/raop).
 
 `class RaopSession extends EventEmitter<RaopEventMap>`
 
-One RAOP connection to a receiver. It ends exactly once, with a reason. Then its `signal` aborts and a running stream stops. Create it with `connect()`; the constructor takes internal parts.
+One RAOP connection to a receiver. It ends exactly once, with a reason. Then its `signal` aborts and a running stream stops. Create it with `connect()`. The constructor takes internal parts.
 
 | Member | Description |
 | --- | --- |

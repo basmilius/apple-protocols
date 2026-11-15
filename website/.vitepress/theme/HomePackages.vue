@@ -1,18 +1,22 @@
 <template>
-    <div class="home-packages">
+    <div :class="$style.homePackages">
         <section
             v-for="area of AREAS"
             :key="area.title"
-            class="home-area">
-            <h2>{{ area.title }}</h2>
-            <p>{{ area.summary }}</p>
-            <ul>
+            :class="$style.homeArea">
+            <h2 :class="$style.homeAreaTitle">{{ area.title }}</h2>
+            <p :class="$style.homeAreaSummary">{{ area.summary }}</p>
+
+            <ul :class="$style.homeAreaList">
                 <li
                     v-for="item of area.packages"
-                    :key="item.link">
-                    <a :href="item.link">
-                        <span class="name">{{ item.name }}</span>
-                        <span class="blurb">{{ item.blurb }}</span>
+                    :key="item.link"
+                    :class="$style.homeAreaItem">
+                    <a
+                        :class="$style.homeAreaLink"
+                        :href="item.link">
+                        <span :class="$style.homeAreaName">{{ item.name }}</span>
+                        <span :class="$style.homeAreaBlurb">{{ item.blurb }}</span>
                     </a>
                 </li>
             </ul>
@@ -23,11 +27,11 @@
 <script
     lang="ts"
     setup>
-    interface Area {
+    type Area = {
         readonly title: string;
         readonly summary: string;
         readonly packages: { readonly name: string; readonly link: string; readonly blurb: string }[];
-    }
+    };
 
     const AREAS: Area[] = [
         {
@@ -41,7 +45,7 @@
         },
         {
             title: 'Protocols',
-            summary: 'The sessions underneath, for when you want a protocol without the device layer.',
+            summary: 'The sessions underneath, for a protocol without the device layer.',
             packages: [
                 {name: '@corewire/airplay', link: '/protocols/airplay', blurb: 'AirPlay 2 sessions, URL playback, audio streams and timing'},
                 {name: '@corewire/airplay/mrp', link: '/protocols/mrp', blurb: 'Media Remote: keys, commands, volume and now playing state'},
@@ -60,60 +64,61 @@
     ];
 </script>
 
-<style scoped>
-    .home-packages {
+<style module>
+    /* The child selectors nest under .homeArea to outweigh the `.vp-doc` element styles. */
+    .homePackages {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 16px;
     }
 
-    .home-area {
+    .homeArea {
         padding: 24px;
         border: 1px solid var(--vp-c-divider);
         border-radius: 12px;
         background: var(--vp-c-bg-soft);
     }
 
-    .home-area h2 {
+    .homeArea .homeAreaTitle {
+        font-size: 20px;
+        line-height: 28px;
         margin: 0;
         padding: 0;
         border: 0;
-        font-size: 20px;
-        line-height: 28px;
     }
 
-    .home-area p {
-        margin: 8px 0 16px;
-        color: var(--vp-c-text-2);
+    .homeArea .homeAreaSummary {
         font-size: 14px;
         line-height: 22px;
+        margin: 8px 0 16px;
+        color: var(--vp-c-text-2);
     }
 
-    .home-area ul {
+    .homeArea .homeAreaList {
         margin: 0;
         padding: 0;
         list-style: none;
     }
 
-    .home-area li {
+    .homeArea .homeAreaItem {
         margin: 0;
     }
 
-    .home-area a {
+    .homeArea .homeAreaLink {
         display: flex;
         flex-direction: column;
         margin: 0 -10px;
         padding: 6px 10px;
-        border-radius: 8px;
-        text-decoration: none;
         transition: background-color 0.15s;
+        text-decoration: none;
+        border-radius: 8px;
     }
 
-    .home-area a:hover {
+    .homeArea .homeAreaLink:hover {
         background: var(--vp-c-default-soft);
     }
 
-    .name {
+    .homeAreaName {
         font-family: var(--vp-font-family-mono);
         font-size: 13px;
         font-weight: 600;
@@ -121,7 +126,7 @@
         color: var(--vp-c-brand-1);
     }
 
-    .blurb {
+    .homeAreaBlurb {
         font-size: 13px;
         line-height: 20px;
         color: var(--vp-c-text-2);

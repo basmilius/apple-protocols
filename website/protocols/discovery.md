@@ -33,7 +33,7 @@ console.log(all.length, one.address, byAddress?.service.port);
 
 A `DiscoveryResult` has the `id`, `address`, `txt` record, `fqdn` and the `service` port, protocol and type. The model identifier is in the TXT record, as `txt.model` or `txt.am`.
 
-`DiscoverOptions` (`{useCache?: boolean}`) is defined here once; the `discover()` of every protocol package and of `@corewire/devices` takes it.
+`DiscoverOptions` (`{useCache?: boolean}`) lives here once. The `discover()` of every protocol package and of `@corewire/devices` takes it.
 
 The service constants live in the protocol packages: `AIRPLAY_SERVICE` in `@corewire/airplay`, `RAOP_SERVICE` in `@corewire/airplay/raop` and `COMPANION_LINK_SERVICE` in `@corewire/companion-link`. Each package also has a `discover()` of its own.
 
@@ -53,7 +53,7 @@ for (const service of services) {
 
 ## Advertising
 
-`MdnsResponder` advertises one service with periodic multicasts and answers queries for its type. It does not fully parse DNS questions and is meant for quiet test networks.
+`MdnsResponder` advertises one service with periodic multicasts and answers queries for its type. It does not fully parse DNS questions, so keep it to quiet test networks.
 
 ```ts
 import { MdnsResponder } from '@corewire/core/discovery';

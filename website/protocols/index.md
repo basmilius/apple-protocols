@@ -1,6 +1,6 @@
 # Protocols
 
-The device layer covers what most apps need. The protocol packages are there when you need more: a message the device layer does not send, a tool that inspects traffic, or full control over when a connection opens and closes.
+The device layer covers what most apps need. Use a protocol package for a message the device layer does not send, for a tool that inspects traffic, or to decide yourself when a connection opens and closes.
 
 ## The layers
 
@@ -18,7 +18,7 @@ The device layer covers what most apps need. The protocol packages are there whe
 
 ## Sessions live once
 
-A device object reconnects. A protocol session does not. `connect()` returns a session that is ready to use: TCP is open, pairing and encryption are done. The session then ends exactly once, with a reason:
+A device object reconnects. A protocol session does not. `connect()` returns a session that is ready to use. TCP is open, and pairing and encryption are done. The session then ends exactly once, with a reason:
 
 | Reason | Meaning |
 | --- | --- |
@@ -27,7 +27,7 @@ A device object reconnects. A protocol session does not. `connect()` returns a s
 | `timeout` | The keepalive went unanswered (AirPlay), or the socket did not open in time |
 | `error` | A socket or frame broke |
 
-When it ends, its `closed` event fires with the reason and an optional error, its `signal` aborts, and every channel, timer and pending request on it goes too. To continue, connect again. The device layer does exactly that, with backoff and a fresh lookup.
+When it ends, its `closed` event fires with the reason and an optional error, its `signal` aborts, and every channel, timer and pending request on it goes too. To continue, connect again. The device layer does that, with backoff and a fresh lookup.
 
 ```ts
 import { connect } from '@corewire/airplay';
@@ -41,7 +41,7 @@ session.on('closed', (reason, error) => {
 session.signal.addEventListener('abort', () => console.log('aborted'));
 ```
 
-`closeReason` is undefined while the session is open, and the reason afterwards. `isOpen` tells the same in a boolean.
+`closeReason` is undefined while the session is open, and the reason afterwards. `isOpen` gives the same as a boolean.
 
 ## Models without I/O
 

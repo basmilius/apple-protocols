@@ -36,7 +36,7 @@ if (item) {
 | `lyricsId` | The Apple Music song id, or null; feeds [`fetchLyrics()`](/guide/catalog) |
 | `isAlwaysLive`, `isAdvertisement` | Flags of the now playing info |
 
-A snapshot is a new object for every change. Keep it, compare it, send it over IPC; nothing in it updates later.
+Every change gives a new snapshot object. Keep it, compare it or send it over IPC. Nothing in it updates later.
 
 ## Events
 
@@ -60,15 +60,15 @@ tv.nowPlaying.on('artwork', item => {
 | `state` | The playback state differs from the last one announced. Fires before the matching `change`. A `change` to null resets the announced state to `unknown` |
 | `artwork` | The artwork of the current item looks different: another identifier or URL, or other image bytes |
 
-Every event compares public values with the last values this object announced. The device sends many messages for one visible change; you get one event.
+Every event compares public values with the last values this object announced. The device sends many messages for one visible change, and you get one event.
 
 ## Across a reconnect
 
 The announced values survive sessions. After a reconnect the device holds back:
 
 - When the new session reports the same item again, nothing fires.
-- When it reports another item, that item is announced once it settled for one second.
-- At the latest five seconds after the new session is up, whatever the device reports then is announced once, if it differs.
+- When it reports another item, the device announces it once it has been stable for one second.
+- Five seconds after the new session is up at the latest, the device announces what it reports then, if that differs.
 
 Meanwhile `current` and `elapsed` return the last announced item and position, and `supports()` answers as that item did. A network blip does not look like playback stopping and starting. A state that changed during the outage fires `state` once, right before the `change` that ends the wait.
 
@@ -88,7 +88,7 @@ if (artwork?.data) {
 }
 ```
 
-`get(width = 600, height = -1)` resolves an `Artwork` with a `url`, the image `data`, or both, or null when the current item has none. A height of -1 keeps the aspect ratio. `getAnimated(width, height)` resolves the animated artwork formats the device knows, as `AnimatedArtwork` entries with a `format` and a `url`; empty when there are none. Both throw `UnavailableError` while AirPlay is down, like every other capability. Check `supports('artwork')` first, or catch the error.
+`get(width = 600, height = -1)` resolves an `Artwork` with a `url`, the image `data`, or both, or null when the current item has none. A height of -1 keeps the aspect ratio. `getAnimated(width, height)` resolves the animated artwork formats the device knows, as `AnimatedArtwork` entries with a `format` and a `url`, or an empty list. Both throw `UnavailableError` while AirPlay is down, like every other capability. Check `supports('artwork')` first, or catch the error.
 
 Listen to `nowPlaying` `artwork` events to know when to fetch again.
 
@@ -106,4 +106,4 @@ if (lyrics?.text) {
 }
 ```
 
-It resolves a `Lyrics` record with the `text` when the device sends it, whether lyrics are `available`, a `url` and the `catalogId`. It throws `UnavailableError` without an AirPlay session. Many apps send no text; [`fetchLyrics()`](/guide/catalog) gets them from Apple Music instead.
+It resolves a `Lyrics` record with the `text` when the device sends it, whether lyrics are `available`, a `url` and the `catalogId`. It throws `UnavailableError` without an AirPlay session. Many apps send no text. [`fetchLyrics()`](/guide/catalog) gets it from Apple Music instead.

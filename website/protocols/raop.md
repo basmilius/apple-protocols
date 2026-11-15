@@ -36,7 +36,7 @@ timing.close();
 
 | Member | Meaning |
 | --- | --- |
-| `stream(source, options?)` | Resolves once audio flows and returns a `RaopPlayback`. `volumeDb` is in dBFS; `metadata` shows title, artist, album, duration and artwork on the receiver. One stream runs at a time |
+| `stream(source, options?)` | Resolves once audio flows and returns a `RaopPlayback`. `volumeDb` is in dBFS. `metadata` shows title, artist, album, duration and artwork on the receiver. One stream runs at a time |
 | `playback.ended` | Settles when the source ran out |
 | `playback.stop()` | Stops the stream |
 | `setVolumeDb(volumeDb)` | The volume in dBFS, -144 to 0 |
@@ -45,11 +45,11 @@ timing.close();
 
 `pctToDbfs(percentage)` converts a percentage to dBFS.
 
-The RAOP target needs the `port` of the `_raop._tcp` service; `toTarget()` takes it from a discovery result. The encryption, metadata and audio properties come from its `txt`.
+The RAOP target needs the `port` of the `_raop._tcp` service. `toTarget()` takes it from a discovery result. The encryption, metadata and audio properties come from its `txt`.
 
 ## Options
 
-`connect()` takes a `TimingServer` in `timing`; its port goes into SETUP. The other options are optional:
+`connect()` requires a `TimingServer` in `timing`, whose port goes into SETUP. The other options are optional:
 
 | Option | Meaning |
 | --- | --- |

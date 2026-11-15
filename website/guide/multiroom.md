@@ -1,6 +1,6 @@
 # Multiroom
 
-`device.multiroom` manages the group of output devices the device plays to, and the volume of each of them. It works over AirPlay on both devices.
+`device.multiroom` manages the group of output devices the device plays to, and the volume of each. It works over AirPlay on both devices.
 
 ```ts
 console.log(pod.multiroom.clusterId, pod.multiroom.isLeader);
@@ -32,7 +32,7 @@ await pod.multiroom.remove('2A1B3C4D-0000-0000-0000-000000000000');
 
 ## Output devices
 
-An `OutputDevice` has a `uid`, the identifier the methods take, plus the `name`, the `model` identifier, the `groupId`, and the flags `isLocal` (the device the session runs on), `isGroupLeader` and `hasVolumeControl`.
+The methods take the `uid` of an `OutputDevice`. It also has the `name`, the `model` identifier, the `groupId` and the flags `isLocal` (the device the session runs on), `isGroupLeader` and `hasVolumeControl`.
 
 The `change` event fires when the list differs from the last one announced. Like the volume, the list survives a reconnect, so a reconnect that reports the same outputs emits nothing. `disconnect()` clears it.
 

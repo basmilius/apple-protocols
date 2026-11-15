@@ -37,7 +37,7 @@ try {
 
 ## What the app accepts
 
-Apps differ. A live stream cannot seek; a podcast app may not shuffle. `nowPlaying.supports(command)` asks the app that plays now:
+Apps differ. A live stream cannot seek, and a podcast app may not shuffle. `nowPlaying.supports(command)` asks the app that plays now:
 
 ```ts
 if (tv.nowPlaying.supports('seek')) {
@@ -49,4 +49,4 @@ The commands are `play`, `pause`, `togglePlayPause`, `stop`, `next`, `previous`,
 
 ## Playback or remote keys
 
-`playback.pause()` tells the app to pause. `remote.press('pause')` sends the pause key, as a physical remote would, and the system decides what happens. Use `playback` for media, and `remote` for navigating the interface. See [Remote and touch](/guide/remote).
+`playback.pause()` tells the app to pause. `remote.press('pause')` sends the pause key, as a physical remote would, and the system decides what happens. Use `playback` for media and `remote` to navigate the interface. See [Remote and touch](/guide/remote).

@@ -33,7 +33,7 @@ const fields = TLV8.decode(payload);
 console.log(fields.get(TLV8.Value.State));
 ```
 
-`encode(entries)` splits values over 255 bytes into fragments; `decode(buffer)` joins them again into a `Map` of type to value. `bail(fields)` throws a `TLV8PairingError` (a `PairingError` from `@corewire/core`, with the TLV8 error `code`) when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
+`encode(entries)` splits values over 255 bytes into fragments. `decode(buffer)` joins them again into a `Map` of type to value. `bail(fields)` throws a `TLV8PairingError` (a `PairingError` from `@corewire/core`, with the TLV8 error `code`) when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
 
 ### OPack
 
@@ -59,7 +59,7 @@ const value = Plist.parse(bytes as ArrayBuffer);
 console.log(value);
 ```
 
-`serialize(value)` writes a binary plist; `parse(buffer)` reads one. Integers of 1, 2 and 4 bytes read as unsigned, an 8-byte integer comes back as a `bigint`, and a date as a `Date`.
+`serialize(value)` writes a binary plist and `parse(buffer)` reads one. Integers of 1, 2 and 4 bytes read as unsigned, an 8-byte integer comes back as a `bigint`, and a date as a `Date`.
 
 ### NTP
 

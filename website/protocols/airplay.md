@@ -6,7 +6,7 @@ import { AirPlaySession, connect, discover, pair, toTarget } from '@corewire/air
 
 ## Finding a receiver
 
-`discover()` scans for `_airplay._tcp` and returns `AirPlayDiscoveryResult` entries: the core `DiscoveryResult` plus the parsed `features` mask. `toTarget()` turns one into an `AirPlayTarget`.
+`discover()` scans for `_airplay._tcp`. Each `AirPlayDiscoveryResult` is a core `DiscoveryResult` plus the parsed `features` mask. `toTarget()` turns one into an `AirPlayTarget`.
 
 ```ts
 import { discover, toTarget } from '@corewire/airplay';
@@ -17,11 +17,11 @@ const target = toTarget(receivers[0]);
 console.log(target.address, target.port, target.features?.toString(16));
 ```
 
-An `AirPlayTarget` needs only an `address`. `port` defaults to 7000. `id` tags the logs; `txt` and `features` are what discovery found.
+An `AirPlayTarget` needs only an `address`. `port` defaults to 7000. `id` tags the logs. `txt` and `features` hold what discovery found.
 
 ## Pairing
 
-A HomePod accepts a transient pairing; `connect()` does it when you pass no credentials. An Apple TV wants a PIN pairing once:
+A HomePod accepts a transient pairing, which `connect()` runs when you pass no credentials. An Apple TV wants a PIN pairing once:
 
 ```ts
 import { pair } from '@corewire/airplay';
@@ -33,7 +33,7 @@ const credentials = await pairing.pin(await askForPin());
 pairing.close();
 ```
 
-`pair()` connects, fetches `/info` and asks the receiver to show its PIN. `PinPairing.pin()` runs pair-setup M1 to M6 and resolves the long-term `AccessoryCredentials`. A wrong PIN rejects with a `PairingError` and leaves the connection open; call `close()` when you give up. The same credentials work for Companion Link.
+`pair()` connects, fetches `/info` and asks the receiver to show its PIN. `PinPairing.pin()` runs pair-setup M1 to M6 and resolves the long-term `AccessoryCredentials`. A wrong PIN rejects with a `PairingError` and leaves the connection open. Call `close()` when you give up. The same credentials work for Companion Link.
 
 ## Connecting
 
@@ -72,11 +72,11 @@ console.log(session.info.name, session.features.toString(16), session.supportsUr
 | `isOpen`, `closeReason`, `signal` | Its lifetime |
 | `close()` | Ends the session and every connection that hangs off it, without TEARDOWN |
 
-The session sends a `/feedback` keepalive every 2 seconds once remote control is open; the connections of URL playback and audio streams do the same. When no keepalive succeeded for 30 seconds, it ends with reason `timeout`. The deadline runs on a monotonic clock, so a jump of the wall clock (an NTP sync after boot) does not end a session.
+Once remote control is open, the session sends a `/feedback` keepalive every 2 seconds. The connections of URL playback and audio streams do the same. When no keepalive succeeded for 30 seconds, it ends with reason `timeout`. The deadline runs on a monotonic clock, so a jump of the wall clock (an NTP sync after boot) does not end a session.
 
 ## Remote control
 
-`openRemoteControl()` runs the SETUP with the remote control features, opens the event channel, sends RECORD, then sets up and connects the MRP data channel. It resolves the two channels. Usually you call `MediaRemote.open()` instead, which does this and the MRP startup; see [Media Remote](/protocols/mrp).
+`openRemoteControl()` runs the SETUP with the remote control features, opens the event channel, sends RECORD, then sets up and connects the MRP data channel. It resolves the two channels. You usually call `MediaRemote.open()` instead, which also runs the MRP startup. See [Media Remote](/protocols/mrp).
 
 ```ts
 import { connect } from '@corewire/airplay';
@@ -96,7 +96,7 @@ events.on('sessionDied', () => console.log('the receiver ended the session'));
 
 | Channel | What it carries |
 | --- | --- |
-| `ControlChannel` | RTSP requests to the receiver: SETUP, RECORD, `/feedback`, properties, volume, `/play`, TEARDOWN. Extends `RtspClient`; you reach it as `session.control` |
+| `ControlChannel` | RTSP requests to the receiver: SETUP, RECORD, `/feedback`, properties, volume, `/play`, TEARDOWN. Extends `RtspClient`. Reach it as `session.control` |
 | `EventChannel` | The reverse RTSP channel: the receiver sends requests and we answer `200 OK`. Emits `command`, `playQueue`, `duckAudio`, `unduckAudio` and `sessionDied` |
 | `DataChannel` | MRP protobuf messages. `exchange()` waits for the reply, `send()` expects none. Emits `rawMessage` and one event per MRP message type |
 
@@ -110,7 +110,7 @@ const response = await session.control.getProperty('Volume');
 console.log(response.status, Buffer.from(await response.arrayBuffer()));
 ```
 
-`ControlChannel` requests resolve with any status; you check it.
+`ControlChannel` requests resolve with any status. Checking it is up to you.
 
 ## Feature flags
 

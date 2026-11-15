@@ -1,6 +1,6 @@
 # @corewire/devices
 
-Control an Apple TV or a HomePod from Node.js. A device keeps itself connected over AirPlay and Companion Link, retries after a drop, and reports one `status` event. Remote keys, now playing, volume, playback, multiroom, apps, power, text input, URL playback and audio streaming are capabilities on the device. Every error class can be imported from this package.
+Control an Apple TV or a HomePod from Node.js. A device keeps itself connected over AirPlay and Companion Link, retries after a drop, and reports one `status` event. Remote keys, now playing, volume, playback, multiroom, apps, power, text input, URL playback and audio streaming are capabilities on the device. This package exports every error class.
 
 Part of [CoreWire](https://corewire.dev).
 
@@ -31,7 +31,7 @@ await tv.volume.set(0.3);
 await tv.disconnect();
 ```
 
-Pair an Apple TV once with `AppleTV.pair(target)` to get the credentials; a HomePod connects without them.
+Pair an Apple TV once with `AppleTV.pair(target)` to get the credentials. A HomePod connects without them.
 
 ## License
 

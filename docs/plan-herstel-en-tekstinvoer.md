@@ -1,6 +1,6 @@
 # Plan voor verbindingsherstel en tekstinvoer
 
-Gebaseerd op de hertest van Woonkamer TV op 21 september 2026, commit `d299753`. Doel: automatische recovery na verlies van een essentiële stream en werkende tekstinvoer via de SDK, met afzonderlijke verificatie van Companion en AirPlay.
+Gebaseerd op de hertest van Woonkamer TV op 21 september 2026, commit `d299753`. Doel: automatische recovery na verlies van een vereiste stream en werkende tekstinvoer via de SDK, met afzonderlijke verificatie van Companion en AirPlay.
 
 ## Implementatiestatus
 
@@ -8,7 +8,7 @@ De hardwarehertest bevestigt inmiddels herstel bij verlies van elk van de drie s
 
 De codewijzigingen zijn uitgevoerd. Vóór verwijdering slaagden de 66 tests op Bun en Node; de projectbuild inclusief diagnostics en de Homey-build slaagden ook. De geautomatiseerde tests, fixtures en runner zijn daarna op verzoek verwijderd. De testscenario’s hieronder zijn bewaard voor een later, grondig testtraject. De hardwarehertest staat nog open.
 
-- De manager bewaakt close op alle essentiële streams, maakt teardown eenmalig en meldt connected pas na volledige setup. Vernietigen annuleert socket-retries. Late recovery-resultaten na dispose/reset worden genegeerd.
+- De manager bewaakt close op alle vereiste streams, maakt teardown eenmalig en meldt connected pas na volledige setup. Vernietigen annuleert socket-retries. Late recovery-resultaten na dispose/reset worden genegeerd.
 - De gedeelde RTI-code respecteert buffergrenzen, resolveert archiefverwijzingen en valideert de sessie-UUID. Companion serialiseert invoer en weigert ontbrekende of vervangen sessies. De publieke keyboard-controller kiest Companion wanneer verbonden, zonder opnieuw versturen via een ander transport na een fout.
 - AirPlay vraagt nu een RTI-sessie aan en verstuurt RemoteTextInputMessage met RTI-data. De sessieaanvraag wacht maximaal vijf seconden op een remoteTextInput-event; een ontbrekende sessie, afwijkende versie of verbroken stream geeft een fout. Het daadwerkelijke antwoordgedrag van Woonkamer TV moet nog worden bevestigd.
 - De inmiddels verwijderde regressiefixture was een synthetisch RTIKeyedArchiver-archief, geen capture van de TV. Een later testtraject moet ook de uitgaande archiefstructuur onafhankelijk van onze eigen decoder controleren.
@@ -24,7 +24,7 @@ In `packages/sdk/src/internal/airplay-manager.ts` luistert de manager naar close
 
 ### Wijzigingen
 
-- Geef control-, data- en eventstreams dezelfde centrale afhandeling voor het onverwacht sluiten van een essentiële stream. Leg intentionaliteit vast in de levenscyclus van de sessie; gebruik daarvoor niet TCP hadError.
+- Geef control-, data- en eventstreams dezelfde centrale afhandeling voor het onverwacht sluiten van een vereiste stream. Leg vast in de levenscyclus van de sessie of het sluiten bedoeld was. Gebruik daarvoor niet TCP hadError.
 - Maak teardown idempotent. Ruim sockets, feedbacktimers, subscriptions en uitstaande requests op. Emit precies één disconnected-event met de juiste reden. Het huidige onClose-pad kan via disconnect eerst false en daarna true uitsturen; voorkom die dubbele melding.
 - Maak connected afhankelijk van een volledig opgezette, nog bruikbare sessie. Een werkende controlstream alleen is onvoldoende.
 - Verwijder alle listeners van de oude streams bij reconnect en negeer late events van een vorige sessie. Vang ook uitval tijdens setup af zonder een half verbonden sessie achter te laten.

@@ -1,6 +1,6 @@
 # Reference
 
-A reference page lists every name an entry point exports, with its signature and a short description. Anything not listed is internal and may change in any release. The guides explain how the pieces fit; each page links to them.
+A reference page lists every name an entry point exports, with its signature and a short description. Anything not listed is internal and may change in any release. Each page links to the guides that show how the pieces fit.
 
 | Entry point | Reference | Guide |
 | --- | --- | --- |

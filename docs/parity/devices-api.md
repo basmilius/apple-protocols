@@ -1,10 +1,16 @@
 # Design: the public API of `@corewire/devices`
 
-Step 1 of the remaining work in `HANDOFF.md`. Inventory ids refer to `behavior-inventory.md`, `H:` is the Homey app root. The design was approved and is implemented; section 0 lists where the implementation differs from the text below, and the decisions on the open questions.
+Step 1 of the remaining work in `HANDOFF.md`. Inventory ids refer to `behavior-inventory.md`, `H:` is the Homey app root. Bas approved the design and it is implemented. Section 0 lists where the implementation differs from the text below, and the decisions on the open questions.
 
 ## 0. Implementation notes
 
-Decisions by Bas on section 8: `disconnected` is the sixth state; `remote.press` routes as designed, without a `via` option; the shared timing server starts at the first connect (the report says first audio stream, step 3 updates the report); the forced 15-minute reconnect goes without new probe bytes, and the Homey soak test in step 5 checks it; with a `resolve` option the device never scans with multicast.
+Decisions by Bas on section 8:
+
+- `disconnected` is the sixth state.
+- `remote.press` routes as designed, without a `via` option.
+- The shared timing server starts at the first connect. The report said first audio stream, and step 3 updated it.
+- The forced 15-minute reconnect goes without new probe bytes. The Homey soak test in step 5 checks it.
+- With a `resolve` option the device never scans with multicast.
 
 Where the code differs from the sections below:
 

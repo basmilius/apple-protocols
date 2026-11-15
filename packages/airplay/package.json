@@ -1,6 +1,6 @@
 {
     "name": "@corewire/airplay",
-    "description": "Implementation of Apple's AirPlay2 in Node.js.",
+    "description": "AirPlay 2 client for Node.js, with MRP remote control, URL playback, audio streaming and RAOP.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",

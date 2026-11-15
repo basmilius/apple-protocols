@@ -1,6 +1,6 @@
 {
     "name": "@corewire/devices",
-    "description": "High-level SDK for controlling Apple devices (Apple TV, HomePod) via AirPlay and Companion Link.",
+    "description": "Controls an Apple TV or HomePod over AirPlay and Companion Link, and reconnects when the device drops.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",

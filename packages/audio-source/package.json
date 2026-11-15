@@ -1,6 +1,6 @@
 {
     "name": "@corewire/audio-source",
-    "description": "Different audio sources for use in Apple Streaming Protocols.",
+    "description": "Audio sources and decoders for CoreWire audio streaming: MP3, Ogg, WAV, PCM, FFmpeg, URLs and live input.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",

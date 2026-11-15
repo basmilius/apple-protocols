@@ -1,6 +1,6 @@
 {
     "name": "@corewire/companion-link",
-    "description": "Implementation of Apple's Companion Link in Node.js.",
+    "description": "Companion Link client for Node.js, for remote control, text input, apps, accounts and power of an Apple TV.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",

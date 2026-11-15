@@ -64,6 +64,8 @@ Faalt stap 3, dan is er een breaking change in de publieke API. `audio-source` b
 | Package                    | Pad                       | Doel                                                                                                     |
 |----------------------------|---------------------------|----------------------------------------------------------------------------------------------------------|
 | `@corewire/core`           | `packages/core`           | Protocolneutrale kern: codecs, crypto, transport, pairing, mDNS, foutklassen, logger                     |
+| `opack`                    | `packages/opack`          | Losse OPack-codec zonder scope en zonder deps: `encode`, `decode`, `int`, `float`, `sizedInteger`         |
+| `tlv8`                     | `packages/tlv8`           | Losse TLV8-codec zonder scope en zonder deps: `encode`, `decode`, `decodeEntries` (geen HAP-constanten)  |
 | `@corewire/airplay`        | `packages/airplay`        | AirPlay 2 sessie en kanalen, URL-playback, audiostream, timing; MRP op `/mrp`, RAOP-sessie op `/raop`, RTSP op `/rtsp` |
 | `@corewire/companion-link` | `packages/companion-link` | Companion Link sessie met groepen: HID, touch, text, power, apps, accounts, media, system, interests       |
 | `@corewire/audio-source`   | `packages/audio-source`   | Audiobronnen en decoders: `Mp3Source`, `OggSource`, `WavSource`, `PcmSource`, `FileSource`, `UrlSource`, `FfmpegSource`, `LiveSource`, `SineWaveSource` |
@@ -83,9 +85,12 @@ companion-link    → core
 audio-source      → core (plus het type AudioSource uit airplay, alleen als devDependency)
 devices           → core, airplay, companion-link
 diagnostics       → devices + alle protocol packages
+opack, tlv8       (geen deps; gebundeld uit de broncode van core)
 ```
 
 Een protocolpackage hangt alleen van `core` af, nooit van een ander protocol. `devices` is de enige plek waar twee protocollen samenkomen. Alle interne deps gebruiken `workspace:*`. Bij release vervangt CI dit met de release-versie via `sed`.
+
+`opack` en `tlv8` hebben geen eigen broncode. Hun `src/index.ts` exporteert uit `../../core/src/encoding/opack.ts` en `tlv8.ts`, en tsdown bundelt die in hun `dist`. Die twee bestanden zijn de enige bron en mogen dus niets uit de rest van core importeren. De HAP-constanten (`Value`, `State`, `Method`, `Flags`, `ErrorCode`) en `bail()` staan daarom in `packages/core/src/pairing/tlv8.ts`, dat ook de codec doorgeeft; de `TLV8`-namespace van `@corewire/core/encoding` komt uit dat bestand en heeft dus nog alle namen. `tools/check-standalone.ts` laat `build.sh` falen zodra hun `dist` iets anders importeert dan `node:*`.
 
 ## Architectuur
 
@@ -315,7 +320,7 @@ Een referentie (`0xA0` tot `0xC4`) wijst naar de n-de waarde in een tabel die en
 
 ## CI/CD
 
-`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics, naar `out-check/`), de pairing-test van core, de proxy smoke test en de build van de website. `.github/workflows/website.yml` bouwt de website en deployt hem met `cloudflare/wrangler-action` naar Cloudflare Workers (corewire.dev) bij een push naar `main` die `website/**`, `wrangler.toml` of de workflow raakt, of handmatig; secrets `CLOUDFLARE_API_TOKEN` en `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/released.yml` (trigger: GitHub Release) vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt de vijf libraries en publiceert `core`, `airplay`, `companion-link`, `audio-source` en `devices` met `npm publish --provenance --access public`. Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
+`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics, naar `out-check/`), de pairing-test van core, de proxy smoke test en de build van de website. `.github/workflows/website.yml` bouwt de website en deployt hem met `cloudflare/wrangler-action` naar Cloudflare Workers (corewire.dev) bij een push naar `main` die `website/**`, `wrangler.toml` of de workflow raakt, of handmatig; secrets `CLOUDFLARE_API_TOKEN` en `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/released.yml` (trigger: GitHub Release) vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt de zeven libraries (met de check op `opack` en `tlv8`) en publiceert `core`, `airplay`, `companion-link`, `audio-source`, `devices`, `opack` en `tlv8` met `npm publish --provenance --access public`. Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
 
 ## Tests en tooling
 

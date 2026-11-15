@@ -16,8 +16,10 @@ I wrote most of this by studying network traffic and reading other implementatio
 | `@corewire/companion-link` | The Companion Link session of an Apple TV: HID, touch, text input, power, apps, accounts, media, system settings. |
 | `@corewire/audio-source`   | Audio sources for streaming: MP3, OGG, WAV, FLAC and QOA decoders, PCM, FFmpeg, URLs, live input and a sine wave. |
 | `@corewire/core`           | What the protocols share: TLV8, OPack, plist and DAAP codecs, ChaCha20, Ed25519, Curve25519, SRP, HAP pairing, encrypted transport and mDNS. It knows no protocol. |
+| `opack`                    | The OPack codec of `core` on its own, without dependencies. |
+| `tlv8`                     | The TLV8 codec of `core` on its own, without dependencies and without the HAP constants. |
 
-The protocol packages depend only on `core`. `devices` is the one place where AirPlay and Companion Link meet. All packages share one version.
+The protocol packages depend only on `core`. `devices` is the one place where AirPlay and Companion Link meet. `opack` and `tlv8` sit outside the `@corewire` scope; their build bundles the codec source from `core`, so there is one implementation. All packages share one version.
 
 ## Install
 

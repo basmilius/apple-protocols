@@ -60,6 +60,14 @@
                 {name: '@corewire/core', link: '/protocols/pairing', blurb: 'HAP pairing, encrypted transport, mDNS, errors and logging'},
                 {name: '@corewire/core/encoding', link: '/protocols/encoding', blurb: 'TLV8, OPack, plist, DAAP, NTP and RTI codecs'}
             ]
+        },
+        {
+            title: 'Standalone',
+            summary: 'Codecs from core as packages of their own, without dependencies.',
+            packages: [
+                {name: 'opack', link: '/reference/opack', blurb: 'OPack, the binary object format of Companion Link'},
+                {name: 'tlv8', link: '/reference/tlv8', blurb: 'TLV8, the type-length-value format of HomeKit pairing'}
+            ]
         }
     ];
 </script>

@@ -35,6 +35,8 @@ console.log(fields.get(TLV8.Value.State));
 
 `encode(entries)` splits values over 255 bytes into fragments. `decode(buffer)` joins adjacent fragments again into a `Map` of type to value. When a type comes back after another type, the map keeps the first value. For a list in which a type repeats, `decodeEntries(buffer)` returns every `[type, value]` in order, with adjacent fragments joined. `bail(fields)` throws a `TLV8PairingError` (a `PairingError` from `@corewire/core`, with the TLV8 error `code`) when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
 
+The codec without the HAP constants also ships on its own as [`tlv8`](/reference/tlv8).
+
 ### OPack
 
 ```ts
@@ -49,6 +51,8 @@ console.log(message._i);
 `encode()` picks the smallest encoding for a number. A negative number gets 8 bytes. `OPack.int(value)`, `OPack.float(value)` and `OPack.sizedInteger(value, size)` force a type when the device expects one. Integers are signed. `decode()` returns a sized integer as `sizedInteger`, holding a `bigint` when the value falls outside the safe number range. Dates travel as `Date`.
 
 A repeated value becomes a reference to its first occurrence. That holds for strings, byte strings of 2 bytes or more, dates, floats and integers outside -1 to 39. Arrays and objects are always written in full. A value may sit at most 32 containers deep. `decode()` throws a `TypeError` on deeper nesting, a truncated buffer, a reference to a value that does not exist and a tag OPack does not define.
+
+The same codec ships on its own as [`opack`](/reference/opack), with `encode`, `decode`, `int`, `float` and `sizedInteger` as named exports.
 
 ### Plist
 

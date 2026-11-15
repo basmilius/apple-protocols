@@ -1,4 +1,3 @@
-/* The accent of ADE CORE, so the two sites read as one family. */
 :root {
     --accent: #155dfc;
     --vp-c-brand-1: var(--accent);

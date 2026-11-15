@@ -1,6 +1,6 @@
 import { AES, ChaCha20, HKDF } from '../crypto';
+import { TLV8 } from '../encoding';
 import type { Context } from '../transport';
-import * as TLV8 from './tlv8';
 
 /** Encrypts and decrypts the sub-TLVs that M5/M6 and pair-verify M2/M3 carry. */
 export type PairingCipher = {

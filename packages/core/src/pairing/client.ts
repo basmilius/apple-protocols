@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { SRP, SrpClient } from 'fast-srp-hap';
 import { Curve25519, Ed25519, type KeyPair } from '../crypto';
-import { OPack } from '../encoding';
+import { OPack, TLV8 } from '../encoding';
 import { AuthenticationError, PairingError } from '../errors';
 import { type Context, DEFAULT_CLIENT_NAME } from '../transport';
 import { decodeTlv, deriveControlKeys, deriveKey, pairingCipher } from './cipher';
 import { TRANSIENT_PAIRING_PIN } from './const';
-import * as TLV8 from './tlv8';
 import type { AccessoryCredentials, AccessoryKeys, PairingOptions, PairingTransport } from './types';
 
 /**

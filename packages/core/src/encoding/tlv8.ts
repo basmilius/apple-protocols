@@ -1,6 +1,6 @@
 import { TLV8PairingError } from '../errors';
 
-// The codec plus the HAP constants, so pairing code and the `TLV8` namespace of the encoding entry share one name.
+// The codec from the tlv8 package plus the HAP constants, under the one `TLV8` namespace.
 export { decode, decodeEntries, encode } from 'tlv8';
 
 /**

@@ -1,5 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CornerUpLeft, LayoutGrid, Power, SkipBack, SkipForward, Tv, Volume1, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CornerUpLeft, LayoutGrid, type LucideIcon, Power, SkipBack, SkipForward, Tv, Volume1, Volume2, VolumeX } from 'lucide-react';
 import type { CallRoot } from '@shared/contract';
 import { ICONS } from '@/ui/icons';
 import type { CompanionHidCommand } from '@/panels/sdk-shared';

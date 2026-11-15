@@ -37,7 +37,9 @@ const trafficCapture = new Capture<TrafficRecord>(1000);
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
 const flushSoon = (): void => {
-    if (flushTimer !== undefined) return;
+    if (flushTimer !== undefined) {
+        return;
+    }
 
     flushTimer = setTimeout(() => {
         flushTimer = undefined;
@@ -135,7 +137,10 @@ export async function startDevices(): Promise<void> {
         flushSoon();
     });
 
-    on('traffic:entry', record => {trafficCapture.push(record); flushSoon();});
+    on('traffic:entry', record => {
+        trafficCapture.push(record);
+        flushSoon();
+    });
 
     const [logs, traffic] = await Promise.all([invoke('log:history', undefined), invoke('traffic:history', undefined)]);
     const currentLogs = logCapture.snapshot();
@@ -147,8 +152,13 @@ export async function startDevices(): Promise<void> {
     const mergedLogs = new Map([...logs, ...currentLogs].map(entry => [entry.id, entry]));
     const mergedTraffic = new Map([...traffic, ...currentTraffic].map(entry => [entry.id, entry]));
 
-    for (const entry of [...mergedLogs.values()].sort((a, b) => a.id - b.id)) logCapture.push(entry);
-    for (const entry of [...mergedTraffic.values()].sort((a, b) => a.id - b.id)) trafficCapture.push(entry);
+    for (const entry of [...mergedLogs.values()].sort((first, second) => first.id - second.id)) {
+        logCapture.push(entry);
+    }
+
+    for (const entry of [...mergedTraffic.values()].sort((first, second) => first.id - second.id)) {
+        trafficCapture.push(entry);
+    }
 
     flushSoon();
     await useDevices.getState().scan();

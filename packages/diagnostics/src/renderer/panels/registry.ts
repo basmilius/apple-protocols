@@ -1,6 +1,5 @@
 import type { ComponentType } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { Activity, ArrowLeftRight, ChartColumn, LayoutDashboard } from 'lucide-react';
+import { Activity, ArrowLeftRight, ChartColumn, LayoutDashboard, type LucideIcon } from 'lucide-react';
 import type { DiscoveredDeviceInfo, StateSnapshot } from '@shared/contract';
 import { EventsPanel } from './events/EventsPanel';
 import { OverviewPanel } from './overview/OverviewPanel';

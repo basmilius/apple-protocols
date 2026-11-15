@@ -129,8 +129,6 @@ export function hex(value: number): string {
     return `0x${value.toString(16).padStart(2, '0')}`;
 }
 
-export { PanelBody } from '@/ui';
-
 export function Row({children, className}: { readonly children: ReactNode; readonly className?: string }) {
     return <div className={clsx('flex flex-wrap items-center gap-2', className)}>{children}</div>;
 }
@@ -219,6 +217,7 @@ export function MissingDevice() {
     );
 }
 
+export { PanelBody } from '@/ui';
 export { EventFeed } from './EventFeed';
 export { PanelLink } from './PanelLink';
 export { setsLevel, VolumeControls, VolumeModePill } from './VolumeControls';

@@ -1,8 +1,8 @@
 import { useState, type ReactElement } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { isBytes } from '@shared/helpers';
 import { Icon } from '@adecore/ui';
+import { isBytes } from '@shared/helpers';
 
 /** Rows past this are folded away behind a count; a playback queue is thousands of items long. */
 const PREVIEW = 100;

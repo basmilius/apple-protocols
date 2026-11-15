@@ -8,7 +8,7 @@ npm install opack
 import { decode, encode, float, int, sizedInteger } from 'opack';
 ```
 
-The OPack codec of `@corewire/core` as a package of its own, without dependencies and without the `@corewire` scope. It is built from the same source as `OPack` on `@corewire/core/encoding`, so both encode the same bytes. Inside CoreWire, use the `OPack` namespace; outside it, this package. The format is described under [Encoding and crypto](/protocols/encoding#opack).
+The OPack codec as a package of its own, without dependencies and without the `@corewire` scope. `@corewire/core` depends on it and re-exports it as `OPack` on `@corewire/core/encoding`, so both are the same code. Inside CoreWire, use the `OPack` namespace; outside it, this package. The format is described under [Encoding and crypto](/protocols/encoding#opack).
 
 | Export | Description |
 | --- | --- |

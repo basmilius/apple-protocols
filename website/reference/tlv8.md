@@ -8,7 +8,7 @@ npm install tlv8
 import { decode, decodeEntries, encode } from 'tlv8';
 ```
 
-The TLV8 codec of `@corewire/core` as a package of its own, without dependencies and without the `@corewire` scope. It is built from the same source as `TLV8` on `@corewire/core/encoding`. It holds the format only. The HAP constants (`Value`, `State`, `Method`, `Flags`, `ErrorCode`) and `bail()` stay in `@corewire/core`. The format is described under [Encoding and crypto](/protocols/encoding#tlv8).
+The TLV8 codec as a package of its own, without dependencies and without the `@corewire` scope. `@corewire/core` depends on it and re-exports it as `TLV8` on `@corewire/core/encoding`. It holds the format only. The HAP constants (`Value`, `State`, `Method`, `Flags`, `ErrorCode`) and `bail()` live in `@corewire/core`, which adds them to its `TLV8` namespace. The format is described under [Encoding and crypto](/protocols/encoding#tlv8).
 
 | Export | Description |
 | --- | --- |

@@ -16,6 +16,6 @@ A reference page lists every name an entry point exports, with its signature and
 | `opack` | [Exports](/reference/opack) | [OPack](/protocols/encoding#opack) |
 | `tlv8` | [Exports](/reference/tlv8) | [TLV8](/protocols/encoding#tlv8) |
 
-`opack` and `tlv8` are standalone packages outside the `@corewire` scope. They hold the OPack and TLV8 codecs of `@corewire/core`, built from the same source, for projects that need the format without CoreWire.
+`opack` and `tlv8` are standalone packages outside the `@corewire` scope. They hold the OPack and TLV8 codecs, without dependencies. `@corewire/core` depends on them and re-exports them as `OPack` and `TLV8`. On their own, they serve projects that need the format without CoreWire.
 
 Signatures leave out `readonly` and private members. Optional parameters show their default where there is one.

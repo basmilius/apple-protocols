@@ -36,16 +36,16 @@ export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
 
     switch (spec.kind) {
         case 'url':
-            return plain(await UrlSource.fromUrl(demand(spec.url, 'url')), `Url ${spec.url}`);
+            return plain(await UrlSource.fromUrl(demand(spec.url, 'url')), `URL ${spec.url}`);
 
         case 'file':
             return plain(await FileSource.fromPath(demand(spec.path, 'path')), `File ${spec.path}`);
 
         case 'wav':
-            return plain(await decoded(spec, WavSource), `Wav ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, WavSource), `WAV ${describeOrigin(spec)}`);
 
         case 'mp3':
-            return plain(await decoded(spec, Mp3Source), `Mp3 ${describeOrigin(spec)}`);
+            return plain(await decoded(spec, Mp3Source), `MP3 ${describeOrigin(spec)}`);
 
         case 'ogg':
             return plain(await decoded(spec, OggSource), `Ogg ${describeOrigin(spec)}`);
@@ -53,14 +53,14 @@ export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
         case 'pcm': {
             const buffer = await readFile(demand(spec.path, 'path'));
 
-            return plain(new PcmSource(buffer, {sampleRate: spec.sampleRate ?? SAMPLE_RATE}), `Pcm ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
+            return plain(new PcmSource(buffer, {sampleRate: spec.sampleRate ?? SAMPLE_RATE}), `PCM ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
         }
 
         case 'sineWave':
-            return plain(new SineWaveSource({duration: spec.duration, frequency: spec.frequency}), `SineWave ${spec.frequency} Hz for ${spec.duration}s`);
+            return plain(new SineWaveSource({duration: spec.duration, frequency: spec.frequency}), `Sine wave ${spec.frequency} Hz for ${spec.duration}s`);
 
         case 'ffmpeg':
-            return plain(new FfmpegSource({path: demand(spec.path, 'path'), duration: spec.duration}), `Ffmpeg ${spec.path}`);
+            return plain(new FfmpegSource({path: demand(spec.path, 'path'), duration: spec.duration}), `FFmpeg ${spec.path}`);
 
         case 'live':
             return live(spec);

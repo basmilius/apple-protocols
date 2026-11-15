@@ -123,7 +123,7 @@ export function registerRaopChannels(context: ChannelContext): void {
             if (generation !== state.generation) {
                 await client.close();
 
-                throw new Error('RAOP connect cancelled.');
+                throw new Error('RAOP connect canceled.');
             }
 
             client.on('playing', info => {
@@ -193,7 +193,7 @@ export function registerRaopChannels(context: ChannelContext): void {
         push(request.deviceId);
 
         const metadata = {
-            title: request.metadata?.title ?? 'Apple Protocols Diagnostics',
+            title: request.metadata?.title ?? 'CoreWire Diagnostics',
             artist: request.metadata?.artist ?? '',
             album: request.metadata?.album ?? '',
             duration: request.metadata?.duration ?? 0

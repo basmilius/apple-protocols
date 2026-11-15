@@ -76,7 +76,7 @@ class PairingAttempt {
     async submit(pin: string): Promise<AccessoryCredentials> {
         if (this.protocol === 'airplay') {
             if (this.#airplay === null) {
-                throw new Error('Pairing has not been started.');
+                throw new Error('AirPlay pairing has not been started.');
             }
 
             const credentials = await this.#airplay.pin(pin);

@@ -118,7 +118,7 @@ export class DeviceSession {
             await previous.disconnect().catch(() => undefined);
 
             if (generation !== this.#generation) {
-                throw new Error('Device connect cancelled.');
+                throw new Error('Device connect canceled.');
             }
         }
 
@@ -149,7 +149,7 @@ export class DeviceSession {
             await device.connect();
 
             if (generation !== this.#generation || this.#device !== device) {
-                throw new Error('Device connect cancelled.');
+                throw new Error('Device connect canceled.');
             }
         } catch (error) {
             void device.disconnect().catch(() => undefined);

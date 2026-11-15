@@ -189,7 +189,7 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
     dataStream('playbackSessionMigrateEnd', 'playbackSessionMigrateEnd', 'Playback', 'Closes a playback session migration. Nothing in the SDK calls it.', [], () => Messages.playbackSessionMigrateEnd()),
     dataStream('getVolume', 'getVolume', 'Volume', 'Reads the volume of one output device.', [string('outputDeviceUID', 'Output device UID')], args => Messages.getVolume(asString(args, 'outputDeviceUID'))),
     dataStream('getVolumeMuted', 'getVolumeMuted', 'Volume', 'Reads the mute state of one output device. Nothing in the SDK calls it.', [string('outputDeviceUID', 'Output device UID')], args => Messages.getVolumeMuted(asString(args, 'outputDeviceUID'))),
-    dataStream('setVolume', 'setVolume', 'Volume', 'Sets the volume of one output device, 0 to 1.', [string('outputDeviceUID', 'Output device UID'), number('volume', 'Volume (0-1)', 0.3)], args => Messages.setVolume(asString(args, 'outputDeviceUID'), asNumber(args, 'volume'))),
+    dataStream('setVolume', 'setVolume', 'Volume', 'Sets the volume of one output device, 0 to 1.', [string('outputDeviceUID', 'Output device UID'), number('volume', 'Volume (0 to 1)', 0.3)], args => Messages.setVolume(asString(args, 'outputDeviceUID'), asNumber(args, 'volume'))),
     dataStream('setVolumeMuted', 'setVolumeMuted', 'Volume', 'Mutes or unmutes one output device.', [string('outputDeviceUID', 'Output device UID'), boolean('isMuted', 'Muted', true)], args => Messages.setVolumeMuted(asString(args, 'outputDeviceUID'), asBoolean(args, 'isMuted'))),
     dataStream('adjustVolume', 'adjustVolume', 'Volume', 'Steps the volume up or down.', [choice('adjustment', 'Adjustment', Proto.AdjustVolumeMessage_Adjustment, Proto.AdjustVolumeMessage_Adjustment.IncrementSmall), string('outputDeviceUID', 'Output device UID')], args =>
         Messages.adjustVolume(asNumber(args, 'adjustment'), asString(args, 'outputDeviceUID'))
@@ -209,10 +209,10 @@ const DATA_STREAM_ENTRIES: readonly RawEntry[] = [
     dataStream('registerHIDDevice', 'registerHIDDevice', 'Input', 'Claims a virtual touch device and answers with the identifier a touch event has to carry.', [number('screenWidth', 'Screen width', 1000), number('screenHeight', 'Screen height', 1000), boolean('absolute', 'Absolute', true), boolean('integratedDisplay', 'Integrated display', false)], args =>
         Messages.registerHIDDevice(asNumber(args, 'screenWidth', 1000), asNumber(args, 'screenHeight', 1000), asBoolean(args, 'absolute'), asBoolean(args, 'integratedDisplay'))
     ),
-    dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1), number('deviceId', 'Device id', 1)], args =>
+    dataStream('sendVirtualTouchEvent', 'sendVirtualTouchEvent', 'Input', 'A virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('finger', 'Finger', 1), number('deviceId', 'Device ID', 1)], args =>
         Messages.sendVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'finger', 1), asNumber(args, 'deviceId', 1))
     ),
-    dataStream('sendPackedVirtualTouchEvent', 'sendPackedVirtualTouchEvent', 'Input', 'The packed form of a virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('deviceId', 'Device id', 1), number('finger', 'Finger', 1)], args =>
+    dataStream('sendPackedVirtualTouchEvent', 'sendPackedVirtualTouchEvent', 'Input', 'The packed form of a virtual trackpad touch.', [number('x', 'X', 0), number('y', 'Y', 0), number('phase', 'Phase', 1), number('deviceId', 'Device ID', 1), number('finger', 'Finger', 1)], args =>
         Messages.sendPackedVirtualTouchEvent(asNumber(args, 'x'), asNumber(args, 'y'), asNumber(args, 'phase', 1), asNumber(args, 'deviceId', 1), asNumber(args, 'finger', 1))
     ),
     dataStream('wakeDevice', 'wakeDevice', 'Power', 'Wakes the device over the data stream.', [], () => Messages.wakeDevice())

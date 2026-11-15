@@ -186,7 +186,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
     {
         id: 'hkdf.derive',
         title: 'Derive a key with HKDF',
-        description: 'The presets carry the salt and info strings this stack derives with; pick Custom to type your own.',
+        description: 'The presets hold the salt and info strings CoreWire derives with. Pick Custom to enter your own.',
         category: 'encryption',
         section: 'HKDF',
         inputs: [

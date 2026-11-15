@@ -29,17 +29,17 @@ export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
         const srcIndex = Math.floor(srcPos);
         const srcFrac = srcPos - srcIndex;
 
-        for (let ch = 0; ch < AUDIO_CHANNELS; ch++) {
-            const inputCh = Math.min(ch, inputChannels - 1);
+        for (let channel = 0; channel < AUDIO_CHANNELS; channel++) {
+            const inputChannel = Math.min(channel, inputChannels - 1);
 
-            const sample1 = readSample(input, srcIndex, inputCh, inputFrameSize, bytesPerSample, inputBitsPerSample, inputEndian);
+            const sample1 = readSample(input, srcIndex, inputChannel, inputFrameSize, bytesPerSample, inputBitsPerSample, inputEndian);
             const sample2 = srcIndex + 1 < inputFrames
-                ? readSample(input, srcIndex + 1, inputCh, inputFrameSize, bytesPerSample, inputBitsPerSample, inputEndian)
+                ? readSample(input, srcIndex + 1, inputChannel, inputFrameSize, bytesPerSample, inputBitsPerSample, inputEndian)
                 : sample1;
 
             const sample = sample1 + (sample2 - sample1) * srcFrac;
 
-            const outputOffset = (i * AUDIO_CHANNELS + ch) * AUDIO_BYTES_PER_CHANNEL;
+            const outputOffset = (i * AUDIO_CHANNELS + channel) * AUDIO_BYTES_PER_CHANNEL;
             output.writeInt16BE(Math.round(Math.max(-32768, Math.min(32767, sample))), outputOffset);
         }
     }
@@ -50,13 +50,15 @@ export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
 /**
  * Reads one sample of 8, 16, 24 or 32 bits, in either byte order.
  *
- * @param frameSize - In bytes, all channels together.
+ * @param frameSize - The size of one frame in bytes, all channels together.
  * @returns The sample scaled to the signed 16-bit range; 0 past the end or for another bit depth.
  */
 function readSample(buffer: Buffer, frame: number, channel: number, frameSize: number, bytesPerSample: number, bitsPerSample: number, endian: 'little' | 'big'): number {
     const offset = frame * frameSize + channel * bytesPerSample;
 
-    if (offset + bytesPerSample > buffer.length) return 0;
+    if (offset + bytesPerSample > buffer.length) {
+        return 0;
+    }
 
     if (bitsPerSample === 16) {
         return endian === 'little'
@@ -99,10 +101,10 @@ function readSample(buffer: Buffer, frame: number, channel: number, frameSize: n
 type ConvertPcmOptions = {
     readonly inputChannels: number;
 
-    /** In Hz. */
+    /** The sample rate in Hz. */
     readonly inputSampleRate: number;
 
-    /** 8, 16, 24 or 32. */
+    /** The bit depth: 8, 16, 24 or 32. */
     readonly inputBitsPerSample: number;
 
     readonly inputEndian: 'little' | 'big';

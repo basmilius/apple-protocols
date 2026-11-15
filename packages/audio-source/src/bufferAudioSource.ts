@@ -3,24 +3,26 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS } from './const';
 
 /** PCM-buffer source with shared reading and lifecycle methods. Subclasses supply the buffer, duration and optional frame size. */
 export abstract class BufferAudioSource implements AudioSource {
-    /** Length of the audio in seconds. */
+    /** The length of the audio in seconds. */
     readonly duration: number;
 
-    /** Signed 16-bit big-endian PCM. */
+    /** The decoded audio as signed 16-bit big-endian PCM. */
     readonly #buffer: Buffer;
 
-    /** Bytes per frame. */
+    /** The size of one frame in bytes. */
     readonly #frameSize: number;
 
     #offset: number = 0;
 
     /**
-     * @param buffer - Decoded PCM.
-     * @param duration - In seconds.
-     * @param frameSize - Bytes per frame; {@link AUDIO_CHANNELS} × {@link AUDIO_BYTES_PER_CHANNEL} when omitted.
+     * @param buffer - The decoded audio as PCM.
+     * @param duration - The length of the audio in seconds.
+     * @param frameSize - The size of one frame in bytes; {@link AUDIO_CHANNELS} × {@link AUDIO_BYTES_PER_CHANNEL} when omitted.
      */
     constructor(buffer: Buffer, duration: number, frameSize: number = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) {
-        if (!Number.isSafeInteger(frameSize) || frameSize <= 0 || buffer.length % frameSize !== 0 || !Number.isFinite(duration) || duration < 0) throw new RangeError('Invalid PCM buffer format or duration.');
+        if (!Number.isSafeInteger(frameSize) || frameSize <= 0 || buffer.length % frameSize !== 0 || !Number.isFinite(duration) || duration < 0) {
+            throw new RangeError('Invalid PCM buffer format or duration.');
+        }
 
         this.#buffer = buffer;
         this.#frameSize = frameSize;
@@ -29,7 +31,9 @@ export abstract class BufferAudioSource implements AudioSource {
 
     /** Reads up to `count` frames; null at the end of the buffer. */
     async readFrames(count: number): Promise<Buffer | null> {
-        if (!Number.isSafeInteger(count) || count <= 0) throw new RangeError('Frame count must be a positive integer.');
+        if (!Number.isSafeInteger(count) || count <= 0) {
+            throw new RangeError('Frame count must be a positive integer.');
+        }
 
         if (this.#offset >= this.#buffer.length) {
             return null;

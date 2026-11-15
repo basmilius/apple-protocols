@@ -17,12 +17,12 @@ export async function decodeDirect(buffer: Buffer): Promise<Buffer> {
     const tempBuffer = Buffer.alloc(numFrames * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL);
 
     for (let i = 0; i < numFrames; i++) {
-        for (let ch = 0; ch < AUDIO_CHANNELS; ch++) {
-            const inputCh = Math.min(ch, numChannels - 1);
-            const channelData = audioBuffer.getChannelData(inputCh);
+        for (let channel = 0; channel < AUDIO_CHANNELS; channel++) {
+            const inputChannel = Math.min(channel, numChannels - 1);
+            const channelData = audioBuffer.getChannelData(inputChannel);
             const sample = Math.round(channelData[i] * 32767);
             const clampedSample = Math.max(-32768, Math.min(32767, sample));
-            tempBuffer.writeInt16BE(clampedSample, (i * AUDIO_CHANNELS + ch) * AUDIO_BYTES_PER_CHANNEL);
+            tempBuffer.writeInt16BE(clampedSample, (i * AUDIO_CHANNELS + channel) * AUDIO_BYTES_PER_CHANNEL);
         }
     }
 

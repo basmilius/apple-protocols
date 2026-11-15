@@ -1,7 +1,7 @@
 import type { AudioSource } from '@corewire/airplay';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 
-/** In seconds of audio. */
+/** The default capacity of the ring buffer, in seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;
 
 export type LiveSourceOptions = {
@@ -11,15 +11,15 @@ export type LiveSourceOptions = {
 
 /** Live PCM ring buffer. Drops the oldest data when producers outpace the consumer. */
 export class LiveSource implements AudioSource {
-    /** Always Infinity. */
+    /** A live source has no end, so its duration is Infinity. */
     readonly duration: number = Infinity;
 
-    /** Bytes per frame. */
+    /** The size of one frame in bytes. */
     readonly #frameSize: number;
 
     readonly #buffer: Buffer;
 
-    /** In bytes. */
+    /** The size of the ring buffer in bytes. */
     readonly #capacity: number;
 
     #readPos: number = 0;
@@ -31,7 +31,7 @@ export class LiveSource implements AudioSource {
     /** Resolves the one consumer that waits for data. */
     #pendingResolve: ((value: Buffer | null) => void) | null = null;
 
-    /** Bytes the waiting consumer asked for. */
+    /** The number of bytes the waiting consumer asked for. */
     #pendingBytes: number = 0;
 
     constructor(options: LiveSourceOptions = {}) {
@@ -46,12 +46,12 @@ export class LiveSource implements AudioSource {
         this.#buffer = Buffer.alloc(this.#capacity);
     }
 
-    /** Bytes ready to read. */
+    /** The number of bytes ready to read. */
     get available(): number {
         return this.#available;
     }
 
-    /** In bytes. */
+    /** The size of the ring buffer in bytes. */
     get capacity(): number {
         return this.#capacity;
     }
@@ -108,17 +108,19 @@ export class LiveSource implements AudioSource {
     end(): void {
         this.#ended = true;
 
-        if (this.#pendingResolve) {
-            if (this.#available > 0) {
-                const bytes = Math.min(this.#pendingBytes, this.#available);
-                this.#pendingResolve(this.#read(bytes));
-            } else {
-                this.#pendingResolve(null);
-            }
-
-            this.#pendingResolve = null;
-            this.#pendingBytes = 0;
+        if (!this.#pendingResolve) {
+            return;
         }
+
+        if (this.#available > 0) {
+            const bytes = Math.min(this.#pendingBytes, this.#available);
+            this.#pendingResolve(this.#read(bytes));
+        } else {
+            this.#pendingResolve(null);
+        }
+
+        this.#pendingResolve = null;
+        this.#pendingBytes = 0;
     }
 
     /**

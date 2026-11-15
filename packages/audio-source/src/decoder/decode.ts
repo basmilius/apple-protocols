@@ -58,7 +58,11 @@ function createSlot(): Slot {
         slot.closed = true;
         clearTimeout(slot.idleTimer);
         const index = idle.indexOf(slot);
-        if (index >= 0) idle.splice(index, 1);
+
+        if (index >= 0) {
+            idle.splice(index, 1);
+        }
+
         slot.finish?.(new PlaybackError(`Audio decoder exited before replying (${code}).`));
     });
 
@@ -108,7 +112,10 @@ function decodeInWorker(buffer: Buffer, options: {signal?: AbortSignal}): Promis
             let settled = false;
 
             const finish = (error?: Error, result?: Buffer): void => {
-                if (settled) return;
+                if (settled) {
+                    return;
+                }
+
                 settled = true;
                 clearTimeout(timer);
                 options.signal?.removeEventListener('abort', abort);
@@ -127,7 +134,11 @@ function decodeInWorker(buffer: Buffer, options: {signal?: AbortSignal}): Promis
 
                         slot.idleTimer = setTimeout(() => {
                             const index = idle.indexOf(slot);
-                            if (index >= 0) idle.splice(index, 1);
+
+                            if (index >= 0) {
+                                idle.splice(index, 1);
+                            }
+
                             slot.closed = true;
                             void slot.worker.terminate();
                         }, 10000);
@@ -141,7 +152,11 @@ function decodeInWorker(buffer: Buffer, options: {signal?: AbortSignal}): Promis
                     pending.shift()?.();
                 });
 
-                error ? reject(error) : resolve(result!);
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(result!);
+                }
             };
 
             const abort = (): void => finish(new PlaybackError('Audio decode cancelled.'));
@@ -171,7 +186,11 @@ function decodeInWorker(buffer: Buffer, options: {signal?: AbortSignal}): Promis
             }
         };
 
-        if (active < 2) run();
-        else {pending.push(run); options.signal?.addEventListener('abort', cancelPending, {once: true});}
+        if (active < 2) {
+            run();
+        } else {
+            pending.push(run);
+            options.signal?.addEventListener('abort', cancelPending, {once: true});
+        }
     });
 }

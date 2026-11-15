@@ -6,7 +6,7 @@ export type SineWaveSourceOptions = {
     /** Length of the tone in seconds. */
     readonly duration: number;
 
-    /** In Hz; 440 (A4) when omitted. */
+    /** The frequency of the tone in Hz; 440 (A4) when omitted. */
     readonly frequency?: number;
 
     /** Rate the tone is generated at before it is resampled to 44100 Hz; 44100 when omitted. */
@@ -61,8 +61,8 @@ export class SineWaveSource extends BufferAudioSource {
 
             const value = Math.round(sample * envelope * 0x7FFF);
 
-            for (let ch = 0; ch < channels; ch++) {
-                const offset = (i * channels + ch) * bytesPerChannel;
+            for (let channel = 0; channel < channels; channel++) {
+                const offset = (i * channels + channel) * bytesPerChannel;
                 buffer.writeInt16BE(value, offset);
             }
         }

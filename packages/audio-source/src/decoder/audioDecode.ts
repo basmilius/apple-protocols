@@ -11,7 +11,9 @@ const AudioBuffer = globalThis.AudioBuffer || AudioBufferShim;
  * @throws Error for invalid input, unknown formats or missing decoders.
  */
 export async function audioDecode(buf: any): Promise<any> {
-    if (!buf || !buf.byteLength) throw Error('Bad decode target');
+    if (!buf || !buf.byteLength) {
+        throw Error('Bad decode target');
+    }
 
     // audio-type and node-wav assume that the backing buffer starts at byte zero.
     buf = ArrayBuffer.isView(buf)
@@ -20,9 +22,13 @@ export async function audioDecode(buf: any): Promise<any> {
 
     let type = getType(buf);
 
-    if (!type) throw Error('Cannot detect audio format');
+    if (!type) {
+        throw Error('Cannot detect audio format');
+    }
 
-    if (!decoders[type]) throw Error('Missing decoder for ' + type + ' format');
+    if (!decoders[type]) {
+        throw Error('Missing decoder for ' + type + ' format');
+    }
 
     return decoders[type](buf);
 };
@@ -38,7 +44,9 @@ export const decoders: Record<string, any> = {
         if (!decoder) {
             let {OggVorbisDecoder} = await import('@wasm-audio-decoders/ogg-vorbis');
             await (decoders.oga.decoder = decoder = new OggVorbisDecoder()).ready;
-        } else await decoder.reset();
+        } else {
+            await decoder.reset();
+        }
 
         return buf && createBuffer(await decoder.decodeFile(buf));
     },
@@ -49,7 +57,9 @@ export const decoders: Record<string, any> = {
         if (!decoder) {
             const {MPEGDecoder} = await import('mpg123-decoder');
             await (decoders.mp3.decoder = decoder = new MPEGDecoder()).ready;
-        } else await decoder.reset();
+        } else {
+            await decoder.reset();
+        }
 
         return buf && createBuffer(await decoder.decode(buf));
     },
@@ -60,7 +70,9 @@ export const decoders: Record<string, any> = {
         if (!decoder) {
             const {FLACDecoder} = await import('@wasm-audio-decoders/flac');
             await (decoders.flac.decoder = decoder = new FLACDecoder()).ready;
-        } else await decoder.reset();
+        } else {
+            await decoder.reset();
+        }
 
         return buf && createBuffer(await decoder.decodeFile(buf));
     },
@@ -154,15 +166,15 @@ function decodeWavExtensible(buf) {
     const numFrames = Math.floor(dataBuffer.byteLength / (numChannels * bytesPerSample));
     const channelData = [];
 
-    for (let ch = 0; ch < numChannels; ch++) {
+    for (let channel = 0; channel < numChannels; channel++) {
         channelData.push(new Float32Array(numFrames));
     }
 
     const dataView = new DataView(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.byteLength);
 
     for (let i = 0; i < numFrames; i++) {
-        for (let ch = 0; ch < numChannels; ch++) {
-            const byteOffset = (i * numChannels + ch) * bytesPerSample;
+        for (let channel = 0; channel < numChannels; channel++) {
+            const byteOffset = (i * numChannels + channel) * bytesPerSample;
             let sample;
 
             if (isFloat && bytesPerSample === 4) {
@@ -174,10 +186,10 @@ function decodeWavExtensible(buf) {
             } else if (bytesPerSample === 2) {
                 sample = dataView.getInt16(byteOffset, true) / 32768;
             } else if (bytesPerSample === 3) {
-                const b0 = dataBuffer[byteOffset];
-                const b1 = dataBuffer[byteOffset + 1];
-                const b2 = dataBuffer[byteOffset + 2];
-                const value = (b2 << 16) | (b1 << 8) | b0;
+                const low = dataBuffer[byteOffset];
+                const middle = dataBuffer[byteOffset + 1];
+                const high = dataBuffer[byteOffset + 2];
+                const value = (high << 16) | (middle << 8) | low;
 
                 sample = (value > 0x7FFFFF ? value - 0x1000000 : value) / 8388608;
             } else if (bytesPerSample === 4) {
@@ -193,7 +205,7 @@ function decodeWavExtensible(buf) {
                 sample = 0;
             }
 
-            channelData[ch][i] = Math.max(-1, Math.min(1, sample));
+            channelData[channel][i] = Math.max(-1, Math.min(1, sample));
         }
     }
 
@@ -208,8 +220,8 @@ function createBuffer({channelData, sampleRate}) {
         numberOfChannels: channelData.length
     });
 
-    for (let ch = 0; ch < channelData.length; ch++) {
-        audioBuffer.getChannelData(ch).set(channelData[ch]);
+    for (let channel = 0; channel < channelData.length; channel++) {
+        audioBuffer.getChannelData(channel).set(channelData[channel]);
     }
 
     return audioBuffer;

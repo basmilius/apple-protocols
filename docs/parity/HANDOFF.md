@@ -1,11 +1,11 @@
 # Handoff: the CoreWire rebuild
 
-State on 2026-11-15, branch `refactor/corewire` (not pushed). Round 2 (the API cleanup before the first release) is in; see "Round 2" below. `main` equals `origin/main` (`5286829`), the version that runs in production in the Homey app on about 19,000 hubs. The requirement for the whole rebuild: no regression for the Homey app after it migrates.
+State on 2026-11-15, branch `refactor/corewire` (not pushed). Round 2 (the API cleanup before the first release) is in, see "Round 2" below. `main` equals `origin/main` (`5286829`), the version that runs in production in the Homey app on about 19,000 hubs. The requirement for the whole rebuild: no regression for the Homey app after it migrates.
 
 ## Read first
 
 1. `docs/reports/package-structure.tsx`: the approved design (Dutch). Packages, what `core` may contain, how a protocol works, how code is wired, what `devices` does and does not do.
-2. `docs/parity/behavior-inventory.md`: 311 items of production behavior with ids. This is the checklist every rewrite is audited against.
+2. `docs/parity/behavior-inventory.md`: 311 items of production behavior with ids. The audit of every rewrite checks against this list.
 3. `CLAUDE.md`: the packages, patterns, protocol pitfalls and the diagnostics agent loop of the new structure.
 4. `docs/parity/devices-api.md`: the `@corewire/devices` API as built; section 0 lists where it differs from the design.
 
@@ -13,9 +13,9 @@ State on 2026-11-15, branch `refactor/corewire` (not pushed). Round 2 (the API c
 
 - Scope `@corewire`. One package per protocol on one shared core: `core`, `airplay` (with `/mrp`, `/raop`, `/rtsp`), `companion-link`, `devices` (the former sdk), `audio-source`, private `diagnostics`. HomeKit comes later as `@corewire/homekit`; nothing is built for it now.
 - A format that stands on its own lives in `core/encoding` even with one consumer (DAAP, NTP timestamps, RTI). Protocol behavior never lives in core. The timing servers stay in `airplay`.
-- The existing code is not sacred: restructure and rewrite where the design is better served. Bytes on the wire and behavior toward devices and consumers are.
+- Restructure and rewrite existing code where that serves the design. Bytes on the wire and behavior toward devices and consumers stay as they are.
 - The proxy becomes part of diagnostics. `packages/proxy` disappears.
-- Sub-agents (Opus) do the work, the orchestrating chat decides. Each step is committed on the branch in English conventional commits with the behavior changes in the body. Never push, amend or rewrite commits.
+- Sub-agents (Opus) do the work, the orchestrating chat decides. Each step lands on the branch as English conventional commits with the behavior changes in the body. Never push, amend or rewrite commits.
 - No references to other implementations, projects or external sites in code comments or docs. Keep the fact and the reason, drop the attribution.
 - The repository keeps its name for now. The brand is CoreWire (capital C and W) in prose, titles, the website, READMEs, UI strings and default names; package names, import paths, the domain `corewire.dev` and identifiers stay lowercase.
 - The website is hosted on Cloudflare Workers with static assets, at corewire.dev.
@@ -35,13 +35,13 @@ State on 2026-11-15, branch `refactor/corewire` (not pushed). Round 2 (the API c
 | `990df3c` | Remaining step 2: diagnostics on the public APIs, with the proxy and storage inside |
 | `6dedef5` | Remaining step 3: CI and release workflow for the five `@corewire` packages, README, CLAUDE.md, report updated where the build deviated |
 
-After every step the outgoing traffic was compared with the baseline on real devices and matched: connect (Apple TV with credentials, HomePod with transient pairing), remote keys, lists, power state, volume, playback queue, pause/play, URL playback, audio streaming, power off/on, app launch. Simulated drops of the control, data and event stream each end the session at once.
+After every step the outgoing traffic on real devices matched the baseline for connect (Apple TV with credentials, HomePod with transient pairing), remote keys, lists, power state, volume, playback queue, pause/play, URL playback, audio streaming, power off/on, app launch. Simulated drops of the control, data and event stream each end the session at once.
 
-The public API of `@corewire/devices` was kept as it was through the protocol steps, so diagnostics kept working; remaining steps 1 and 2 then redesigned it and moved diagnostics onto it. Both were device-tested against the baseline the same way.
+The public API of `@corewire/devices` stayed unchanged through the protocol steps, so diagnostics kept working. Remaining steps 1 and 2 then redesigned it and moved diagnostics onto it. Both went through the same device test against the baseline.
 
 ## Round 2: the API cleanup before the first release
 
-Two read-only reviews produced a list of findings. `audit.md` ("Round 2") has sections A to C with their status; the Homey items (D) belong to the app. The library and diagnostics part is done in these commits on top of `8cb6815`:
+Two read-only reviews produced a list of findings. `audit.md` ("Round 2") has sections A to C with their status. The Homey items (D) belong to the app. These commits finish the library and diagnostics part, on top of `8cb6815`:
 
 | Commit | Area |
 | --- | --- |
@@ -103,13 +103,13 @@ Design: report sections "Wat @corewire/devices wel en niet doet", "Hoe de code a
 - Update the report where the build deviated from it (codecs DAAP/NTP/RTI stay in core; `timing/` sits at the top level of airplay; MRP has one state model instead of a separate `nowPlaying`).
 
 ### 4. Independent audit
-An agent that wrote none of the rebuild checks every item of `behavior-inventory.md` against the new code and reports kept/changed/dropped with file references. Sections 5 (fix history) and 7 (Homey) of the inventory were compiled by helper agents and their line numbers were not all verified; the audit should re-check them against the baseline.
+An agent that wrote none of the rebuild checks every item of `behavior-inventory.md` against the new code and reports kept/changed/dropped with file references. Helper agents compiled sections 5 (fix history) and 7 (Homey) of the inventory without verifying every line number. The audit re-checks them against the baseline.
 
 ### 5. Migrate the Homey app
 `~/Development/Projects/homey/com.basmilius.apple`, in a worktree. It imports only `@corewire/devices` and `@corewire/audio-source`. The table in the report section "Wat er uit de Homey-app verdwijnt" lists what goes. Validate with the app's own build (`bun run build`, `homey app build`) and a soak test on Bas's devices; release to the Homey test channel first. The old `@basmilius/apple-*` packages stay on npm, so rolling back is a version pin.
 
 ### 6. Publishing
-Bas wants npm trusted publishing for `@corewire`: publish a placeholder version of each package first, then link GitHub with `npm trust`, then let the release workflow publish. Do this with him; it uses his npm account. After that, deprecate the nine `@basmilius/apple-*` packages with a pointer to `@corewire`.
+Bas wants npm trusted publishing for `@corewire`: publish a placeholder version of each package first, then link GitHub with `npm trust`, then let the release workflow publish. Do this with him, because it uses his npm account. After that, deprecate the nine `@basmilius/apple-*` packages with a pointer to `@corewire`.
 
 ## House rules for agents
 

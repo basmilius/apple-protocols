@@ -38,4 +38,4 @@ It inherits `connect()`, `disconnect()`, `destroy()`, `write()` and the events o
 | `BuildResponseOptions` | `{status: number; statusText: string; headers?: Record<string, string \| number>; body?: Buffer; protocol?: 'RTSP/1.0' \| 'HTTP/1.1'}` |
 | `ExchangeOptions` | `{contentType?: string; headers?: Record<string, string>; body?: Buffer \| string \| Record<string, unknown>; allowError?: boolean; protocol?: 'RTSP/1.0' \| 'HTTP/1.1'; timeout?: number}` |
 
-Header names in an `RtspRequest` are normalized: `content-length` becomes `Content-Length`, and `cseq` becomes `CSeq`.
+The parser normalizes header names in an `RtspRequest`, so `content-length` becomes `Content-Length` and `cseq` becomes `CSeq`.

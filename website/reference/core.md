@@ -10,7 +10,7 @@ import { AppleProtocolError, Logger, reporter } from '@corewire/core';
 
 ### Errors
 
-Every class takes a `message: string`; the connection errors have a default message.
+Every class takes a `message: string`. The connection errors have a default message.
 
 | Export | Extends |
 | --- | --- |

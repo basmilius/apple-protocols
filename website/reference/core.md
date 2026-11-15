@@ -86,8 +86,8 @@ The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, 
 
 | Export | Description |
 | --- | --- |
-| `TLV8` | `encode(entries)`, `decode(buffer)`, `bail(data)` (throws `TLV8PairingError` from the main entry), `Value`, `State`, `Method`, `Flags`, `ErrorCode` |
-| `OPack` | `encode(data)`, `decode(data)`, `int(value)`, `float(value)`, `sizedInteger(value, size)` |
+| `TLV8` | `encode(entries)`, `decode(buffer): Map<number, Buffer>` (one value per type, the first run wins), `decodeEntries(buffer): [number, Buffer][]` (every entry in order, adjacent fragments joined), `bail(data)` (throws `TLV8PairingError` from the main entry), `Value`, `State`, `Method`, `Flags`, `ErrorCode` |
+| `OPack` | `encode(data)`, `decode(data)`, `int(value: number \| bigint)`, `float(value)`, `sizedInteger(value: number \| bigint, size)` with a size of 1, 2, 4, 8 or 16 bytes. Integers are signed; a sized integer outside the safe number range holds a `bigint`. Dates encode and decode as `Date`. `encode` throws a `TypeError` beyond 32 nested containers and `decode` throws a `TypeError` on a truncated buffer, a bad reference, deeper nesting or an unsupported tag |
 | `Plist` | `serialize(value)`, `parse(buffer)`, types `PlistValue`, `PlistDictionary` |
 | `DAAP` | `encodeTag()`, `encodeContainer()`, `encodeTagWithSize()`, `encodePlaybackStatus()`, `encodeTrackMetadata()`, `decode()`, `decodeTag()`, `decodeToObject()`, `decodeTrackMetadata()`, `ContentCode`, `TagType` and their types |
 | `NTP` | `now(): bigint`, `parts(ntp: bigint): [number, number]`, `encode(fields)`, `decode(buffer)`, type `PacketFields` |

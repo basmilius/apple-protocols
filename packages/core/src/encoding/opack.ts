@@ -1,8 +1,5 @@
-/** An OPack value packed into its bytes. */
-type Packed = Uint8Array;
-
-/** The values packed so far, indexed by a hash of their bytes, that later values refer back to. */
-type ObjectList = {values: Packed[]; index: Map<number, number[]>};
+/** The values written in full so far, indexed by a hash of their bytes, that later values refer back to. */
+type ObjectList = {values: Uint8Array[]; index: Map<number, number[]>};
 
 /** A value unpacked from an OPack buffer. */
 type UnpackResult = {
@@ -10,6 +7,14 @@ type UnpackResult = {
 
     /** The offset of the first byte after this value. */
     readonly offset: number;
+};
+
+/** A value packed into its bytes. */
+type PackResult = {
+    readonly packed: Uint8Array;
+
+    /** Whether the value joins the object list, so a repeat of it becomes a reference. */
+    readonly shareable: boolean;
 };
 
 /**
@@ -22,38 +27,48 @@ const TAG = {
     TERMINATOR: 0x03,
     NULL: 0x04,
     UUID: 0x05,
-    TIMESTAMP: 0x06,
+    DATE: 0x06,
     INT_BASE: 0x08,
-    INT_INLINE_MAX_VALUE: 0x27,
-    INT_MAX_INLINE: 0x2F,
-    INT_1BYTE: 0x30,
-    INT_2BYTE: 0x31,
-    INT_4BYTE: 0x32,
-    INT_8BYTE: 0x33,
+    INT_INLINE_MIN: 0x07,
+    INT_INLINE_MAX: 0x2F,
+    INT_SIZED: 0x30,
+    INT_SIZED_MAX: 0x34,
     FLOAT32: 0x35,
     FLOAT64: 0x36,
     STR_BASE: 0x40,
     STR_MAX_INLINE: 0x60,
-    STR_1BYTE_LEN: 0x61,
-    STR_2BYTE_LEN: 0x62,
-    STR_3BYTE_LEN: 0x63,
-    STR_4BYTE_LEN: 0x64,
+    STR_SIZED: 0x61,
+    STR_SIZED_MAX: 0x64,
+    STR_NUL_TERMINATED: 0x6F,
     BYTES_BASE: 0x70,
     BYTES_MAX_INLINE: 0x90,
-    BYTES_1BYTE_LEN: 0x91,
-    BYTES_2BYTE_LEN: 0x92,
-    BYTES_4BYTE_LEN: 0x93,
+    BYTES_SIZED: 0x91,
+    BYTES_SIZED_MAX: 0x94,
+    BYTES_CHUNKED: 0x9F,
     REF_BASE: 0xA0,
     REF_MAX_INLINE: 0xC0,
-    REF_1BYTE: 0xC1,
-    REF_2BYTE: 0xC2,
-    REF_4BYTE: 0xC3,
-    REF_8BYTE: 0xC4,
+    REF_SIZED: 0xC1,
+    REF_SIZED_MAX: 0xC4,
     ARRAY_BASE: 0xD0,
     ARRAY_VARIABLE: 0xDF,
     DICT_BASE: 0xE0,
     DICT_VARIABLE: 0xEF
 } as const;
+
+/** The widths in bytes of the sized integers 0x30 to 0x34. */
+const INT_WIDTHS = [1, 2, 4, 8, 16];
+
+/** The widths in bytes of the length of the sized strings 0x61 to 0x64 and bytes 0x91 to 0x94. */
+const LENGTH_WIDTHS = [1, 2, 4, 8];
+
+/** The widths in bytes of the index of the sized references 0xC1 to 0xC4. */
+const REF_WIDTHS = [1, 2, 3, 4];
+
+/** The deepest a value may sit in nested arrays and dictionaries; devices reject anything deeper. */
+const MAX_DEPTH = 32;
+
+/** Dates travel as seconds since 2001-01-01 UTC; this is that moment in milliseconds since 1970. */
+const DATE_EPOCH_MS = 978307200000;
 
 const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
@@ -75,38 +90,39 @@ class Float {
 }
 
 /**
- * A number that OPack encodes as an integer.
+ * A number that OPack encodes as an integer in the smallest width that holds it.
  */
 class Integer {
-    get value(): number {
+    get value(): number | bigint {
         return this.#value;
     }
 
-    readonly #value: number;
+    readonly #value: number | bigint;
 
-    constructor(value: number) {
+    constructor(value: number | bigint) {
         this.#value = value;
     }
 }
 
 /**
- * An integer with a fixed width on the wire. The decoder returns one for every sized
+ * A signed integer with a fixed width on the wire. The decoder returns one for every sized
  * integer, so encoding it again writes the same width.
  */
 class SizedInteger {
-    /** The width of the integer on the wire in bytes: 1, 2, 4 or 8. */
+    /** The width of the integer on the wire in bytes: 1, 2, 4, 8 or 16. */
     get size(): number {
         return this.#size;
     }
 
-    get value(): number {
+    /** The value; a bigint when it lies outside the safe integer range of a number. */
+    get value(): number | bigint {
         return this.#value;
     }
 
     readonly #size: number;
-    readonly #value: number;
+    readonly #value: number | bigint;
 
-    constructor(value: number, size: number) {
+    constructor(value: number | bigint, size: number) {
         this.#size = size;
         this.#value = value;
     }
@@ -114,7 +130,7 @@ class SizedInteger {
     /**
      * Returns the value, so the integer works in arithmetic and comparisons.
      */
-    valueOf(): number {
+    valueOf(): number | bigint {
         return this.#value;
     }
 }
@@ -127,40 +143,64 @@ export function float(value: number): Float {
 }
 
 /**
- * Wraps a number so OPack encodes it as an integer.
+ * Wraps an integer so OPack encodes it as an integer in the smallest width that holds it.
+ *
+ * @throws RangeError if the value is not an integer.
  */
-export function int(value: number): Integer {
+export function int(value: number | bigint): Integer {
+    if (typeof value === 'number' && !Number.isInteger(value)) {
+        throw new RangeError(`OPack integer ${value} is not an integer`);
+    }
+
     return new Integer(value);
 }
 
 /**
  * Wraps an integer so OPack encodes it with a fixed width.
  *
- * @param size - The width in bytes: 1, 2, 4 or 8.
+ * @param size - The width in bytes: 1, 2, 4, 8 or 16. The value must fit as a signed integer.
+ * @throws RangeError if the width is not one of these or the value does not fit in it.
  */
-export function sizedInteger(value: number, size: number): SizedInteger {
+export function sizedInteger(value: number | bigint, size: number): SizedInteger {
+    if (!INT_WIDTHS.includes(size)) {
+        throw new RangeError(`OPack integer width ${size} is not 1, 2, 4, 8 or 16`);
+    }
+
+    if (typeof value === 'number' && !Number.isInteger(value)) {
+        throw new RangeError(`OPack integer ${value} is not an integer`);
+    }
+
+    if (!fitsSigned(BigInt(value), size)) {
+        throw new RangeError(`OPack integer ${value} does not fit in ${size} bytes`);
+    }
+
     return new SizedInteger(value, size);
 }
 
 /**
- * Decodes OPack bytes into a value. Sized integers come back as {@link sizedInteger} values
- * and byte strings as `Uint8Array`.
+ * Decodes OPack bytes into a value. Inline integers come back as numbers, sized integers as
+ * {@link sizedInteger} values, dates as `Date`, UUIDs and byte strings as `Uint8Array`.
+ *
+ * @throws TypeError if the buffer ends early, nests deeper than 32 containers, refers to a
+ * value that does not exist or holds a tag OPack does not define.
  */
 export function decode(data: Uint8Array): any {
-    const result = _unpackAt(data, 0, []);
+    const result = _unpackAt(data, 0, [], 0);
 
     return result.value;
 }
 
 /**
- * Encodes a value as OPack. It takes null, booleans, numbers, strings, bytes, arrays,
- * plain objects and the wrappers {@link float}, {@link int} and {@link sizedInteger}.
- * A repeated value becomes a reference to its first occurrence.
+ * Encodes a value as OPack. It takes null, booleans, numbers, bigints, strings, bytes, dates,
+ * arrays, plain objects and the wrappers {@link float}, {@link int} and {@link sizedInteger}.
+ * A repeated string, byte string of two bytes or more, number outside -1 to 39 or date becomes
+ * a reference to its first occurrence; arrays and objects are always written in full.
  *
- * @throws TypeError if the value has an unsupported type.
+ * @throws TypeError if the value has an unsupported type or nests deeper than 32 containers.
+ * @throws RangeError if an integer does not fit in 128 bits or a date is invalid.
  */
 export function encode(data: any): Uint8Array {
-    return _pack(data, {values: [], index: new Map()});
+    return _pack(data, {values: [], index: new Map()}, 0);
 }
 
 /**
@@ -182,19 +222,19 @@ function concat(arrays: Uint8Array[]): Uint8Array {
 /**
  * Returns a byte array that holds one byte.
  */
-function u8(byte: number) {
+function u8(byte: number): Uint8Array {
     return Uint8Array.of(byte);
 }
 
 /**
- * Writes an unsigned integer as `byteLen` little-endian bytes.
+ * Writes an integer as `byteLen` little-endian bytes, in two's complement when negative.
  */
-function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
+function intToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
     const out = new Uint8Array(byteLen);
     let remaining = BigInt(value);
 
     for (let i = 0; i < byteLen; i++) {
-        out[i] = Number(remaining & 0xffn);
+        out[i] = Number(remaining & 0xFFn);
         remaining >>= 8n;
     }
 
@@ -202,325 +242,345 @@ function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
 }
 
 /**
- * Reads a little-endian unsigned integer of `len` bytes.
- *
- * @throws Error if the integer runs past the end of the buffer.
+ * Whether a value fits in `size` bytes as a signed integer.
  */
-function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
-    if (offset + len > buf.length) {
-        throw new Error('OPack: buffer overflow in readLittleEndian');
-    }
+function fitsSigned(value: bigint, size: number): boolean {
+    const limit = 1n << BigInt(size * 8 - 1);
 
-    if (len === 1) {
-        return buf[offset];
-    }
+    return value >= -limit && value < limit;
+}
 
-    if (len === 2) {
-        return buf[offset] | (buf[offset + 1] << 8);
-    }
+/**
+ * Whether an integer has an inline tag (-1 to 39). Such integers never join the object list,
+ * also when they are written in a fixed width.
+ */
+function isInlineInteger(value: number | bigint): boolean {
+    return value >= -1 && value <= 39;
+}
 
-    if (len === 4) {
-        return (buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24)) >>> 0;
+/**
+ * Returns an integer as a number when that is exact, otherwise as a bigint.
+ */
+function toInteger(value: bigint): number | bigint {
+    return value >= BigInt(Number.MIN_SAFE_INTEGER) && value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : value;
+}
+
+/**
+ * Checks that `length` bytes from `offset` lie within the buffer.
+ *
+ * @throws TypeError if they run past the end.
+ */
+function ensureAvailable(data: Uint8Array, offset: number, length: number): void {
+    if (length < 0 || offset + length > data.length) {
+        throw new TypeError('Truncated OPack value');
     }
+}
+
+/**
+ * Whether the byte at `offset` ends a container or chunked byte string.
+ *
+ * @throws TypeError if the buffer ends before it.
+ */
+function isTerminator(data: Uint8Array, offset: number): boolean {
+    ensureAvailable(data, offset, 1);
+
+    return data[offset] === TAG.TERMINATOR;
+}
+
+/**
+ * Reads a little-endian unsigned length or index of `width` bytes.
+ *
+ * @throws TypeError if it runs past the end of the buffer or exceeds the safe integer range.
+ */
+function readUnsigned(data: Uint8Array, offset: number, width: number): number {
+    ensureAvailable(data, offset, width);
 
     let value = 0n;
 
-    for (let i = len - 1; i >= 0; i--) {
-        value = (value << 8n) | BigInt(buf[offset + i]);
+    for (let i = width - 1; i >= 0; i--) {
+        value = (value << 8n) | BigInt(data[offset + i]);
+    }
+
+    if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new TypeError('OPack length out of range');
     }
 
     return Number(value);
 }
 
 /**
- * Packs a value and its children. A value already in the object list becomes a
- * reference to it.
- *
- * @throws TypeError if the value has an unsupported type.
+ * Reads a little-endian signed integer of `width` bytes.
  */
-function _pack(data: any, objectList: ObjectList): Uint8Array {
-    let packed: Uint8Array | null = null;
+function readSigned(data: Uint8Array, offset: number, width: number): bigint {
+    ensureAvailable(data, offset, width);
 
+    let value = 0n;
+
+    for (let i = width - 1; i >= 0; i--) {
+        value = (value << 8n) | BigInt(data[offset + i]);
+    }
+
+    return BigInt.asIntN(width * 8, value);
+}
+
+/**
+ * Packs an integer in the smallest width that holds it.
+ *
+ * @throws RangeError if it does not fit in 128 bits.
+ */
+function packInteger(value: bigint): Uint8Array {
+    if (isInlineInteger(value)) {
+        return u8(TAG.INT_BASE + Number(value));
+    }
+
+    const size = INT_WIDTHS.find(width => fitsSigned(value, width));
+
+    if (size === undefined) {
+        throw new RangeError(`OPack integer ${value} does not fit in 128 bits`);
+    }
+
+    return packSizedInteger(value, size);
+}
+
+/**
+ * Packs an integer in a fixed width.
+ */
+function packSizedInteger(value: number | bigint, size: number): Uint8Array {
+    return concat([u8(TAG.INT_SIZED + INT_WIDTHS.indexOf(size)), intToLEBytes(value, size)]);
+}
+
+/**
+ * Packs a string or byte string: inline up to 32 bytes, otherwise with a length of 1, 2, 4 or
+ * 8 bytes after the first sized tag.
+ */
+function packWithLength(inlineBase: number, sizedBase: number, payload: Uint8Array): Uint8Array {
+    const length = payload.length;
+
+    if (length <= 0x20) {
+        return concat([u8(inlineBase + length), payload]);
+    }
+
+    const widthIndex = length <= 0xFF ? 0 : length <= 0xFFFF ? 1 : length <= 0xFFFFFFFF ? 2 : 3;
+    const width = LENGTH_WIDTHS[widthIndex];
+
+    return concat([u8(sizedBase + widthIndex), intToLEBytes(length, width), payload]);
+}
+
+/**
+ * Packs a reference to the value at `index` in the object list.
+ *
+ * @throws RangeError if the index does not fit in 4 bytes.
+ */
+function packReference(index: number): Uint8Array {
+    if (index <= TAG.REF_MAX_INLINE - TAG.REF_BASE) {
+        return u8(TAG.REF_BASE + index);
+    }
+
+    const widthIndex = REF_WIDTHS.findIndex(width => index < 2 ** (width * 8));
+
+    if (widthIndex < 0) {
+        throw new RangeError(`OPack reference index ${index} does not fit in 4 bytes`);
+    }
+
+    return concat([u8(TAG.REF_SIZED + widthIndex), intToLEBytes(index, REF_WIDTHS[widthIndex])]);
+}
+
+/**
+ * Packs the items of an array or the keys and values of a dictionary behind their tag. Up to
+ * 14 entries the tag holds the count, from 15 a terminator ends the list.
+ */
+function packContainer(base: number, variable: number, count: number, parts: Uint8Array[]): Uint8Array {
+    if (count < 0x0F) {
+        return concat([u8(base + count), ...parts]);
+    }
+
+    return concat([u8(variable), ...parts, u8(TAG.TERMINATOR)]);
+}
+
+/**
+ * Packs a value and its children, without looking at the object list for the value itself.
+ *
+ * @throws TypeError if the value has an unsupported type or nests too deep.
+ * @throws RangeError if an integer does not fit in 128 bits or a date is invalid.
+ */
+function _packValue(data: any, objectList: ObjectList, depth: number): PackResult {
     if (data === null || data === undefined) {
-        packed = u8(TAG.NULL);
-    } else if (typeof data === 'boolean') {
-        packed = u8(data ? TAG.TRUE : TAG.FALSE);
-    } else if (data instanceof Float) {
-        packed = new Uint8Array(9);
+        return {packed: u8(TAG.NULL), shareable: false};
+    }
+
+    if (typeof data === 'boolean') {
+        return {packed: u8(data ? TAG.TRUE : TAG.FALSE), shareable: false};
+    }
+
+    if (data instanceof Float || (typeof data === 'number' && !Number.isInteger(data))) {
+        const packed = new Uint8Array(9);
         packed[0] = TAG.FLOAT64;
-        new DataView(packed.buffer, packed.byteOffset + 1, 8).setFloat64(0, data.value, true);
-    } else if (data instanceof Integer) {
-        const val = data.value;
+        new DataView(packed.buffer).setFloat64(1, data instanceof Float ? data.value : data, true);
 
-        if (val <= TAG.INT_INLINE_MAX_VALUE) {
-            packed = u8(TAG.INT_BASE + val);
-        } else if (val <= 0x7F) {
-            packed = new Uint8Array(2);
-            packed[0] = TAG.INT_1BYTE;
-            packed[1] = val;
-        } else if (val <= 0x7FFF) {
-            packed = new Uint8Array(3);
-            packed[0] = TAG.INT_2BYTE;
-            packed[1] = val & 0xFF;
-            packed[2] = (val >> 8) & 0xFF;
-        } else if (val <= 0x7FFFFFFF) {
-            packed = new Uint8Array(5);
-            packed[0] = TAG.INT_4BYTE;
-            packed[1] = val & 0xFF;
-            packed[2] = (val >> 8) & 0xFF;
-            packed[3] = (val >> 16) & 0xFF;
-            packed[4] = (val >> 24) & 0xFF;
-        } else {
-            packed = new Uint8Array(9);
-            packed[0] = TAG.INT_8BYTE;
-            packed.set(uintToLEBytes(val, 8), 1);
+        return {packed, shareable: true};
+    }
+
+    if (typeof data === 'number') {
+        const value = BigInt(data);
+
+        // A negative number keeps the 8-byte form devices have always received from us; they read it signed.
+        const packed = value < 0n && fitsSigned(value, 8) ? packSizedInteger(value, 8) : packInteger(value);
+
+        return {packed, shareable: !isInlineInteger(value)};
+    }
+
+    if (typeof data === 'bigint' || data instanceof Integer) {
+        const value = BigInt(data instanceof Integer ? data.value : data);
+
+        return {packed: packInteger(value), shareable: !isInlineInteger(value)};
+    }
+
+    if (data instanceof SizedInteger) {
+        return {packed: packSizedInteger(data.value, data.size), shareable: !isInlineInteger(data.value)};
+    }
+
+    if (typeof data === 'string') {
+        const packed = packWithLength(TAG.STR_BASE, TAG.STR_SIZED, textEncoder.encode(data));
+
+        return {packed, shareable: packed.length > 1};
+    }
+
+    if (data instanceof Uint8Array) {
+        return {packed: packWithLength(TAG.BYTES_BASE, TAG.BYTES_SIZED, data), shareable: data.length >= 2};
+    }
+
+    if (data instanceof Date) {
+        const time = data.getTime();
+
+        if (Number.isNaN(time)) {
+            throw new RangeError('OPack cannot encode an invalid date');
         }
-    } else if (typeof data === 'number') {
-        if (!Number.isInteger(data)) {
-            packed = new Uint8Array(9);
-            packed[0] = TAG.FLOAT64;
-            new DataView(packed.buffer, packed.byteOffset + 1, 8).setFloat64(0, data, true);
-        } else if (data < 0) {
-            // Negative integers must be encoded as 8-byte signed values.
-            packed = new Uint8Array(9);
-            packed[0] = TAG.INT_8BYTE;
-            const view = new DataView(packed.buffer, packed.byteOffset + 1, 8);
-            view.setBigInt64(0, BigInt(data), true);
-        } else {
-            // tvOS reads OPack integers as signed, so each width stops before its top bit.
-            if (data <= TAG.INT_INLINE_MAX_VALUE) {
-                packed = u8(TAG.INT_BASE + data);
-            } else if (data <= 0x7F) {
-                packed = new Uint8Array(2);
-                packed[0] = TAG.INT_1BYTE;
-                packed[1] = data;
-            } else if (data <= 0x7FFF) {
-                packed = new Uint8Array(3);
-                packed[0] = TAG.INT_2BYTE;
-                packed[1] = data & 0xFF;
-                packed[2] = (data >> 8) & 0xFF;
-            } else if (data <= 0x7FFFFFFF) {
-                packed = new Uint8Array(5);
-                packed[0] = TAG.INT_4BYTE;
-                packed[1] = data & 0xFF;
-                packed[2] = (data >> 8) & 0xFF;
-                packed[3] = (data >> 16) & 0xFF;
-                packed[4] = (data >> 24) & 0xFF;
-            } else {
-                packed = new Uint8Array(9);
-                packed[0] = TAG.INT_8BYTE;
-                packed.set(uintToLEBytes(data, 8), 1);
-            }
-        }
-    } else if (data instanceof SizedInteger) {
-        const byteSize = data.size;
-        packed = new Uint8Array(byteSize + 1);
-        packed[0] = TAG.INT_1BYTE + (31 - Math.clz32(byteSize));
 
-        if (byteSize === 1) {
-            packed[1] = data.valueOf();
-        } else if (byteSize === 2) {
-            const val = data.valueOf();
-            packed[1] = val & 0xFF;
-            packed[2] = (val >> 8) & 0xFF;
-        } else if (byteSize === 4) {
-            const val = data.valueOf();
-            packed[1] = val & 0xFF;
-            packed[2] = (val >> 8) & 0xFF;
-            packed[3] = (val >> 16) & 0xFF;
-            packed[4] = (val >> 24) & 0xFF;
-        } else {
-            packed.set(uintToLEBytes(data.valueOf(), 8), 1);
-        }
-    } else if (typeof data === 'string') {
-        const encoded = textEncoder.encode(data);
-        const len = encoded.length;
+        const packed = new Uint8Array(9);
+        packed[0] = TAG.DATE;
+        new DataView(packed.buffer).setFloat64(1, (time - DATE_EPOCH_MS) / 1000, true);
 
-        if (len <= 0x20) {
-            packed = new Uint8Array(1 + len);
-            packed[0] = TAG.STR_BASE + len;
-            packed.set(encoded, 1);
-        } else if (len <= 0xFF) {
-            packed = new Uint8Array(2 + len);
-            packed[0] = TAG.STR_1BYTE_LEN;
-            packed[1] = len;
-            packed.set(encoded, 2);
-        } else if (len <= 0xFFFF) {
-            packed = new Uint8Array(3 + len);
-            packed[0] = TAG.STR_2BYTE_LEN;
-            packed[1] = len & 0xFF;
-            packed[2] = (len >> 8) & 0xFF;
-            packed.set(encoded, 3);
-        } else if (len <= 0xFFFFFF) {
-            packed = new Uint8Array(4 + len);
-            packed[0] = TAG.STR_3BYTE_LEN;
-            packed[1] = len & 0xFF;
-            packed[2] = (len >> 8) & 0xFF;
-            packed[3] = (len >> 16) & 0xFF;
-            packed.set(encoded, 4);
-        } else {
-            packed = new Uint8Array(5 + len);
-            packed[0] = TAG.STR_4BYTE_LEN;
-            packed[1] = len & 0xFF;
-            packed[2] = (len >> 8) & 0xFF;
-            packed[3] = (len >> 16) & 0xFF;
-            packed[4] = (len >> 24) & 0xFF;
-            packed.set(encoded, 5);
-        }
-    } else if (data instanceof Uint8Array || Buffer.isBuffer(data)) {
-        const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
-        const len = bytes.length;
+        return {packed, shareable: true};
+    }
 
-        if (len <= 0x20) {
-            packed = new Uint8Array(1 + len);
-            packed[0] = TAG.BYTES_BASE + len;
-            packed.set(bytes, 1);
-        } else if (len <= 0xFF) {
-            packed = new Uint8Array(2 + len);
-            packed[0] = TAG.BYTES_1BYTE_LEN;
-            packed[1] = len;
-            packed.set(bytes, 2);
-        } else if (len <= 0xFFFF) {
-            packed = new Uint8Array(3 + len);
-            packed[0] = TAG.BYTES_2BYTE_LEN;
-            packed[1] = len & 0xFF;
-            packed[2] = (len >> 8) & 0xFF;
-            packed.set(bytes, 3);
-        } else {
-            packed = new Uint8Array(5 + len);
-            packed[0] = TAG.BYTES_4BYTE_LEN;
-            packed[1] = len & 0xFF;
-            packed[2] = (len >> 8) & 0xFF;
-            packed[3] = (len >> 16) & 0xFF;
-            packed[4] = (len >> 24) & 0xFF;
-            packed.set(bytes, 5);
-        }
-    } else if (Array.isArray(data)) {
-        const parts = data.map(item => _pack(item, objectList));
-        const bodyLen = parts.reduce((sum, part) => sum + part.length, 0);
-        const len = data.length;
+    if (Array.isArray(data)) {
+        const parts = data.map(item => _pack(item, objectList, depth + 1));
 
-        if (len < 0x0F) {
-            packed = new Uint8Array(1 + bodyLen);
-            packed[0] = TAG.ARRAY_BASE + len;
-            let pos = 1;
+        return {packed: packContainer(TAG.ARRAY_BASE, TAG.ARRAY_VARIABLE, data.length, parts), shareable: false};
+    }
 
-            for (const part of parts) {
-                packed.set(part, pos);
-                pos += part.length;
-            }
-        } else {
-            packed = new Uint8Array(2 + bodyLen);
-            packed[0] = TAG.ARRAY_VARIABLE;
-            let pos = 1;
-
-            for (const part of parts) {
-                packed.set(part, pos);
-                pos += part.length;
-            }
-
-            packed[pos] = TAG.TERMINATOR;
-        }
-    } else if (typeof data === 'object') {
+    if (typeof data === 'object') {
         const keys = Object.keys(data);
-        const len = keys.length;
         const parts: Uint8Array[] = [];
-        let bodyLen = 0;
 
         for (const key of keys) {
-            const keyPacked = _pack(key, objectList);
-            const valPacked = _pack((data as any)[key], objectList);
-            parts.push(keyPacked, valPacked);
-            bodyLen += keyPacked.length + valPacked.length;
+            parts.push(_pack(key, objectList, depth + 1), _pack(data[key], objectList, depth + 1));
         }
 
-        const needsTerminator = len >= 0x0F;
-        packed = new Uint8Array(1 + bodyLen + (needsTerminator ? 1 : 0));
-        packed[0] = len <= 0x0F ? TAG.DICT_BASE + len : TAG.DICT_VARIABLE;
+        return {packed: packContainer(TAG.DICT_BASE, TAG.DICT_VARIABLE, keys.length, parts), shareable: false};
+    }
 
-        let pos = 1;
+    throw new TypeError(`OPack cannot encode a value of type ${typeof data}`);
+}
 
-        for (const part of parts) {
-            packed.set(part, pos);
-            pos += part.length;
-        }
+/**
+ * Packs a value and its children. A shareable value already in the object list becomes a
+ * reference to it; the first occurrence joins the list.
+ *
+ * @throws TypeError if the value has an unsupported type or nests too deep.
+ * @throws RangeError if an integer does not fit in 128 bits or a date is invalid.
+ */
+function _pack(data: any, objectList: ObjectList, depth: number): Uint8Array {
+    if (depth > MAX_DEPTH) {
+        throw new TypeError(`OPack nesting deeper than ${MAX_DEPTH} containers`);
+    }
 
-        if (needsTerminator) {
-            packed[pos] = TAG.TERMINATOR;
-        }
-    } else {
-        throw new TypeError(typeof data + '');
+    const {packed, shareable} = _packValue(data, objectList, depth);
+
+    if (!shareable) {
+        return packed;
     }
 
     let hash = 2166136261;
 
-    for (const byte of packed!) {
+    for (const byte of packed) {
         hash = Math.imul(hash ^ byte, 16777619);
     }
 
     const candidates = objectList.index.get(hash);
 
-    const idx = candidates?.find(index => {
+    const existing = candidates?.find(index => {
         const value = objectList.values[index];
 
-        return value.length === packed!.length && value.every((byte, offset) => byte === packed![offset]);
-    }) ?? -1;
+        return value.length === packed.length && value.every((byte, offset) => byte === packed[offset]);
+    });
 
-    if (idx >= 0) {
-        if (idx < 0x21) {
-            packed = u8(TAG.REF_BASE + idx);
-        } else if (idx <= 0xFF) {
-            packed = new Uint8Array(2);
-            packed[0] = TAG.REF_1BYTE;
-            packed[1] = idx;
-        } else if (idx <= 0xFFFF) {
-            packed = new Uint8Array(3);
-            packed[0] = TAG.REF_2BYTE;
-            packed[1] = idx & 0xFF;
-            packed[2] = (idx >> 8) & 0xFF;
-        } else if (idx <= 0xFFFFFFFF) {
-            packed = new Uint8Array(5);
-            packed[0] = TAG.REF_4BYTE;
-            packed[1] = idx & 0xFF;
-            packed[2] = (idx >> 8) & 0xFF;
-            packed[3] = (idx >> 16) & 0xFF;
-            packed[4] = (idx >> 24) & 0xFF;
-        } else {
-            packed = new Uint8Array(9);
-            packed[0] = TAG.REF_8BYTE;
-            packed.set(uintToLEBytes(idx, 8), 1);
-        }
-    } else if (packed!.length > 1) {
-        const index = objectList.values.length;
-        objectList.values.push(packed!);
-
-        if (candidates) {
-            candidates.push(index);
-        } else {
-            objectList.index.set(hash, [index]);
-        }
+    if (existing !== undefined) {
+        return packReference(existing);
     }
 
-    return packed!;
+    const index = objectList.values.length;
+    objectList.values.push(packed);
+
+    if (candidates) {
+        candidates.push(index);
+    } else {
+        objectList.index.set(hash, [index]);
+    }
+
+    return packed;
 }
 
 /**
- * Unpacks the OPack value at `offset`. Every value that is not a reference joins the
- * object list, so later references can point to it.
+ * Unpacks the items of a byte string in chunks (0x9F), which ends at a terminator.
  *
- * @throws TypeError if the buffer ends early, nests too deep or holds an unknown tag.
+ * @throws TypeError if a chunk is not a byte string or the terminator is missing.
  */
-function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 0): UnpackResult {
-    if (depth > 128) {
-        throw new TypeError('OPack nesting limit exceeded');
+function _unpackChunks(data: Uint8Array, offset: number): UnpackResult {
+    const chunks: Uint8Array[] = [];
+    let pos = offset;
+
+    while (!isTerminator(data, pos)) {
+        const tag = data[pos];
+        let length: number;
+        let start: number;
+
+        if (tag >= TAG.BYTES_BASE && tag <= TAG.BYTES_MAX_INLINE) {
+            length = tag - TAG.BYTES_BASE;
+            start = pos + 1;
+        } else if (tag >= TAG.BYTES_SIZED && tag <= TAG.BYTES_SIZED_MAX) {
+            const width = LENGTH_WIDTHS[tag - TAG.BYTES_SIZED];
+            length = readUnsigned(data, pos + 1, width);
+            start = pos + 1 + width;
+        } else {
+            throw new TypeError(`Invalid OPack data chunk 0x${tag.toString(16)}`);
+        }
+
+        ensureAvailable(data, start, length);
+        chunks.push(data.subarray(start, start + length));
+        pos = start + length;
     }
 
-    if (offset >= data.length) {
-        throw new TypeError('No data to unpack');
+    return {value: concat(chunks), offset: pos + 1};
+}
+
+/**
+ * Unpacks the OPack value at `offset`. Strings, byte strings of two bytes or more, numbers
+ * outside -1 to 39, dates and UUIDs join the object list in the order they appear, so later
+ * references can point to them. Arrays, dictionaries and references never join it.
+ *
+ * @throws TypeError if the buffer ends early, nests too deep, refers to a value that does not
+ * exist or holds a tag OPack does not define.
+ */
+function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth: number): UnpackResult {
+    if (depth > MAX_DEPTH) {
+        throw new TypeError(`OPack nesting deeper than ${MAX_DEPTH} containers`);
     }
+
+    ensureAvailable(data, offset, 1);
 
     const tag = data[offset];
-    let addToObjectList = true;
+    let shareable = false;
     let value: any;
     let newOffset: number;
 
@@ -534,144 +594,141 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 
         value = null;
         newOffset = offset + 1;
     } else if (tag === TAG.UUID) {
+        ensureAvailable(data, offset + 1, 16);
         value = data.subarray(offset + 1, offset + 17);
         newOffset = offset + 17;
-    } else if (tag === TAG.TIMESTAMP) {
-        value = readLittleEndian(data, offset + 1, 8);
+        shareable = true;
+    } else if (tag === TAG.DATE) {
+        ensureAvailable(data, offset + 1, 8);
+        const seconds = new DataView(data.buffer, data.byteOffset + offset + 1, 8).getFloat64(0, true);
+        value = new Date(DATE_EPOCH_MS + seconds * 1000);
         newOffset = offset + 9;
-    } else if (tag >= TAG.INT_BASE && tag <= TAG.INT_MAX_INLINE) {
+        shareable = true;
+    } else if (tag >= TAG.INT_INLINE_MIN && tag <= TAG.INT_INLINE_MAX) {
         value = tag - TAG.INT_BASE;
         newOffset = offset + 1;
+    } else if (tag >= TAG.INT_SIZED && tag <= TAG.INT_SIZED_MAX) {
+        const size = INT_WIDTHS[tag - TAG.INT_SIZED];
+        const integer = readSigned(data, offset + 1, size);
+        value = sizedInteger(toInteger(integer), size);
+        newOffset = offset + 1 + size;
+        shareable = !isInlineInteger(integer);
     } else if (tag === TAG.FLOAT32) {
-        const view = new DataView(data.buffer, data.byteOffset + offset + 1, 4);
-        value = view.getFloat32(0, true);
+        ensureAvailable(data, offset + 1, 4);
+        value = new DataView(data.buffer, data.byteOffset + offset + 1, 4).getFloat32(0, true);
         newOffset = offset + 5;
+        shareable = true;
     } else if (tag === TAG.FLOAT64) {
-        const view = new DataView(data.buffer, data.byteOffset + offset + 1, 8);
-        value = view.getFloat64(0, true);
+        ensureAvailable(data, offset + 1, 8);
+        value = new DataView(data.buffer, data.byteOffset + offset + 1, 8).getFloat64(0, true);
         newOffset = offset + 9;
-    } else if ((tag & 0xF0) === TAG.INT_1BYTE) {
-        const noOfBytes = 1 << (tag & 0xF);
-
-        if (![TAG.INT_1BYTE, TAG.INT_2BYTE, TAG.INT_4BYTE, TAG.INT_8BYTE].includes(tag as any)) {
-            throw new TypeError('Invalid OPack integer width');
-        }
-
-        const val = readLittleEndian(data, offset + 1, noOfBytes);
-        value = sizedInteger(val, noOfBytes);
-        newOffset = offset + 1 + noOfBytes;
+        shareable = true;
     } else if (tag >= TAG.STR_BASE && tag <= TAG.STR_MAX_INLINE) {
         const length = tag - TAG.STR_BASE;
+        ensureAvailable(data, offset + 1, length);
         value = textDecoder.decode(data.subarray(offset + 1, offset + 1 + length));
         newOffset = offset + 1 + length;
-    } else if (tag >= TAG.STR_1BYTE_LEN && tag <= TAG.STR_4BYTE_LEN) {
-        const lenBytes = tag & 0xF;
-        const length = readLittleEndian(data, offset + 1, lenBytes);
-        const start = offset + 1 + lenBytes;
+        shareable = length > 0;
+    } else if (tag >= TAG.STR_SIZED && tag <= TAG.STR_SIZED_MAX) {
+        const width = LENGTH_WIDTHS[tag - TAG.STR_SIZED];
+        const length = readUnsigned(data, offset + 1, width);
+        const start = offset + 1 + width;
+        ensureAvailable(data, start, length);
         value = textDecoder.decode(data.subarray(start, start + length));
         newOffset = start + length;
+        shareable = length > 0;
+    } else if (tag === TAG.STR_NUL_TERMINATED) {
+        const end = data.indexOf(0, offset + 1);
+
+        if (end < 0) {
+            throw new TypeError('Truncated OPack value');
+        }
+
+        value = textDecoder.decode(data.subarray(offset + 1, end));
+        newOffset = end + 1;
+        shareable = end > offset + 1;
     } else if (tag >= TAG.BYTES_BASE && tag <= TAG.BYTES_MAX_INLINE) {
         const length = tag - TAG.BYTES_BASE;
+        ensureAvailable(data, offset + 1, length);
         value = data.subarray(offset + 1, offset + 1 + length);
         newOffset = offset + 1 + length;
-    } else if (tag >= TAG.BYTES_1BYTE_LEN && tag <= TAG.BYTES_4BYTE_LEN) {
-        const noOfBytes = 1 << ((tag & 0xF) - 1);
-        const length = readLittleEndian(data, offset + 1, noOfBytes);
-        const start = offset + 1 + noOfBytes;
+        shareable = length >= 2;
+    } else if (tag >= TAG.BYTES_SIZED && tag <= TAG.BYTES_SIZED_MAX) {
+        const width = LENGTH_WIDTHS[tag - TAG.BYTES_SIZED];
+        const length = readUnsigned(data, offset + 1, width);
+        const start = offset + 1 + width;
+        ensureAvailable(data, start, length);
         value = data.subarray(start, start + length);
         newOffset = start + length;
+        shareable = length >= 2;
+    } else if (tag === TAG.BYTES_CHUNKED) {
+        const result = _unpackChunks(data, offset + 1);
+        value = result.value;
+        newOffset = result.offset;
+        shareable = value.length >= 2;
+    } else if (tag >= TAG.REF_BASE && tag <= TAG.REF_SIZED_MAX) {
+        const inline = tag <= TAG.REF_MAX_INLINE;
+        const width = inline ? 0 : REF_WIDTHS[tag - TAG.REF_SIZED];
+        const index = inline ? tag - TAG.REF_BASE : readUnsigned(data, offset + 1, width);
+
+        if (index >= objectList.length) {
+            throw new TypeError(`OPack reference index ${index} out of range`);
+        }
+
+        value = objectList[index];
+        newOffset = offset + 1 + width;
     } else if ((tag & 0xF0) === TAG.ARRAY_BASE) {
-        const count = tag & 0xF;
+        const items: any[] = [];
         let pos = offset + 1;
 
-        if (count === 0xF) {
-            const items: any[] = [];
-
-            while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
+        if (tag === TAG.ARRAY_VARIABLE) {
+            while (!isTerminator(data, pos)) {
                 const result = _unpackAt(data, pos, objectList, depth + 1);
                 items.push(result.value);
                 pos = result.offset;
             }
 
-            if (pos >= data.length) {
-                throw new TypeError('Missing OPack container terminator');
-            }
-
             pos++;
-            value = items;
         } else {
-            const items = new Array(count);
-
-            for (let i = 0; i < count; i++) {
+            for (let i = 0; i < (tag & 0x0F); i++) {
                 const result = _unpackAt(data, pos, objectList, depth + 1);
-                items[i] = result.value;
+                items.push(result.value);
                 pos = result.offset;
             }
-
-            value = items;
         }
 
+        value = items;
         newOffset = pos;
     } else if ((tag & 0xF0) === TAG.DICT_BASE) {
-        const count = tag & 0xF;
         const dictionary: Record<string, any> = {};
         let pos = offset + 1;
 
-        if (count === 0xF) {
-            while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
-                const keyResult = _unpackAt(data, pos, objectList, depth + 1);
-                const valResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
-                Object.defineProperty(dictionary, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
-                pos = valResult.offset;
-            }
+        const unpackEntry = (): void => {
+            const keyResult = _unpackAt(data, pos, objectList, depth + 1);
+            const valueResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
+            Object.defineProperty(dictionary, keyResult.value, {value: valueResult.value, enumerable: true, configurable: true, writable: true});
+            pos = valueResult.offset;
+        };
 
-            if (pos >= data.length) {
-                throw new TypeError('Missing OPack container terminator');
+        if (tag === TAG.DICT_VARIABLE) {
+            while (!isTerminator(data, pos)) {
+                unpackEntry();
             }
 
             pos++;
         } else {
-            for (let i = 0; i < count; i++) {
-                const keyResult = _unpackAt(data, pos, objectList, depth + 1);
-                const valResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
-                Object.defineProperty(dictionary, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
-                pos = valResult.offset;
+            for (let i = 0; i < (tag & 0x0F); i++) {
+                unpackEntry();
             }
         }
 
         value = dictionary;
         newOffset = pos;
-    } else if (tag >= TAG.REF_BASE && tag <= TAG.REF_MAX_INLINE) {
-        const idx = tag - TAG.REF_BASE;
-
-        if (idx >= objectList.length) {
-            throw new TypeError(`Reference index ${idx} out of range`);
-        }
-
-        value = objectList[idx];
-        newOffset = offset + 1;
-        addToObjectList = false;
-    } else if (tag >= TAG.REF_1BYTE && tag <= TAG.REF_8BYTE) {
-        const len = 1 << (tag - TAG.REF_1BYTE);
-        const uid = readLittleEndian(data, offset + 1, len);
-
-        if (uid >= objectList.length) {
-            throw new TypeError(`UID ${uid} out of range`);
-        }
-
-        value = objectList[uid];
-        newOffset = offset + 1 + len;
-        addToObjectList = false;
     } else {
-        throw new TypeError(`Unknown tag 0x${tag.toString(16)}`);
+        throw new TypeError(`Unsupported OPack tag 0x${tag.toString(16)}`);
     }
 
-    if (newOffset > data.length) {
-        throw new TypeError('Truncated OPack value');
-    }
-
-    // Keep reference indices in encoder order, children before containers and no single-byte values.
-    if (addToObjectList && newOffset - offset > 1) {
+    if (shareable) {
         objectList.push(value);
     }
 

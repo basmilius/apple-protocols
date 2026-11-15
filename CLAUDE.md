@@ -307,6 +307,9 @@ In code maakt `buildNonce(counter, format)` (`core/transport`) ze: `counter-at-0
 ### AirPlay receive-frames zijn niet begrensd op 1024 bytes
 De encoder verstuurt chunks van 1024 bytes, maar receivers sturen ook grotere ChaCha20-blokken. Gebruik bij ontvangst de 2-byte LE lengte en de buffergrens van de stream. Een 1024-byte parsergrens verbreekt de verbinding met Apple TV en HomePod. De lengte is AAD en de auth tag blijft verplicht.
 
+### OPack-referenties volgen de tabel van het device
+Een referentie (`0xA0` tot `0xC4`) wijst naar de n-de waarde in een tabel die encoder en decoder elk zelf opbouwen. Beide kanten moeten dezelfde waarden opnemen, anders wijst een index naar iets anders. In de tabel komen strings van minstens 1 byte, bytes van minstens 2 bytes, floats, datums, UUID's en integers buiten -1 tot 39 (ook in een vaste breedte). Arrays en dictionaries komen er nooit in. Integers zijn signed. Een gewoon negatief getal blijft 8 bytes (`0x33`), omdat devices dat altijd zo kregen. Meer dan 32 geneste containers weigert een device.
+
 ### NTP timestamps moeten wall-clock zijn
 `NTP.now()` in `packages/core/src/encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.
 

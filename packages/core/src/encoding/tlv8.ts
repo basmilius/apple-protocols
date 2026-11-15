@@ -150,13 +150,33 @@ export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffe
 }
 
 /**
- * Decodes a TLV8 buffer into a map from type to value. Entries of the same type are concatenated,
- * which reassembles fragmented values.
+ * Decodes a TLV8 buffer into a map from type to value, for messages that hold each type once,
+ * such as pairing messages. Adjacent entries of the same type are concatenated, which reassembles
+ * fragmented values. When a type appears again after another type, the first value wins.
  *
  * @throws {RangeError} When an entry is truncated.
  */
 export function decode(buf: Buffer): Map<number, Buffer> {
     const map = new Map<number, Buffer>();
+
+    for (const [type, value] of decodeEntries(buf)) {
+        if (!map.has(type)) {
+            map.set(type, value);
+        }
+    }
+
+    return map;
+}
+
+/**
+ * Decodes a TLV8 buffer into its `[type, value]` entries in order, for lists in which a type
+ * repeats. Adjacent entries of the same type are concatenated into one value, which reassembles
+ * fragmented values; a separator entry between two items keeps them apart.
+ *
+ * @throws {RangeError} When an entry is truncated.
+ */
+export function decodeEntries(buf: Buffer): [number, Buffer][] {
+    const entries: [number, Buffer][] = [];
     let i = 0;
 
     while (i < buf.length) {
@@ -171,19 +191,17 @@ export function decode(buf: Buffer): Map<number, Buffer> {
             throw new RangeError('Truncated TLV8 value');
         }
 
-        const existing = map.get(type);
+        const value = buf.subarray(i, i + len) as Buffer;
+        const last = entries.at(-1);
 
-        if (existing) {
-            const newBuf = Buffer.allocUnsafe(existing.length + len);
-            existing.copy(newBuf, 0);
-            buf.copy(newBuf, existing.length, i, i + len);
-            map.set(type, newBuf);
+        if (last && last[0] === type) {
+            last[1] = Buffer.concat([last[1], value]);
         } else {
-            map.set(type, buf.subarray(i, i + len) as Buffer);
+            entries.push([type, value]);
         }
 
         i += len;
     }
 
-    return map;
+    return entries;
 }

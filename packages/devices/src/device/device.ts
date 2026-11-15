@@ -137,9 +137,6 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         hasConnected: false
     };
 
-    /** The address AirPlay moved to; Companion Link retries at once there instead of waiting for its schedule. */
-    #addressChanged: boolean = false;
-
     #companionLinkStarted: boolean = false;
     #connecting?: Promise<void>;
     #info?: {readonly name?: string; readonly model?: string};
@@ -178,7 +175,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
                 close: session => session.close()
             });
 
-            this.#companionLink.on('change', reason => this.#update(reason, this.#companionLink.status.error));
+            this.#companionLink.on('change', reason => this.#onCompanionLinkChange(reason));
         }
 
         const mediaRemote = (): MediaRemote | undefined => this.#airplay.session?.remote;
@@ -254,7 +251,6 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     async disconnect(): Promise<void> {
         this.#running = false;
         this.#companionLinkStarted = false;
-        this.#addressChanged = false;
         this.#quiet = true;
 
         let stopping: Promise<unknown>;
@@ -356,7 +352,11 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         this.#options.log({level: group, device: this.#id, message: format(...args), args, timestamp: Date.now()});
     }
 
-    /** Companion Link starts once the first AirPlay attempt settled, so the connect order on the wire stays AirPlay first. */
+    /**
+     * Companion Link starts once the first AirPlay attempt settled, so the connect order on the wire
+     * stays AirPlay first. Once AirPlay is up the device is reachable, so a waiting Companion Link
+     * runs its next attempt now instead of waiting for its schedule.
+     */
     #onAirPlayChange(reason: StatusReason): void {
         const state = this.#airplay.state;
 
@@ -369,25 +369,27 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
             const info = this.#airplay.session.session.info;
 
             this.#info = {name: info?.name, model: info?.model};
-
-            if (this.#addressChanged) {
-                this.#addressChanged = false;
-                this.#companionLink?.retryNow();
-            }
         }
 
         this.#update(reason, this.#airplay.status.error);
+
+        if (reason === 'established') {
+            this.#companionLink?.retryNow();
+        }
+    }
+
+    /** The device is reachable again, so AirPlay runs its next attempt now instead of waiting for its schedule. */
+    #onCompanionLinkChange(reason: StatusReason): void {
+        this.#update(reason, this.#companionLink.status.error);
+
+        if (reason === 'established') {
+            this.#airplay.retryNow();
+        }
     }
 
     async #openAirPlay(signal: AbortSignal, first: boolean): Promise<AirPlayLink> {
         if (!first || this.#resolver.target.port === undefined) {
-            const address = this.#resolver.target.address;
-
             await this.#resolver.refreshAirPlay(signal);
-
-            if (this.#resolver.target.address !== address) {
-                this.#addressChanged = true;
-            }
         }
 
         const timing = this.#options.timing === false

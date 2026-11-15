@@ -20,7 +20,7 @@ Where the code differs from the sections below:
 - **Logging.** `Logger` takes an optional `LogSink` (`(group, args) => void`, exported from core); `Context(deviceId, identity?, sink?)` passes it on. The device formats entries with `util.format`.
 - **Companion Link start.** The first Companion Link attempt starts once the first AirPlay attempt settled, so the wire order stays AirPlay then Companion Link. Its unicast query therefore runs after the AirPlay connect; Homey ran it before. That moves an mDNS query, not session bytes.
 - **No combined unicast query (finding B13, kept).** Section 3.4 describes one unicast DNS-SD query for both protocols. The code still sends two: AirPlay before its connect, Companion Link after the first AirPlay attempt. Combining them changes the mDNS query bytes and moves the Companion Link query before the AirPlay connect, and the wire rule of round 2 kept the current order and bytes. A combined query can come later, with a device test.
-- **Companion Link follows AirPlay to a new address** (round 2, HY-16). When AirPlay comes back at a new address after a re-resolve, a Companion Link link that waits in its 2 or 15 minute phase retries there at once.
+- **One protocol back means a retry of the other** (round 2, HY-16; widened after a power-cut test). When AirPlay or Companion Link connects while the other link waits for a retry, the other retries at once, also in its 2 or 15 minute phase. This covers AirPlay coming back at a new address. Before, Companion Link only followed AirPlay to a new address, and AirPlay waited for its own timer after Companion Link reconnected.
 - **`resolve(last, signal)`** (round 2). The option gets an `AbortSignal` that aborts after 15 s or when `disconnect()` cancels the attempt. After a timeout the attempt goes on with the last known address, so a lookup that hangs no longer freezes the device.
 - **Capabilities are interfaces** (round 2): `NowPlayingControl`, `VolumeControl`, `PowerControl`, `TextControl`, `AppsControl`, `AccountsControl`, `SystemControl`, `TouchControl`, `RemoteControl`, `PlaybackControl`, `ArtworkControl`, `MediaControl`, `MultiroomControl`, `MediaPlayback`. The classes behind them are internal. Gone from the public surface: `nowPlaying.hold()`, `resume()`, `stop()`, `reset()`, `volume.reset()`, `power.reset()` and every capability constructor. The ones with events extend `EventEmitter` with an exported map: `NowPlayingEventMap`, `VolumeEventMap`, `PowerEventMap`, `TextEventMap`, `MultiroomEventMap`.
 - **Error boundary** (round 2). The index re-exports every error class of core (`AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError`, `TLV8PairingError`), so a consumer imports every error from devices. A refused playback command throws `CommandRefusedError extends CommandError` with string `reason` (send error, lower camel case) and `status` (handler status), and the `SendCommandError` with `Proto` enums as `cause`. `/catalog` throws `CatalogError` with `reason` and HTTP `status` instead of bare `Error`s; `fetchLyrics` still returns null on 404.
@@ -649,13 +649,13 @@ The callers pass `nowPlaying.current.storeAlbumId` or `lyricsId`. The old track-
 
 ### 3.1 One link per protocol
 
-The device keeps a link for AirPlay and, on an Apple TV, one for Companion Link. The two schedules run independently (HY-34). A link is `off`, `connecting`, `connected` or `waiting`.
+The device keeps a link for AirPlay and, on an Apple TV, one for Companion Link. The two schedules run independently (HY-34), with one exception. When one link connects while the other waits for a retry, the other runs its next attempt at once instead of waiting for its timer. The device is reachable again, so a 2 or 15 minute wait only delays the second protocol. A failure of that attempt counts as the attempt it replaced, so the schedule keeps its position. A link is `off`, `connecting`, `connected` or `waiting`.
 
 ```
 off --connect()--> connecting --ok--> connected --session closed (not local)--> waiting
                        |                                                     ^      |
                        +------------------fail---------------------------> waiting  |
-                                                timer fires, or connect() while offline --> connecting
+                     timer fires, the other link connects, or connect() while offline --> connecting
 any state --disconnect()--> off   (timers cleared, now-playing restore timers too, attempt aborted through its signal, sessions closed)
 ```
 

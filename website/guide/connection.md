@@ -93,6 +93,8 @@ Each protocol has its own link and its own schedule. A drop counts as attempt 0,
 
 Neither device ever gives up. The delays are not options.
 
+When one protocol connects while the other waits for a retry, the other retries at once, even in its 2 or 15 minute phase. That also covers AirPlay coming back at a new address. A failed retry counts as the attempt it replaced, so the schedule keeps its place.
+
 A healthy session is never reconnected on a timer. The AirPlay keepalive ends a session whose device stopped answering for 30 seconds, and the device then recovers like after any other drop.
 
 A Companion Link authentication failure keeps retrying on the schedule. The reason is in `status.companionLink.error`, so your app can ask the user to pair again without the device giving up on a refusal that may pass.
@@ -106,7 +108,7 @@ Before every attempt, except the very first AirPlay attempt with a known port, t
 3. Without a `resolve` option, it runs a multicast scan and matches on the MAC (`deviceid` in the TXT record), then on the id.
 4. When nothing answers, the attempt still connects to the last known address and port.
 
-A hit updates `address`, the AirPlay port and the TXT record. A new DHCP lease therefore does not strand a device. The Companion Link port always comes from the latest unicast answer. When AirPlay comes back at a new address, Companion Link retries there at once, even when it was waiting in its 2 or 15 minute phase.
+A hit updates `address`, the AirPlay port and the TXT record. A new DHCP lease therefore does not strand a device. The Companion Link port always comes from the latest unicast answer.
 
 AirPlay and Companion Link each send their own unicast query: AirPlay before its connect, Companion Link after the first AirPlay attempt.
 

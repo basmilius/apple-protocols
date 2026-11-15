@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { SRP, SrpServer } from 'fast-srp-hap';
 import { Curve25519, Ed25519, type KeyPair } from '../crypto';
-import { TLV8 } from '../encoding';
 import { AuthenticationError, PairingError } from '../errors';
 import type { Context } from '../transport';
 import { decodeTlv, deriveKey, type PairingCipher, pairingCipher } from './cipher';
+import * as TLV8 from './tlv8';
 import type { AccessoryIdentity, ControllerResolver, PairedController, PairingOptions } from './types';
 
 /**

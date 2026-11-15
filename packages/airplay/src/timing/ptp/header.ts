@@ -4,7 +4,7 @@ export const PTP_HEADER_LENGTH = 34;
 /** PTPv2 protocol version written into every header. */
 export const PTP_VERSION = 2;
 
-/** Our sender uses port number 1 (PTPv2 port numbers start at 1). */
+/** Port number of our sender; PTPv2 port numbers start at 1. */
 export const DEFAULT_PORT_NUMBER = 1;
 
 /** Log message interval sentinel used by PTPv2 Signaling to stop a message stream. */
@@ -26,11 +26,7 @@ export type HeaderFields = {
 
 /**
  * Encodes the fields of a PTPv2 common header into a 34-byte buffer.
- * Unused reserved bytes are left zero — this matches the wire format of
- * macOS/iOS senders and the behaviour of the Rust reference implementation.
- *
- * @param fields - The header fields to encode.
- * @returns A 34-byte header buffer.
+ * Reserved bytes stay zero, as macOS and iOS senders write them.
  */
 export function encodeHeader(fields: HeaderFields): Buffer {
     const buf = Buffer.alloc(PTP_HEADER_LENGTH);
@@ -52,10 +48,7 @@ export function encodeHeader(fields: HeaderFields): Buffer {
 }
 
 /**
- * Decodes a 34-byte PTPv2 common header from the given buffer.
- *
- * @param buf - The buffer to read from (must be at least 34 bytes).
- * @returns The parsed header fields.
+ * Decodes a PTPv2 common header from the first 34 bytes of the buffer.
  */
 export function decodeHeader(buf: Buffer): HeaderFields {
     const messageType = buf[0] & 0x0F;

@@ -7,14 +7,14 @@ export const HTTP_TIMEOUT = 6000;
 /** Interval in milliseconds of the `/feedback` keepalive a receiver expects. */
 export const FEEDBACK_INTERVAL = 2000;
 
-/** Default number of bytes per audio channel sample (16-bit PCM). */
+/** Bytes per sample per channel: 16-bit PCM. */
 export const AUDIO_BYTES_PER_CHANNEL = 2;
 
-/** Default number of audio channels (stereo). */
+/** Stereo. */
 export const AUDIO_CHANNELS = 2;
 
-/** Number of PCM audio frames packed into a single RTP packet (ALAC/RAOP standard). */
+/** PCM frames per RTP packet, the ALAC and RAOP standard. */
 export const AUDIO_FRAMES_PER_PACKET = 352;
 
-/** Default audio sample rate in Hz (CD quality). */
+/** Sample rate in Hz, CD quality. */
 export const AUDIO_SAMPLE_RATE = 44100;

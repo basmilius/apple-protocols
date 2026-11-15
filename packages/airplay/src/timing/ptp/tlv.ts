@@ -18,22 +18,14 @@ const FOLLOW_UP_INFORMATION_SUBTYPE = 1;
 const MESSAGE_INTERVAL_REQUEST_SUBTYPE = 2;
 
 /**
- * Encodes an IEEE 802.1AS FollowUpInformation TLV (subtype 1).
+ * Encodes an IEEE 802.1AS FollowUpInformation TLV (subtype 1), including the
+ * 4-byte TLV header. It trails every FollowUp body. A sender-only role sends
+ * zeros, as macOS senders do.
  *
- * Sent as a trailer after every FollowUp body. Contains:
- * - `cumulativeScaledRateOffset` — u32 BE
- * - `gmTimeBaseIndicator` — u16 BE
- * - `lastGmPhaseChange` — 12 bytes (scaled-nanoseconds fixed-point)
- * - `scaledLastGmFreqChange` — u32 BE
- *
- * For sender-only roles, zero values are semantically correct and match the
- * values observed from macOS senders.
- *
- * @param cumulativeScaledRateOffset - Cumulative rate offset accumulated across the path.
- * @param gmTimeBaseIndicator - The grandmaster's time-base indicator.
- * @param lastGmPhaseChange - The grandmaster's last phase change (12 bytes).
- * @param scaledLastGmFreqChange - The grandmaster's last frequency change.
- * @returns A buffer containing the encoded TLV (including the 4-byte TLV header).
+ * @param cumulativeScaledRateOffset - u32 BE.
+ * @param gmTimeBaseIndicator - u16 BE.
+ * @param lastGmPhaseChange - 12 bytes, scaled nanoseconds in fixed point.
+ * @param scaledLastGmFreqChange - u32 BE.
  */
 export function encodeFollowUpInfoTlv(
     cumulativeScaledRateOffset: number = 0,
@@ -56,6 +48,7 @@ export function encodeFollowUpInfoTlv(
     payload.writeUInt32BE(scaledLastGmFreqChange, 22);
 
     const tlv = Buffer.alloc(4 + payload.length);
+
     tlv.writeUInt16BE(TlvType.OrganizationExtension, 0);
     tlv.writeUInt16BE(payload.length, 2);
     payload.copy(tlv, 4);
@@ -64,17 +57,14 @@ export function encodeFollowUpInfoTlv(
 }
 
 /**
- * Encodes an IEEE 802.1AS MessageIntervalRequest TLV (subtype 2).
+ * Encodes an IEEE 802.1AS MessageIntervalRequest TLV (subtype 2), including
+ * the 4-byte TLV header. A Signaling message carries it to ask the peer to
+ * adjust or stop its Sync, Announce or Pdelay messages. When we yield the
+ * master role, all three fields are `0x7E` for a full stop.
  *
- * Sent in a Signaling message to request that the peer either adjust or
- * stop sending Sync, Announce, or Pdelay messages. The Rust reference
- * sends this TLV with `0x7E` in all three fields to request a full stop;
- * that is what we do when we yield the master role.
- *
- * @param logLinkDelayInterval - Desired Pdelay interval (signed log2 of seconds; 0x7E stops).
- * @param logTimeSyncInterval - Desired Sync interval (signed log2 of seconds; 0x7E stops).
- * @param logAnnounceInterval - Desired Announce interval (signed log2 of seconds; 0x7E stops).
- * @returns A buffer containing the encoded TLV (including the 4-byte TLV header).
+ * @param logLinkDelayInterval - Pdelay interval as signed log2 of seconds; 0x7E stops.
+ * @param logTimeSyncInterval - Sync interval as signed log2 of seconds; 0x7E stops.
+ * @param logAnnounceInterval - Announce interval as signed log2 of seconds; 0x7E stops.
  */
 export function encodeMessageIntervalRequestTlv(
     logLinkDelayInterval: number,
@@ -92,6 +82,7 @@ export function encodeMessageIntervalRequestTlv(
     payload[7] = 0;
 
     const tlv = Buffer.alloc(4 + payload.length);
+
     tlv.writeUInt16BE(TlvType.OrganizationExtension, 0);
     tlv.writeUInt16BE(payload.length, 2);
     payload.copy(tlv, 4);

@@ -45,6 +45,7 @@ export class DataChannel extends EncryptedChannel<DataChannelEventMap> {
         this.#seqno = 0x100000000n + BigInt(randomInt32());
 
         this.on('closed', () => this.#rejectAll(new ConnectionClosedError()));
+
         this.on('error', (error: Error) => {
             this.context.logger.error('[data]', 'Data channel error.', error);
             this.#rejectAll(error);
@@ -137,9 +138,11 @@ export class DataChannel extends EncryptedChannel<DataChannelEventMap> {
             }
 
             const frame = plaintext.subarray(offset + DATA_HEADER_LENGTH, offset + totalLength);
+
             const plist = frame.length > 0
                 ? Plist.parse(frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as ArrayBuffer) as {params?: {data?: ArrayBuffer}}
                 : null;
+
             const command = header.toString('ascii', 4, 8);
 
             offset += totalLength;

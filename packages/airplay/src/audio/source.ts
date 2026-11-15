@@ -3,23 +3,22 @@
  * Stream owners start the source once and stop it on completion, cancellation or failure.
  */
 export interface AudioSource {
-    /** Total duration of the audio source in seconds. */
+    /** Total duration in seconds. */
     get duration(): number;
 
     /**
-     * Reads the specified number of audio frames from the source.
+     * Reads up to `count` frames.
      *
-     * @param count - The number of frames to read.
-     * @returns A buffer containing the audio data, or null if the source is exhausted.
+     * @returns The PCM data, or null once the source is exhausted.
      */
     readFrames(count: number): Promise<Buffer | null>;
 
-    /** Resets the source to the beginning, allowing it to be read again. */
+    /** Rewinds the source so it can be read again. */
     reset(): Promise<void>;
 
-    /** Starts the audio source, initializing any underlying decoders or streams. */
+    /** Starts the underlying decoders or streams. */
     start(): Promise<void>;
 
-    /** Stops the audio source and releases any underlying resources. */
+    /** Stops the source and releases its resources. */
     stop(): Promise<void>;
 }

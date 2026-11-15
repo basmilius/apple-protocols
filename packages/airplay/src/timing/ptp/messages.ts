@@ -2,7 +2,7 @@ import { DEFAULT_PORT_NUMBER, decodeHeader, encodeHeader, HeaderFields, PTP_HEAD
 import { decodeTimestamp, encodeTimestamp, PtpTimestamp } from './timestamp';
 import { encodeFollowUpInfoTlv, encodeMessageIntervalRequestTlv } from './tlv';
 
-/** Standard PTPv2 message types (subset that we send or receive). */
+/** The PTPv2 message types we send or receive. */
 export const enum PtpMessageType {
     Sync = 0x00,
     DelayReq = 0x01,
@@ -13,9 +13,8 @@ export const enum PtpMessageType {
 }
 
 /**
- * PTPv2 control field values corresponding to each message type.
- * Required for interoperability with PTPv1 receivers; PTPv2-only stacks
- * ignore this field but we fill it in regardless.
+ * PTPv2 control field per message type. PTPv1 receivers need it; PTPv2-only
+ * stacks ignore it.
  */
 const ControlField = {
     Sync: 0x00,
@@ -26,7 +25,7 @@ const ControlField = {
     AllOthers: 0x05
 } as const;
 
-/** Apple/macOS sends transportSpecific = 1 for its PTP messages. */
+/** macOS sends transportSpecific = 1 in its PTP messages. */
 const TRANSPORT_SPECIFIC = 1;
 
 /** Default priority1 advertised by our grandmaster. */
@@ -35,32 +34,32 @@ export const DEFAULT_PRIORITY_1 = 248;
 /** Default priority2 advertised by our grandmaster. */
 export const DEFAULT_PRIORITY_2 = 128;
 
-/** Default clockClass (applies to all non-primary-reference PTP senders). */
+/** clockClass of every PTP sender that is not a primary reference. */
 const DEFAULT_CLOCK_CLASS = 248;
 
-/** Default clockAccuracy "unknown" as used by macOS. */
+/** clockAccuracy "unknown", as macOS sends it. */
 const DEFAULT_CLOCK_ACCURACY = 0xFE;
 
-/** Default offsetScaledLogVariance "unknown" as used by macOS. */
+/** offsetScaledLogVariance "unknown", as macOS sends it. */
 const DEFAULT_OFFSET_SCALED_LOG_VARIANCE = 0xFFFF;
 
-/** Current UTC - TAI offset (leap seconds) as used by macOS PTP. */
+/** UTC to TAI offset in leap seconds, as macOS sends it. */
 const DEFAULT_CURRENT_UTC_OFFSET = 37;
 
-/** Time source "internalOscillator" — what Apple claims when it is the grandmaster. */
+/** Time source "internalOscillator", which Apple claims as grandmaster. */
 const DEFAULT_TIME_SOURCE = 0xA0;
 
-/** log2(interval in seconds) values used in the header of each message type. */
+/** log2 of the interval in seconds, written in the header of each message type. */
 const LogInterval = {
     Sync: -3,          // 125 ms
-    Announce: 0,       // 1 s — header field; actual cadence is controlled by the interval timer
+    Announce: 0,       // 1 s in the header; the interval timer sets the real cadence
     FollowUp: 0,
     DelayReq: 0x7F,
     DelayResp: 0x7F,
     Signaling: 0x7F
 } as const;
 
-/** Union type for every decoded PTP message. */
+/** A decoded PTP message, discriminated by `type`. */
 export type DecodedPtpMessage =
     | { type: PtpMessageType.Sync; header: HeaderFields; body: { originTimestamp: PtpTimestamp } }
     | { type: PtpMessageType.DelayReq; header: HeaderFields; body: { originTimestamp: PtpTimestamp } }
@@ -103,6 +102,7 @@ function buildHeader(
     flags: number = 0
 ): Buffer {
     const sourcePortIdentity = Buffer.alloc(10);
+
     clockIdentity.copy(sourcePortIdentity, 0, 0, 8);
     sourcePortIdentity.writeUInt16BE(DEFAULT_PORT_NUMBER, 8);
 
@@ -121,16 +121,15 @@ function buildHeader(
 }
 
 /**
- * Encodes a Sync message (two-step: the precise origin timestamp is sent
- * in a following FollowUp). Length = 44 bytes (34 header + 10 timestamp).
+ * Encodes a two-step Sync message of 44 bytes (34 header, 10 timestamp). The
+ * precise origin timestamp follows in a FollowUp.
  *
- * @param sequenceId - Sequence identifier for this Sync.
  * @param clockIdentity - Our 8-byte EUI-64 clock identity.
- * @returns The encoded Sync message buffer.
  */
 export function encodeSync(sequenceId: number, clockIdentity: Buffer): Buffer {
     const length = PTP_HEADER_LENGTH + 10;
-    // flags: two-step (0x0200) + PTP timescale (0x0008).
+
+    // Flags are two-step (0x0200) and PTP timescale (0x0008).
     const header = buildHeader(
         PtpMessageType.Sync,
         clockIdentity,
@@ -140,6 +139,7 @@ export function encodeSync(sequenceId: number, clockIdentity: Buffer): Buffer {
         LogInterval.Sync,
         0x0208
     );
+
     const zeroTs = encodeTimestamp({seconds: 0n, nanoseconds: 0});
 
     return Buffer.concat([header, zeroTs]);
@@ -147,12 +147,11 @@ export function encodeSync(sequenceId: number, clockIdentity: Buffer): Buffer {
 
 /**
  * Encodes a FollowUp message carrying the precise origin timestamp for the
- * preceding Sync. Length = 44 bytes + 30 bytes FollowUpInformation TLV.
+ * preceding Sync: 44 bytes plus a 30-byte FollowUpInformation TLV.
  *
- * @param sequenceId - Sequence identifier (must match the preceding Sync).
+ * @param sequenceId - Must match the preceding Sync.
  * @param clockIdentity - Our 8-byte EUI-64 clock identity.
- * @param preciseOriginTimestamp - Timestamp at which the Sync was sent.
- * @returns The encoded FollowUp message buffer.
+ * @param preciseOriginTimestamp - When the Sync was sent.
  */
 export function encodeFollowUp(
     sequenceId: number,
@@ -162,6 +161,7 @@ export function encodeFollowUp(
     const timestamp = encodeTimestamp(preciseOriginTimestamp);
     const tlv = encodeFollowUpInfoTlv();
     const length = PTP_HEADER_LENGTH + timestamp.length + tlv.length;
+
     const header = buildHeader(
         PtpMessageType.FollowUp,
         clockIdentity,
@@ -176,13 +176,10 @@ export function encodeFollowUp(
 }
 
 /**
- * Encodes an Announce message advertising our grandmaster role. Length = 64 bytes.
+ * Encodes a 64-byte Announce message advertising our grandmaster role.
  *
- * @param sequenceId - Sequence identifier for this Announce.
- * @param clockIdentity - Our 8-byte EUI-64 clock identity (used as grandmasterIdentity).
- * @param priority1 - Our grandmaster priority1 (default 248 — above "slave-only" but below Apple TVs which use 246).
- * @param priority2 - Our grandmaster priority2 (default 128).
- * @returns The encoded Announce message buffer.
+ * @param clockIdentity - Our 8-byte EUI-64 clock identity, also the grandmasterIdentity.
+ * @param priority1 - 248 by default, above "slave-only" and below the 246 of an Apple TV.
  */
 export function encodeAnnounce(
     sequenceId: number,
@@ -191,6 +188,7 @@ export function encodeAnnounce(
     priority2: number = DEFAULT_PRIORITY_2
 ): Buffer {
     const length = PTP_HEADER_LENGTH + 10 + 20;
+
     const header = buildHeader(
         PtpMessageType.Announce,
         clockIdentity,
@@ -200,6 +198,7 @@ export function encodeAnnounce(
         LogInterval.Announce,
         0x0008
     );
+
     const zeroTs = encodeTimestamp({seconds: 0n, nanoseconds: 0});
     const body = Buffer.alloc(20);
 
@@ -218,14 +217,13 @@ export function encodeAnnounce(
 }
 
 /**
- * Encodes a DelayResp message in response to a received DelayReq.
- * Length = 54 bytes (34 header + 10 receiveTimestamp + 10 requestingPortIdentity).
+ * Encodes a 54-byte DelayResp message that answers a DelayReq: 34 header,
+ * 10 receiveTimestamp and 10 requestingPortIdentity.
  *
- * @param sequenceId - Sequence identifier copied from the received DelayReq.
+ * @param sequenceId - Copied from the DelayReq.
  * @param clockIdentity - Our 8-byte EUI-64 clock identity.
- * @param receiveTimestamp - The timestamp at which we observed the DelayReq.
+ * @param receiveTimestamp - When we received the DelayReq.
  * @param requestingPortIdentity - The 10-byte source port identity of the DelayReq.
- * @returns The encoded DelayResp message buffer.
  */
 export function encodeDelayResp(
     sequenceId: number,
@@ -235,6 +233,7 @@ export function encodeDelayResp(
 ): Buffer {
     const timestamp = encodeTimestamp(receiveTimestamp);
     const length = PTP_HEADER_LENGTH + timestamp.length + 10;
+
     const header = buildHeader(
         PtpMessageType.DelayResp,
         clockIdentity,
@@ -244,23 +243,21 @@ export function encodeDelayResp(
         LogInterval.DelayResp,
         0x0008
     );
+
     const requester = Buffer.alloc(10);
+
     requestingPortIdentity.copy(requester, 0, 0, 10);
 
     return Buffer.concat([header, timestamp, requester]);
 }
 
 /**
- * Encodes a Signaling message that asks the peer to stop sending Sync,
- * Announce, and Pdelay messages (MessageIntervalRequest TLV with 0x7E
- * sentinels in all three fields).
+ * Encodes a Signaling message that asks the peer to stop its Sync, Announce
+ * and Pdelay messages, with 0x7E in all three fields of a MessageIntervalRequest
+ * TLV. We send it when we yield the master role to a peer with a higher priority.
  *
- * Used when we yield our master role to a higher-priority peer.
- *
- * @param sequenceId - Sequence identifier for this Signaling message.
  * @param clockIdentity - Our 8-byte EUI-64 clock identity.
- * @param targetPortIdentity - The 10-byte port identity of the peer to address.
- * @returns The encoded Signaling message buffer.
+ * @param targetPortIdentity - The 10-byte port identity of the peer.
  */
 export function encodeSignalingStop(
     sequenceId: number,
@@ -269,9 +266,11 @@ export function encodeSignalingStop(
 ): Buffer {
     const tlv = encodeMessageIntervalRequestTlv(0x7E, 0x7E, 0x7E);
     const target = Buffer.alloc(10);
+
     targetPortIdentity.copy(target, 0, 0, 10);
 
     const length = PTP_HEADER_LENGTH + target.length + tlv.length;
+
     const header = buildHeader(
         PtpMessageType.Signaling,
         clockIdentity,
@@ -286,13 +285,10 @@ export function encodeSignalingStop(
 }
 
 /**
- * Decodes a PTP message from the given buffer. Only the message types we
- * actually send or receive are handled; others are returned with a minimal
- * header-only shape (but we don't expose that type here — callers switch
- * on {@link PtpMessageType}).
+ * Decodes a PTP message from a raw UDP packet. Only the types in
+ * {@link PtpMessageType} decode.
  *
- * @param buf - The raw UDP packet.
- * @returns The decoded message, or null if the buffer is too short or unknown.
+ * @returns The decoded message, or null for a short buffer or an unknown type.
  */
 export function decodeMessage(buf: Buffer): DecodedPtpMessage | null {
     if (buf.length < PTP_HEADER_LENGTH) {

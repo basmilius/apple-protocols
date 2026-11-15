@@ -5,13 +5,11 @@ import { NTP } from '@corewire/core/encoding';
 /**
  * NTP timing server for AirPlay audio synchronization.
  *
- * Apple devices send NTP timing requests to synchronize their clocks with the
- * controller during audio streaming. This server responds with the current
- * wall-clock time using NTP packet format, enabling the device to calculate
- * the correct playback offset for synchronized multi-room audio.
- *
- * Must use wall-clock time (Date.now), not monotonic time (process.hrtime),
- * because NTP timestamps are anchored to the Unix epoch.
+ * During audio streaming, Apple devices send NTP timing requests to sync their
+ * clock with the controller. The server answers with the current wall-clock
+ * time, from which the device derives the playback offset for multiroom audio.
+ * It uses `Date.now()`, not the monotonic `process.hrtime`, because NTP
+ * timestamps are anchored to the Unix epoch.
  */
 export class TimingServer {
     /** The UDP port the timing server is listening on, or 0 if not yet bound. */
@@ -47,10 +45,8 @@ export class TimingServer {
     }
 
     /**
-     * Binds the UDP socket to a random available port and starts listening
-     * for NTP timing requests.
-     *
-     * @throws If the socket fails to bind.
+     * Binds the UDP socket to a random free port and starts answering NTP
+     * timing requests. Rejects when the socket fails to bind.
      */
     listen(): Promise<void> {
         return new Promise<void>((resolve, reject) => {
@@ -71,28 +67,18 @@ export class TimingServer {
         });
     }
 
-    /**
-     * Handles socket errors by logging them.
-     */
     onError(err: Error): void {
         this.#logger.error('Timing server error', err);
     }
 
-    /**
-     * Records the bound port after the socket starts listening.
-     */
     #onListening(): void {
         const {port} = this.#socket.address();
         this.#port = port;
     }
 
     /**
-     * Handles incoming NTP timing requests from Apple devices.
-     * Decodes the request, captures the current NTP timestamp, and sends back
-     * a response with reference, receive, and send timestamps populated.
-     *
-     * @param data - The raw UDP packet data.
-     * @param info - Remote address information of the sender.
+     * Answers an NTP timing request. The reference timestamp echoes the send
+     * time of the request; receive and send time are both now.
      */
     onMessage(data: Buffer, info: RemoteInfo): void {
         try {

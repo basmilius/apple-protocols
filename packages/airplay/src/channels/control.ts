@@ -204,6 +204,7 @@ export class ControlChannel extends RtspClient {
         const settled = exchange.then(() => undefined, () => undefined);
 
         this.#pendingTeardown = settled;
+
         void settled.then(() => {
             if (this.#pendingTeardown === settled) {
                 this.#pendingTeardown = undefined;

@@ -2,19 +2,16 @@ import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 
 /**
- * Builds a 32-byte DataStream frame header with the 'sync'/'comm' command format.
+ * Builds the 32-byte header of a DataStream `sync`/`comm` frame.
  *
- * Layout (32 bytes):
- * - [0..3] total frame size (header + payload) as uint32 BE
- * - [4..7] 'sync' ASCII tag
- * - [8..15] 8 zero bytes (reserved)
- * - [16..19] 'comm' ASCII command tag
+ * - [0..3] frame size, header and payload, as uint32 BE
+ * - [4..7] `sync`
+ * - [8..15] reserved, zero
+ * - [16..19] `comm`
  * - [20..27] sequence number as uint64 BE
- * - [28..31] 4 zero bytes (reserved)
+ * - [28..31] reserved, zero
  *
- * @param totalSize - Total size of the frame including this header.
- * @param seqno - Sequence number for this frame.
- * @returns 32-byte header buffer.
+ * @param totalSize - Frame size including this header.
  */
 export function buildHeader(totalSize: number, seqno: bigint): Buffer {
     const buf = Buffer.allocUnsafe(32);
@@ -30,16 +27,12 @@ export function buildHeader(totalSize: number, seqno: bigint): Buffer {
 }
 
 /**
- * Builds a 32-byte DataStream reply header acknowledging a received frame.
- *
- * Reply frames have no payload (size = 32), use the 'rply' tag, and echo
- * back the sequence number of the frame being acknowledged.
- *
- * @param seqno - Sequence number of the frame being acknowledged.
- * @returns 32-byte reply header buffer.
+ * Builds the 32-byte DataStream `rply` frame that acknowledges a frame. It has
+ * no payload and echoes the sequence number of the acknowledged frame.
  */
 export function buildReply(seqno: bigint): Buffer {
     const header = Buffer.allocUnsafe(32);
+
     header.writeUInt32BE(32, 0); // size = header only, no payload
     header.write('rply', 4, 'ascii');
     header.fill(0, 8, 16);
@@ -51,10 +44,9 @@ export function buildReply(seqno: bigint): Buffer {
 }
 
 /**
- * Extracts the sequence number from a 32-byte DataStream frame header.
+ * Reads the sequence number of a DataStream frame header.
  *
  * @param header - At least 28 bytes of the frame header.
- * @returns The sequence number as a bigint.
  * @throws Error if the header is too short.
  */
 export function parseHeaderSeqno(header: Buffer): bigint {
@@ -66,9 +58,9 @@ export function parseHeaderSeqno(header: Buffer): bigint {
 }
 
 /**
- * Finds the first non-internal MAC address on this machine.
+ * Finds the MAC address of the first external IPv4 interface.
  *
- * @returns The MAC address in uppercase colon-separated format, or '00:00:00:00:00:00' if none is found.
+ * @returns Uppercase and colon-separated, or `00:00:00:00:00:00` when there is none.
  */
 export function getMacAddress(): string {
     const interfaces = networkInterfaces();
@@ -105,6 +97,7 @@ export function randomInt64(): bigint {
 /** A 16-bit unsigned integer as two big-endian bytes. */
 export function uint16ToBE(value: number): Buffer {
     const buffer = Buffer.allocUnsafe(2);
+
     buffer.writeUInt16BE(value, 0);
 
     return buffer;

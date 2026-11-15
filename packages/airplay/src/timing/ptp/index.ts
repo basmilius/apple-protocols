@@ -13,70 +13,65 @@ import {
 } from './messages';
 import { ptpNow } from './timestamp';
 
-/** Interval between Sync + FollowUp pairs (125 ms — logInterval -3). */
+/** Interval between Sync and FollowUp pairs, logInterval -3. */
 const SYNC_INTERVAL_MS = 125;
 
-/** Interval between Announce messages (250 ms — macOS cadence). */
+/** Interval between Announce messages, the macOS cadence. */
 const ANNOUNCE_INTERVAL_MS = 250;
 
-/** IANA-assigned event port for PTP (Sync, DelayReq). */
+/** IANA event port for PTP (Sync, DelayReq). */
 const EVENT_PORT = 319;
 
-/** IANA-assigned general port for PTP (FollowUp, DelayResp, Announce, Signaling). */
+/** IANA general port for PTP (FollowUp, DelayResp, Announce, Signaling). */
 const GENERAL_PORT = 320;
 
 /**
- * High-level state of the PTP master.
+ * State of the PTP master.
  *
- * - `idle` — sockets not yet bound.
- * - `master` — acting as the grandmaster; Sync + Announce cadences running.
- * - `stopped` — yielded to a higher-priority peer (or explicitly torn down).
+ * - `idle`: the sockets are not bound yet.
+ * - `master`: grandmaster, with the Sync and Announce cadences running.
+ * - `stopped`: yielded to a peer with a higher priority, or stopped.
  */
 export type PtpMasterState = 'idle' | 'master' | 'stopped';
 
 /**
- * IEEE 1588 (PTPv2) grandmaster implementation for AirPlay 2 HomePods.
+ * IEEE 1588 (PTPv2) grandmaster for AirPlay 2 HomePods.
  *
- * HomePods with `SupportsPTP` (feature bit 41) expect the sender to act as
- * the PTP grandmaster. This class implements the sender side of that
- * contract: it binds the two standard PTP UDP ports, runs the Sync +
- * Announce cadences at the rates used by macOS, responds to DelayReq with
- * DelayResp, and — when a higher-priority peer advertises itself — yields
- * by sending a Signaling message with `logMessageInterval = 0x7E` before
- * stopping the cadence.
+ * A HomePod with `SupportsPTP` (feature bit 41) expects the sender to be the
+ * PTP grandmaster. The master binds the two PTP UDP ports, sends Sync and
+ * Announce at the macOS rates and answers DelayReq with DelayResp. When a peer
+ * with a higher priority announces itself, it sends a Signaling message with
+ * `logMessageInterval = 0x7E` and stops.
  *
- * This is a **stop-only yield**: after yielding we stop our PTP traffic but
- * keep using the local wall-clock for audio timestamps. We do not try to
- * implement a PTP slave — HomePods are tolerant of this as long as the
- * stream of Sync messages ceases.
+ * After that yield, audio timestamps keep using the local wall clock; there
+ * is no PTP slave. HomePods accept this as long as the Sync messages stop.
  */
 export class PtpMaster {
-    /** UDP port bound for PTP event messages (319 or ephemeral fallback). */
+    /** UDP port for PTP event messages: 319, or an ephemeral port as fallback. */
     get eventPort(): number {
         return this.#eventPort;
     }
 
-    /** UDP port bound for PTP general messages (320 or ephemeral fallback). */
+    /** UDP port for PTP general messages: 320, or an ephemeral port as fallback. */
     get generalPort(): number {
         return this.#generalPort;
     }
 
-    /** Current state of the master. */
     get state(): PtpMasterState {
         return this.#state;
     }
 
-    /** Our 8-byte EUI-64 clock identity advertised to peers. */
+    /** Our 8-byte EUI-64 clock identity, as advertised to peers. */
     get clockIdentity(): Buffer {
         return this.#clockIdentity;
     }
 
-    /** Number of Sync messages successfully sent to the peer. */
+    /** Number of Sync messages sent to the peer. */
     get syncsSent(): number {
         return this.#syncsSent;
     }
 
-    /** Number of Announce messages successfully sent to the peer. */
+    /** Number of Announce messages sent to the peer. */
     get announcesSent(): number {
         return this.#announcesSent;
     }
@@ -86,7 +81,7 @@ export class PtpMaster {
         return this.#delayReqsReceived;
     }
 
-    /** Number of DelayResp messages successfully sent in reply. */
+    /** Number of DelayResp messages sent in reply. */
     get delayRespsSent(): number {
         return this.#delayRespsSent;
     }
@@ -116,8 +111,7 @@ export class PtpMaster {
     #announcesReceived: number = 0;
 
     /**
-     * @param peerAddress - IPv4 address of the receiver we are the master for.
-     *                      Used as the default destination for Sync, FollowUp and Announce.
+     * @param peerAddress - IPv4 address of the receiver, the destination of Sync, FollowUp and Announce.
      */
     constructor(peerAddress: string) {
         this.#logger = new Logger('ptp-master');
@@ -131,11 +125,10 @@ export class PtpMaster {
     }
 
     /**
-     * Binds both PTP sockets and starts acting as the grandmaster.
-     * Prefers the standard privileged ports 319/320; on `EACCES` it falls
-     * back to ephemeral ports and logs a warning (HomePods may refuse to
-     * pair with a non-standard port, but on Linux this fallback is the
-     * difference between "runs as root" and "runs at all").
+     * Binds both PTP sockets and starts acting as the grandmaster. It prefers
+     * the privileged ports 319 and 320 and falls back to ephemeral ports on
+     * `EACCES`, so it runs on Linux without root. Some HomePods reject PTP on
+     * non-standard ports.
      *
      * @returns The bound event and general ports.
      */
@@ -170,8 +163,7 @@ export class PtpMaster {
     }
 
     /**
-     * Stops the cadence timers, closes both sockets, and marks the master as stopped.
-     * Safe to call multiple times.
+     * Stops the cadence timers and closes both sockets. Safe to call more than once.
      */
     stop(): void {
         if (this.#syncTimer) {
@@ -202,12 +194,8 @@ export class PtpMaster {
     }
 
     /**
-     * Handles incoming PTP event-port packets.
-     * Only DelayReq is meaningful on this port for a master role; we answer
-     * with DelayResp carrying our receive timestamp.
-     *
-     * @param buf - The raw UDP packet.
-     * @param info - Remote address information.
+     * Answers a DelayReq on the event port with a DelayResp that carries our
+     * receive timestamp. A master ignores the other event messages.
      */
     onEventPacket(buf: Buffer, info: RemoteInfo): void {
         const decoded = decodeMessage(buf);
@@ -218,6 +206,7 @@ export class PtpMaster {
 
         if (decoded.type === PtpMessageType.DelayReq) {
             this.#delayReqsReceived++;
+
             const receiveTimestamp = ptpNow();
             const response = encodeDelayResp(
                 decoded.header.sequenceId,
@@ -229,6 +218,7 @@ export class PtpMaster {
             this.#generalSocket?.send(response, GENERAL_PORT, info.address, err => {
                 if (err) {
                     this.#logger.warn(`DelayResp send failed to ${info.address}:${GENERAL_PORT}`, err);
+
                     return;
                 }
 
@@ -238,12 +228,8 @@ export class PtpMaster {
     }
 
     /**
-     * Handles incoming PTP general-port packets.
-     * Only Announce is meaningful: if it advertises a peer with a strictly
-     * better priority1 than ours, we yield and stop.
-     *
-     * @param buf - The raw UDP packet.
-     * @param info - Remote address information.
+     * Handles an Announce on the general port. When the peer has a strictly
+     * better priority1 than ours, the master yields and stops.
      */
     onGeneralPacket(buf: Buffer, info: RemoteInfo): void {
         const decoded = decodeMessage(buf);
@@ -257,6 +243,7 @@ export class PtpMaster {
         }
 
         this.#announcesReceived++;
+
         const peerPriority1 = decoded.body.grandmasterPriority1;
 
         if (peerPriority1 >= DEFAULT_PRIORITY_1) {
@@ -269,28 +256,20 @@ export class PtpMaster {
         this.stop();
     }
 
-    /**
-     * Logs event-socket errors. Errors are informational only — the socket
-     * lifecycle is owned by {@link stop}.
-     */
+    /** Logs the error only; {@link stop} owns the socket lifecycle. */
     onEventError(err: Error): void {
         this.#logger.warn('Event socket error', err);
     }
 
-    /**
-     * Logs general-socket errors. Errors are informational only — the socket
-     * lifecycle is owned by {@link stop}.
-     */
+    /** Logs the error only; {@link stop} owns the socket lifecycle. */
     onGeneralError(err: Error): void {
         this.#logger.warn('General socket error', err);
     }
 
     /**
-     * Tries to bind `preferredPort`; on `EACCES` falls back to an ephemeral port.
+     * Binds `preferredPort` (319 or 320) and falls back to an ephemeral port on `EACCES`.
      *
-     * @param preferredPort - The port number we'd like (319 or 320).
-     * @param label - Human-readable label used in log messages.
-     * @returns A bound UDP socket.
+     * @param label - Names the socket in log messages.
      */
     #bindSocket(preferredPort: number, label: string): Promise<Socket> {
         return new Promise<Socket>((resolve, reject) => {
@@ -307,6 +286,7 @@ export class PtpMaster {
                 if (err.code === 'EACCES') {
                     this.#logger.warn(`Privileged ${label} port ${preferredPort} not available, falling back to ephemeral port. Some HomePods may reject PTP on non-standard ports.`);
                     this.#bindEphemeral(label).then(resolve, reject);
+
                     return;
                 }
 
@@ -327,8 +307,7 @@ export class PtpMaster {
     /**
      * Binds a new UDP socket to an ephemeral port.
      *
-     * @param label - Human-readable label for log messages.
-     * @returns A bound UDP socket.
+     * @param label - Names the socket in log messages.
      */
     #bindEphemeral(label: string): Promise<Socket> {
         return new Promise<Socket>((resolve, reject) => {
@@ -356,18 +335,14 @@ export class PtpMaster {
         });
     }
 
-    /**
-     * Starts the two interval timers that drive master-role traffic.
-     */
     #startMasterTimers(): void {
         this.#syncTimer = setInterval(() => this.#sendSyncAndFollowUp(), SYNC_INTERVAL_MS);
         this.#announceTimer = setInterval(() => this.#sendAnnounce(), ANNOUNCE_INTERVAL_MS);
     }
 
     /**
-     * Emits a Sync (on the event port) and the matching FollowUp (on the
-     * general port). Two-step PTP: the precise origin timestamp is taken at
-     * Sync send time and carried in FollowUp.
+     * Sends a Sync on the event port and the matching FollowUp on the general
+     * port. In two-step PTP, the FollowUp carries the time the Sync went out.
      */
     #sendSyncAndFollowUp(): void {
         if (!this.#eventSocket || !this.#generalSocket) {
@@ -380,10 +355,12 @@ export class PtpMaster {
         this.#eventSocket.send(sync, EVENT_PORT, this.#peerAddress, err => {
             if (err) {
                 this.#logger.warn(`Sync send failed`, err);
+
                 return;
             }
 
             this.#syncsSent++;
+
             const t1 = ptpNow();
             const followUp = encodeFollowUp(sequenceId, this.#clockIdentity, t1);
 
@@ -397,9 +374,6 @@ export class PtpMaster {
         });
     }
 
-    /**
-     * Emits an Announce on the general port.
-     */
     #sendAnnounce(): void {
         if (!this.#generalSocket) {
             return;
@@ -411,6 +385,7 @@ export class PtpMaster {
         this.#generalSocket.send(announce, GENERAL_PORT, this.#peerAddress, err => {
             if (err) {
                 this.#logger.warn(`Announce send failed`, err);
+
                 return;
             }
 
@@ -419,11 +394,11 @@ export class PtpMaster {
     }
 
     /**
-     * Sends a one-shot Signaling message asking the addressed peer to stop
-     * sending Sync, Announce, and Pdelay. Used when we yield.
+     * Sends one Signaling message that asks the peer to stop its Sync,
+     * Announce and Pdelay messages, when we yield.
      *
-     * @param targetPortIdentity - The 10-byte port identity of the peer to address.
-     * @param address - Destination address (IPv4).
+     * @param targetPortIdentity - The 10-byte port identity of the peer.
+     * @param address - IPv4 destination address.
      */
     #sendSignalingStop(targetPortIdentity: Buffer, address: string): void {
         if (!this.#generalSocket) {

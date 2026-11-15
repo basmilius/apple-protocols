@@ -6,13 +6,12 @@ import { decodeRetransmitRequest, PacketFifo, SyncPacket } from './packets';
 import type { StreamContext } from './types';
 
 /**
- * Converts RTP frames to a wall-clock NTP timestamp using the stream-start anchor and 32-bit wrap handling.
- *
- * @param sampleRate - Samples per second.
- * @returns 64-bit NTP timestamp.
+ * Converts an RTP timestamp to a 64-bit wall-clock NTP timestamp against the
+ * anchor taken at stream start, across the 32-bit wrap.
  */
 function ntpFromTs(rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint {
     let elapsedSamples: number;
+
     if (rtpTimestamp >= anchorRtp) {
         elapsedSamples = rtpTimestamp - anchorRtp;
     } else {
@@ -28,57 +27,43 @@ function ntpFromTs(rtpTimestamp: number, sampleRate: number, anchorRtp: number, 
 }
 
 /**
- * UDP control channel client for RAOP streaming. Responsible for two tasks:
- * 1. Sending periodic timing sync packets to the receiver so it can
- *    synchronize its playback clock with our RTP timestamps.
- * 2. Handling retransmit requests from the receiver by resending lost
- *    packets from the packet backlog.
+ * UDP control channel of a RAOP stream. It sends periodic sync packets so the
+ * receiver aligns its playback clock with our RTP timestamps, and answers
+ * retransmit requests from the packet backlog.
  */
 export class ControlClient extends EventEmitter {
-    /** Application context providing logger and device identity. */
     readonly #appContext: Context;
-    /** UDP socket for the control channel. */
     #transport?: UdpSocket;
-    /** Shared streaming state containing timestamps, ports, and audio format. */
     #context: StreamContext;
-    /** FIFO backlog of recently sent packets for retransmission. */
     #packetBacklog: PacketFifo;
-    /** Interval timer handle for periodic sync packet sending. */
     #syncTask?: NodeJS.Timeout;
-    /** Local UDP port assigned after binding. */
     #localPort?: number;
-    /** RTP timestamp at the anchor point for NTP conversion. */
+
+    /** RTP timestamp of the NTP anchor. */
     #anchorRtp: number = 0;
-    /** NTP wall-clock timestamp at the anchor point. */
+
+    /** NTP wall-clock timestamp of the anchor. */
     #anchorNtp: bigint = 0n;
+
     #remoteAddress?: string;
 
-    /**
-     * Creates a new control client.
-     *
-     * @param appContext - Application context for logging.
-     * @param context - Shared stream context with RTP state.
-     * @param packetBacklog - Packet FIFO for retransmit lookups.
-     */
     constructor(appContext: Context, context: StreamContext, packetBacklog: PacketFifo) {
         super();
+
         this.#appContext = appContext;
         this.#context = context;
         this.#packetBacklog = packetBacklog;
     }
 
-    /** Local UDP port the control channel is bound to, or 0 if not yet bound. */
+    /** Local UDP port of the control channel, or 0 before binding. */
     get port(): number {
         return this.#localPort ?? 0;
     }
 
     /**
-     * Binds the control channel UDP socket to a local address and port.
-     * Resolves once the socket is listening and the assigned port is known.
+     * Binds the UDP socket and resolves once it listens. Rejects on a bind error.
      *
-     * @param localIp - Local IP address to bind to.
-     * @param port - Desired port number (0 for auto-assign).
-     * @throws When the UDP socket encounters a bind error.
+     * @param port - 0 picks a free port.
      */
     async bind(localIp: string, port: number): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -95,6 +80,7 @@ export class ControlClient extends EventEmitter {
 
             this.#transport.on('listening', () => {
                 const address = this.#transport!.address();
+
                 this.#localPort = address.port;
                 resolve();
             });
@@ -103,9 +89,7 @@ export class ControlClient extends EventEmitter {
         });
     }
 
-    /**
-     * Stops the sync task and closes the UDP socket, releasing all resources.
-     */
+    /** Stops the sync task and closes the UDP socket. */
     close(): void {
         this.stop();
 
@@ -116,29 +100,26 @@ export class ControlClient extends EventEmitter {
     }
 
     /**
-     * Starts sending periodic sync packets to the receiver. Sync packets
-     * are sent immediately and then every second to keep the receiver's
-     * playback clock aligned.
+     * Sends a sync packet to the receiver now and then every second.
      *
      * @param remoteAddr - IP address of the RAOP receiver.
      * @throws When the sync task is already running.
      */
     start(remoteAddr: string): void {
         this.#remoteAddress = remoteAddr;
+
         if (this.#syncTask) {
             throw new Error('Already running');
         }
 
-        // Establish wall-clock anchor: link current headTs to real NTP time.
+        // Anchors the current headTs to the wall-clock NTP time.
         this.#anchorRtp = this.#context.headTs;
         this.#anchorNtp = NTP.now();
 
         this.#startSyncTask(remoteAddr, this.#context.controlPort);
     }
 
-    /**
-     * Stops the periodic sync task without closing the UDP socket.
-     */
+    /** Stops the sync task and keeps the UDP socket open. */
     stop(): void {
         if (this.#syncTask) {
             clearInterval(this.#syncTask);
@@ -147,10 +128,9 @@ export class ControlClient extends EventEmitter {
     }
 
     /**
-     * Starts the periodic sync packet sending loop. The first packet uses
-     * header byte 0x90 (marker bit set), subsequent packets use 0x80.
+     * Starts the sync loop. The first packet has header byte 0x90 (marker bit
+     * set), the rest 0x80.
      *
-     * @param addr - Remote receiver IP address.
      * @param port - Remote control port.
      */
     #startSyncTask(addr: string, port: number): void {
@@ -180,17 +160,12 @@ export class ControlClient extends EventEmitter {
         this.#syncTask = setInterval(sendSync, 1000);
     }
 
-    /**
-     * Handles incoming UDP messages on the control channel. Dispatches
-     * retransmit requests (type 0x55) and logs unhandled message types.
-     *
-     * @param data - Raw UDP packet data.
-     * @param rinfo - Remote address info of the sender.
-     */
+    /** Answers retransmit requests (type 0x55) and logs the other message types. */
     #onMessage(data: Buffer, rinfo: { address: string; port: number }): void {
         if (data.length < 8 || (data[0] >> 6) !== 2 || rinfo.address !== this.#remoteAddress || rinfo.port !== this.#context.controlPort) {
             return;
         }
+
         const actualType = data[1] & 0x7F;
 
         if (actualType === 0x55) {
@@ -201,17 +176,14 @@ export class ControlClient extends EventEmitter {
     }
 
     /**
-     * Resends lost packets requested by the receiver. For each requested
-     * sequence number, sends the original packet wrapped in a retransmit
-     * response (type 0xD6). If the packet is no longer in the backlog,
-     * sends an empty futile response to acknowledge the request.
-     *
-     * @param request - Parsed retransmit request with starting sequence number and count.
-     * @param addr - Remote address to send retransmitted packets to.
+     * Resends each requested packet in a retransmit response (type 0xD6). A
+     * packet that left the backlog gets an empty response, so the receiver
+     * stops waiting for it.
      */
     #retransmitLostPackets(request: { lostSeqno: number; lostPackets: number }, addr: { address: string; port: number }): void {
         for (let i = 0; i < Math.min(request.lostPackets, 512); i++) {
             const seqno = (request.lostSeqno + i) & 0xFFFF;
+
             if (this.#packetBacklog.has(seqno)) {
                 const packet = this.#packetBacklog.get(seqno)!;
 
@@ -226,9 +198,10 @@ export class ControlClient extends EventEmitter {
                     this.#transport.send(resp, addr.port, addr.address);
                 }
             } else {
-                // Futile retransmit response — packet is no longer in our backlog.
                 const seqBuf = Buffer.alloc(2);
+
                 seqBuf.writeUInt16BE(seqno);
+
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), seqBuf, Buffer.alloc(4)]);
 
                 if (this.#transport) {

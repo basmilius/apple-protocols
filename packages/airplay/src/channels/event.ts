@@ -102,7 +102,7 @@ export class EventChannel extends EncryptedChannel<EventChannelEventMap> {
 
 /**
  * The HKDF infos are named from the receiver's side, because the receiver originates this
- * connection, so the keys are swapped on purpose: `Events-Write-Encryption-Key` is what the
+ * connection. The keys are swapped on purpose: `Events-Write-Encryption-Key` is what the
  * receiver writes, which we read.
  */
 function eventKeys(sharedSecret: Buffer): ChannelKeys {

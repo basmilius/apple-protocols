@@ -40,6 +40,7 @@ export async function connect(target: RaopTarget, options: RaopConnectOptions): 
         await rtsp.connect();
 
         const streamContext = createStreamContext();
+
         streamContext.rtspSession = rtsp.rtspSessionId;
 
         const settings: Settings = {
@@ -231,9 +232,8 @@ export class RaopSession extends EventEmitter<RaopEventMap> {
 }
 
 /**
- * RAOP-specific implementation of the StreamProtocol interface.
- * Handles RTSP ANNOUNCE/SETUP for transport negotiation, periodic
- * feedback keepalives, and raw UDP audio packet sending.
+ * The RAOP {@link StreamProtocol}: ANNOUNCE and SETUP for the transport,
+ * feedback keepalives and raw UDP audio packets.
  */
 class RaopStreamProtocol implements StreamProtocol {
     readonly #password?: string;
@@ -249,9 +249,8 @@ class RaopStreamProtocol implements StreamProtocol {
     }
 
     /**
-     * Announces the audio format and sets up the RTP transport by
-     * sending RTSP ANNOUNCE and SETUP requests. Parses the server's
-     * response to extract assigned server and control ports.
+     * Sends ANNOUNCE and SETUP and reads the receiver's server and control
+     * ports from the Transport header of the response.
      *
      * @param timingPort - Local NTP timing server port.
      * @param controlPort - Local control channel port.
@@ -308,10 +307,9 @@ class RaopStreamProtocol implements StreamProtocol {
     }
 
     /**
-     * Sends a single audio packet over the UDP transport by concatenating
-     * the RTP header with the audio payload.
+     * Sends the RTP header and audio payload as one UDP packet.
      *
-     * @returns A tuple of [sequence number, full packet buffer] for backlog storage.
+     * @returns The sequence number and the full packet, for the backlog.
      */
     async sendAudioPacket(transport: UdpSocket, header: Buffer, audio: Buffer): Promise<[number, Buffer]> {
         const packet = Buffer.concat([header, audio]);
@@ -324,7 +322,7 @@ class RaopStreamProtocol implements StreamProtocol {
         return [seqno, packet];
     }
 
-    /** Stops the feedback interval timer, ending periodic keepalive requests. */
+    /** Stops the feedback keepalive. */
     teardown(): void {
         if (!this.#feedbackInterval) {
             return;
@@ -337,8 +335,8 @@ class RaopStreamProtocol implements StreamProtocol {
 }
 
 /**
- * Creates a fresh StreamContext with CD-quality audio defaults
- * (44100 Hz, stereo, 16-bit) and randomized RTP sequence/timestamp values.
+ * Creates a stream context with CD quality (44100 Hz, stereo, 16-bit) and a
+ * random RTP sequence number and timestamp.
  */
 function createStreamContext(): StreamContext {
     const rtptime = Math.floor(Math.random() * 0xFFFFFFFF);

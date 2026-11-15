@@ -1,33 +1,22 @@
 import { type AdditionalMetadata, decodeAdditionalMetadata } from './additionalMetadata';
 import * as Proto from './proto';
 
-/**
- * Offset in seconds between the Cocoa epoch (2001-01-01) and the Unix epoch (1970-01-01).
- */
+/** Seconds between the Cocoa epoch (2001-01-01) and the Unix epoch (1970-01-01). */
 const COCOA_EPOCH_OFFSET = 978307200;
 
-/**
- * Default player identifier used by the Apple TV when no specific player is active.
- */
+/** The player the receiver reports when no specific player is active. */
 const DEFAULT_PLAYER_ID = 'MediaRemote-DefaultPlayer';
 
-/**
- * Converts an artwork URL to a browser-compatible format.
- * Apple's CDN serves HEIC by default, which most browsers can't display.
- * Replacing the extension with .jpg makes the CDN return JPEG instead.
- */
+/** The artwork CDN serves HEIC by default, which most browsers cannot show; a `.jpg` extension makes it return JPEG. */
 const convertArtworkUrl = (url: string): string => {
     return url.replace(/\.heic(\b|$)/gi, '.jpg');
 };
 
 /**
- * Extrapolates the current elapsed time based on a snapshot timestamp and playback rate.
- * Compensates for the time passed since the timestamp was recorded, scaled by the playback rate.
+ * Moves an elapsed time from its snapshot to now at the playback rate, never below 0.
  *
- * @param elapsed - The elapsed time at the moment of the snapshot, in seconds.
- * @param cocoaTimestamp - The Cocoa epoch timestamp when the snapshot was taken.
- * @param rate - The playback rate (e.g. 1.0 for normal speed, 0 for paused).
- * @returns The extrapolated elapsed time in seconds, clamped to a minimum of 0.
+ * @param elapsed - Seconds at the moment of the snapshot.
+ * @param cocoaTimestamp - Moment of the snapshot, in seconds since the Cocoa epoch.
  */
 const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: number | undefined): number => {
     if (!rate) {
@@ -43,178 +32,117 @@ const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: numbe
 export { DEFAULT_PLAYER_ID };
 
 /**
- * Represents a single media player within an app on the Apple TV.
- * Each app (Client) can have multiple players (e.g. picture-in-picture).
- * Tracks now-playing metadata, playback state, and provides elapsed time extrapolation
- * based on Cocoa timestamps and playback rate.
+ * One player of a now-playing app; an app can have several, such as picture-in-picture. Tracks
+ * the now-playing metadata and playback state, and extrapolates the elapsed time from the Cocoa
+ * timestamp and the playback rate.
  */
 export class Player {
-    /**
-     * Unique identifier for this player (e.g. a player path).
-     */
+    /** For example a player path. */
     get identifier(): string {
         return this.#identifier;
     }
 
-    /**
-     * Human-readable display name for this player.
-     */
     get displayName(): string {
         return this.#displayName;
     }
 
-    /**
-     * Whether this is the default fallback player (MediaRemote-DefaultPlayer).
-     */
+    /** Whether this is `MediaRemote-DefaultPlayer`, the player of an app without a specific one. */
     get isDefaultPlayer(): boolean {
         return this.#identifier === DEFAULT_PLAYER_ID;
     }
 
-    /**
-     * Raw now-playing info from the Apple TV, or null if unavailable.
-     */
     get nowPlayingInfo(): Proto.NowPlayingInfo | null {
         return this.#nowPlayingInfo;
     }
 
-    /**
-     * Current playback queue, or null if unavailable.
-     */
     get playbackQueue(): Proto.PlaybackQueue | null {
         return this.#playbackQueue;
     }
 
-    /**
-     * Effective playback state.
-     */
     get playbackState(): Proto.PlaybackState_Enum {
         return this.#playbackState;
     }
 
-    /**
-     * Timestamp of the last playback state update, used to discard stale updates.
-     */
+    /** Timestamp of the last playback state update; an older update is ignored. */
     get playbackStateTimestamp(): number {
         return this.#playbackStateTimestamp;
     }
 
-    /**
-     * List of commands supported by this player.
-     */
     get supportedCommands(): Proto.CommandInfo[] {
         return this.#supportedCommands;
     }
 
-    /**
-     * Current track title from NowPlayingInfo or content item metadata.
-     */
     get title(): string {
         return this.#nowPlayingInfo?.title || this.currentItemMetadata?.title || '';
     }
 
-    /**
-     * Current track artist from NowPlayingInfo or content item metadata.
-     */
     get artist(): string {
         return this.#nowPlayingInfo?.artist || this.currentItemMetadata?.trackArtistName || '';
     }
 
-    /**
-     * Current track album from NowPlayingInfo or content item metadata.
-     */
     get album(): string {
         return this.#nowPlayingInfo?.album || this.currentItemMetadata?.albumName || '';
     }
 
-    /**
-     * Genre of the current content item.
-     */
     get genre(): string {
         return this.currentItemMetadata?.genre || this.#additionalMetadata?.genre || '';
     }
 
-    /**
-     * Series name for TV show content.
-     */
     get seriesName(): string {
         return this.currentItemMetadata?.seriesName || '';
     }
 
-    /**
-     * Season number for TV show content, or 0 if not applicable.
-     */
+    /** 0 when unknown. */
     get seasonNumber(): number {
         return this.currentItemMetadata?.seasonNumber || this.#additionalMetadata?.seasonNumber || 0;
     }
 
-    /**
-     * Episode number for TV show content, or 0 if not applicable.
-     */
+    /** 0 when unknown. */
     get episodeNumber(): number {
         return this.currentItemMetadata?.episodeNumber || this.#additionalMetadata?.episodeNumber || 0;
     }
 
-    /**
-     * Episode title for TV show content. Only the Apple TV app sends it, in its archived now-playing info.
-     */
+    /** Only the Apple TV app sends it, in its archived now-playing info. */
     get episodeTitle(): string {
         return this.#additionalMetadata?.episodeTitle || '';
     }
 
-    /**
-     * Localized content rating of the current content item (e.g. "12+").
-     */
+    /** Localized, for example `12+`. */
     get contentRating(): string {
         return this.currentItemMetadata?.localizedContentRating || this.#additionalMetadata?.contentRating || '';
     }
 
-    /**
-     * Media type of the current content item (music, video, etc.).
-     */
     get mediaType(): Proto.ContentItemMetadata_MediaType {
         return this.currentItemMetadata?.mediaType ?? Proto.ContentItemMetadata_MediaType.UnknownMediaType;
     }
 
-    /**
-     * Unique content identifier for the current item (e.g. iTunes store ID).
-     */
+    /** For example a store ID. */
     get contentIdentifier(): string {
         return this.currentItemMetadata?.contentIdentifier || '';
     }
 
-    /**
-     * Duration of the current track in seconds, from NowPlayingInfo or metadata.
-     */
+    /** In seconds. */
     get duration(): number {
         return this.#nowPlayingInfo?.duration || this.currentItemMetadata?.duration || 0;
     }
 
-    /**
-     * Current playback rate (1.0 = normal, 0 = paused, 2.0 = double speed).
-     */
+    /** 1 is normal speed, 0 is paused, 2 is double speed. */
     get playbackRate(): number {
         return this.#nowPlayingInfo?.playbackRate ?? this.currentItemMetadata?.playbackRate ?? 0;
     }
 
-    /**
-     * Whether the player is currently playing (based on effective playback state).
-     */
     get isPlaying(): boolean {
         return this.playbackState === Proto.PlaybackState_Enum.Playing;
     }
 
-    /**
-     * Current shuffle mode, derived from the ChangeShuffleMode command info.
-     */
+    /** Read from the info of the ChangeShuffleMode command. */
     get shuffleMode(): Proto.ShuffleMode_Enum {
         const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeShuffleMode);
 
         return info?.shuffleMode ?? Proto.ShuffleMode_Enum.Unknown;
     }
 
-    /**
-     * Current repeat mode, derived from the ChangeRepeatMode command info.
-     */
+    /** Read from the info of the ChangeRepeatMode command. */
     get repeatMode(): Proto.RepeatMode_Enum {
         const info = this.#supportedCommands.find(c => c.command === Proto.Command.ChangeRepeatMode);
 
@@ -222,9 +150,9 @@ export class Player {
     }
 
     /**
-     * Elapsed seconds extrapolated from the newer NowPlayingInfo or content-item timestamp.
-     * Track-change metadata can report zero rate and position during playback; use the player's rate in that case.
-     * Paused players can still report rate 1, so keep their last position fixed.
+     * Elapsed seconds, extrapolated from the newer timestamp of the now-playing info and the
+     * content item. Metadata after a track change can report rate 0 during playback, so the
+     * player's rate fills in. A paused player can still report rate 1, so its position stays put.
      */
     get elapsedTime(): number {
         const npi = this.#nowPlayingInfo;
@@ -250,9 +178,7 @@ export class Player {
         return extrapolateElapsed(newest.elapsed, newest.timestamp, newest.rate || this.playbackRate);
     }
 
-    /**
-     * The currently playing content item from the playback queue, or null.
-     */
+    /** The item at the queue location, or the first item when the location is out of range. */
     get currentItem(): Proto.ContentItem | null {
         if (!this.#playbackQueue || this.#playbackQueue.contentItems.length === 0) {
             return null;
@@ -261,17 +187,11 @@ export class Player {
         return this.#playbackQueue.contentItems[this.#playbackQueue.location] ?? this.#playbackQueue.contentItems[0] ?? null;
     }
 
-    /**
-     * Metadata of the current content item, or null if no item is playing.
-     */
     get currentItemMetadata(): Proto.ContentItemMetadata | null {
         return this.currentItem?.metadata ?? null;
     }
 
-    /**
-     * Unique identifier for the current artwork, used for change detection.
-     * Returns null if no artwork evidence exists.
-     */
+    /** Changes when the artwork changes; null when the metadata shows no sign of artwork. */
     get artworkId(): string | null {
         const metadata = this.currentItemMetadata;
 
@@ -279,7 +199,6 @@ export class Player {
             return null;
         }
 
-        // Only return an ID if there's evidence artwork exists.
         if (!metadata.artworkAvailable && !metadata.artworkURL && !metadata.artworkIdentifier) {
             return null;
         }
@@ -296,12 +215,11 @@ export class Player {
     }
 
     /**
-     * Resolves the best available artwork URL for the current item.
-     * Checks metadata artworkURL, remote artworks, and iTunes template URLs in order.
+     * The artwork URL of the current item, from the metadata `artworkURL`, the remote artworks or
+     * the artwork identifier as a URL template, in that order.
      *
-     * @param width - Desired artwork width in pixels (used for template URLs).
-     * @param height - Desired artwork height in pixels (-1 for automatic).
-     * @returns The artwork URL, or null if no artwork URL is available.
+     * @param width - In pixels; only a template uses it.
+     * @param height - In pixels; -1 keeps the aspect ratio.
      */
     artworkUrl(width: number = 600, height: number = -1): string | null {
         const metadata = this.currentItemMetadata;
@@ -328,16 +246,13 @@ export class Player {
                     return url;
                 }
             } catch {
-                // Template formatting failed.
             }
         }
 
         return null;
     }
 
-    /**
-     * Raw artwork data (image bytes) for the current item, or null if not embedded.
-     */
+    /** Image bytes embedded in the current item. */
     get currentItemArtwork(): Uint8Array | null {
         const item = this.currentItem;
 
@@ -356,16 +271,11 @@ export class Player {
         return null;
     }
 
-    /**
-     * Convenience getter for the artwork URL at default dimensions (600px).
-     */
+    /** The artwork URL at 600 pixels wide. */
     get currentItemArtworkUrl(): string | null {
         return this.artworkUrl();
     }
 
-    /**
-     * Lyrics for the current content item, or null if unavailable.
-     */
     get currentItemLyrics(): Proto.LyricsItem | null {
         return this.currentItem?.lyrics ?? null;
     }
@@ -382,64 +292,32 @@ export class Player {
     #playbackStateTimestamp: number = 0;
     #supportedCommands: Proto.CommandInfo[] = [];
 
-    /**
-     * Creates a new Player instance.
-     *
-     * @param identifier - Unique player identifier.
-     * @param displayName - Human-readable display name.
-     */
     constructor(identifier: string, displayName: string) {
         this.#identifier = identifier;
         this.#displayName = displayName;
         this.#playbackState = Proto.PlaybackState_Enum.Unknown;
     }
 
-    /**
-     * Finds a command by its command type in the supported commands list.
-     *
-     * @param command - The command to look up.
-     * @returns The command info, or null if not found.
-     */
     findCommand(command: Proto.Command): Proto.CommandInfo | null {
         return this.#supportedCommands.find(c => c.command === command) ?? null;
     }
 
-    /**
-     * Checks whether a command is supported and enabled.
-     *
-     * @param command - The command to check.
-     * @returns True if the command is in the supported list and enabled.
-     */
+    /** Whether the command is in the list and not disabled. */
     isCommandSupported(command: Proto.Command): boolean {
         const info = this.findCommand(command);
+
         return info != null && info.enabled !== false;
     }
 
-    /**
-     * Updates the now-playing info for this player.
-     *
-     * @param nowPlayingInfo - The new now-playing info from the Apple TV.
-     */
     setNowPlayingInfo(nowPlayingInfo: Proto.NowPlayingInfo): void {
         this.#nowPlayingInfo = nowPlayingInfo;
     }
 
-    /**
-     * Updates the playback queue for this player.
-     *
-     * @param playbackQueue - The new playback queue from the Apple TV.
-     */
     setPlaybackQueue(playbackQueue: Proto.PlaybackQueue): void {
         this.#playbackQueue = playbackQueue;
     }
 
-    /**
-     * Updates the playback state. Ignores updates with a timestamp older than the current one
-     * to prevent stale state from overwriting newer data.
-     *
-     * @param playbackState - The new playback state.
-     * @param playbackStateTimestamp - Timestamp of this state update.
-     */
+    /** Ignores an update with a timestamp older than the current one, so stale state never wins. */
     setPlaybackState(playbackState: Proto.PlaybackState_Enum, playbackStateTimestamp: number): void {
         if (playbackStateTimestamp < this.#playbackStateTimestamp) {
             return;
@@ -449,27 +327,18 @@ export class Player {
         this.#playbackStateTimestamp = playbackStateTimestamp;
     }
 
-    /**
-     * Replaces the list of supported commands for this player.
-     *
-     * @param supportedCommands - The new list of supported commands.
-     */
     setSupportedCommands(supportedCommands: Proto.CommandInfo[]): void {
         this.#supportedCommands = supportedCommands;
     }
 
-    /**
-     * Merges updated content item data into the existing playback queue.
-     * Updates metadata, artwork, lyrics, and info fields for the matching item.
-     *
-     * @param item - The content item with updated fields.
-     */
+    /** Merges the fields an update carries into the queue item with the same identifier. */
     updateContentItem(item: Proto.ContentItem): void {
         if (!this.#playbackQueue) {
             return;
         }
 
         const existing = this.#playbackQueue.contentItems.find(i => i.identifier === item.identifier);
+
         if (!existing) {
             return;
         }

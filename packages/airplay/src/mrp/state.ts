@@ -62,123 +62,82 @@ export type MediaRemoteStateEventMap = {
  * {@link apply} and does no I/O, so recorded traffic feeds it as well as a live data channel.
  */
 export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
-    /**
-     * All known clients (apps) keyed by bundle identifier.
-     */
+    /** The now-playing apps, keyed by bundle identifier. */
     get clients(): Record<string, Client> {
         return this.#clients;
     }
 
-    /**
-     * Whether a keyboard/text input session is currently active on the Apple TV.
-     */
+    /** Whether a text input session is open on the receiver. */
     get isKeyboardActive(): boolean {
         return this.#keyboardState === Proto.KeyboardState_Enum.DidBeginEditing
             || this.#keyboardState === Proto.KeyboardState_Enum.Editing
             || this.#keyboardState === Proto.KeyboardState_Enum.TextDidChange;
     }
 
-    /**
-     * Text editing attributes for the active keyboard session, or null.
-     */
     get keyboardAttributes(): Proto.TextEditingAttributes | null {
         return this.#keyboardAttributes;
     }
 
-    /**
-     * Current keyboard state enum value.
-     */
     get keyboardState(): Proto.KeyboardState_Enum {
         return this.#keyboardState;
     }
 
-    /**
-     * The currently active now-playing client, or null if nothing is playing.
-     */
+    /** Null when the receiver named no now-playing app. */
     get nowPlayingClient(): Client | null {
         return this.#nowPlayingClientBundleIdentifier ? this.#clients[this.#nowPlayingClientBundleIdentifier] ?? null : null;
     }
 
-    /**
-     * UID of the primary output device (used for volume control and multi-room).
-     */
+    /** The device that volume commands address; the cluster ID for a clustered HomePod pair. */
     get outputDeviceUID(): string | null {
         return this.#outputDeviceUID;
     }
 
-    /**
-     * List of all output device descriptors in the current AirPlay group.
-     */
+    /** The devices in the current AirPlay group. */
     get outputDevices(): Proto.AVOutputDeviceDescriptor[] {
         return this.#outputDevices;
     }
 
-    /**
-     * Cluster identifier for multi-room groups, or null.
-     */
+    /** Null outside a multiroom cluster. */
     get clusterID(): string | null {
         return this.#clusterID;
     }
 
-    /**
-     * Cluster type code (0 if not clustered).
-     */
+    /** 0 outside a cluster. */
     get clusterType(): number {
         return this.#clusterType;
     }
 
-    /**
-     * Whether this device is aware of multi-room clusters.
-     */
     get isClusterAware(): boolean {
         return this.#isClusterAware;
     }
 
-    /**
-     * Whether this device is the leader of its multi-room cluster.
-     */
     get isClusterLeader(): boolean {
         return this.#isClusterLeader;
     }
 
-    /**
-     * Current playback queue participants (e.g. SharePlay users).
-     */
+    /** For example SharePlay users. */
     get participants(): Proto.PlaybackQueueParticipant[] {
         return this.#participants;
     }
 
-    /**
-     * Raw JPEG artwork data from the last SET_ARTWORK_MESSAGE, or null.
-     */
+    /** The JPEG of the last SET_ARTWORK. */
     get artworkJpegData(): Uint8Array | null {
         return this.#artworkJpegData;
     }
 
-    /**
-     * Current volume level (0.0 - 1.0).
-     */
+    /** 0 to 1. */
     get volume(): number {
         return this.#volume;
     }
 
-    /**
-     * Whether volume control is available on this device.
-     */
     get volumeAvailable(): boolean {
         return this.#volumeAvailable;
     }
 
-    /**
-     * Volume capabilities (absolute, relative, both, or none).
-     */
     get volumeCapabilities(): Proto.VolumeCapabilities_Enum {
         return this.#volumeCapabilities;
     }
 
-    /**
-     * Whether the device is currently muted.
-     */
     get volumeMuted(): boolean {
         return this.#volumeMuted;
     }
@@ -284,11 +243,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#volumeMuted = false;
     }
 
-    /**
-     * Handles keyboard state changes.
-     *
-     * @param message - The keyboard message with state and attributes.
-     */
     #onKeyboard(message: Proto.KeyboardMessage): void {
         this.#keyboardState = message.state;
         this.#keyboardAttributes = message.attributes ?? null;
@@ -296,12 +250,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.emit('keyboardChanged', this.#keyboardState, this.#keyboardAttributes);
     }
 
-    /**
-     * Handles removal of a client (app). Clears the now-playing reference if
-     * the removed client was the active one.
-     *
-     * @param message - The remove client message.
-     */
     #onRemoveClient(message: Proto.RemoveClientMessage): void {
         if (!message.client?.bundleIdentifier) {
             return;
@@ -327,22 +275,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles lyrics events (time-synced lyrics updates).
-     *
-     * @param message - The lyrics event message.
-     */
     #onSendLyricsEvent(message: Proto.SendLyricsEventMessage): void {
         if (message.event) {
             this.emit('lyricsEvent', message.event, message.playerPath);
         }
     }
 
-    /**
-     * Handles artwork set notifications.
-     *
-     * @param message - The set artwork message.
-     */
     #onSetArtwork(message: Proto.SetArtworkMessage): void {
         if (message.jpegData?.byteLength > 0) {
             this.#artworkJpegData = message.jpegData;
@@ -356,12 +294,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles default supported commands for a client. These serve as fallback
-     * commands when a player has no commands of its own.
-     *
-     * @param message - The set default supported commands message.
-     */
     #onSetDefaultSupportedCommands(message: Proto.SetDefaultSupportedCommandsMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.supportedCommands) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
@@ -369,12 +301,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles the now-playing client changing (e.g. user switches app).
-     * Updates the active client reference and emits change events.
-     *
-     * @param message - The set now-playing client message.
-     */
     #onSetNowPlayingClient(message: Proto.SetNowPlayingClientMessage): void {
         const oldBundleId = this.#nowPlayingClientBundleIdentifier;
         this.#nowPlayingClientBundleIdentifier = message.client?.bundleIdentifier ?? null;
@@ -390,12 +316,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#emitNowPlayingChangedIfNeeded();
     }
 
-    /**
-     * Handles the active player changing within a client (e.g. PiP player becomes active).
-     * Creates the player if needed and sets it as the active player.
-     *
-     * @param message - The set now-playing player message.
-     */
     #onSetNowPlayingPlayer(message: Proto.SetNowPlayingPlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
@@ -411,13 +331,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#emitNowPlayingChangedIfNeeded();
     }
 
-    /**
-     * Handles comprehensive state updates. Processes playback state, now-playing info,
-     * supported commands, and playback queue in a single message.
-     * Emits granular events for each changed aspect.
-     *
-     * @param message - The set state message.
-     */
+    /** One SET_STATE can carry playback state, now-playing info, commands and queue at once; only the active client emits. */
     #onSetState(message: Proto.SetStateMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
@@ -464,11 +378,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles content item updates (metadata, artwork, lyrics changes for existing items).
-     *
-     * @param message - The update content item message.
-     */
     #onUpdateContentItem(message: Proto.UpdateContentItemMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
@@ -489,11 +398,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles artwork updates for content items. Emits 'artworkChanged' if a client and player are active.
-     *
-     * @param message - The update content item artwork message.
-     */
     #onUpdateContentItemArtwork(message: Proto.UpdateContentItemArtworkMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
@@ -519,11 +423,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles player registration or update. Creates the player if it does not exist.
-     *
-     * @param message - The update player message.
-     */
     #onUpdatePlayer(message: Proto.UpdatePlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#client(message.playerPath.client.bundleIdentifier, message.playerPath.client.displayName);
@@ -531,12 +430,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles player removal. Removes the player from its client and emits
-     * active player changed events if the removed player was active.
-     *
-     * @param message - The remove player message.
-     */
     #onRemovePlayer(message: Proto.RemovePlayerMessage): void {
         if (message.playerPath?.client?.bundleIdentifier && message.playerPath?.player?.identifier) {
             const client = this.#clients[message.playerPath.client.bundleIdentifier];
@@ -552,11 +445,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Handles client (app) registration or display name update.
-     *
-     * @param message - The update client message.
-     */
     #onUpdateClient(message: Proto.UpdateClientMessage): void {
         if (!message.client?.bundleIdentifier) {
             return;
@@ -567,21 +455,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.emit('clients', this.#clients);
     }
 
-    /**
-     * Handles playback queue participant updates (e.g. SharePlay users).
-     *
-     * @param message - The participants update message.
-     */
     #onPlayerClientParticipantsUpdate(message: Proto.PlayerClientParticipantsUpdateMessage): void {
         this.#participants = message.participants ?? [];
         this.emit('participantsChanged', this.#participants);
     }
 
-    /**
-     * Handles output device list updates. Prefers cluster-aware devices when available.
-     *
-     * @param message - The update output device message.
-     */
+    /** Prefers the cluster-aware list when the receiver sends one. */
     #onUpdateOutputDevice(message: Proto.UpdateOutputDeviceMessage): void {
         this.#outputDevices = message.clusterAwareOutputDevices?.length > 0
             ? message.clusterAwareOutputDevices
@@ -590,11 +469,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.emit('outputDevicesChanged', this.#outputDevices);
     }
 
-    /**
-     * Handles volume control availability changes.
-     *
-     * @param message - The volume control availability message.
-     */
     #onVolumeControlAvailability(message: Proto.VolumeControlAvailabilityMessage): void {
         this.#volumeAvailable = message.volumeControlAvailable;
         this.#volumeCapabilities = message.volumeCapabilities;
@@ -602,11 +476,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.emit('volumeControlChanged', this.#volumeAvailable, this.#volumeCapabilities);
     }
 
-    /**
-     * Handles volume capabilities changes (e.g. device gains or loses absolute volume support).
-     *
-     * @param message - The volume capabilities change message.
-     */
     #onVolumeControlCapabilitiesDidChange(message: Proto.VolumeControlCapabilitiesDidChangeMessage): void {
         if (!message.capabilities) {
             return;
@@ -618,34 +487,19 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.emit('volumeControlChanged', this.#volumeAvailable, this.#volumeCapabilities);
     }
 
-    /**
-     * Handles volume level changes.
-     *
-     * @param message - The volume change message.
-     */
     #onVolumeDidChange(message: Proto.VolumeDidChangeMessage): void {
         this.#volume = message.volume;
 
         this.emit('volumeChanged', message.volume);
     }
 
-    /**
-     * Handles mute state changes.
-     *
-     * @param message - The volume muted change message.
-     */
     #onVolumeMutedDidChange(message: Proto.VolumeMutedDidChangeMessage): void {
         this.#volumeMuted = message.isMuted;
 
         this.emit('volumeMutedChanged', this.#volumeMuted);
     }
 
-    /**
-     * Extracts output device UID and cluster information from a device info message. The cluster
-     * ID comes first, so volume commands address a clustered HomePod pair as one device.
-     *
-     * @param message - The device info message.
-     */
+    /** The cluster ID wins over the device UID, so volume commands address a clustered HomePod pair as one device. */
     #updateDeviceInfo(message: Proto.DeviceInfoMessage): void {
         const previousClusterID = this.#clusterID;
         const previousIsLeader = this.#isClusterLeader;
@@ -661,14 +515,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Gets or creates a Client for the given bundle identifier.
-     * Updates the display name if the client already exists.
-     *
-     * @param bundleIdentifier - The app's bundle identifier.
-     * @param displayName - The app's display name.
-     * @returns The existing or newly created Client.
-     */
+    /** Gets or creates the client; a non-empty display name replaces the known one. */
     #client(bundleIdentifier: string, displayName: string): Client {
         if (bundleIdentifier in this.#clients) {
             const client = this.#clients[bundleIdentifier];
@@ -688,11 +535,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         }
     }
 
-    /**
-     * Creates a snapshot of the current now-playing state for change detection.
-     *
-     * @returns A NowPlayingSnapshot of the current state.
-     */
     #createNowPlayingSnapshot(): NowPlayingSnapshot {
         const client = this.nowPlayingClient;
         const player = client?.activePlayer ?? null;
@@ -724,17 +566,11 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         };
     }
 
-    /**
-     * Emits the 'activePlayerChanged' event with the current client and player.
-     */
     #emitActivePlayerChanged(): void {
         const client = this.nowPlayingClient;
         this.emit('activePlayerChanged', client, client?.activePlayer ?? null);
     }
 
-    /**
-     * Emits 'nowPlayingChanged' only if the now-playing snapshot has actually changed.
-     */
     #emitNowPlayingChangedIfNeeded(): void {
         const snapshot = this.#createNowPlayingSnapshot();
         const previous = this.#nowPlayingSnapshot;
@@ -749,13 +585,6 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.emit('nowPlayingChanged', client, client?.activePlayer ?? null);
     }
 
-    /**
-     * Compares two NowPlayingSnapshot instances field-by-field for equality.
-     *
-     * @param a - First snapshot.
-     * @param b - Second snapshot.
-     * @returns True if all fields are equal.
-     */
     #snapshotsEqual(a: NowPlayingSnapshot, b: NowPlayingSnapshot): boolean {
         return a.bundleIdentifier === b.bundleIdentifier
             && a.playerIdentifier === b.playerIdentifier

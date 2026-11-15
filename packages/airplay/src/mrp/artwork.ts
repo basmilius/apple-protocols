@@ -45,6 +45,8 @@ export class Artwork {
     }
 
     /**
+     * Returns the artwork of the current item.
+     *
      * @param width - In pixels.
      * @param height - In pixels; -1 keeps the aspect ratio.
      * @returns Null when there is no artwork.
@@ -110,6 +112,7 @@ export class Artwork {
         }
 
         const formats = item.availableAnimatedArtworkFormats;
+
         const assets = formats.length > 0
             ? await this.#queue.requestAssets({requestedAnimatedArtworkAssetURLFormats: formats}, width, height)
             : item;

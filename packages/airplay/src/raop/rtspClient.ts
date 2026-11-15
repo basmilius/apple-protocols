@@ -6,16 +6,12 @@ import { generateActiveRemoteId, generateDacpId, generateSessionId } from '../id
 import { RtspClient } from '../rtsp';
 import type { MediaMetadata } from './types';
 
-/** User-Agent header value sent with all RTSP requests. */
 const USER_AGENT = 'AirPlay/550.10';
 
-/** Single-byte flag indicating unencrypted auth-setup mode. */
+/** Flag byte for unencrypted auth-setup mode. */
 const AUTH_SETUP_UNENCRYPTED = Buffer.from([0x01]);
 
-/**
- * Static Curve25519 public key sent during `/auth-setup` for
- * MFi-SAP authentication with AirPort Express devices.
- */
+/** Static Curve25519 public key for the MFi-SAP `/auth-setup` of an AirPort Express. */
 const CURVE25519_PUB_KEY = Buffer.from([
     0x59, 0x02, 0xed, 0xe9, 0x0d, 0x4e, 0xf2, 0xbd,
     0x4c, 0xb6, 0x8a, 0x63, 0x30, 0x03, 0x82, 0x07,
@@ -23,47 +19,29 @@ const CURVE25519_PUB_KEY = Buffer.from([
     0x5d, 0x8c, 0x01, 0x2a, 0x0c, 0x7e, 0x1d, 0x4e
 ]);
 
-/**
- * Options for building an SDP ANNOUNCE payload describing
- * the audio format of the stream to be set up.
- */
 type AnnouncePayloadOptions = {
-    /** Random session identifier for this RTSP session. */
     readonly sessionId: number;
-    /** Local IP address of the sender. */
     readonly localIp: string;
-    /** IP address of the RAOP receiver. */
     readonly remoteIp: string;
-    /** Bits per audio channel sample (e.g. 16). */
     readonly bitsPerChannel: number;
-    /** Number of audio channels (e.g. 2). */
     readonly channels: number;
-    /** Audio sample rate in Hz (e.g. 44100). */
+
+    /** Sample rate in Hz. */
     readonly sampleRate: number;
 };
 
-/**
- * HTTP Digest authentication credentials extracted from
- * a 401 WWW-Authenticate challenge response.
- */
+/** HTTP Digest credentials for the challenge of a 401 WWW-Authenticate response. */
 type DigestInfo = {
-    /** Authentication username. */
     readonly username: string;
-    /** Digest realm from the challenge. */
     readonly realm: string;
-    /** Password for the RAOP device. */
     readonly password: string;
-    /** Server-provided nonce for the digest calculation. */
     readonly nonce: string;
 };
 
 /**
- * Computes an HTTP Digest authentication header value using MD5.
+ * Computes an MD5 HTTP Digest authorization header value.
  *
- * @param method - RTSP method (may be empty for default headers).
- * @param uri - Request URI.
- * @param info - Digest credentials and challenge parameters.
- * @returns Formatted Digest authorization header value.
+ * @param method - RTSP method; empty for the default headers.
  */
 function getDigestPayload(method: string, uri: string, info: DigestInfo): string {
     const ha1 = createHash('md5')
@@ -81,13 +59,7 @@ function getDigestPayload(method: string, uri: string, info: DigestInfo): string
     return `Digest username="${info.username}", realm="${info.realm}", nonce="${info.nonce}", uri="${uri}", response="${response}"`;
 }
 
-/**
- * Builds an SDP (Session Description Protocol) body for the RTSP
- * ANNOUNCE request, describing the audio format and codec parameters.
- *
- * @param options - Audio format and connection details.
- * @returns SDP payload string with CRLF line endings.
- */
+/** Builds the SDP body of the RTSP ANNOUNCE request, with CRLF line endings. */
 function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
     return [
         'v=0',
@@ -102,38 +74,36 @@ function buildAnnouncePayload(options: AnnouncePayloadOptions): string {
 }
 
 /**
- * RAOP-specific RTSP client that extends the base RTSP client with
- * Apple audio streaming commands. Handles the full RAOP RTSP lifecycle:
- * ANNOUNCE, SETUP, RECORD, SET_PARAMETER, FLUSH, TEARDOWN, as well as
- * authentication (auth-setup, digest) and metadata/artwork publishing.
+ * RTSP client for the RAOP commands: ANNOUNCE, SETUP, RECORD, SET_PARAMETER,
+ * FLUSH and TEARDOWN, plus auth-setup, digest authentication, metadata and
+ * artwork.
  */
 export class RaopRtspClient extends RtspClient {
-    /** Active-Remote identifier used for DACP remote control pairing. */
+    /** Active-Remote identifier for DACP remote control. */
     get activeRemoteId(): string {
         return this.#activeRemoteId;
     }
 
-    /** DACP identifier used for remote control discovery. */
+    /** DACP identifier for remote control discovery. */
     get dacpId(): string {
         return this.#dacpId;
     }
 
-    /** RTSP session identifier string included in session-scoped requests. */
+    /** RTSP session identifier for session-scoped requests. */
     get rtspSessionId(): string {
         return this.#rtspSessionId;
     }
 
-    /** Numeric session identifier used in the RTSP URI path. */
+    /** Numeric session identifier in the RTSP URI path. */
     get sessionId(): number {
         return this.#sessionId;
     }
 
-    /** RTSP URI for this session, formatted as `rtsp://<localIp>/<sessionId>`. */
+    /** `rtsp://<localIp>/<sessionId>` */
     get uri(): string {
         return `rtsp://${this.connection.localIp}/${this.#sessionId}`;
     }
 
-    /** Local and remote IP addresses of the RTSP connection. */
     get connection(): { localIp: string; remoteIp: string } {
         return {
             localIp: this.localAddress,
@@ -141,24 +111,14 @@ export class RaopRtspClient extends RtspClient {
         };
     }
 
-    /** Generated Active-Remote identifier for DACP. */
     readonly #activeRemoteId: string;
-    /** Generated DACP identifier for remote control. */
     readonly #dacpId: string;
-    /** Generated RTSP session identifier. */
     readonly #rtspSessionId: string;
-    /** Random numeric session identifier for the RTSP URI. */
     readonly #sessionId: number;
-    /** Digest authentication credentials, set after a 401 challenge. */
+
+    /** Digest credentials, set after a 401 challenge. */
     #digestInfo?: DigestInfo;
 
-    /**
-     * Creates a new RAOP RTSP client and generates unique session identifiers.
-     *
-     * @param context - Application context for logging and device identity.
-     * @param address - IP address of the RAOP receiver.
-     * @param port - RTSP port of the RAOP receiver.
-     */
     constructor(context: Context, address: string, port: number) {
         super(context, address, port);
 
@@ -168,12 +128,7 @@ export class RaopRtspClient extends RtspClient {
         this.#sessionId = Math.floor(Math.random() * 0xFFFFFFFF);
     }
 
-    /**
-     * Returns default headers included with every RTSP request, including
-     * DACP identifiers, user-agent, and digest authorization if available.
-     *
-     * @returns Header key-value pairs.
-     */
+    /** Headers on every request: the DACP identifiers, User-Agent and, after a challenge, digest authorization. */
     protected override getDefaultHeaders(): Record<string, string | number> {
         const headers: Record<string, string | number> = {
             'DACP-ID': this.#dacpId,
@@ -190,10 +145,9 @@ export class RaopRtspClient extends RtspClient {
     }
 
     /**
-     * Fetches device information from the `/info` endpoint. Returns the
-     * parsed plist response as a dictionary, or an empty object on failure.
+     * Fetches the device info plist from `/info`.
      *
-     * @returns Device info dictionary, or empty object if unavailable.
+     * @returns The info dictionary, or an empty object on failure.
      */
     async info(): Promise<Record<string, unknown>> {
         try {
@@ -209,6 +163,7 @@ export class RaopRtspClient extends RtspClient {
                         return Plist.parse(buffer.buffer) as Record<string, unknown>;
                     } catch (err) {
                         this.context.logger.warn('[raop-rtsp]', 'Failed to parse info plist', err);
+
                         return {};
                     }
                 }
@@ -217,14 +172,14 @@ export class RaopRtspClient extends RtspClient {
             return {};
         } catch (err) {
             this.context.logger.warn('[raop-rtsp]', 'Failed to get device info', err);
+
             return {};
         }
     }
 
     /**
-     * Performs MFi-SAP authentication setup by sending a Curve25519 public
-     * key to `/auth-setup`. Required for AirPort Express devices that use
-     * MFi-SAP encryption.
+     * Sends the Curve25519 public key to `/auth-setup`, which an AirPort
+     * Express with MFi-SAP encryption requires.
      */
     async authSetup(): Promise<void> {
         const body = Buffer.concat([AUTH_SETUP_UNENCRYPTED, CURVE25519_PUB_KEY]);
@@ -237,13 +192,12 @@ export class RaopRtspClient extends RtspClient {
     }
 
     /**
-     * Sends an RTSP ANNOUNCE request with an SDP body describing the audio
-     * format. If the receiver responds with a 401 challenge and a password
-     * is provided, retries with HTTP Digest authentication.
+     * Sends ANNOUNCE with an SDP body for the audio format. On a 401
+     * challenge with a password given, it retries with HTTP Digest
+     * authentication.
      *
-     * @param bytesPerChannel - Bytes per audio channel sample (e.g. 2 for 16-bit).
-     * @param sampleRate - Audio sample rate in Hz.
-     * @param password - Optional password for digest authentication.
+     * @param bytesPerChannel - 2 for 16-bit.
+     * @param sampleRate - Sample rate in Hz.
      */
     async announce(bytesPerChannel: number, channels: number, sampleRate: number, password?: string): Promise<Response> {
         const body = buildAnnouncePayload({
@@ -287,42 +241,39 @@ export class RaopRtspClient extends RtspClient {
     }
 
     /**
-     * Sends an RTSP SETUP request to negotiate transport parameters
-     * (ports, protocol) with the receiver.
+     * Sends SETUP to negotiate the transport (ports, protocol).
      *
-     * @param headers - Optional additional headers (e.g. Transport).
-     * @returns The RTSP response containing server-assigned ports in the Transport header.
+     * @param headers - Extra headers, for example Transport.
+     * @returns The response, with the receiver's ports in its Transport header.
      */
     async setup(headers?: Record<string, string>, body?: Buffer | string | Record<string, unknown>): Promise<Response> {
         return await this.exchange('SETUP', this.uri, {headers, body});
     }
 
     /**
-     * Sends an RTSP RECORD request to begin audio playback on the receiver.
-     * Includes RTP-Info and Range headers for stream positioning.
+     * Sends RECORD to start playback on the receiver.
      *
-     * @param headers - Optional headers (typically Range, Session, RTP-Info).
+     * @param headers - Usually Range, Session and RTP-Info.
      */
     async record(headers?: Record<string, string>): Promise<void> {
         await this.exchange('RECORD', this.uri, {headers});
     }
 
     /**
-     * Sends an RTSP FLUSH request to clear the receiver's audio buffer
-     * and reset playback to the specified RTP position.
+     * Sends FLUSH to clear the receiver's audio buffer and move playback to
+     * the RTP position in the headers.
      *
-     * @param options - Headers including Session and RTP-Info for flush positioning.
+     * @param options - Headers with Session and RTP-Info.
      */
     async flush(options: { headers: Record<string, string> }): Promise<void> {
         await this.exchange('FLUSH', this.uri, {headers: options.headers});
     }
 
     /**
-     * Sends a SET_PARAMETER request with a text/parameters content type.
-     * Used for setting volume, progress, and other scalar parameters.
+     * Sends a `text/parameters` SET_PARAMETER, for volume, progress and other
+     * scalar values.
      *
-     * @param name - Parameter name (e.g. "volume", "progress").
-     * @param value - Parameter value as a string.
+     * @param name - For example `volume` or `progress`.
      */
     async setParameter(name: string, value: string): Promise<void> {
         await this.exchange('SET_PARAMETER', this.uri, {
@@ -332,13 +283,10 @@ export class RaopRtspClient extends RtspClient {
     }
 
     /**
-     * Sends track metadata (title, artist, album, duration) to the receiver
-     * as DAAP-tagged data via SET_PARAMETER.
+     * Sends title, artist, album and duration as DAAP-tagged SET_PARAMETER.
      *
-     * @param session - RTSP session identifier.
-     * @param rtpseq - Current RTP sequence number for the RTP-Info header.
-     * @param rtptime - Current RTP timestamp for the RTP-Info header.
-     * @param metadata - Track metadata to send.
+     * @param rtpseq - RTP sequence number for the RTP-Info header.
+     * @param rtptime - RTP timestamp for the RTP-Info header.
      */
     async setMetadata(session: string, rtpseq: number, rtptime: number, metadata: MediaMetadata): Promise<void> {
         const daapData = DAAP.encodeTrackMetadata({
@@ -359,13 +307,11 @@ export class RaopRtspClient extends RtspClient {
     }
 
     /**
-     * Sends album artwork to the receiver via SET_PARAMETER. Automatically
-     * detects PNG images by magic bytes, defaulting to JPEG otherwise.
+     * Sends album artwork as SET_PARAMETER. The magic bytes tell PNG apart;
+     * anything else goes as JPEG.
      *
-     * @param session - RTSP session identifier.
-     * @param rtpseq - Current RTP sequence number for the RTP-Info header.
-     * @param rtptime - Current RTP timestamp for the RTP-Info header.
-     * @param artwork - Image data buffer (JPEG or PNG).
+     * @param rtpseq - RTP sequence number for the RTP-Info header.
+     * @param rtptime - RTP timestamp for the RTP-Info header.
      */
     async setArtwork(session: string, rtpseq: number, rtptime: number, artwork: Buffer): Promise<void> {
         let contentType = 'image/jpeg';
@@ -385,22 +331,15 @@ export class RaopRtspClient extends RtspClient {
     }
 
     /**
-     * Sends a feedback request to `/feedback` to keep the session alive.
-     * Typically called periodically during active streaming.
+     * Posts to `/feedback`, which keeps the session alive during streaming.
      *
-     * @param allowError - Whether to suppress HTTP error responses.
-     * @returns The feedback response.
+     * @param allowError - Resolves on an HTTP error status instead of throwing.
      */
     async feedback(allowError: boolean = false): Promise<Response> {
         return await this.exchange('POST', '/feedback', {allowError});
     }
 
-    /**
-     * Sends an RTSP TEARDOWN request to end the streaming session
-     * and release server-side resources.
-     *
-     * @param session - RTSP session identifier to tear down.
-     */
+    /** Sends TEARDOWN to end the streaming session. */
     async teardown(session: string): Promise<void> {
         await this.exchange('TEARDOWN', this.uri, {
             headers: {'Session': session}

@@ -1,14 +1,8 @@
 import { parseFeatures } from './features';
 
 /**
- * AirPlay feature flags as a bitmask of bigint values. Each flag corresponds to a specific
- * capability advertised by an AirPlay device in its mDNS TXT record "features" field.
- *
- * Bit positions are derived from Apple's internal `APSFeaturesSetFeature()` calls in the
- * AirPlayReceiver framework (`sysInfo_createFeaturesInternal`). Flag names follow the
- * common community naming, in camelCase.
- *
- * Source: Apple AirPlayReceiver framework decompilation (sysInfo.c).
+ * AirPlay feature flags as bigint bits of the `features` field in the mDNS TXT
+ * record. Each flag is a capability the device advertises.
  */
 export const AirPlayFeatureFlags: Record<string, bigint> = {
     SupportsAirPlayVideoV1: 1n << 0n,
@@ -57,39 +51,25 @@ export const AirPlayFeatureFlags: Record<string, bigint> = {
     SupportsRFC2198Redundancy: 1n << 61n
 };
 
-/** String name of any known AirPlay feature flag. */
 export type AirPlayFeatureFlagName = string;
 
-/** The type of pairing required to connect to an AirPlay device. */
+/** The pairing an AirPlay device requires before it accepts a connection. */
 export type PairingRequirement = 'none' | 'pin' | 'transient' | 'homekit';
 
-/** Bitmask in the "sf" (status flags) TXT field indicating password protection. */
+/** Password protection bit of the `sf` (status flags) TXT field. */
 const PASSWORD_BIT = 0x80n;
 
-/** Bitmask in the "sf" TXT field indicating legacy pairing (PIN required). */
+/** Legacy pairing bit of the `sf` TXT field; it requires a PIN. */
 const LEGACY_PAIRING_BIT = 0x200n;
 
-/** Bitmask in the "sf" TXT field indicating a PIN is required. */
+/** PIN required bit of the `sf` TXT field. */
 const PIN_REQUIRED_BIT = 0x8n;
 
-/**
- * Checks whether a specific feature flag is set in a features bitmask.
- *
- * @param features - The combined feature flags bitmask.
- * @param flag - The specific flag to check for.
- * @returns True if the flag is set.
- */
 export function hasFeatureFlag(features: bigint, flag: bigint): boolean {
     return (features & flag) === flag;
 }
 
-/**
- * Returns the names of all feature flags that are set in the given bitmask.
- * Useful for debugging and diagnostics output.
- *
- * @param features - The combined feature flags bitmask.
- * @returns An array of feature flag names that are active.
- */
+/** Names of the flags set in the bitmask, for debugging and diagnostics. */
 export function describeFlags(features: bigint): AirPlayFeatureFlagName[] {
     const result: AirPlayFeatureFlagName[] = [];
 
@@ -103,12 +83,9 @@ export function describeFlags(features: bigint): AirPlayFeatureFlagName[] {
 }
 
 /**
- * Determines the AirPlay protocol version supported by a device based on its
- * mDNS TXT record properties. AirPlay 2 is indicated by the presence of
- * SupportsUnifiedMediaControl or SupportsCoreUtilsPairingAndEncryption flags.
- *
- * @param txt - The key-value properties from the device's mDNS TXT record.
- * @returns 1 for legacy AirPlay, 2 for AirPlay 2.
+ * Reads the AirPlay version from the mDNS TXT record. The flag
+ * SupportsUnifiedMediaControl or SupportsCoreUtilsPairingAndEncryption means
+ * AirPlay 2.
  */
 export function getProtocolVersion(txt: Record<string, string>): 1 | 2 {
     const featuresStr = txt.features ?? txt.ft;
@@ -131,12 +108,9 @@ export function getProtocolVersion(txt: Record<string, string>): 1 | 2 {
 }
 
 /**
- * Determines the pairing requirement for an AirPlay device based on its
- * feature flags and status flags. The hierarchy is:
- * HomeKit pairing > PIN required > Transient (system) pairing > Legacy PIN > None.
- *
- * @param txt - The key-value properties from the device's mDNS TXT record.
- * @returns The pairing requirement type.
+ * Reads the pairing requirement from the feature and status flags of the
+ * mDNS TXT record. The order of precedence is HomeKit, PIN required,
+ * transient (system) pairing, legacy PIN, none.
  */
 export function getPairingRequirement(txt: Record<string, string>): PairingRequirement {
     const featuresStr = txt.features ?? txt.ft;
@@ -167,13 +141,7 @@ export function getPairingRequirement(txt: Record<string, string>): PairingRequi
     return 'none';
 }
 
-/**
- * Checks whether the AirPlay device requires a password to connect.
- * Determined by the "pw" TXT field or the password bit in the "sf" status flags.
- *
- * @param txt - The key-value properties from the device's mDNS TXT record.
- * @returns True if a password is required.
- */
+/** True when the `pw` TXT field or the password bit of the `sf` status flags is set. */
 export function isPasswordRequired(txt: Record<string, string>): boolean {
     if (txt.pw === 'true') {
         return true;
@@ -185,11 +153,8 @@ export function isPasswordRequired(txt: Record<string, string>): boolean {
 }
 
 /**
- * Checks whether the AirPlay device supports remote control (Hangdog protocol).
- * Only devices with the SupportsHangdogRemoteControl flag can receive HID events.
- *
- * @param txt - The key-value properties from the device's mDNS TXT record.
- * @returns True if remote control is supported (typically Apple TV only).
+ * True when the device has the SupportsHangdogRemoteControl flag, which it
+ * needs to receive HID events. In practice only an Apple TV has it.
  */
 export function isRemoteControlSupported(txt: Record<string, string>): boolean {
     const featuresStr = txt.features ?? txt.ft;
@@ -203,12 +168,7 @@ export function isRemoteControlSupported(txt: Record<string, string>): boolean {
     return hasFeatureFlag(features, AirPlayFeatureFlags.SupportsHangdogRemoteControl);
 }
 
-/**
- * Feature bitmask advertised when connecting for remote control sessions.
- *
- * Includes media control, system pairing, encryption, volume, and
- * hangdog remote control capabilities.
- */
+/** Feature bitmask we advertise for a remote control session. */
 export const SENDER_FEATURES_REMOTE_CONTROL: bigint =
     AirPlayFeatureFlags.SupportsAirPlayAudio
     | AirPlayFeatureFlags.AudioRedundant
@@ -228,13 +188,7 @@ export const SENDER_FEATURES_REMOTE_CONTROL: bigint =
     | AirPlayFeatureFlags.SupportsSetPeersExtendedMessage
     | AirPlayFeatureFlags.SupportsVolume;
 
-/**
- * Feature bitmask advertised when connecting for audio streaming sessions.
- *
- * Extends the remote control features with buffered audio, audio stream
- * connection setup, metadata control, format negotiation, and PTP
- * synchronization support.
- */
+/** Feature bitmask we advertise for an audio streaming session: the remote control features plus the audio ones. */
 export const SENDER_FEATURES_AUDIO: bigint =
     SENDER_FEATURES_REMOTE_CONTROL
     | AirPlayFeatureFlags.SupportsBufferedAudio

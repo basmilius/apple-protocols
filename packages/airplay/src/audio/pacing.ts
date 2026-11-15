@@ -1,31 +1,26 @@
 import { type Logger, waitFor } from '@corewire/core';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
 
-/** Maximum number of extra packets to send when catching up from being behind schedule. */
+/** Maximum number of extra packets per cycle when catching up. */
 const MAX_PACKETS_COMPENSATE = 3;
 
 /** Number of consecutive slow packets before logging a warning. */
 const SLOW_WARNING_THRESHOLD = 5;
 
-/**
- * Options for the timed streaming loop.
- */
 export type StreamTimingOptions = {
-    /** Sample rate in Hz, used to calculate expected playback time. */
+    /** Sample rate in Hz. */
     readonly sampleRate: number;
-    /** Logger instance for debug, info and warning messages. */
+
     readonly logger: Logger;
-    /** Log prefix for identifying the caller (e.g. '[audio]' or '[multiplexer]'). */
+
+    /** Identifies the caller in log messages, for example `'[audio]'`. */
     readonly logPrefix: string;
 };
 
 /**
- * Callback that sends one packet worth of audio frames.
- *
- * Must return the number of frames sent. Return `0` to indicate end-of-stream
- * (source exhausted and all padding sent). The `firstPacket` flag is `true` only
- * for the very first call and `false` for all subsequent calls (including
- * compensation packets).
+ * Sends one packet of audio frames and returns the number of frames sent, or
+ * `0` at the end of the stream. `firstPacket` is `true` only on the first
+ * call, compensation packets included.
  */
 export type SendPacketFn = (firstPacket: boolean) => Promise<number>;
 
@@ -49,6 +44,7 @@ export async function streamWithTiming(sendPacket: SendPacketFn, options: Stream
 
         if (framesSent === 0) {
             logger.debug(logPrefix, `End of stream after ${packetCount} packets`);
+
             break;
         }
 

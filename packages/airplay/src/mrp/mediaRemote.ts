@@ -150,6 +150,7 @@ export class MediaRemote {
 
         // Each listener takes the extension of its own message; the typed map cannot express that for a list of names.
         const channel = this.#channel as unknown as EventEmitter;
+
         const listeners = STATE_MESSAGES.map(name => {
             const listener = (message: MrpMessage[1]): void => this.state.apply(...[name, message] as MrpMessage);
 

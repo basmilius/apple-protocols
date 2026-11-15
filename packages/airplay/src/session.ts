@@ -518,6 +518,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
         if (response.status !== 200) {
             this.#context.logger.error('[protocol]', 'Failed to setup data stream.', response.status, response.statusText, await response.text());
+
             throw new SetupError('Failed to setup data stream.');
         }
 
@@ -614,6 +615,7 @@ export class AirPlaySession extends EventEmitter<EventMap> {
 
         if (response.status !== 200) {
             this.#context.logger.error('[protocol]', 'Failed SETUP request.', response.status, response.statusText);
+
             throw new SetupError(failure(response.status));
         }
 

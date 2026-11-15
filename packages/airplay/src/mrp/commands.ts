@@ -134,7 +134,7 @@ export class Commands {
     }
 
     /**
-     * A sleep timer rides along on a Pause command.
+     * Sets a sleep timer. It goes out as an option on a Pause command.
      *
      * @param seconds - Timer duration; 0 cancels a running timer.
      * @param stopMode - 0 stops playback, 1 pauses, 2 waits for the end of the track, 3 for the end of the queue.

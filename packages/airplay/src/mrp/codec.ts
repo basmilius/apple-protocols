@@ -176,13 +176,9 @@ export function decodeMessage(message: Proto.ProtocolMessage): MrpMessage | null
 }
 
 /**
- * Encodes a non-negative integer as a protobuf-style varint.
+ * Encodes an integer as a protobuf varint: 7 data bits per byte, the MSB as continuation flag.
  *
- * Each byte uses 7 data bits with the MSB as a continuation flag.
- *
- * @param value - Non-negative integer to encode.
- * @returns Varint-encoded byte array.
- * @throws RangeError if the value is outside uint32.
+ * @throws {RangeError} When the value is not an integer in the uint32 range.
  */
 export function encodeVarint(value: number): Uint8Array {
     if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
@@ -190,6 +186,7 @@ export function encodeVarint(value: number): Uint8Array {
     }
 
     const bytes: number[] = [];
+
     while (value > 127) {
         bytes.push((value & 0x7f) | 0x80);
         value >>>= 7;
@@ -201,52 +198,56 @@ export function encodeVarint(value: number): Uint8Array {
 }
 
 /**
- * Parses a buffer containing one or more varint-length-prefixed ProtocolMessage
- * protobuf payloads.
- *
- * Handles two wire formats:
- * - Standard: `[varint length][protobuf bytes]` repeated
- * - Legacy: a bare protobuf starting with field tag 0x08 (no length prefix)
- *
- * @param content - Buffer containing serialized protobuf messages.
- * @returns Array of decoded ProtocolMessage instances.
+ * Parses ProtocolMessages framed as `[varint length][protobuf bytes]`, repeated. A buffer that
+ * does not parse that way and starts with field tag 0x08 is read as one legacy bare message
+ * without a length prefix.
  */
 export function parseMessages(content: Buffer): Proto.ProtocolMessage[] {
     try {
         const messages: Proto.ProtocolMessage[] = [];
         let offset = 0;
+
         while (offset < content.length) {
             const [length, prefixLength] = readVariant(content, offset);
             offset += prefixLength;
+
             if (length === 0 || length > content.length - offset) {
                 throw new RangeError('Invalid protobuf message length');
             }
+
             messages.push(fromBinary(Proto.ProtocolMessageSchema, content.subarray(offset, offset + length), {readUnknownFields: true}));
             offset += length;
         }
+
         return messages;
     } catch (error) {
         // A length prefix of eight is also the first field tag of a legacy bare message.
         if (content[0] !== 0x08) throw error;
+
         return [fromBinary(Proto.ProtocolMessageSchema, content, {readUnknownFields: true})];
     }
 }
 
 /**
- * Reads a varint-encoded integer from a buffer at the given offset.
+ * Reads a uint32 varint at `offset`.
  *
- * @param buf - Buffer to read from.
- * @param offset - Starting byte offset (defaults to 0).
- * @returns Tuple of [decoded value, number of bytes consumed].
+ * @returns The decoded value and the number of bytes consumed.
+ * @throws {RangeError} When the varint is truncated or exceeds uint32.
  */
 export function readVariant(buf: Buffer, offset = 0): [number, number] {
     let result = 0;
+
     for (let i = 0; i < 5; i++) {
         if (offset + i >= buf.length) throw new RangeError('Truncated varint');
+
         const byte = buf[offset + i];
+
         if (i === 4 && byte > 0x0f) throw new RangeError('Varint exceeds uint32');
+
         result += (byte & 0x7f) * 2 ** (7 * i);
+
         if ((byte & 0x80) === 0) return [result, i + 1];
     }
+
     throw new RangeError('Varint exceeds uint32');
 }

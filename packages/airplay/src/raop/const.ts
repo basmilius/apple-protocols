@@ -1,27 +1,15 @@
 import { EncryptionType, type MediaMetadata } from './types';
 
-/**
- * Maximum number of extra packets to send when compensating for
- * falling behind real-time playback.
- */
+/** Maximum number of extra packets per cycle when behind real time. */
 export const MAX_PACKETS_COMPENSATE = 3;
 
-/**
- * Number of recently sent packets to keep in the FIFO backlog
- * for retransmission upon receiver request.
- */
+/** Number of sent packets kept for retransmission. */
 export const PACKET_BACKLOG_SIZE = 1000;
 
-/**
- * Number of consecutive slow sequence numbers before a warning
- * is logged instead of a debug message.
- */
+/** Number of consecutive slow packets before a warning replaces the debug message. */
 export const SLOW_WARNING_THRESHOLD = 5;
 
-/**
- * Fallback metadata used when the caller does not provide any
- * media metadata for the audio stream.
- */
+/** Metadata for a stream without metadata from the caller. */
 export const MISSING_METADATA: MediaMetadata = {
     title: 'Streaming with CoreWire',
     artist: 'CoreWire',
@@ -29,10 +17,7 @@ export const MISSING_METADATA: MediaMetadata = {
     duration: 0
 };
 
-/**
- * Empty metadata sentinel used as the default value before any
- * metadata has been set on a stream.
- */
+/** Metadata of a stream before any metadata is set. */
 export const EMPTY_METADATA: MediaMetadata = {
     title: '',
     artist: '',
@@ -40,8 +25,5 @@ export const EMPTY_METADATA: MediaMetadata = {
     duration: 0
 };
 
-/**
- * Bitmask of encryption types this client supports.
- * Currently supports unencrypted and MFi-SAP (AirPort Express) encryption.
- */
+/** Encryption types this client supports: unencrypted and MFi-SAP (AirPort Express). */
 export const SUPPORTED_ENCRYPTIONS: number = EncryptionType.Unencrypted | EncryptionType.MFiSAP;

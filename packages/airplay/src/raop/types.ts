@@ -16,153 +16,135 @@ export type RaopTarget = {
     readonly txt?: Readonly<Record<string, string>>;
 };
 
-/**
- * Metadata describing the currently streaming media track.
- */
+/** The track a stream shows on the receiver. */
 export type MediaMetadata = {
-    /** Track title. */
     readonly title: string;
-    /** Artist or performer name. */
     readonly artist: string;
-    /** Album name. */
     readonly album: string;
-    /** Total duration of the track in seconds. */
+
+    /** Duration in seconds. */
     readonly duration: number;
-    /** Optional album artwork image data (JPEG or PNG). */
+
+    /** JPEG or PNG album artwork. */
     readonly artwork?: Buffer;
 }
 
-/**
- * Snapshot of the current playback state, combining metadata
- * with the stream position.
- */
 export type RaopPlaybackInfo = {
-    /** Metadata for the currently playing track. */
     readonly metadata: MediaMetadata;
-    /** Current playback position in audio frames. */
+
+    /** Playback position in audio frames. */
     readonly position: number;
 }
 
 /**
- * Mutable state shared across all RAOP streaming components.
- * Holds RTP sequence numbers, timestamps, audio format details,
- * and connection ports negotiated during RTSP SETUP.
+ * State shared by the RAOP streaming parts and updated in place: RTP state,
+ * audio format and the ports from RTSP SETUP.
  */
 export type StreamContext = {
-    /** Audio sample rate in Hz (e.g. 44100). */
+    /** Sample rate in Hz. */
     sampleRate: number;
-    /** Number of audio channels (e.g. 2 for stereo). */
+
     channels: number;
-    /** Bytes per channel sample (e.g. 2 for 16-bit). */
+
+    /** Bytes per sample per channel. */
     bytesPerChannel: number;
-    /** Current RTP sequence number (wraps at 16 bits). */
+
+    /** RTP sequence number, wraps at 16 bits. */
     rtpseq: number;
-    /** Initial RTP timestamp used in RECORD/FLUSH headers. */
+
+    /** Initial RTP timestamp for the RECORD and FLUSH headers. */
     rtptime: number;
-    /** Current head timestamp tracking the latest sent audio frame. */
+
+    /** Timestamp of the latest frame sent. */
     headTs: number;
-    /** Latency in audio frames (typically 2 seconds worth). */
+
+    /** Latency in audio frames, usually 2 seconds. */
     latency: number;
-    /** Remote server audio data port assigned during SETUP. */
+
+    /** Receiver audio data port from SETUP. */
     serverPort: number;
-    /** Remote control port for sync and retransmit communication. */
+
+    /** Receiver control port for sync and retransmits. */
     controlPort: number;
-    /** RTSP session identifier string. */
+
     rtspSession: string;
-    /** Current volume level in dBFS. */
+
+    /** Volume in dBFS. */
     volume: number;
-    /** Current playback position in audio frames. */
+
+    /** Playback position in audio frames. */
     position: number;
-    /** Size of a single audio packet payload in bytes. */
+
+    /** Bytes per audio packet payload. */
     packetSize: number;
-    /** Size of a single audio frame in bytes (channels * bytesPerChannel). */
+
+    /** Bytes per frame: channels * bytesPerChannel. */
     frameSize: number;
-    /** Number of silence padding frames sent after source exhaustion. */
+
+    /** Silence frames sent after the source ran out. */
     paddingSent: number;
 
-    /**
-     * Resets RTP sequence number, timestamp, head timestamp,
-     * padding counter, and position for a new stream session.
-     */
+    /** Resets the RTP state, the padding counter and the position for a new stream. */
     reset(): void;
 }
 
-/**
- * Abstraction over the transport-level protocol operations for
- * setting up and tearing down an audio stream. Allows different
- * protocol backends (e.g. RAOP over RTSP).
- */
+/** The protocol steps to set up, feed and tear down an audio stream. */
 export interface StreamProtocol {
     /**
-     * Performs RTSP ANNOUNCE and SETUP, negotiating ports with the receiver.
+     * Sends RTSP ANNOUNCE and SETUP to negotiate the ports.
      *
      * @param timingPort - Local NTP timing server port.
      * @param controlPort - Local control channel port.
      */
     setup(timingPort: number, controlPort: number): Promise<void>;
 
-    /**
-     * Starts sending periodic feedback requests to maintain the session.
-     */
+    /** Starts the periodic feedback requests that keep the session alive. */
     startFeedback(): Promise<void>;
 
     /**
-     * Sends a single audio packet over the UDP transport.
+     * Sends one audio packet.
      *
-     * @param transport - UDP socket connected to the receiver.
-     * @param header - RTP header for the audio packet.
-     * @param audio - Raw audio payload data.
-     * @returns A tuple of [sequence number, full packet buffer] for backlog storage.
+     * @returns The sequence number and the full packet, for the backlog.
      */
     sendAudioPacket(transport: UdpSocket, header: Buffer, audio: Buffer): Promise<[number, Buffer]>;
 
-    /**
-     * Tears down the protocol session, stopping feedback and releasing resources.
-     */
+    /** Stops the feedback and releases the session. */
     teardown(): void;
 }
 
-/**
- * Configuration for RAOP protocol port bindings.
- */
+/** Local RAOP port bindings. */
 export interface Settings {
-    /** Protocol-specific port configuration. */
     protocols: {
-        /** RAOP control and timing port settings. */
         raop: {
-            /** Control channel port (0 for auto-assign). */
+            /** Control channel port; 0 picks a free one. */
             controlPort: number;
-            /** NTP timing server port (0 for auto-assign). */
+
+            /** NTP timing server port; 0 picks a free one. */
             timingPort: number;
         };
     };
 }
 
-/**
- * Bitmask enum for encryption types supported by the RAOP receiver.
- * Values are parsed from the `et` mDNS TXT record field.
- */
+/** Encryption types a RAOP receiver supports, from the `et` TXT field. */
 export enum EncryptionType {
-    /** No encryption information available. */
+    /** The TXT record has no encryption field. */
     Unknown = 0,
-    /** Receiver supports unencrypted streams. */
     Unencrypted = 1 << 0,
-    /** Receiver supports MFi-SAP encryption (AirPort Express). */
+
+    /** MFi-SAP, used by the AirPort Express. */
     MFiSAP = 1 << 1
 }
 
-/**
- * Bitmask enum for metadata types supported by the RAOP receiver.
- * Values are parsed from the `md` mDNS TXT record field.
- */
+/** Metadata types a RAOP receiver supports, from the `md` TXT field. */
 export enum MetadataType {
-    /** Receiver does not support metadata. */
     NotSupported = 0,
-    /** Receiver supports text metadata (title, artist, album). */
+
+    /** Title, artist and album. */
     Text = 1 << 0,
-    /** Receiver supports album artwork. */
+
     Artwork = 1 << 1,
-    /** Receiver supports progress/duration information. */
+
+    /** Progress and duration. */
     Progress = 1 << 2
 }
 

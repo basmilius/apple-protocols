@@ -24,6 +24,7 @@ export class AudioSourceSession implements AudioSource {
         if (this.#stopped) {
             return Promise.resolve();
         }
+
         return this.#starting ??= Promise.resolve().then(() => this.#stopped ? undefined : this.#source.start());
     }
 
@@ -31,18 +32,29 @@ export class AudioSourceSession implements AudioSource {
         if (this.#stopped) {
             return null;
         }
+
         return new Promise((resolve, reject) => {
-            const done = (value: Buffer | null): void => {this.#readers.delete(done); resolve(this.#stopped ? null : value);};
+            const done = (value: Buffer | null): void => {
+                this.#readers.delete(done);
+                resolve(this.#stopped ? null : value);
+            };
+
             this.#readers.add(done);
-            void Promise.resolve().then(() => this.#stopped ? null : this.#source.readFrames(count)).then(done, error => {this.#readers.delete(done); reject(error);});
+
+            void Promise.resolve().then(() => this.#stopped ? null : this.#source.readFrames(count)).then(done, error => {
+                this.#readers.delete(done);
+                reject(error);
+            });
         });
     }
 
     stop(): Promise<void> {
         this.#stopped = true;
+
         for (const reader of this.#readers) {
             reader(null);
         }
+
         return this.#stopping ??= Promise.resolve(this.#starting).catch(() => {}).then(() => this.#source.stop());
     }
 

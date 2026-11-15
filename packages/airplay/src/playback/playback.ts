@@ -268,6 +268,7 @@ async function playLegacy(channels: UrlPlaybackChannels, url: string, position: 
         if (lastStatus === 500) {
             context.logger.warn('[protocol]', 'play_url returned 500, retrying...');
             await waitFor(1000);
+
             continue;
         }
 

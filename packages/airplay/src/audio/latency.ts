@@ -1,12 +1,4 @@
-/**
- * Dynamic latency manager for AirPlay audio streaming.
- *
- * Implements a tier-based latency system inspired by Apple's DynamicLatencyManager.
- * Monitors audio glitches (packet loss, late arrivals) and adjusts the latency
- * tier accordingly: glitches increase latency, stable periods decrease it.
- */
-
-/** Available latency tiers in ascending order (as fractions of sample rate). */
+/** Latency tiers in ascending order, in seconds (fractions of the sample rate). */
 const LATENCY_TIERS = [0.25, 0.5, 1.0, 2.0] as const;
 
 /** Number of consecutive successful packets needed to drop one latency tier. */
@@ -19,14 +11,9 @@ const GLITCH_THRESHOLD = 3;
 const GLITCH_WINDOW_MS = 5000;
 
 /**
- * Manages dynamic latency for an audio stream.
- *
- * Usage:
- * 1. Create with `new LatencyManager(sampleRate)`
- * 2. Call `getLatency()` to get the current latency in samples
- * 3. Call `reportSuccess()` after each successful packet
- * 4. Call `reportGlitch()` when a glitch is detected (packet loss, NACK, late arrival)
- * 5. The manager automatically adjusts the latency tier
+ * Picks the latency tier of an audio stream. Glitches (packet loss, NACK,
+ * late arrival) reported through {@link reportGlitch} raise the tier; a run
+ * of {@link reportSuccess} calls lowers it.
  */
 export class LatencyManager {
     readonly #sampleRate: number;
@@ -35,17 +22,15 @@ export class LatencyManager {
     #glitchTimestamps: number[] = [];
 
     /**
-     * Creates a new LatencyManager.
-     *
-     * @param sampleRate - The audio sample rate in Hz (e.g. 44100, 48000).
-     * @param initialTierIndex - Starting tier index (defaults to 0, lowest latency).
+     * @param sampleRate - Sample rate in Hz.
+     * @param initialTierIndex - 0 for the lowest latency.
      */
     constructor(sampleRate: number, initialTierIndex: number = 0) {
         this.#sampleRate = sampleRate;
         this.#tierIndex = Math.min(Math.max(0, initialTierIndex), LATENCY_TIERS.length - 1);
     }
 
-    /** Current latency tier index (0 = lowest latency, 3 = highest). */
+    /** 0 is the lowest latency, 3 the highest. */
     get tierIndex(): number {
         return this.#tierIndex;
     }
@@ -60,27 +45,22 @@ export class LatencyManager {
         return Math.round(LATENCY_TIERS[this.#tierIndex] * 1000);
     }
 
-    /** Whether the manager is at the maximum latency tier. */
     get isMaxTier(): boolean {
         return this.#tierIndex >= LATENCY_TIERS.length - 1;
     }
 
-    /** Whether the manager is at the minimum latency tier. */
     get isMinTier(): boolean {
         return this.#tierIndex <= 0;
     }
 
-    /**
-     * Returns the current latency in samples.
-     * Alias for the `latency` getter for use in streaming loops.
-     */
+    /** Current latency in samples, same as {@link latency}. */
     getLatency(): number {
         return this.latency;
     }
 
     /**
-     * Reports a successfully sent and acknowledged packet.
-     * After enough consecutive successes, drops to a lower latency tier.
+     * Reports a packet that was sent and acknowledged. Enough consecutive
+     * successes lower the tier.
      */
     reportSuccess(): void {
         this.#consecutiveSuccesses++;
@@ -92,16 +72,18 @@ export class LatencyManager {
     }
 
     /**
-     * Reports a glitch (packet loss, retransmission request, late arrival).
-     * If enough glitches occur within the time window, increases the latency tier.
+     * Reports a glitch: packet loss, a retransmission request or a late
+     * arrival. Enough glitches within the window raise the tier.
      */
     reportGlitch(): void {
         this.#consecutiveSuccesses = 0;
 
         const now = performance.now();
+
         this.#glitchTimestamps.push(now);
 
         const windowStart = now - GLITCH_WINDOW_MS;
+
         this.#glitchTimestamps = this.#glitchTimestamps.filter(ts => ts >= windowStart);
 
         if (this.#glitchTimestamps.length >= GLITCH_THRESHOLD && !this.isMaxTier) {
@@ -110,14 +92,12 @@ export class LatencyManager {
         }
     }
 
-    /**
-     * Returns the recommended RFC 2198 redundancy level based on the current latency tier.
-     * Higher latency tiers (more glitches) recommend more redundancy.
-     */
+    /** RFC 2198 redundancy level for the current tier; a higher tier gets more. */
     get recommendedRedundancy(): number {
         if (this.#tierIndex >= 2) {
             return 3;
         }
+
         if (this.#tierIndex >= 1) {
             return 2;
         }
@@ -125,7 +105,7 @@ export class LatencyManager {
         return 1;
     }
 
-    /** Resets the manager to the initial (lowest) latency tier. */
+    /** Returns to the lowest tier. */
     reset(): void {
         this.#tierIndex = 0;
         this.#consecutiveSuccesses = 0;
@@ -134,19 +114,18 @@ export class LatencyManager {
 }
 
 /**
- * Returns the recommended cluster latency offset in milliseconds for a given device model.
- * Based on Apple's `APSAudioLatencyForSystemAudioInClusterModelMs` function.
+ * Returns the cluster latency offset in milliseconds for a device model.
  *
- * @param model - The device model identifier (e.g. 'AudioAccessory5,1').
- * @returns Cluster latency offset in milliseconds.
+ * @param model - Model identifier, for example `'AudioAccessory5,1'`.
  */
 export function getClusterLatencyMs(model: string): number {
     if (model.startsWith('AudioAccessory5') || model.startsWith('AudioAccessory6')) {
-        return 0; // HomePod 2nd gen / HomePod mini 2nd gen
+        return 0; // HomePod 2nd gen, HomePod mini 2nd gen
     }
+
     if (model.startsWith('AudioAccessory1')) {
         return 110; // HomePod 1st gen
     }
 
-    return 55; // Conservative default
+    return 55; // Default for other models
 }

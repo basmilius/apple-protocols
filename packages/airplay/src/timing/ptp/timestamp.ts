@@ -11,11 +11,8 @@ export type PtpTimestamp = {
 /**
  * Captures the current wall-clock time as a {@link PtpTimestamp}.
  *
- * Must use {@link Date.now} (wall-clock) rather than {@link process.hrtime.bigint}
- * (monotonic) because PTP timestamps are anchored to the Unix epoch — the same
- * reasoning applies as for {@link NTP.now} in the NTP timing server.
- *
- * @returns The current wall-clock time as seconds + nanoseconds.
+ * Uses {@link Date.now}, not the monotonic {@link process.hrtime.bigint},
+ * because PTP timestamps are anchored to the Unix epoch, as with {@link NTP.now}.
  */
 export function ptpNow(): PtpTimestamp {
     const nowMs = BigInt(Date.now());
@@ -31,9 +28,6 @@ export function ptpNow(): PtpTimestamp {
 /**
  * Encodes a {@link PtpTimestamp} into the 10-byte PTP wire format:
  * 48-bit seconds (big-endian) followed by 32-bit nanoseconds (big-endian).
- *
- * @param ts - The timestamp to encode.
- * @returns A 10-byte buffer containing the encoded timestamp.
  */
 export function encodeTimestamp(ts: PtpTimestamp): Buffer {
     const buf = Buffer.alloc(10);
@@ -48,11 +42,7 @@ export function encodeTimestamp(ts: PtpTimestamp): Buffer {
 }
 
 /**
- * Decodes a 10-byte PTP timestamp from the given buffer at the given offset.
- *
- * @param buf - The buffer to read from.
- * @param offset - The byte offset to start reading at.
- * @returns The decoded timestamp as seconds + nanoseconds.
+ * Decodes a 10-byte PTP timestamp from the buffer at the given offset.
  */
 export function decodeTimestamp(buf: Buffer, offset: number): PtpTimestamp {
     const high = BigInt(buf.readUInt16BE(offset));

@@ -15,7 +15,7 @@ export type PlayQueueState = 'loading' | 'playing' | 'paused' | 'stopped';
 /** Client type of the remote control stream (RCS) that carries play queue commands. */
 const RCS_CLIENT_TYPE_UUID = 'A6B27562-B43A-4F2D-B75F-82391E250194';
 
-/** Channel suffixes tried in order for the RCS SETUP; macOS was seen sending RCS-2. */
+/** Channel suffixes tried in order for the RCS SETUP; macOS sends RCS-2. */
 const RCS_CHANNEL_SUFFIXES = ['RCS-1', 'RCS-2'];
 
 /** Sends the `setRate` rate as a plist real. The serializer writes whole numbers as integers otherwise. */
@@ -162,7 +162,7 @@ export class PlayQueueSession {
      * @param url - Media URL the receiver loads.
      * @param position - Start position in seconds.
      * @returns `false` when the receiver answered `insertPlayQueueItem` with 4xx or 5xx, so the caller can fall back to `/play`.
-     * @throws PlaybackError when a later command fails or reports an `errorCode`.
+     * @throws {PlaybackError} When a later command fails or reports an `errorCode`.
      */
     async start(url: string, position: number): Promise<boolean> {
         const itemUUID = randomUUID().toUpperCase();
@@ -207,6 +207,7 @@ export class PlayQueueSession {
 
         if (command.kind === 'request' && command.type === 'unhandledURL') {
             void this.#answerUnhandledURL(command);
+
             return;
         }
 
@@ -240,9 +241,7 @@ export class PlayQueueSession {
         });
     }
 
-    /**
-     * Ends the session: stops listening, aborts open fetches and resolves {@link waitForEnd}.
-     */
+    /** Ends the session: stops listening, aborts open fetches and resolves {@link waitForEnd}. */
     close(): void {
         this.#settle();
     }
@@ -329,6 +328,7 @@ export class PlayQueueSession {
 
         if (state === 'paused' && this.#playing) {
             this.#playing = {...this.#playing, position, receivedAt: performance.now()};
+
             return;
         }
 
@@ -358,6 +358,7 @@ export class PlayQueueSession {
         if (this.#started) {
             this.#context.logger.info('[play-queue]', 'Stream closed, assuming playback ended.');
             this.#settle();
+
             return;
         }
 
@@ -371,6 +372,7 @@ export class PlayQueueSession {
 
         if (!request || typeof url !== 'string' || messageId === undefined) {
             this.#context.logger.warn('[play-queue]', 'Ignoring malformed unhandledURL request.', command);
+
             return;
         }
 
@@ -399,12 +401,14 @@ export class PlayQueueSession {
             if (request.FCUP_Response_IsContentKeyRequest === true) {
                 await reply(501, {}, new ArrayBuffer(0));
                 this.#fail(new PlaybackError(`The receiver asked for a FairPlay content key (${url}); protected content is not supported.`));
+
                 return;
             }
 
             if (!isHttpUrl(url)) {
                 await reply(403, {}, new ArrayBuffer(0));
                 this.#fail(new PlaybackError(`The receiver asked to fetch ${url}; only http and https URLs are fetched.`));
+
                 return;
             }
 
@@ -420,6 +424,7 @@ export class PlayQueueSession {
                 this.#context.logger.warn('[play-queue]', `Failed to fetch ${url} for the receiver.`, err);
                 await reply(502, {}, new ArrayBuffer(0));
                 this.#fail(new PlaybackError(`Could not fetch ${url} for the receiver: ${(err as Error).message}`));
+
                 return;
             }
 
@@ -470,6 +475,7 @@ export class PlayQueueSession {
 
         if (declaredLength > FCUP_MAX_RESPONSE_SIZE) {
             await response.body?.cancel();
+
             throw new PlaybackError(`Response too large (${declaredLength} bytes).`);
         }
 
@@ -494,6 +500,7 @@ export class PlayQueueSession {
 
             if (length > FCUP_MAX_RESPONSE_SIZE || this.#fetchedBytes > FCUP_MAX_SESSION_SIZE) {
                 await reader.cancel();
+
                 throw new PlaybackError(length > FCUP_MAX_RESPONSE_SIZE ? `Response larger than ${FCUP_MAX_RESPONSE_SIZE} bytes.` : `Fetched more than ${FCUP_MAX_SESSION_SIZE} bytes in this session.`);
             }
 
@@ -514,6 +521,7 @@ export class PlayQueueSession {
     async #acquireFetchSlot(): Promise<void> {
         if (this.#fetchesInFlight < FCUP_MAX_IN_FLIGHT) {
             this.#fetchesInFlight++;
+
             return;
         }
 
@@ -576,8 +584,9 @@ export function decodeNestedCommand(body: unknown): PlayQueueCommand | undefined
 }
 
 /**
- * Picks the item's `mediaType`. On Apple TV `streaming` for HLS is unconfirmed; macOS sends it
- * and a live playlist stays in `loading` as `file` on third party receivers.
+ * Picks the item's `mediaType`, `streaming` for an HLS playlist. macOS sends `streaming` for HLS,
+ * and third party receivers keep a live playlist in `loading` as `file`. Apple TV is not verified
+ * with `streaming`.
  */
 function mediaTypeFor(url: string): 'file' | 'streaming' {
     try {
@@ -589,6 +598,7 @@ function mediaTypeFor(url: string): 'file' | 'streaming' {
 
 function buildItem(itemUUID: string, url: string, position: number): Record<string, unknown> {
     const mediaType = mediaTypeFor(url);
+
     const item: Record<string, unknown> = {
         uuid: itemUUID,
         'Content-Location': url,

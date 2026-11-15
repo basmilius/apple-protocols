@@ -109,6 +109,7 @@ export class AudioMultiplexer {
 
                 if (frames.length < packetSize) {
                     const padded = Buffer.alloc(packetSize, 0);
+
                     frames.copy(padded);
                     frames = padded;
                 }

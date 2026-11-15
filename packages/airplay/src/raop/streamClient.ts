@@ -13,35 +13,25 @@ import { Statistics } from './statistics';
 import { EncryptionType, type MediaMetadata, MetadataType, type RaopPlaybackInfo, type Settings, type StreamContext, type StreamProtocol } from './types';
 import { getAudioProperties, getEncryptionTypes, getMetadataTypes } from './utils';
 
-/**
- * Event map for the StreamClient, emitted during the audio streaming lifecycle.
- */
 export type EventMap = {
-    /** Emitted when audio playback starts, providing current playback info. */
     readonly playing: [playbackInfo: RaopPlaybackInfo];
-    /** Emitted when audio playback stops (either naturally or via stop()). */
+
+    /** The stream ended, at the end of the source or through {@link StreamClient.stop}. */
     readonly stopped: [];
 };
 
 /**
- * Core streaming engine for RAOP audio. Manages the complete audio streaming
- * lifecycle: initialization (encryption/metadata negotiation, control channel
- * setup), real-time PCM packet sending with timing compensation, metadata
- * and artwork publishing, and teardown.
- *
- * Uses a Statistics tracker to maintain real-time pacing and compensates
- * for slow packet sending by bursting additional packets when falling behind.
+ * Streams RAOP audio: negotiates encryption and metadata, sets up the control
+ * channel, sends PCM packets in real time, publishes metadata and artwork and
+ * tears down. When sending falls behind, it bursts extra packets to catch up.
  */
 export class StreamClient extends EventEmitter<EventMap> {
-    /** Device info dictionary fetched from the receiver during initialization. */
+    /** The `/info` dictionary fetched during initialization. */
     get info(): Record<string, unknown> {
         return this.#info;
     }
 
-    /**
-     * Current playback info snapshot, substituting fallback metadata
-     * if the caller provided no metadata.
-     */
+    /** The playback info, with the fallback metadata when the caller gave none. */
     get playbackInfo(): RaopPlaybackInfo {
         return {
             metadata: this.#isMetadataEmpty(this.#metadata) ? this.#missingMetadata : this.#metadata,
@@ -49,10 +39,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         };
     }
 
-    /**
-     * Whether MFi-SAP auth-setup is required, determined by the device's
-     * supported encryption types and model name (AirPort devices only).
-     */
+    /** Only an AirPort with MFi-SAP encryption needs auth-setup. */
     get #requiresAuthSetup(): boolean {
         const modelName = this.#properties.get('am') ?? '';
 
@@ -62,47 +49,30 @@ export class StreamClient extends EventEmitter<EventMap> {
         );
     }
 
-    /** Application context for logging. */
     readonly #context: Context;
-    /** RAOP RTSP client for protocol commands. */
     readonly #rtsp: RaopRtspClient;
-    /** Shared mutable streaming state. */
     readonly #streamContext: StreamContext;
-    /** Port configuration settings. */
     readonly #settings: Settings;
-    /** Protocol abstraction for transport-level operations. */
     readonly #protocol: StreamProtocol;
-    /** FIFO backlog of recently sent packets for retransmission. */
     readonly #packetBacklog: PacketFifo;
-    /** NTP timing server for clock synchronization with the receiver. */
     readonly #timingServer: TimingServer;
+
     /** Shown on the receiver when a stream comes without metadata. */
     readonly #missingMetadata: MediaMetadata;
 
-    /** UDP control channel client, created during initialization. */
     #controlClient?: ControlClient;
-    /** Bitmask of receiver-supported encryption types. */
     #encryptionTypes: EncryptionType = EncryptionType.Unknown;
-    /** Bitmask of receiver-supported metadata types. */
     #metadataTypes: MetadataType = MetadataType.NotSupported;
-    /** Current track metadata. */
     #metadata: MediaMetadata = EMPTY_METADATA;
-    /** Device info dictionary from the receiver. */
     #info: Record<string, unknown> = {};
-    /** mDNS TXT record properties for the device. */
+
+    /** The receiver's mDNS TXT record. */
     #properties: Map<string, string> = new Map();
-    /** Flag controlling the streaming loop; set to false to stop. */
+
+    /** The streaming loop runs while this is true. */
     #isPlaying: boolean = false;
 
     /**
-     * Creates a new stream client.
-     *
-     * @param context - Application context for logging.
-     * @param rtsp - Connected RAOP RTSP client.
-     * @param streamContext - Shared mutable streaming state.
-     * @param protocol - Protocol handler for transport operations.
-     * @param settings - Port configuration settings.
-     * @param timingServer - NTP timing server.
      * @param missingMetadata - Shown on the receiver when a stream comes without metadata.
      */
     constructor(context: Context, rtsp: RaopRtspClient, streamContext: StreamContext, protocol: StreamProtocol, settings: Settings, timingServer: TimingServer, missingMetadata: MediaMetadata) {
@@ -118,20 +88,17 @@ export class StreamClient extends EventEmitter<EventMap> {
         this.#missingMetadata = missingMetadata;
     }
 
-    /**
-     * Closes the control channel, releasing its UDP socket.
-     */
+    /** Closes the control channel and its UDP socket. */
     close(): void {
         this.#controlClient?.close();
         this.#controlClient = undefined;
     }
 
     /**
-     * Initializes the streaming session by parsing device capabilities,
-     * binding the control channel, fetching device info, performing
-     * auth-setup if required, and running the protocol SETUP handshake.
+     * Reads the receiver's capabilities, binds the control channel, fetches
+     * `/info`, sends auth-setup when needed and runs the protocol SETUP.
      *
-     * @param properties - mDNS TXT record key-value pairs for the device.
+     * @param properties - The receiver's mDNS TXT record.
      */
     async initialize(properties: Map<string, string>): Promise<void> {
         this.#properties = properties;
@@ -141,6 +108,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         this.#context.logger.info(`Initializing RTSP with encryption=${this.#encryptionTypes}, metadata=${this.#metadataTypes}`);
 
         const intersection = this.#encryptionTypes & SUPPORTED_ENCRYPTIONS;
+
         if (!intersection || intersection === EncryptionType.Unknown) {
             this.#context.logger.debug('No supported encryption type, continuing anyway');
         }
@@ -148,6 +116,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         this.#updateOutputProperties(properties);
 
         this.#controlClient = new ControlClient(this.#context, this.#streamContext, this.#packetBacklog);
+
         await this.#controlClient.bind(
             this.#rtsp.connection.localIp,
             this.#settings.protocols.raop.controlPort
@@ -156,6 +125,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         this.#context.logger.debug(`Local ports: control=${this.#controlClient.port}, timing=${this.#timingServer.port}`);
 
         const info = await this.#rtsp.info();
+
         Object.assign(this.#info, info);
         this.#context.logger.debug('Updated info parameters to:', this.#info);
 
@@ -167,8 +137,8 @@ export class StreamClient extends EventEmitter<EventMap> {
     }
 
     /**
-     * Signals the streaming loop to stop after the current packet.
-     * The `sendAudio()` call will return after teardown completes.
+     * Stops the streaming loop after the current packet. {@link sendAudio}
+     * returns once the teardown is done.
      */
     stop(): void {
         this.#context.logger.debug('Stopping audio playback');
@@ -176,9 +146,9 @@ export class StreamClient extends EventEmitter<EventMap> {
     }
 
     /**
-     * Changes the playback volume on the receiver via RTSP SET_PARAMETER.
+     * Sets the receiver volume with SET_PARAMETER.
      *
-     * @param volume - Volume level in dBFS.
+     * @param volume - Volume in dBFS.
      */
     async setVolume(volume: number): Promise<void> {
         await this.#rtsp.setParameter('volume', String(volume));
@@ -203,6 +173,7 @@ export class StreamClient extends EventEmitter<EventMap> {
 
         try {
             transport = createSocket('udp4');
+
             await new Promise<void>((resolve, reject) => {
                 transport!.once('error', reject);
                 transport!.connect(this.#streamContext.serverPort, this.#rtsp.connection.remoteIp, () => {
@@ -217,6 +188,7 @@ export class StreamClient extends EventEmitter<EventMap> {
                 const start = this.#streamContext.rtptime;
                 const now = this.#streamContext.rtptime;
                 const end = start + source.duration * this.#streamContext.sampleRate;
+
                 await this.#rtsp.setParameter('progress', `${start}/${now}/${end}`);
             }
 
@@ -224,6 +196,7 @@ export class StreamClient extends EventEmitter<EventMap> {
 
             if ((this.#metadataTypes & MetadataType.Text) !== 0) {
                 this.#context.logger.debug('Playing with metadata:', this.playbackInfo.metadata);
+
                 await this.#rtsp.setMetadata(
                     this.#streamContext.rtspSession,
                     this.#streamContext.rtpseq,
@@ -270,6 +243,7 @@ export class StreamClient extends EventEmitter<EventMap> {
             await this.#streamData(source, transport);
         } catch (err) {
             this.#context.logger.error('An error occurred during streaming.', err);
+
             throw new Error('An error occurred during streaming.', {cause: err});
         } finally {
             this.#packetBacklog.clear();
@@ -287,13 +261,9 @@ export class StreamClient extends EventEmitter<EventMap> {
     }
 
     /**
-     * Real-time audio streaming loop. Reads PCM frames from the source,
-     * sends them as RTP packets over UDP, and uses wall-clock timing to
-     * maintain real-time pacing. When falling behind, sends compensating
-     * burst packets (up to MAX_PACKETS_COMPENSATE). Logs periodic
-     * throughput statistics and slow-sender warnings.
+     * Sends the source as RTP packets, paced against the clock. When behind,
+     * it bursts up to {@link MAX_PACKETS_COMPENSATE} extra packets.
      *
-     * @param source - Audio source to read frames from.
      * @param transport - UDP socket connected to the receiver's audio port.
      */
     async #streamData(source: AudioSource, transport: UdpSocket): Promise<void> {
@@ -314,6 +284,7 @@ export class StreamClient extends EventEmitter<EventMap> {
             }
 
             stats.tick(numSent);
+
             const framesBehind = stats.framesBehind;
 
             if (framesBehind >= AUDIO_FRAMES_PER_PACKET) {
@@ -331,6 +302,7 @@ export class StreamClient extends EventEmitter<EventMap> {
                     transport,
                     maxPackets
                 );
+
                 stats.tick(sentFrames);
 
                 if (!hasMorePackets) {
@@ -340,6 +312,7 @@ export class StreamClient extends EventEmitter<EventMap> {
 
             if (stats.intervalCompleted) {
                 const [intervalTime, intervalFrames] = stats.newInterval();
+
                 this.#context.logger.debug(
                     `Sent ${intervalFrames} frames in ${intervalTime.toFixed(3)}s (current frames: ${stats.totalFrames}, expected: ${stats.expectedFrameCount})`
                 );
@@ -368,19 +341,18 @@ export class StreamClient extends EventEmitter<EventMap> {
         }
 
         const elapsedNs = Number(process.hrtime.bigint() - stats.startTimeNs);
+
         this.#context.logger.debug(`Audio finished sending in ${(elapsedNs / 1e9).toFixed(3)}s`);
     }
 
     /**
-     * Reads one packet's worth of audio frames from the source and sends
-     * it as an RTP packet. If the source is exhausted, sends silence
-     * padding until the latency buffer is filled. Undersized frames
-     * are zero-padded to the expected packet size.
+     * Reads one packet of frames and sends it as an RTP packet, zero-padded to
+     * the packet size. Once the source is exhausted, it sends silence until
+     * the latency is padded.
      *
-     * @param source - Audio source to read frames from.
-     * @param firstPacket - Whether this is the first packet (uses marker payload type 0xE0).
+     * @param firstPacket - Sends payload type 0xE0 with the marker bit.
      * @param transport - UDP socket connected to the receiver's audio port.
-     * @returns Number of audio frames sent, or 0 when padding is exhausted.
+     * @returns Number of frames sent, or 0 when all padding has been sent.
      */
     async #sendPacket(source: AudioSource, firstPacket: boolean, transport: UdpSocket): Promise<number> {
         if (this.#streamContext.paddingSent >= this.#streamContext.latency) {
@@ -394,6 +366,7 @@ export class StreamClient extends EventEmitter<EventMap> {
             this.#streamContext.paddingSent += Math.floor(frames.length / this.#streamContext.frameSize);
         } else if (frames.length !== this.#streamContext.packetSize) {
             const padded = Buffer.alloc(this.#streamContext.packetSize);
+
             frames.copy(padded);
             frames = padded;
         }
@@ -407,6 +380,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         );
 
         const [rtpseq, packet] = await this.#protocol.sendAudioPacket(transport, header, frames);
+
         this.#packetBacklog.set(rtpseq, packet);
 
         this.#streamContext.rtpseq = (this.#streamContext.rtpseq + 1) % (2 ** 16);
@@ -416,19 +390,17 @@ export class StreamClient extends EventEmitter<EventMap> {
     }
 
     /**
-     * Sends multiple packets in a burst to compensate for falling behind
-     * real-time playback. Stops early if the source is exhausted.
+     * Sends a burst of packets to catch up, and stops early when the source
+     * is exhausted.
      *
-     * @param source - Audio source to read frames from.
-     * @param transport - UDP socket connected to the receiver's audio port.
-     * @param count - Number of packets to send.
-     * @returns A tuple of [total frames sent, whether more packets are available].
+     * @returns The frames sent, and whether more packets are available.
      */
     async #sendNumberOfPackets(source: AudioSource, transport: UdpSocket, count: number): Promise<[number, boolean]> {
         let totalFrames = 0;
 
         for (let i = 0; i < count; i++) {
             const sent = await this.#sendPacket(source, false, transport);
+
             totalFrames += sent;
 
             if (sent === 0) {
@@ -439,13 +411,7 @@ export class StreamClient extends EventEmitter<EventMap> {
         return [totalFrames, true];
     }
 
-    /**
-     * Checks whether the given metadata has all empty/default values,
-     * indicating no real metadata was provided by the caller.
-     *
-     * @param metadata - Metadata to check.
-     * @returns True if all fields are empty or zero.
-     */
+    /** True when the caller gave no metadata: all fields empty or zero. */
     #isMetadataEmpty(metadata: MediaMetadata): boolean {
         return metadata.title === ''
             && metadata.artist === ''
@@ -453,12 +419,7 @@ export class StreamClient extends EventEmitter<EventMap> {
             && metadata.duration === 0;
     }
 
-    /**
-     * Updates the stream context audio format from mDNS TXT record
-     * properties (sample rate, channels, bytes per channel).
-     *
-     * @param properties - mDNS TXT record key-value pairs.
-     */
+    /** Takes the audio format of the stream context from the mDNS TXT record. */
     #updateOutputProperties(properties: Map<string, string>): void {
         const [sampleRate, channels, bytesPerChannel] = getAudioProperties(properties);
 

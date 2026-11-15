@@ -12,7 +12,7 @@ import { streamWithTiming } from './pacing';
 import type { AudioSource } from './source';
 import { AudioSourceSession } from './sourceSession';
 
-/** Latency in frames (0.25 seconds at 44,100 Hz). Used for silence padding at end of stream. */
+/** Latency in frames (0.25 seconds at 44,100 Hz), for silence padding at the end of the stream. */
 const LATENCY_FRAMES = 11025;
 
 /** Maximum number of packets to keep in the retransmission backlog. */
@@ -21,7 +21,7 @@ const PACKET_BACKLOG_SIZE = 1000;
 /** Interval in milliseconds between RTCP sync packets. */
 const SYNC_INTERVAL = 1000;
 
-/** Default number of previous frames to include as RFC 2198 redundancy (0 = disabled). */
+/** Default number of previous frames sent as RFC 2198 redundancy; 0 disables it. */
 const DEFAULT_REDUNDANCY_COUNT = 0;
 
 /** The audio session an {@link AudioStream} runs on: its control channel, after the audio-session SETUP and RECORD. */
@@ -41,9 +41,7 @@ export type AudioStreamOptions = {
     readonly redundancyCount?: number;
 };
 
-/**
- * Statistics for an active audio stream, used for feedback and adaptive redundancy.
- */
+/** Counters of an active audio stream, for feedback and adaptive redundancy. */
 export type AudioStreamStats = {
     readonly packetsSent: number;
     readonly retransmitRequests: number;
@@ -53,7 +51,7 @@ export type AudioStreamStats = {
     readonly totalBytesSent: number;
 };
 
-/** Compression types for SETUP `ct`, derived from `APAudioFormatIDToAPCompressionType` in AirPlaySupport. */
+/** Compression types for SETUP `ct`. */
 export const CompressionType = {
     PCM: 1,
     ALAC: 2,
@@ -94,35 +92,46 @@ export const AudioFormat = {
     AAC_ELD_48000_1: 0x100000000
 } as const;
 
-/** Created by {@link AudioStream.prepare} and updated per packet, including during multi-room streaming. */
+/** Created by {@link AudioStream.prepare} and updated per packet, also during multiroom streaming. */
 export type AudioStreamContext = {
     /** Negotiated sample rate in Hz. */
     sampleRate: number;
+
     channels: number;
+
     /** Bytes per sample per channel. */
     bytesPerChannel: number;
-    /** Total bytes per frame (channels * bytesPerChannel). */
+
+    /** Bytes per frame: channels * bytesPerChannel. */
     frameSize: number;
-    /** Total bytes per packet (framesPerPacket * frameSize). */
+
+    /** Bytes per packet: framesPerPacket * frameSize. */
     packetSize: number;
-    /** Current RTP sequence number (wraps at 0xFFFF). */
+
+    /** RTP sequence number, wraps at 0xFFFF. */
     rtpSeq: number;
-    /** Current RTP timestamp (cumulative frame count). */
+
+    /** RTP timestamp as a cumulative frame count. */
     rtpTime: number;
-    /** Head timestamp for the current packet. */
+
+    /** Head timestamp of the current packet. */
     headTs: number;
-    /** Latency in frames for silence padding at stream end. */
+
+    /** Latency in frames, for silence padding at the end of the stream. */
     latency: number;
-    /** Number of padding (silence) frames sent so far. */
+
+    /** Silence frames sent so far. */
     paddingSent: number;
+
     totalFrames: number;
 };
 
 const USE_ENCRYPTION = true;
 
-/** Converts RTP timestamps using the wall-clock NTP anchor recorded at stream start for multi-room synchronization. */
+/** Converts an RTP timestamp to NTP against the wall-clock anchor taken at stream start, for multiroom sync. */
 const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint => {
     let elapsedSamples: number;
+
     if (rtpTimestamp >= anchorRtp) {
         elapsedSamples = rtpTimestamp - anchorRtp;
     } else {
@@ -146,45 +155,58 @@ export class AudioStream {
     readonly #context: Context;
     readonly #control: ControlChannel;
     readonly #supportedFormats?: number;
-    /** Configurable RFC 2198 redundancy count (0 = disabled). */
+
+    /** RFC 2198 redundancy count; 0 disables it. */
     #redundancyCount: number;
 
     #controlPort: number = 0;
     #source?: AudioSourceSession;
     #closed = false;
+
     /** UDP socket for RTCP control messages (sync, retransmit requests). */
     #controlSocket?: UdpSocket;
+
     /** 32-byte shared key for ChaCha20 audio encryption. */
     #sharedKey?: Buffer;
-    /** Remote data port assigned by the receiver in SETUP response. */
+
+    /** Remote data port from the SETUP response. */
     #dataPort: number = 0;
+
     #dataSocket?: UdpSocket;
     #negotiatedBytesPerChannel: number = AUDIO_BYTES_PER_CHANNEL;
     #negotiatedSampleRate: number = AUDIO_SAMPLE_RATE;
-    /** RTP timestamp at the anchor point for NTP conversion. */
+
+    /** RTP timestamp of the NTP anchor. */
     #anchorRtp: number = 0;
-    /** NTP timestamp at the anchor point for RTP-to-NTP conversion. */
+
+    /** NTP timestamp of the anchor, for RTP to NTP conversion. */
     #anchorNtp: bigint = 0n;
-    /** Previous frames stored for RFC 2198 redundancy. */
+
+    /** Previous frames kept for RFC 2198 redundancy. */
     #previousFrames: Buffer[] = [];
-    /** Remote RTCP control port assigned by the receiver in SETUP response. */
+
+    /** Remote RTCP control port from the SETUP response. */
     #remoteControlPort: number = 0;
-    /** Sent packet backlog for retransmission on NACK, keyed by RTP sequence number. */
+
+    /** Sent packets kept for retransmission on NACK, keyed by RTP sequence number. */
     #packetBacklog: Map<number, Buffer> = new Map();
-    /** Random Synchronization Source identifier for this RTP stream. */
+
+    /** Random RTP synchronization source identifier. */
     #ssrc: number = 0;
+
     #syncInterval?: NodeJS.Timeout;
     #streamContext?: AudioStreamContext;
     #latencyManager?: LatencyManager;
-    /** Monotonic encryption counter for ChaCha20 nonce (independent of RTP sequence). */
+
+    /** ChaCha20 nonce counter, independent of the RTP sequence number. */
     #encryptionCounter: number = 0;
+
     #packetsSent: number = 0;
     #retransmitRequests: number = 0;
     #retransmitsFulfilled: number = 0;
     #retransmitsFailed: number = 0;
     #totalBytesSent: number = 0;
 
-    /** Current streaming statistics for feedback and adaptive redundancy. */
     get stats(): AudioStreamStats {
         return {
             packetsSent: this.#packetsSent,
@@ -212,22 +234,40 @@ export class AudioStream {
      */
     async setup(): Promise<{ dataPort: number; controlPort: number }> {
         if (this.#closed) throw new SetupError('Audio setup cancelled.');
+
         this.#sharedKey = Buffer.from(randomBytes(32));
 
         this.#ssrc = randomInt32() >>> 0;
 
         const socket = this.#controlSocket = createSocket('udp4');
+
         this.#controlSocket.on('message', (data, rinfo) => this.#onControlMessage(data, rinfo));
 
         await new Promise<void>((resolve, reject) => {
-            const cleanup = (): void => {socket.off('error', fail); socket.off('close', closed);};
-            const fail = (error: Error): void => {cleanup(); reject(error);};
+            const cleanup = (): void => {
+                socket.off('error', fail);
+                socket.off('close', closed);
+            };
+
+            const fail = (error: Error): void => {
+                cleanup();
+                reject(error);
+            };
+
             const closed = (): void => fail(new SetupError('Audio setup cancelled.'));
+
             socket.once('error', fail);
             socket.once('close', closed);
+
             socket.bind(0, () => {
                 cleanup();
-                if (this.#closed) {reject(new SetupError('Audio setup cancelled.')); return;}
+
+                if (this.#closed) {
+                    reject(new SetupError('Audio setup cancelled.'));
+
+                    return;
+                }
+
                 this.#controlPort = socket.address().port;
                 resolve();
             });
@@ -238,10 +278,10 @@ export class AudioStream {
             this.#sharedKey.byteOffset + this.#sharedKey.byteLength
         ) as ArrayBuffer;
 
-        // Generate a random 64-bit stream connection ID like iOS does
+        // A random 64-bit stream connection ID, as iOS sends.
         const streamConnectionID = randomInt64();
 
-        /* SETUP uses `ct` for the codec and `audioFormat` for its sample rate, bit depth and channel count. */
+        // SETUP takes the codec in `ct` and sample rate, bit depth and channel count in `audioFormat`.
         const supportedFormats = this.#supportedFormats;
         const ct = CompressionType.PCM;
         const audioFormat: number = AudioFormat.PCM_44100_16_2;
@@ -283,12 +323,15 @@ export class AudioStream {
         );
 
         if (this.#closed) throw new SetupError('Audio setup cancelled.');
+
         if (response.status !== 200) {
             const text = await response.text();
+
             throw new SetupError(`Failed to setup audio stream: ${response.status} - ${text}`);
         }
 
         const plist = Plist.parse(await response.arrayBuffer()) as any;
+
         this.#context.logger.debug('[audio]', 'Setup stream response:', plist);
 
         if (plist.streams && plist.streams.length > 0) {
@@ -306,7 +349,9 @@ export class AudioStream {
 
         this.#context.logger.debug('[audio]', 'Sending RECORD...');
         await this.#control.record(`/${this.#control.sessionId}`);
+
         if (this.#closed) throw new SetupError('Audio setup cancelled.');
+
         this.#context.logger.debug('[audio]', 'RECORD complete');
 
         return {
@@ -316,8 +361,8 @@ export class AudioStream {
     }
 
     /**
-     * Prepare the audio stream for sending. Connects the UDP data socket,
-     * initializes stream context, sends FLUSH, and starts RTCP sync.
+     * Connects the UDP data socket, creates the stream context, sends FLUSH
+     * and starts RTCP sync.
      */
     async prepare(remoteAddress: string): Promise<AudioStreamContext> {
         if (!this.#controlSocket || !this.#sharedKey || !this.#dataPort) {
@@ -325,13 +370,25 @@ export class AudioStream {
         }
 
         if (this.#closed) throw new SetupError('Audio preparation cancelled.');
+
         const socket = this.#dataSocket = createSocket('udp4');
+
         await new Promise<void>((resolve, reject) => {
-            const cleanup = (): void => {socket.off('error', fail); socket.off('close', closed);};
-            const fail = (error: Error): void => {cleanup(); reject(error);};
+            const cleanup = (): void => {
+                socket.off('error', fail);
+                socket.off('close', closed);
+            };
+
+            const fail = (error: Error): void => {
+                cleanup();
+                reject(error);
+            };
+
             const closed = (): void => fail(new SetupError('Audio preparation cancelled.'));
+
             socket.once('error', fail);
             socket.once('close', closed);
+
             socket.connect(this.#dataPort, remoteAddress, () => {
                 cleanup();
                 this.#closed ? reject(new SetupError('Audio preparation cancelled.')) : resolve();
@@ -342,11 +399,11 @@ export class AudioStream {
         const packetSize = AUDIO_FRAMES_PER_PACKET * frameSize;
 
         this.#latencyManager = new LatencyManager(this.#negotiatedSampleRate);
-        const latency = this.#latencyManager.getLatency();
 
+        const latency = this.#latencyManager.getLatency();
         const initialRtpTime = 0;
 
-        /* Anchor RTP to wall-clock NTP so receivers can synchronize playback. */
+        // Receivers sync playback through this anchor of RTP to wall-clock NTP.
         this.#anchorRtp = initialRtpTime;
         this.#anchorNtp = NTP.now();
 
@@ -363,14 +420,18 @@ export class AudioStream {
             paddingSent: 0,
             totalFrames: 0
         };
+
         this.#streamContext = ctx;
 
         this.#context.logger.debug('[audio]', 'Sending FLUSH...');
+
         await this.#control.flush(`/${this.#control.sessionId}`, {
             'Range': 'npt=0-',
             'RTP-Info': `seq=${ctx.rtpSeq};rtptime=${ctx.rtpTime}`
         });
+
         if (this.#closed) throw new SetupError('Audio preparation cancelled.');
+
         this.#context.logger.debug('[audio]', 'FLUSH complete');
 
         this.#context.logger.debug('[audio]', `RTP start: seq=${ctx.rtpSeq}, time=${ctx.rtpTime}, ssrc=${this.#ssrc}`);
@@ -382,13 +443,11 @@ export class AudioStream {
     }
 
     /**
-     * Sends pre-read frame data as an RTP packet.
+     * Sends frames that were already read as one RTP packet. {@link AudioMultiplexer}
+     * reads each packet once and sends it to every stream.
      *
-     * Used by {@link AudioMultiplexer} for multi-room streaming where frames
-     * are read once from the source and sent to multiple streams.
-     *
-     * @param frames - Raw PCM frame data to send.
-     * @param firstPacket - Whether this is the first packet (sets RTP marker bit).
+     * @param frames - Raw PCM frame data.
+     * @param firstPacket - Sets the RTP marker bit.
      * @returns Number of frames sent.
      * @throws SetupError if the stream has not been prepared.
      */
@@ -439,20 +498,24 @@ export class AudioStream {
     /**
      * Prepares, paces and finishes the stream, then closes it. Sends extra packets when behind schedule.
      *
-     * @param source - PCM source.
      * @param remoteAddress - Receiver address for the UDP connection.
      */
     async stream(source: AudioSource, remoteAddress: string): Promise<void> {
         const session = new AudioSourceSession(source);
+
         this.#source = session;
+
         try {
             if (this.#closed) {
                 return;
             }
+
             const ctx = await this.prepare(remoteAddress);
+
             if (this.#closed) {
                 return;
             }
+
             await session.start();
             this.#context.logger.info('[audio]', 'Starting audio stream...');
 
@@ -472,10 +535,9 @@ export class AudioStream {
             this.#context.logger.debug('[audio]', 'Sending TEARDOWN...');
             await this.#control.teardown(`/${this.#control.sessionId}`);
             this.#context.logger.debug('[audio]', 'TEARDOWN complete');
-
         } finally {
-            // close() stops the source without waiting for it, so a source that hangs on stop cannot
-            // hold up the caller's teardown; the caller awaits the stop itself when it needs to.
+            // close() does not wait for the source to stop, so a source that hangs on stop cannot hold
+            // up the teardown. A caller that needs the stop awaits it itself.
             this.close();
 
             if (this.#source === session) {
@@ -485,14 +547,11 @@ export class AudioStream {
     }
 
     /**
-     * Reads frames from the audio source and sends them as an RTP packet.
+     * Reads frames from the source and sends them as one RTP packet. Once the
+     * source is exhausted, it sends silence until the latency is padded.
      *
-     * When the source is exhausted, sends silence padding until the latency
-     * threshold is reached.
-     *
-     * @param source - Audio source to read frames from.
-     * @param firstPacket - Whether this is the first packet (sets RTP marker bit).
-     * @param ctx - Mutable stream context with RTP state.
+     * @param firstPacket - Sets the RTP marker bit.
+     * @param ctx - Stream context with the RTP state, updated in place.
      * @returns Number of frames sent, or 0 when all padding has been sent.
      */
     async #sendPacket(source: AudioSource, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
@@ -501,16 +560,17 @@ export class AudioStream {
         }
 
         let frames = await source.readFrames(AUDIO_FRAMES_PER_PACKET);
+
         if (this.#closed) {
             return 0;
         }
 
         if (!frames || frames.length === 0) {
-            // No more audio data - send padding (silent frames)
             frames = Buffer.alloc(ctx.packetSize, 0);
             ctx.paddingSent += Math.floor(frames.length / ctx.frameSize);
         } else if (frames.length < ctx.packetSize) {
             const padded = Buffer.alloc(ctx.packetSize, 0);
+
             frames.copy(padded);
             frames = padded;
         }
@@ -526,33 +586,31 @@ export class AudioStream {
      * @returns Number of frames sent.
      */
     #sendFrameBuffer(frames: Buffer, firstPacket: boolean, ctx: AudioStreamContext): Promise<number> {
-        // Build RTP header (12 bytes)
         const hasRedundancy = this.#redundancyCount > 0 && this.#previousFrames.length > 0;
-        const pt = hasRedundancy ? 0x61 : 0x60; // PT 97 for RFC2198, PT 96 for normal
+        const pt = hasRedundancy ? 0x61 : 0x60; // PT 97 for RFC 2198, PT 96 otherwise
 
         const rtpHeader = Buffer.allocUnsafe(12);
+
         rtpHeader.writeUInt8(0x80, 0);  // Version 2
         rtpHeader.writeUInt8(firstPacket ? (pt | 0x80) : pt, 1);  // Marker + PT
         rtpHeader.writeUInt16BE(ctx.rtpSeq, 2);
         rtpHeader.writeUInt32BE(ctx.headTs >>> 0, 4);
-        rtpHeader.writeUInt32BE(this.#ssrc, 8);  // Use random SSRC
+        rtpHeader.writeUInt32BE(this.#ssrc, 8);
 
-        // Build RFC2198 redundancy payload:
-        // [redundant headers (4 bytes each)] [primary header (1 byte)] [redundant data...] [primary data]
+        // RFC 2198 payload: [redundant headers, 4 bytes each] [primary header, 1 byte] [redundant data...] [primary data]
         let audioPayload: Buffer;
 
         if (hasRedundancy) {
             const redundantFrames = this.#previousFrames.slice(-this.#redundancyCount);
             const headers: Buffer[] = [];
 
-            // Redundant block headers (F=1, 4 bytes each)
             for (let i = 0; i < redundantFrames.length; i++) {
                 const level = redundantFrames.length - i;
                 const tsOffset = level * AUDIO_FRAMES_PER_PACKET;
                 const blockLen = redundantFrames[i].length;
                 const header = Buffer.allocUnsafe(4);
 
-                /* F(1) | PT(7) | timestamp offset(14) | block length(10) */
+                // F(1) | PT(7) | timestamp offset(14) | block length(10)
                 header[0] = 0x80 | 96;                            // F=1, PT=96
                 header[1] = ((tsOffset >> 6) & 0xFF);             // timestamp offset high 8 bits
                 header[2] = ((tsOffset & 0x3F) << 2) | ((blockLen >> 8) & 0x03); // ts low 6 + len high 2
@@ -561,8 +619,8 @@ export class AudioStream {
                 headers.push(header);
             }
 
-            // Primary block header (F=0, 1 byte)
-            headers.push(Buffer.from([96])); // PT = 96
+            // Primary block header: F=0, PT=96, 1 byte.
+            headers.push(Buffer.from([96]));
 
             audioPayload = Buffer.concat([...headers, ...redundantFrames, frames]);
         } else {
@@ -570,11 +628,12 @@ export class AudioStream {
         }
 
         this.#previousFrames.push(Buffer.from(frames));
+
         if (this.#previousFrames.length > this.#redundancyCount) {
             this.#previousFrames.shift();
         }
 
-        // AAD is bytes 4-12 of RTP header (timestamp + SSRC)
+        // The AAD is bytes 4 to 12 of the RTP header: timestamp and SSRC.
         const aad = rtpHeader.subarray(4, 12);
 
         const payload = USE_ENCRYPTION
@@ -586,6 +645,7 @@ export class AudioStream {
         this.#storePacket(ctx.rtpSeq, packet);
 
         const framesSent = Math.floor(frames.length / ctx.frameSize);
+
         ctx.rtpSeq = (ctx.rtpSeq + 1) & 0xFFFF;
         ctx.headTs = (ctx.headTs + framesSent) >>> 0;
         ctx.totalFrames += framesSent;
@@ -595,7 +655,7 @@ export class AudioStream {
             this.#totalBytesSent += packet.length;
             this.#latencyManager?.reportSuccess();
 
-            // Periodically adapt redundancy based on latency tier (only when redundancy is enabled).
+            // With redundancy enabled, follow the latency tier every 50 packets.
             if (this.#redundancyCount > 0 && this.#latencyManager && this.#packetsSent % 50 === 0) {
                 const recommended = this.#latencyManager.recommendedRedundancy;
 
@@ -609,19 +669,13 @@ export class AudioStream {
         });
     }
 
-    /**
-     * Stores a sent packet in the retransmission backlog.
-     *
-     * Limits backlog size to {@link PACKET_BACKLOG_SIZE} by removing the oldest entry.
-     *
-     * @param seqno - RTP sequence number of the packet.
-     * @param packet - Complete RTP packet including header.
-     */
+    /** Keeps a sent packet for retransmission and drops the oldest past {@link PACKET_BACKLOG_SIZE}. */
     #storePacket(seqno: number, packet: Buffer): void {
         this.#packetBacklog.set(seqno, packet);
 
         if (this.#packetBacklog.size > PACKET_BACKLOG_SIZE) {
             const oldestKey = this.#packetBacklog.keys().next().value;
+
             if (oldestKey !== undefined) {
                 this.#packetBacklog.delete(oldestKey);
             }
@@ -629,26 +683,21 @@ export class AudioStream {
     }
 
     /**
-     * Retrieves a previously sent packet from the retransmission backlog.
+     * Returns a sent packet from the retransmission backlog.
      *
-     * @param seqno - RTP sequence number to look up.
-     * @returns The complete RTP packet, or undefined if no longer in the backlog.
+     * @returns The RTP packet with its header, or undefined once it left the backlog.
      */
     getPacket(seqno: number): Buffer | undefined {
         return this.#packetBacklog.get(seqno);
     }
 
     /**
-     * Encrypts audio payload data using ChaCha20-Poly1305.
+     * Encrypts an audio payload with ChaCha20-Poly1305 and the shared key. The
+     * 12-byte nonce holds the counter little-endian at offset 4.
      *
-     * Uses the shared key with a 12-byte nonce containing the sequence number
-     * at offset 4 (little-endian). The RTP header's timestamp + SSRC fields
-     * (bytes 4-12) are used as Additional Authenticated Data (AAD).
-     *
-     * @param data - Plaintext audio payload to encrypt.
-     * @param aad - Additional Authenticated Data (RTP header bytes 4-12).
-     * @param seqNumber - RTP sequence number used as the nonce counter.
-     * @returns Encrypted payload concatenated with auth tag and 8-byte nonce trailer.
+     * @param aad - RTP header bytes 4 to 12: timestamp and SSRC.
+     * @param seqNumber - Nonce counter.
+     * @returns Ciphertext, auth tag and the 8-byte nonce trailer.
      * @throws EncryptionError if encryption has not been set up.
      */
     #encryptAudio(data: Buffer, aad: Buffer, seqNumber: number): Buffer {
@@ -657,6 +706,7 @@ export class AudioStream {
         }
 
         const nonceBytes = Buffer.alloc(12, 0);
+
         nonceBytes.writeUInt32LE(seqNumber, 4);
 
         const result = ChaCha20.encrypt(
@@ -666,38 +716,26 @@ export class AudioStream {
             data
         );
 
-        // Nonce trailer is just the 8 bytes containing the counter (little-endian)
+        // The nonce trailer is the 8 bytes that hold the little-endian counter.
         const nonceTrailer = nonceBytes.subarray(4, 12);
 
         return Buffer.concat([result.ciphertext, result.authTag, nonceTrailer]);
     }
 
-    /**
-     * Sends a buffer over the connected UDP data socket.
-     *
-     * @param data - Data to send.
-     */
     #send(data: Buffer): Promise<void> {
         return new Promise((resolve, reject) => {
             this.#dataSocket!.send(data, err => err ? reject(err) : resolve());
         });
     }
 
-    /**
-     * Sleeps for the given number of milliseconds.
-     *
-     * @param ms - Duration to sleep in milliseconds.
-     */
     #sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
-     * Starts the periodic RTCP sync packet transmission.
-     *
-     * Sync packets (type 0xD4) tell the receiver our current RTP timestamp
-     * and the corresponding NTP wall-clock time, enabling it to synchronize
-     * playback. The first packet has the marker bit set.
+     * Starts the periodic RTCP sync packets (type 0xD4). Each one tells the
+     * receiver our current RTP timestamp and its NTP wall-clock time; the
+     * first has the marker bit set.
      */
     #startSync(): void {
         if (this.#syncInterval) {
@@ -716,6 +754,7 @@ export class AudioStream {
             const [currentSec, currentFrac] = NTP.parts(currentTime);
 
             const packet = Buffer.allocUnsafe(20);
+
             packet.writeUInt8(firstPacket ? 0x90 : 0x80, 0);
             packet.writeUInt8(0xD4, 1);
             packet.writeUInt16BE(0x0007, 2);
@@ -737,9 +776,7 @@ export class AudioStream {
         this.#syncInterval = setInterval(sendSync, SYNC_INTERVAL);
     }
 
-    /**
-     * Stops the periodic RTCP sync packet transmission and clears stream context.
-     */
+    /** Stops the RTCP sync packets and clears the stream context. */
     #stopSync(): void {
         if (this.#syncInterval) {
             clearInterval(this.#syncInterval);
@@ -750,18 +787,14 @@ export class AudioStream {
     }
 
     /**
-     * Handles incoming RTCP control messages from the receiver.
-     *
-     * Dispatches to the appropriate handler based on the message type byte.
-     * Currently handles type 0x55 (retransmit request / NACK).
-     *
-     * @param data - Raw RTCP packet data.
-     * @param rinfo - Remote address info of the sender.
+     * Handles an RTCP control message from the receiver. Only type 0x55, a
+     * retransmit request (NACK), is handled.
      */
     #onControlMessage(data: Buffer, rinfo: { address: string; port: number }): void {
         if (data.length < 8 || (data[0] >> 6) !== 2 || rinfo.address !== this.#address || rinfo.port !== this.#remoteControlPort) {
             return;
         }
+
         const actualType = data[1] & 0x7F;
 
         if (actualType === 0x55) {
@@ -770,21 +803,17 @@ export class AudioStream {
     }
 
     /**
-     * Retransmits previously sent packets in response to a receiver NACK.
+     * Answers a NACK by resending each requested packet from the backlog in a
+     * retransmit response (type 0xD6). A packet that left the backlog gets an
+     * empty response, so the receiver stops waiting for it.
      *
-     * Looks up each requested sequence number in the backlog and sends it
-     * wrapped in a retransmit response (type 0xD6). For packets no longer
-     * in the backlog, sends a futile retransmit response so the receiver
-     * can stop waiting.
-     *
-     * @param data - NACK packet containing the starting sequence number and count.
-     * @param addr - Address to send retransmit responses to.
+     * @param data - NACK packet with the first sequence number and the count.
      */
     #retransmitPackets(data: Buffer, addr: { address: string; port: number }): void {
         const lostSeqno = data.readUInt16BE(4);
         const lostPackets = Math.min(data.readUInt16BE(6), 512);
 
-        // Each NACK indicates a glitch — report to latency manager.
+        // Every NACK counts as a glitch.
         this.#latencyManager?.reportGlitch();
 
         this.#retransmitRequests += lostPackets;
@@ -800,9 +829,10 @@ export class AudioStream {
                 this.#controlSocket?.send(resp, addr.port, addr.address);
                 this.#retransmitsFulfilled++;
             } else {
-                /* Send a futile retransmit response for missing packets so the receiver need not wait for a timeout. */
                 const seqBuf = Buffer.alloc(2);
+
                 seqBuf.writeUInt16BE(seqno);
+
                 const resp = Buffer.concat([Buffer.from([0x80, 0xD6]), seqBuf, Buffer.alloc(4)]);
 
                 this.#controlSocket?.send(resp, addr.port, addr.address);
@@ -812,10 +842,8 @@ export class AudioStream {
     }
 
     /**
-     * Closes the audio stream, releasing all UDP sockets and clearing the backlog.
-     *
-     * Stops sync packet transmission, closes control and data sockets, and
-     * clears the retransmission backlog. Safe to call multiple times.
+     * Stops the sync packets, closes both UDP sockets and clears the
+     * retransmission backlog. Safe to call more than once.
      */
     close(): void {
         this.#closed = true;
@@ -827,12 +855,14 @@ export class AudioStream {
             this.#controlSocket?.close();
         } catch {
         }
+
         this.#controlSocket = undefined;
 
         try {
             this.#dataSocket?.close();
         } catch {
         }
+
         this.#dataSocket = undefined;
 
         this.#packetBacklog.clear();

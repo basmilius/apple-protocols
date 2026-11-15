@@ -3,8 +3,8 @@ import { RotateCcw } from 'lucide-react';
 import { formatBytes } from '@adecore/ui/format';
 import type { PerformanceStatus } from '@shared/contract';
 import { invoke, messageOf } from '@/client';
+import { Sparkline } from '@/panels/shared-media/Telemetry';
 import { EmptyState, FormError, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, RelativeTime, Section, StatusBar } from '@/ui';
-import { Sparkline } from '../shared-media/Telemetry';
 
 const ms = (value: number): string => `${value.toFixed(1)} ms`;
 

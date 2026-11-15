@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { RefreshCw, TrendingDown, Volume2, VolumeX } from 'lucide-react';
-import { ButtonGroup, CommandButton, ControlRow, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
+import { ButtonGroup, CommandButton, ControlRow, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 
 const toDevice = (percent: number): number => percent / 100;
 

@@ -7,19 +7,25 @@ export function ArtworkVideo({url}: {readonly url: string}) {
 
     useEffect(() => {
         const element = video.current;
-        if (!element) return;
+
+        if (!element) {
+            return;
+        }
+
         setError(null);
         let hls: Hls | undefined;
 
         // Electron can claim native HLS support without successfully loading the playlist.
         if (/\.m3u8(?:\?|$)/i.test(url) && Hls.isSupported()) {
             hls = new Hls({enableWorker: false, capLevelToPlayerSize: true});
+
             hls.on(Hls.Events.ERROR, (_, data) => {
                 if (data.fatal) {
                     setError(`Video playback failed: ${data.details}`);
                     hls?.destroy();
                 }
             });
+
             hls.loadSource(url);
             hls.attachMedia(element);
         } else {

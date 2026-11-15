@@ -13,8 +13,12 @@ type LyricsViewProps = {
 };
 
 function wordStyle(segment: LyricSegment, elapsed: number): CSSProperties | undefined {
-    if (segment.begin === null || segment.end === null || segment.end <= segment.begin) return undefined;
+    if (segment.begin === null || segment.end === null || segment.end <= segment.begin) {
+        return undefined;
+    }
+
     const progress = Math.max(0, Math.min(1, (elapsed - segment.begin) / (segment.end - segment.begin)));
+
     return {
         backgroundImage: 'linear-gradient(90deg, #fff 0%, #fff 48%, rgb(255 255 255 / .55) 52%, rgb(255 255 255 / .55) 100%)',
         backgroundSize: '208% 100%',
@@ -27,17 +31,21 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
     const previous = useRef({index: -1, text: ''});
     const [follow, setFollow] = useState(true);
     const [expanded, setExpanded] = useState(false);
+
     const parsed = useMemo(() => {
         if (!text.trimStart().startsWith('<')) {
             const lines: LyricLine[] = text.split(/\r?\n/).filter(line => line.trim()).map(line => ({text: line, begin: null, end: null, segments: [{text: line, begin: null, end: null}]}));
+
             return {lyrics: {lines, language: null}, error: null};
         }
+
         try {
             return {lyrics: parseLyricsTTML(text), error: null};
         } catch (error) {
             return {lyrics: null, error: error instanceof Error ? error.message : 'Invalid TTML.'};
         }
     }, [text]);
+
     const lines = parsed.lyrics?.lines ?? [];
     const timed = lines.some(line => line.begin !== null && line.end !== null);
     const activeIndex = lines.findIndex(line => isLyricActive(line, elapsed));
@@ -45,26 +53,47 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
 
     useLayoutEffect(() => {
         const parent = container.current;
-        if (!parent || !follow || !timed) return;
+
+        if (!parent || !follow || !timed) {
+            return;
+        }
+
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         const adjacent = previous.current.text === text && Math.abs(previous.current.index - focusIndex) <= 2;
+
         const scroll = (smooth: boolean): void => {
             const line = parent.querySelector<HTMLElement>(`[data-line="${focusIndex}"]`);
-            if (!line) return;
+
+            if (!line) {
+                return;
+            }
+
             parent.scrollTo({top: line.offsetTop - parent.clientHeight * .32, behavior: smooth && !reducedMotion ? 'smooth' : 'instant'});
         };
+
         scroll(adjacent);
         previous.current = {index: focusIndex, text};
         let initialResize = true;
+
         const resize = new ResizeObserver(() => {
-            if (initialResize) { initialResize = false; return; }
+            if (initialResize) {
+                initialResize = false;
+
+                return;
+            }
+
             scroll(false);
         });
+
         resize.observe(parent);
+
         return () => resize.disconnect();
     }, [focusIndex, follow, text, timed, expanded]);
 
-    if (!parsed.lyrics) return <p className="text-xs text-status-error">{parsed.error}</p>;
+    if (!parsed.lyrics) {
+        return <p className="text-xs text-status-error">{parsed.error}</p>;
+    }
+
     return (
         <section aria-label="Lyrics preview" className="@container relative isolate overflow-hidden rounded-2xl bg-lyrics-background text-lyrics-foreground shadow-lg ring-1 ring-lyrics-shadow/10">
             <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -85,7 +114,11 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
             <div className="relative" onPointerDownCapture={() => setFollow(false)}>
                 <ScrollArea viewportRef={container} tabIndex={0} aria-label="Song lyrics; scroll to browse" lang={parsed.lyrics.language ?? undefined}
                     onWheel={() => setFollow(false)} onTouchMove={() => setFollow(false)}
-                    onKeyDown={event => {if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) setFollow(false);}}
+                    onKeyDown={event => {
+                        if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
+                            setFollow(false);
+                        }
+                    }}
                     className={expanded ? 'h-[min(65vh,680px)]' : 'h-[420px]'}
                     viewportClassName="relative overscroll-contain px-6 [-webkit-mask-image:linear-gradient(transparent,black_12%,black_80%,transparent)] [mask-image:linear-gradient(transparent,black_12%,black_80%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lyrics-foreground/50">
                     <div className={clsx('space-y-7 pb-[300px] pt-28', expanded && 'pb-[450px]')}>
@@ -93,6 +126,7 @@ export function LyricsView({text, elapsed, title, artist, artworkUrl}: LyricsVie
                             const active = isLyricActive(line, elapsed);
                             const distance = Math.abs(index - focusIndex);
                             const wordTimed = line.segments.some(segment => segment.wordTimed);
+
                             return (
                                 <p key={index} data-line={index} data-active={active} className={clsx(
                                     'origin-left whitespace-pre-wrap break-words text-[clamp(24px,6cqw,40px)] leading-[1.22] font-bold tracking-[-.035em] duration-500 ease-out motion-reduce:scale-100 motion-reduce:transition-none',

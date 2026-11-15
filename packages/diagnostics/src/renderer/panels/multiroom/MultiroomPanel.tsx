@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
-import { BoolValue, Checkbox, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Pill, Section, StatusPill, TextInput } from '@/ui';
 import { useDevices } from '@/state/devices';
 import { useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { NotConnected, ResultBlock, Row } from '@/panels/sdk-shared';
+import { BoolValue, Checkbox, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, PanelBody, Pill, Section, StatusPill, TextInput } from '@/ui';
 
 type Candidate = {
     readonly uid: string;

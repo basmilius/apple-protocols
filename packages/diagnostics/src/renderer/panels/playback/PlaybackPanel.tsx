@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import { Bookmark, ChevronsRight, FastForward, ListMusic, ListPlus, type LucideIcon, Pause, Play, Repeat, Rewind, RotateCcw, RotateCw, Shuffle, SkipBack, SkipForward, Square, ThumbsDown, ThumbsUp, Timer } from 'lucide-react';
 import type { CallRoot } from '@shared/contract';
 import { formatDuration } from '@shared/helpers';
-import { Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall, usePlayhead } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import {
@@ -17,6 +16,7 @@ import {
     Row,
     SHUFFLE_MODE_ITEMS
 } from '@/panels/sdk-shared';
+import { Button, ButtonGroup, CommandButton, ControlRow, CountPill, Icon, IconButton, ICONS, PanelBody, PanelGroup, Pill, Section, Select, Slider, StatusBar, StatusPill, TextInput, Tooltip } from '@/ui';
 
 type CommandContext = {
     readonly call: DeviceCall;

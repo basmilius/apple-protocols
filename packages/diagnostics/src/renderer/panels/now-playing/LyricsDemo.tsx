@@ -24,7 +24,10 @@ export function LyricsDemo() {
     const [restart, setRestart] = useState(0);
 
     useEffect(() => {
-        if (!playing) return;
+        if (!playing) {
+            return;
+        }
+
         const start = performance.now();
         const position = elapsed;
         const timer = window.setInterval(() => setElapsed((position + (performance.now() - start) / 1000) % 32), 100);

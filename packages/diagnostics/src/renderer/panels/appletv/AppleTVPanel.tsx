@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ScrollArea } from '@adecore/ui';
 import { Captions, Ear, Link2, MapPin, Mic, Package, Play, SunMoon, Tag } from 'lucide-react';
-import { asCard, Banner, ButtonGroup, CommandButton, ControlRow, CountPill, EmptyState, IconButton, ICONS, PanelBody, PanelGroup, Section, TextInput } from '@/ui';
 import { type DeviceCall, useDevice, useDeviceCall } from '@/panels/hooks';
 import type { PanelProps } from '@/panels/registry';
 import { EventFeed, NotConnected, ResultBlock, Row } from '@/panels/sdk-shared';
+import { asCard, Banner, ButtonGroup, CommandButton, ControlRow, CountPill, EmptyState, IconButton, ICONS, PanelBody, PanelGroup, Section, TextInput } from '@/ui';
 
 type LaunchableApp = {
     readonly bundleId: string;

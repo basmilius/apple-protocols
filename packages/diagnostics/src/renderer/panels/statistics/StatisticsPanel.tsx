@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Chart, createChart } from '@adecore/charts';
 import { formatBytes } from '@adecore/ui/format';
+import { CircleX, type LucideIcon } from 'lucide-react';
 import type { TrafficProtocol } from '@shared/contract';
 import { formatTime } from '@shared/helpers';
 import { STATISTICS_INTERVAL_MS, STATISTICS_PROTOCOLS, STATISTICS_WINDOW_MS, type LogBucket, type MessageType, type StatisticsSnapshot, type TrafficBucket } from '@shared/statistics';
 import { invoke, messageOf } from '@/client';
 import type { PanelProps } from '@/panels/registry';
-import { CircleX, type LucideIcon } from 'lucide-react';
 import { EmptyState, FormError, Icon, ICONS, PanelBody, Section } from '@/ui';
 
 const PROTOCOL_LABELS: Record<TrafficProtocol, string> = {

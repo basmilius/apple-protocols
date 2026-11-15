@@ -203,7 +203,7 @@ bun run diag traffic --decoded --limit 20
 bun run diag --help
 ```
 
-[CLAUDE.md](CLAUDE.md) has the full workflow and the confirmation rules (in Dutch).
+[CLAUDE.md](CLAUDE.md) has the full workflow and the confirmation rules.
 
 ## Development
 
@@ -215,7 +215,7 @@ bun run packages/diagnostics/test/proxy-smoke.ts
 bun --cwd docs build
 ```
 
-`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`. Diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the five libraries to npm with provenance, and a push to `main` that touches `docs/` deploys [corewire.dev](https://corewire.dev).
+`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`. Diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the five libraries to npm with provenance and deploys [corewire.dev](https://corewire.dev). A prerelease publishes under the `next` dist-tag and leaves the live docs alone.
 
 Build or watch a single package:
 

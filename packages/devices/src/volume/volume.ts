@@ -29,10 +29,10 @@ function modeOf(capabilities: Proto.VolumeCapabilities_Enum): VolumeMode {
  * volume emits nothing.
  */
 export interface VolumeControl extends EventEmitter<VolumeEventMap>, VolumeState {
-    /** Clamped to 0 to 1; needs mode `absolute`. */
+    /** Sets the volume, clamped to 0 to 1. It needs mode `absolute`. */
     set(level: number): Promise<void>;
 
-    /** A 0.05 step in mode `absolute`, the volume key in mode `relative`. */
+    /** Raises the volume by a 0.05 step in mode `absolute`, or presses the volume key in mode `relative`. */
     up(): Promise<void>;
 
     down(): Promise<void>;
@@ -72,12 +72,12 @@ export class VolumeController extends EventEmitter<VolumeEventMap> implements Vo
         state.on('volumeControlChanged', (available, capabilities) => this.#update({available, mode: modeOf(capabilities)}));
     }
 
-    /** Clamped to 0 to 1; needs mode `absolute`. */
+    /** Sets the volume, clamped to 0 to 1. It needs mode `absolute`. */
     async set(level: number): Promise<void> {
         await this.#require().set(level);
     }
 
-    /** A 0.05 step in mode `absolute`, the volume key in mode `relative`. */
+    /** Raises the volume by a 0.05 step in mode `absolute`, or presses the volume key in mode `relative`. */
     async up(): Promise<void> {
         await this.#require().up();
     }
@@ -104,7 +104,7 @@ export class VolumeController extends EventEmitter<VolumeEventMap> implements Vo
 
     /**
      * Forgets the announced values, so the next session announces them as a new device would.
-     * Called once a disconnect closed the sessions; a drop keeps them instead.
+     * A disconnect calls it once the sessions closed; a drop keeps the values.
      */
     reset(): void {
         this.#volume = INITIAL;

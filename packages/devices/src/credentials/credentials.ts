@@ -6,12 +6,12 @@ const BINARY_FIELDS = ['accessoryLongTermPublicKey', 'pairingId', 'publicKey', '
 
 const accessories = new WeakMap<Credentials, AccessoryCredentials>();
 
-/** The credentials inside, for the protocol packages. Not part of the public API. */
+/** Returns the credentials inside, for the protocol packages. It is not part of the public API. */
 export function accessoryCredentialsOf(credentials: Credentials): AccessoryCredentials {
     return accessories.get(credentials);
 }
 
-/** Hex when the value has only hex digits and an even length; base64 otherwise. */
+/** Decodes a binary field as hex when it has only hex digits and an even length, as base64 otherwise. */
 function decodeBinary(value: unknown, field: string): Buffer {
     if (typeof value !== 'string' || value.length === 0) {
         throw new CredentialsError(`Credentials field '${field}' is missing.`);
@@ -91,7 +91,10 @@ export class Credentials {
         return new Credentials({accessoryIdentifier: identifier.toString('utf8'), accessoryLongTermPublicKey, pairingId, publicKey, secretKey});
     }
 
-    /** `cw1.` and five base64url fields: accessory id (UTF-8), accessory LTPK, pairing id, public key, secret key. */
+    /**
+     * Returns the string form, `cw1.` followed by five base64url fields: accessory id (UTF-8),
+     * accessory LTPK, pairing id, public key and secret key.
+     */
     toString(): string {
         const credentials = accessories.get(this);
         const fields = [
@@ -106,8 +109,8 @@ export class Credentials {
     }
 
     /**
-     * The five fields with the binary ones as hex, the object form {@link parse} reads as well. For a
-     * consumer that has to keep writing what an older release of it reads back.
+     * Returns the five fields with the binary ones as hex, an object form {@link parse} also reads.
+     * A consumer uses it to keep writing what an older release of itself reads back.
      */
     toFields(): {readonly accessoryIdentifier: string; readonly accessoryLongTermPublicKey: string; readonly pairingId: string; readonly publicKey: string; readonly secretKey: string} {
         const credentials = accessories.get(this);

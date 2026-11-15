@@ -7,7 +7,7 @@ export interface SystemControl {
     setAppearance(mode: 'light' | 'dark'): Promise<void>;
     setReduceLoudSounds(enabled: boolean): Promise<void>;
 
-    /** Find My mode. */
+    /** Turns Find My mode on or off. */
     setFindingMode(enabled: boolean): Promise<void>;
 
     startSiri(): Promise<void>;
@@ -33,7 +33,7 @@ export class SystemController implements SystemControl {
         await this.#system().setReduceLoudSounds(enabled);
     }
 
-    /** Find My mode. */
+    /** Turns Find My mode on or off. */
     async setFindingMode(enabled: boolean): Promise<void> {
         await this.#system().setFindingMode(enabled);
     }

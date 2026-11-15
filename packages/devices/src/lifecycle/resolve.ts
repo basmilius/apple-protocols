@@ -62,7 +62,11 @@ export class Resolver {
         this.#target = target;
     }
 
-    /** @throws {ConnectionClosedError} When the signal aborts while the `resolve` option runs. */
+    /**
+     * Looks up the current AirPlay address and port of the device.
+     *
+     * @throws {ConnectionClosedError} When the signal aborts while the `resolve` option runs.
+     */
     async refreshAirPlay(signal: AbortSignal): Promise<void> {
         const answer = (await this.#unicast(AIRPLAY_SERVICE))[0];
 

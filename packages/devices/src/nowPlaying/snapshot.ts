@@ -55,7 +55,7 @@ export function playbackStateOf(state: Proto.PlaybackState_Enum): PlaybackState 
     return PLAYBACK_STATES[state] ?? 'unknown';
 }
 
-/** What plays in the app of the client, through the client's view of its active player. */
+/** Builds a snapshot of what plays in the app of the client, through the client's view of its active player. */
 export function toNowPlaying(client: Client | null): NowPlaying | null {
     if (!client) {
         return null;

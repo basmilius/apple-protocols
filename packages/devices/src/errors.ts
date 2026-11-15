@@ -41,12 +41,12 @@ export class CommandRefusedError extends CommandError {
     }
 }
 
-/** An enum member name in lower camel case, or the number for a value the protocol definitions do not know. */
+/** Returns the enum member name in lower camel case, or the number for a value the protocol definitions do not know. */
 function nameOf(name: string | undefined, value: number): string {
     return name ? name[0].toLowerCase() + name.slice(1) : String(value);
 }
 
-/** The session a capability needs, or an {@link UnavailableError} when its protocol is down. */
+/** Returns the session a capability needs, or throws an {@link UnavailableError} when its protocol is down. */
 export function requireSession<T>(session: T | undefined, capability: string): T {
     if (!session) {
         throw new UnavailableError(capability, 'disconnected');

@@ -10,7 +10,11 @@ export interface TouchControl {
     /** Selects what has focus; held when `holdMs` is given. */
     tap(holdMs?: number): Promise<void>;
 
-    /** @param durationMs - 200 when omitted. */
+    /**
+     * Swipes across the touch surface.
+     *
+     * @param durationMs - The length of the swipe in milliseconds, 200 when omitted.
+     */
     swipe(direction: SwipeDirection, durationMs?: number): Promise<void>;
 }
 
@@ -26,7 +30,11 @@ export class TouchController implements TouchControl {
         await requireSession(this.#companionLink(), 'touch').touch.tap(holdMs);
     }
 
-    /** @param durationMs - 200 when omitted. */
+    /**
+     * Swipes across the touch surface.
+     *
+     * @param durationMs - The length of the swipe in milliseconds, 200 when omitted.
+     */
     async swipe(direction: SwipeDirection, durationMs?: number): Promise<void> {
         await requireSession(this.#companionLink(), 'touch').touch.swipe(direction, durationMs);
     }

@@ -3,10 +3,10 @@ import { ConnectionClosedError } from '@corewire/core';
 import { requireSession, UnavailableError } from '../errors';
 import type { PlayUrlOptions, StreamAudioOptions } from '../types';
 
-/** The dB a fresh audio stream gets without a volume; it starts silent otherwise. */
+/** The volume in dB of a new audio stream without a `volume` option; it would start silent otherwise. */
 const DEFAULT_VOLUME_DB = -20;
 
-/** The curve RAOP uses as well: 0 is silent (-144 dB), 1 is 0 dB. */
+/** Converts a volume from 0 to 1 to dB on the curve RAOP uses too, where 0 is silent (-144 dB) and 1 is 0 dB. */
 function toDecibels(volume: number): number {
     if (volume <= 0) {
         return -144;
@@ -23,8 +23,8 @@ export interface MediaPlayback {
     readonly kind: 'url' | 'audio';
 
     /**
-     * Settles when playback ended. For a URL the device is polled or watched from the first read
-     * on, so a consumer that never reads this sends nothing extra.
+     * Settles when playback ended. For a URL, polling or watching the device starts at the first
+     * read, so a consumer that never reads this sends nothing extra.
      */
     readonly ended: Promise<void>;
 
@@ -37,8 +37,8 @@ class Playback implements MediaPlayback {
     }
 
     /**
-     * Settles when playback ended. For a URL the device is polled or watched from the first read
-     * on, so a consumer that never reads this sends nothing extra.
+     * Settles when playback ended. For a URL, polling or watching the device starts at the first
+     * read, so a consumer that never reads this sends nothing extra.
      */
     get ended(): Promise<void> {
         this.#ended ??= this.#wait();
@@ -82,7 +82,7 @@ export interface MediaControl {
 
     /**
      * Streams audio to the device. Resolves once the stream is set up; {@link MediaPlayback.ended}
-     * settles when the source ran out and the stream was torn down.
+     * settles when the source ran out and the stream closed.
      */
     streamAudio(source: AudioSource, options?: StreamAudioOptions): Promise<MediaPlayback>;
 }
@@ -143,7 +143,7 @@ export class MediaController implements MediaControl {
 
     /**
      * Streams audio to the device. Resolves once the stream is set up; {@link MediaPlayback.ended}
-     * settles when the source ran out and the stream was torn down.
+     * settles when the source ran out and the stream closed.
      */
     async streamAudio(source: AudioSource, options: StreamAudioOptions = {}): Promise<MediaPlayback> {
         const session = requireSession(this.#session(), 'streamAudio');

@@ -9,13 +9,15 @@ import type { AnimatedArtwork, Artwork } from '../types';
  */
 export interface ArtworkControl {
     /**
-     * @param width - 600 when omitted.
-     * @param height - -1 (keep the aspect ratio) when omitted.
+     * Fetches the artwork of the current item.
+     *
+     * @param width - The width in pixels, 600 when omitted.
+     * @param height - The height in pixels, -1 (keep the aspect ratio) when omitted.
      * @returns Null when the current item has no artwork.
      */
     get(width?: number, height?: number): Promise<Artwork | null>;
 
-    /** Empty when the current item has no animated artwork. */
+    /** Fetches the animated artwork of the current item; the list is empty when it has none. */
     getAnimated(width?: number, height?: number): Promise<AnimatedArtwork[]>;
 }
 

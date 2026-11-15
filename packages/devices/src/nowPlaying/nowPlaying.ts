@@ -32,7 +32,7 @@ export type NowPlayingEventMap = {
     artwork: [item: NowPlaying];
 };
 
-/** Identifier, URL, item bytes and SET_ARTWORK bytes of the artwork, as far as they are known. */
+/** The identifier, URL, item bytes and SET_ARTWORK bytes of the artwork, each null while unknown. */
 type ArtworkParts = readonly (string | null)[];
 
 function sameItem(a: NowPlaying | null | undefined, b: NowPlaying | null | undefined): boolean {
@@ -43,7 +43,7 @@ function sameArtwork(a: ArtworkParts | undefined, b: ArtworkParts): boolean {
     return a !== undefined && a.every((part, index) => part === b[index]);
 }
 
-/** Length and hash of image bytes: the same image sent again matches, other bytes for the same item do not. */
+/** Returns the length and hash of image bytes, so the same image sent again matches and other bytes do not. */
 function fingerprintOf(bytes: Uint8Array | null | undefined): string | null {
     if (!bytes || bytes.byteLength === 0) {
         return null;
@@ -66,26 +66,26 @@ function fingerprintOf(bytes: Uint8Array | null | undefined): string | null {
  * and starting.
  */
 export interface NowPlayingControl extends EventEmitter<NowPlayingEventMap> {
-    /** The current item. While a new session has not reported it again, the last announced one. */
+    /** The current item. Until a new session reports it again, this is the last announced one. */
     readonly current: NowPlaying | null;
 
-    /** Elapsed seconds now, extrapolated from the playback rate while playing. */
+    /** The elapsed seconds now, extrapolated from the playback rate while playing. */
     readonly elapsed: number;
 
-    /** Whether the now-playing app accepts the command. While a reconnect restores, as the held item did. */
+    /** Checks whether the now-playing app accepts the command. During a restore it answers as the held item did. */
     supports(command: NowPlayingCommand): boolean;
 
-    /** Lyrics of the current item from the playback queue. */
+    /** Fetches the lyrics of the current item from the playback queue. */
     lyrics(): Promise<Lyrics | null>;
 }
 
 export class NowPlayingController extends EventEmitter<NowPlayingEventMap> implements NowPlayingControl {
-    /** The current item. While a new session has not reported it again, the last announced one. */
+    /** The current item. Until a new session reports it again, this is the last announced one. */
     get current(): NowPlaying | null {
         return this.#restoring ? this.#last ?? null : toNowPlaying(this.#state.nowPlayingClient);
     }
 
-    /** Elapsed seconds now, extrapolated from the playback rate while playing. */
+    /** The elapsed seconds now, extrapolated from the playback rate while playing. */
     get elapsed(): number {
         return this.#restoring ? this.#heldElapsed : this.#state.nowPlayingClient?.elapsedTime ?? 0;
     }
@@ -116,7 +116,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
         state.on('artworkChanged', client => this.#onArtworkChanged(client));
     }
 
-    /** Whether the now-playing app accepts the command. While a reconnect restores, as the held item did. */
+    /** Checks whether the now-playing app accepts the command. During a restore it answers as the held item did. */
     supports(command: NowPlayingCommand): boolean {
         if (this.#restoring) {
             return this.#heldCommands.has(command);
@@ -125,7 +125,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
         return this.#state.nowPlayingClient?.isCommandSupported(COMMANDS[command]) ?? false;
     }
 
-    /** Lyrics of the current item from the playback queue. */
+    /** Fetches the lyrics of the current item from the playback queue. */
     async lyrics(): Promise<Lyrics | null> {
         const remote = this.#remote();
 
@@ -149,9 +149,9 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
     }
 
     /**
-     * Holds the announced values while the model is cleared for a new session, until that session
-     * reports the same item, another item settled for {@link RESTORE_SETTLE}, or {@link resume} timed
-     * out. Called right before the clear.
+     * Holds the announced values while the device clears the model for a new session. The hold lasts
+     * until that session reports the same item, another item settled for {@link RESTORE_SETTLE}, or
+     * {@link resume} timed out. The device calls it right before the clear.
      */
     hold(): void {
         if (!this.#restoring) {
@@ -168,7 +168,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
 
     /**
      * Ends the restore within {@link RESTORE_TIMEOUT}, so a session that reports nothing does not
-     * keep the held values. Called once the new session is up.
+     * keep the held values. The device calls it once the new session is up.
      */
     resume(): void {
         if (!this.#restoring) {
@@ -182,7 +182,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
 
     /**
      * Cancels the pending restore timers, so nothing fires after the device disconnected. A restore
-     * in flight keeps the held values until the next session reports. Called on disconnect.
+     * in flight keeps the held values until the next session reports. A disconnect calls it.
      */
     stop(): void {
         this.#clearTimers();
@@ -190,7 +190,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
 
     /**
      * Forgets what was announced, so the next session announces its item, state and artwork as a
-     * new device would. Called once a disconnect closed the sessions; a drop keeps them instead.
+     * new device would. A disconnect calls it once the sessions closed; a drop keeps the values.
      */
     reset(): void {
         this.#endRestore();
@@ -203,7 +203,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
     }
 
     /**
-     * The artwork as far as it can be seen from outside: its identifier, its URL and its bytes. A part
+     * Returns the artwork parts a consumer can see: its identifier, its URL and its bytes. A part
      * the current session has not reported yet keeps the announced value, so artwork that comes back
      * in pieces after a reconnect does not look like a change.
      */
@@ -257,7 +257,10 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
         this.#settle.unref();
     }
 
-    /** While a reconnect restores, the state is part of the item that ends the restore, so it waits for that. */
+    /**
+     * Announces a playback state change. During a restore the state belongs to the item that ends the
+     * restore, so it waits for that item.
+     */
     #onPlaybackStateChanged(client: Client, newState: Proto.PlaybackState_Enum): void {
         if (this.#restoring) {
             return;
@@ -311,9 +314,9 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
         this.#last = item;
         this.#artwork = this.#artworkOf(client);
 
-        // The model only reports a state change of the app that plays; a state that changed while the
-        // app took over, or while the session was down, is announced here so `state` stays truthful.
-        // Without an item no state is announced, so the next item announces its state as new.
+        // The model only reports a state change of the app that plays. A state that changed while the
+        // app took over, or while the session was down, goes out here so `state` stays truthful.
+        // Without an item no state goes out, so the next item announces its state as new.
         const previous = this.#lastState;
 
         if (!item) {

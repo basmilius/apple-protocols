@@ -41,7 +41,7 @@ export class PowerController extends EventEmitter<PowerEventMap> implements Powe
         });
     }
 
-    /** Back to `unknown` once a disconnect closed the sessions, as for a new device. */
+    /** Sets the state back to `unknown` once a disconnect closed the sessions, as for a new device. */
     reset(): void {
         this.#state = 'unknown';
     }

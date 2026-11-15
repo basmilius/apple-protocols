@@ -9,13 +9,13 @@ export type { AudioSource } from '@corewire/airplay';
 export type DeviceTarget = {
     readonly address: string;
 
-    /** AirPlay RTSP port; 7000 when omitted. */
+    /** The AirPlay RTSP port, 7000 when omitted. */
     readonly port?: number;
 
     /** The AirPlay TXT record, when known. Supplies the model and the MAC (`deviceid`) for re-resolving. */
     readonly txt?: Readonly<Record<string, string>>;
 
-    /** The mDNS host id, e.g. `Woonkamer-TV.local`. Tags the logs; the address when omitted. */
+    /** The mDNS host id, e.g. `Woonkamer-TV.local`. It tags the logs and defaults to the address. */
     readonly id?: string;
 };
 
@@ -45,23 +45,27 @@ export type ClientIdentity = Partial<{
 }>;
 
 export type DeviceOptions = {
-    /** Receives the log entries of this device at {@link logLevels}. The global reporter in core still gets them too. */
+    /**
+     * Receives the log entries of this device at {@link logLevels}. The global reporter in core
+     * still gets them too.
+     */
     log?(entry: LogEntry): void;
 
-    /** Default `['error', 'warn']`. */
+    /** The log levels that reach `log`, `['error', 'warn']` when omitted. */
     readonly logLevels?: readonly LogLevel[];
 
     /**
-     * NTP timing server announced in every SETUP. Omitted: a server shared by all devices, started at the
-     * first connect of a device that uses it. `false`: SETUP announces no timing.
+     * The NTP timing server that every SETUP announces. When omitted, all devices share one server
+     * that starts at the first connect of a device that uses it. With `false`, SETUP announces no
+     * timing.
      */
     readonly timing?: TimingServer | false;
 
     /**
-     * Looks the device up before a recovery attempt when the unicast query at the last address found nothing.
-     * A device with this option never scans with multicast; the consumer owns discovery. The signal
-     * aborts after 15 seconds or when the attempt is cancelled; the attempt then goes on with the
-     * last known address, or stops.
+     * Looks the device up before a recovery attempt when the unicast query at the last address
+     * found nothing. A device with this option never scans with multicast; the consumer owns
+     * discovery. The signal aborts after 15 seconds or when a disconnect cancels the attempt; the
+     * attempt then goes on with the last known address, or stops.
      */
     resolve?(last: DeviceTarget, signal: AbortSignal): Promise<DeviceTarget | null>;
 
@@ -86,13 +90,16 @@ export type RetryPhase = 'quick' | 'slow' | 'rare';
 export type ProtocolStatus = {
     readonly state: LinkState;
 
-    /** The number of the retry that is scheduled or running since the protocol was last connected; 0 for the first connect. */
+    /**
+     * The number of the retry that is scheduled or running since the protocol was last connected;
+     * 0 for the first connect.
+     */
     readonly attempt: number;
 
-    /** Null unless the protocol waits for, or runs, a retry. */
+    /** The retry phase; null unless the protocol waits for, or runs, a retry. */
     readonly phase: RetryPhase | null;
 
-    /** Epoch milliseconds of the next attempt, or null when none is scheduled. */
+    /** The time of the next attempt in epoch milliseconds, or null when none is scheduled. */
     readonly nextAttemptAt: number | null;
 
     /** The last failure or close error; null once connected. */
@@ -105,7 +112,7 @@ export type Status = {
     readonly error: Error | null;
     readonly airplay: ProtocolStatus;
 
-    /** Apple TV only. */
+    /** The Companion Link status, on an Apple TV only. */
     readonly companionLink?: ProtocolStatus;
 };
 
@@ -145,7 +152,7 @@ export type NowPlaying = {
     readonly album: string;
     readonly genre: string;
 
-    /** Seconds; 0 when unknown. */
+    /** The duration in seconds, 0 when unknown. */
     readonly duration: number;
 
     readonly rate: number;
@@ -189,11 +196,11 @@ export type Lyrics = {
     readonly catalogId: string | null;
 };
 
-/** Absolute and Both map to `absolute`. */
+/** How the device takes a volume change. The capabilities Absolute and Both map to `absolute`. */
 export type VolumeMode = 'absolute' | 'relative' | 'none';
 
 export type VolumeState = {
-    /** 0 to 1; 0 until the device reports. */
+    /** The volume from 0 to 1, 0 until the device reports one. */
     readonly level: number;
 
     readonly muted: boolean;
@@ -291,14 +298,16 @@ export type Artwork = {
     readonly url: string | null;
     readonly data: Uint8Array | null;
 
-    /** For example `image/jpeg`. */
+    /** The MIME type, such as `image/jpeg`. */
     readonly mimeType: string;
 
     /** The artwork identifier of the item, for change detection. */
     readonly identifier: string | null;
 
-    /** In pixels; 0 when unknown. */
+    /** The width in pixels, 0 when unknown. */
     readonly width: number;
+
+    /** The height in pixels, 0 when unknown. */
     readonly height: number;
 };
 
@@ -309,14 +318,17 @@ export type AnimatedArtwork = {
 };
 
 export type PlayUrlOptions = {
-    /** Start position in seconds; 0 when omitted. */
+    /** The start position in seconds, 0 when omitted. */
     readonly position?: number;
 
     readonly signal?: AbortSignal;
 };
 
 export type StreamAudioOptions = {
-    /** 0 to 1, sent as `20 * log10(volume)` dB, -144 for 0. -20 dB when omitted. */
+    /**
+     * The start volume from 0 to 1, sent as `20 * log10(volume)` dB with -144 dB for 0. The stream
+     * starts at -20 dB when omitted.
+     */
     readonly volume?: number;
 
     readonly signal?: AbortSignal;
@@ -336,7 +348,7 @@ export type DiscoveredDevice = {
     readonly modelName: string;
     readonly family: DeviceFamily;
 
-    /** The TXT `deviceid`, normalized to `AA:BB:CC:DD:EE:FF`. */
+    /** The TXT `deviceid`, normalized to `AA:BB:CC:DD:EE:FF`; null when the record has no MAC. */
     readonly mac: string | null;
 
     /** The AirPlay target to construct a device with. */

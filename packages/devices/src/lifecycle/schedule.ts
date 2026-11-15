@@ -16,7 +16,7 @@ export type Retry = {
     readonly phase: RetryPhase;
 };
 
-/** The delay before retry `index`, counting from 0 after a drop or after the first failed connect. */
+/** Returns the delay and phase of retry `index`, counting from 0 after a drop or after the first failed connect. */
 export function nextRetry(schedule: Schedule, index: number): Retry {
     if (index < QUICK_DELAYS.length) {
         return {delay: QUICK_DELAYS[index], phase: 'quick'};

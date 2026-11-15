@@ -111,10 +111,10 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     readonly remote: RemoteControl;
     readonly volume: VolumeControl;
 
-    /** The MRP model; it outlives the sessions and is cleared when a new one starts or on disconnect. */
+    /** The MRP model. It outlives the sessions; a new session or a disconnect clears it. */
     protected readonly mediaRemoteState: MediaRemoteState = new MediaRemoteState();
 
-    /** The Companion Link model; it outlives the sessions and is cleared when a new one starts or on disconnect. */
+    /** The Companion Link model. It outlives the sessions; a new session or a disconnect clears it. */
     protected readonly companionLinkState: CompanionLinkState = new CompanionLinkState();
 
     readonly #airplay: Link<AirPlayLink>;
@@ -129,8 +129,8 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     readonly #volume: VolumeController;
 
     /**
-     * Companion Link on an Apple TV without credentials: off for good, so the device is `degraded`.
-     * One error instance, so equal statuses compare equal.
+     * The Companion Link status of an Apple TV without credentials. It stays off for good, so the
+     * device is `degraded`. It holds one error instance, so equal statuses compare equal.
      */
     readonly #withoutCredentials: StatusLink = {
         status: {...NO_COMPANION_LINK, error: new CredentialsError('Companion Link needs credentials from a PIN pairing.')},
@@ -141,7 +141,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     #connecting?: Promise<void>;
     #info?: {readonly name?: string; readonly model?: string};
 
-    /** Set while {@link disconnect} stops the links, so their changes add up to one status. */
+    /** True while {@link disconnect} stops the links, so their changes add up to one status. */
     #quiet: boolean = false;
 
     #running: boolean = false;
@@ -244,9 +244,10 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     }
 
     /**
-     * Stops every retry, ends the media sessions and every protocol session. Idempotent. The
-     * device forgets what it announced and reports `disconnected` at once, so a `connect()` right
-     * after, even without awaiting this, starts fresh; the promise settles once the sessions closed.
+     * Stops every retry and ends the media sessions and every protocol session. A second call is
+     * safe. The device forgets what it announced and reports `disconnected` at once, so a
+     * `connect()` right after, even without awaiting this, starts fresh. The promise settles once
+     * the sessions closed.
      */
     async disconnect(): Promise<void> {
         this.#running = false;
@@ -266,7 +267,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
             this.#quiet = false;
         }
 
-        // A disconnect is a fresh start: the next connect announces everything as a new device does.
+        // A disconnect is a fresh start, so the next connect announces everything as a new device does.
         // A drop keeps the announced values, so a recovery stays silent about what did not change.
         this.#nowPlaying.stop();
         this.reset();
@@ -280,7 +281,7 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         await stopping;
     }
 
-    /** Whether the capability works now. A call that cannot work throws an `UnavailableError`. */
+    /** Checks whether the capability works now. A call that cannot work throws an `UnavailableError`. */
     supports(capability: TCapability): boolean {
         const airplay = this.#airplay.session;
         const companionLink = this.#companionLink?.session;
@@ -353,9 +354,10 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     }
 
     /**
-     * Companion Link starts once the first AirPlay attempt settled, so the connect order on the wire
-     * stays AirPlay first. Once AirPlay is up the device is reachable, so a waiting Companion Link
-     * runs its next attempt now instead of waiting for its schedule.
+     * Reports an AirPlay change. Companion Link starts once the first AirPlay attempt settled, so
+     * the connect order on the wire stays AirPlay first. Once AirPlay is up the device is
+     * reachable, so a waiting Companion Link runs its next attempt now instead of waiting for its
+     * schedule.
      */
     #onAirPlayChange(reason: StatusReason): void {
         const state = this.#airplay.state;
@@ -378,7 +380,10 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
         }
     }
 
-    /** The device is reachable again, so AirPlay runs its next attempt now instead of waiting for its schedule. */
+    /**
+     * Reports a Companion Link change. Once Companion Link is up the device is reachable, so AirPlay
+     * runs its next attempt now instead of waiting for its schedule.
+     */
     #onCompanionLinkChange(reason: StatusReason): void {
         this.#update(reason, this.#companionLink.status.error);
 

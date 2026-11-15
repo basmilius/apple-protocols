@@ -10,10 +10,10 @@ import type { AppleTVCapability, DeviceOptions, DeviceTarget } from '../types';
 import { AppleDevice } from './device';
 
 export type AppleTVOptions = DeviceOptions & {
-    /** From a PIN pairing. Without them AirPlay pairs transiently and Companion Link stays off. */
+    /** The credentials from a PIN pairing. Without them AirPlay pairs transiently and Companion Link stays off. */
     readonly credentials?: Credentials;
 
-    /** iCloud alternate DSID announced to Companion Link during its startup. */
+    /** The iCloud alternate DSID that Companion Link announces during its startup. */
     readonly activeUserAccount?: string;
 };
 

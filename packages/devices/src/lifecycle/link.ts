@@ -54,7 +54,10 @@ export class Link<T> extends EventEmitter<EventMap> {
     #error: Error | null = null;
     #hasConnected: boolean = false;
 
-    /** Settles once every earlier attempt and close finished; a new attempt waits for it, so the device never sees two sessions of one link. */
+    /**
+     * Settles once every earlier attempt and close finished. A new attempt waits for it, so the
+     * device never sees two sessions of one link.
+     */
     #idle: Promise<void> = Promise.resolve();
 
     #nextAttemptAt: number | null = null;
@@ -202,7 +205,7 @@ export class Link<T> extends EventEmitter<EventMap> {
         this.#schedule('failed');
     }
 
-    /** A close this link did not ask for; its own closes clear the session first. */
+    /** Handles a close this link did not ask for; its own closes clear the session first. */
     #closed(session: T, reason: CloseReason, error?: Error): void {
         if (this.#session !== session) {
             return;

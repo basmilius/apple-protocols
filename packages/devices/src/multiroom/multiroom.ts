@@ -29,7 +29,7 @@ export interface MultiroomControl extends EventEmitter<MultiroomEventMap> {
     /** Replaces the whole group. */
     set(...deviceUids: string[]): Promise<void>;
 
-    /** The volume of one output device, 0 to 1. */
+    /** Reads the volume of one output device, from 0 to 1. */
     getVolume(deviceUid: string): Promise<number>;
 
     /** Sets the volume of one output device, clamped to 0 to 1. */
@@ -113,7 +113,7 @@ export class MultiroomController extends EventEmitter<MultiroomEventMap> impleme
         await this.#require().volume.unmuteDevice(deviceUid);
     }
 
-    /** Forgets the announced outputs, as for a new device. Called at the start of a disconnect. */
+    /** Forgets the announced outputs, as for a new device. A disconnect calls it first. */
     reset(): void {
         this.#outputs = [];
     }

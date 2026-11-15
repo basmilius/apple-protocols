@@ -18,7 +18,11 @@ export class Pairing {
         this.#pairing = pairing;
     }
 
-    /** @internal Use `AppleTV.pair()`. */
+    /**
+     * Opens the pairing connection. Callers use `AppleTV.pair()`.
+     *
+     * @internal
+     */
     static async start(target: DeviceTarget, options: PairOptions = {}): Promise<Pairing> {
         return new Pairing(await pair({address: target.address, port: target.port, id: target.id, txt: target.txt}, {identity: options.identity, signal: options.signal}));
     }

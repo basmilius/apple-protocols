@@ -13,7 +13,7 @@ type Services = {
     raop?: DiscoveryResult;
 };
 
-/** The family from the model table, or from the identifier for a model the table does not know yet. */
+/** Returns the family from the model table, or from the identifier for a model the table does not know yet. */
 function familyOf(modelName: string): DeviceFamily {
     const family = getDeviceFamily(lookupDeviceModel(modelName));
 
@@ -84,7 +84,7 @@ export async function discover(options: DiscoverOptions = {}): Promise<Discovere
     return [...hosts].map(([address, services]) => describe(address, services));
 }
 
-/** An AppleTV for the Apple TV family, a HomePod for every other receiver. */
+/** Creates an `AppleTV` for the Apple TV family and a `HomePod` for every other receiver. */
 export function createDevice(found: DiscoveredDevice, options: AppleTVOptions = {}): AppleTV | HomePod {
     if (found.family === DeviceFamily.AppleTV) {
         return new AppleTV(found.target, options);

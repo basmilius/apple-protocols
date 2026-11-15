@@ -6,7 +6,7 @@ export type StatusLink = {
 };
 
 /**
- * The device state from its links. AirPlay decides; Companion Link only splits connected from
+ * Derives the device state from its links. AirPlay decides; Companion Link only splits connected from
  * degraded. While the first Companion Link attempt runs the device still counts as connecting, so a
  * consumer does not see a degraded flash before connected.
  */
@@ -42,7 +42,7 @@ export function deriveState(running: boolean, airplay: StatusLink, companionLink
     return phase === 'quick' ? 'recovering' : 'offline';
 }
 
-/** Whether two statuses carry the same values, so no event goes out for nothing. */
+/** Checks whether two statuses carry the same values, so no event goes out for nothing. */
 export function sameStatus(a: Status | undefined, b: Status): boolean {
     return !!a
         && a.state === b.state

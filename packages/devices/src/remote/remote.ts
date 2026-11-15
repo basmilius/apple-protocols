@@ -12,7 +12,11 @@ type AirPlayKey = keyof typeof AIRPLAY_KEYS & keyof Hid;
  * protocol. These are the paths the presses took before, so the bytes on the wire stay the same.
  */
 export interface RemoteControl {
-    /** @throws {UnavailableError} When no connected protocol knows the key. */
+    /**
+     * Presses a remote key, as a tap, a hold or a double press.
+     *
+     * @throws {UnavailableError} When no connected protocol knows the key.
+     */
     press(key: RemoteKey, options?: PressOptions): Promise<void>;
 }
 
@@ -25,7 +29,11 @@ export class RemoteController implements RemoteControl {
         this.#remote = remote;
     }
 
-    /** @throws {UnavailableError} When no connected protocol knows the key. */
+    /**
+     * Presses a remote key, as a tap, a hold or a double press.
+     *
+     * @throws {UnavailableError} When no connected protocol knows the key.
+     */
     async press(key: RemoteKey, options: PressOptions = {}): Promise<void> {
         const mode = options.mode ?? 'tap';
         const remote = AIRPLAY_KEYS[key] ? this.#remote() : undefined;

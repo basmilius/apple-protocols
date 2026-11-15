@@ -16,19 +16,35 @@ export interface PlaybackControl {
     next(): Promise<void>;
     previous(): Promise<void>;
 
-    /** @param seconds - 15 when omitted. */
+    /**
+     * Skips forward in the current item.
+     *
+     * @param seconds - The time to skip, 15 when omitted.
+     */
     skipForward(seconds?: number): Promise<void>;
 
-    /** @param seconds - 15 when omitted. */
+    /**
+     * Skips backward in the current item.
+     *
+     * @param seconds - The time to skip, 15 when omitted.
+     */
     skipBackward(seconds?: number): Promise<void>;
 
-    /** @param seconds - Position from the start. */
+    /**
+     * Moves the playback position of the current item.
+     *
+     * @param seconds - The position from the start.
+     */
     seek(seconds: number): Promise<void>;
 
     setRepeat(mode: RepeatMode): Promise<void>;
     setShuffle(mode: ShuffleMode): Promise<void>;
 
-    /** @param rate - 1 is normal speed. */
+    /**
+     * Changes the playback speed.
+     *
+     * @param rate - The speed, where 1 is normal.
+     */
     setRate(rate: number): Promise<void>;
 }
 

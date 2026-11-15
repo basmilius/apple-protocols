@@ -76,7 +76,7 @@ const tv = new AppleTV({address: '192.168.1.20'}, {
 | `status` | The current `Status`, see [Connection and recovery](/guide/connection) |
 | `sessions` | The protocol sessions in use now: `airplay`, `mediaRemote`, `companionLink`. Each is undefined while its protocol is down |
 
-`sessions` is there for diagnostics and experiments. It hands you the objects from the [protocol packages](/protocols/). Anything you do on them bypasses the device layer, and the sessions change with every reconnect.
+`sessions` is for diagnostics and experiments. It returns the objects from the [protocol packages](/protocols/). Calls on them bypass the device layer, and every reconnect replaces them.
 
 ## Methods
 
@@ -89,4 +89,4 @@ const tv = new AppleTV({address: '192.168.1.20'}, {
 
 ## Events
 
-A device emits one event, `status`, with the new `Status`. Each capability with state is an `EventEmitter` of its own: `nowPlaying`, `volume`, `power`, `text` and `multiroom`. A `status` listener that throws does not stop the other listeners; the error goes to the log.
+A device emits one event, `status`, with the new `Status`. The capabilities with state are an `EventEmitter` of their own: `nowPlaying`, `volume`, `power`, `text` and `multiroom`. A `status` listener that throws does not stop the other listeners. Its error goes to the log.

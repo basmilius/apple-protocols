@@ -1,6 +1,6 @@
 # Diagnostics
 
-`packages/diagnostics` in the repository is a private Electron app for working against real devices. It is not published to npm. The project uses it to test every change on an Apple TV and a HomePod, and it is the fastest way to see what a device sends.
+`packages/diagnostics` in the repository is a private Electron app for working against real devices. It is not published to npm. The project tests every change with it on an Apple TV and a HomePod. It also shows what a device sends.
 
 ## What it does
 
@@ -24,7 +24,7 @@ bun --cwd packages/diagnostics dev
 
 ## The diag CLI
 
-Start the app with `dev:agent` and a small HTTP bridge on the loopback interface offers every channel of the app to the `diag` command line tool:
+`dev:agent` starts the app with a small HTTP bridge on the loopback interface. The bridge offers every channel of the app to the `diag` command line tool:
 
 ```sh
 bun --cwd packages/diagnostics dev:agent
@@ -55,4 +55,4 @@ bun run diag logs --since-mark --group error
 
 `bun run diag --help` lists every option. Actions that change something lasting, such as forgetting credentials or setting the volume above half, ask for `--confirm`.
 
-A typical loop: `mark`, do something, read `traffic`, `events` and `logs` since the mark. When a request times out, the traffic shows whether the device answered at all.
+A typical loop runs `mark`, does something and reads `traffic`, `events` and `logs` since the mark. When a request times out, the traffic shows whether the device answered at all.

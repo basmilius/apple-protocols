@@ -1,6 +1,6 @@
 # Connection and recovery
 
-A device keeps itself connected. You call `connect()` once and `disconnect()` when you are done; everything in between is the device's job, and the `status` event reports it.
+A device keeps itself connected. Call `connect()` once and `disconnect()` when you are done. The device handles everything in between, and the `status` event reports it.
 
 ## connect()
 
@@ -97,22 +97,22 @@ When one protocol connects while the other waits for a retry, the other retries 
 
 A healthy session is never reconnected on a timer. The AirPlay keepalive ends a session whose device stopped answering for 30 seconds, and the device then recovers like after any other drop.
 
-A Companion Link authentication failure keeps retrying on the schedule. The reason is in `status.companionLink.error`, so your app can ask the user to pair again without the device giving up on a refusal that may pass.
+After a Companion Link authentication failure the retries go on as scheduled. The reason is in `status.companionLink.error`. Your app can ask the user to pair again, while the device keeps trying in case the refusal passes.
 
 ## Finding the device again
 
 Before every attempt, except the very first AirPlay attempt with a known port, the device looks itself up:
 
 1. It knocks on `WAKE_PORTS` to wake a sleeping device, then sends a unicast DNS-SD query to the last known address and waits up to 5 seconds.
-2. When AirPlay did not answer there, it calls your `resolve(last, signal)` option. The `signal` aborts after 15 seconds, or when `disconnect()` cancels the attempt; a lookup that hangs no longer holds up the device.
+2. When AirPlay did not answer there, it calls your `resolve(last, signal)` option. The `signal` aborts after 15 seconds, or when `disconnect()` cancels the attempt, so a hanging lookup cannot hold up the device.
 3. Without a `resolve` option, it runs a multicast scan and matches on the MAC (`deviceid` in the TXT record), then on the id.
 4. When nothing answers, the attempt still connects to the last known address and port.
 
 A hit updates `address`, the AirPlay port and the TXT record. A new DHCP lease therefore does not strand a device. The Companion Link port always comes from the latest unicast answer.
 
-AirPlay and Companion Link each send their own unicast query: AirPlay before its connect, Companion Link after the first AirPlay attempt.
+AirPlay and Companion Link each send their own unicast query. AirPlay sends it before its connect, Companion Link after the first AirPlay attempt.
 
-Supply `resolve` when your app already runs its own discovery, or when multicast does not reach the device:
+Pass `resolve` when your app runs its own discovery, or when multicast does not reach the device:
 
 ```ts
 import { AppleTV, type DeviceTarget } from '@corewire/devices';
@@ -132,7 +132,7 @@ After a timeout the attempt goes on with the last known address.
 
 ## State across a reconnect
 
-The capabilities keep their values across sessions. A reconnect that brings back the same item, playback state, artwork or volume emits nothing, so a network blip does not look like playback stopping and starting. [Now playing](/guide/now-playing#across-a-reconnect) describes the details.
+The capabilities keep their values across sessions. A reconnect that brings back the same item, playback state, artwork or volume emits nothing, so a network blip does not look like playback stopping and starting. [Now playing](/guide/now-playing#across-a-reconnect) has the details.
 
 `power.change` is the exception. It fires at every Companion Link connect, so you can resync after a real drop.
 
@@ -142,9 +142,9 @@ An explicit `disconnect()` is not a reconnect. It resets the announced now playi
 
 `disconnect()` stops every retry, aborts an attempt in flight, ends running URL playback and audio streams and closes every session. It is idempotent.
 
-It works in two steps. At once, it resets the announced values and emits one `status` with state `disconnected`, reason `requested` and both protocols `off`. Then it waits for the sessions to close; a graceful Companion Link stop takes up to 10 seconds. The promise resolves after that. Once it resolved, no capability event fires anymore.
+It works in two steps. First it resets the announced values and emits one `status` with state `disconnected`, reason `requested` and both protocols `off`. Then it waits for the sessions to close. A graceful Companion Link stop takes up to 10 seconds. The promise resolves after that, and no capability event fires anymore.
 
-You do not have to await it before you connect again. `connect()` right after `disconnect()`, even in the same tick, starts a new attempt, and the values of the new session stay. A `connect()` that was still pending from before rejects.
+You don't have to await it before you connect again. `connect()` right after `disconnect()`, even in the same tick, starts a new attempt, and the values of the new session stay. A `connect()` that was still pending from before rejects.
 
 ## The shared timing server
 

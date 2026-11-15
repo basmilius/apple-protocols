@@ -1,11 +1,11 @@
 # URLs and audio streams
 
-`device.media` plays audio and video that do not come from an app on the device. There are two ways, and they work differently:
+`device.media` plays audio and video that do not come from an app on the device. It has two methods that work differently:
 
-- `playUrl()` hands the device a URL. The device fetches and plays it itself; your process only starts and watches playback.
+- `playUrl()` hands the device a URL. The device fetches and plays it. Your process only starts and watches playback.
 - `streamAudio()` streams PCM audio from your process to the device over RTP. Your process decodes the audio and sends every packet.
 
-Each runs on an AirPlay connection of its own, so remote control and now playing stay untouched. Starting a new one of a kind stops the previous one of that kind.
+Each runs on its own AirPlay connection, so remote control and now playing stay untouched. A new URL playback stops the previous one, and a new audio stream stops the previous stream.
 
 ## Playing a URL
 
@@ -15,7 +15,7 @@ const playback = await tv.media.playUrl('https://example.com/stream.m3u8', {posi
 await playback.ended;
 ```
 
-`playUrl(url, options?)` resolves once playback started. `position` is the start position in seconds; `signal` cancels the setup or ends the playback.
+`playUrl(url, options?)` resolves once playback started. `position` is the start position in seconds. `signal` cancels the setup or ends the playback.
 
 Only devices that play URLs themselves can do this. `supports('playUrl')` tells you. On a HomePod, `playUrl()` throws `UnavailableError` with reason `unsupported` before it opens a connection. A device that refuses the URL rejects with a `PlaybackError`.
 
@@ -50,7 +50,7 @@ Both methods resolve a `MediaPlayback`:
 | `ended` | Settles when playback ended: the source ran out, the URL finished, `stop()` was called, or the AirPlay session of the device ended |
 | `stop()` | Stops playback and closes its connection |
 
-For a URL, `ended` starts watching the device on its first read. A consumer that never reads it sends nothing extra. `MediaPlayback` is an interface, so `instanceof` does not work on it; check `kind` instead.
+For a URL, `ended` starts watching the device on its first read. A consumer that never reads it sends nothing extra. `MediaPlayback` is an interface, so `instanceof` does not work on it. Check `kind` instead.
 
 ```ts
 const playback = await tv.media.playUrl('https://example.com/movie.mp4');
@@ -80,7 +80,7 @@ try {
 
 Every `fromUrl()` takes the download limits of `FetchOptions`: `signal`, `maxBytes` (64 MiB by default) and `timeoutMs` (30 seconds by default). `UrlSource` also takes `format: 'pcm'` for raw PCM.
 
-The decoded sources load the whole file into memory before streaming starts. Use `FfmpegSource` or `LiveSource` for long or endless audio. Decoding runs in a worker thread; when the worker file (`decode-worker.mjs`) cannot load, it runs on the calling thread instead.
+The decoded sources load the whole file into memory before streaming starts. Use `FfmpegSource` or `LiveSource` for long or endless audio. Decoding runs in a worker thread. When the worker file (`decode-worker.mjs`) cannot load, it runs on the calling thread instead.
 
 ### Live input
 

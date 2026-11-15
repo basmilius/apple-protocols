@@ -1,6 +1,6 @@
 # Credentials and pairing
 
-A HomePod accepts a transient pairing on every connect and needs nothing from you. An Apple TV wants a PIN pairing once. The long-term credentials that pairing returns are yours to store; the packages never write them anywhere.
+A HomePod accepts a transient pairing on every connect and needs nothing from you. An Apple TV wants a PIN pairing once. You store the long-term credentials that pairing returns. The packages never write them anywhere.
 
 ## PIN pairing
 
@@ -31,7 +31,7 @@ The credentials come from AirPlay pair-setup and serve Companion Link too. One p
 
 ## Storing credentials
 
-`toString()` returns a compact string: `cw1.` followed by five base64url fields. `toJSON()` returns the same string, so `JSON.stringify` of an object that holds credentials does the right thing.
+`toString()` returns a compact string: `cw1.` followed by five base64url fields. `toJSON()` returns the same string, so `JSON.stringify` writes it for an object that holds credentials.
 
 ```ts
 import { Credentials } from '@corewire/devices';
@@ -53,7 +53,7 @@ The string holds the secret key of this controller. Store it like a password.
 
 The object forms read credentials that were stored before the string form existed. Anything else throws a `CredentialsError`.
 
-`toFields()` writes that object form: the five fields as strings, the binary ones as hex. Use it when your storage has to stay readable for an older release of your app.
+`toFields()` writes the object form, with the binary fields as hex strings. Use it when an older release of your app must still read your storage.
 
 ```ts
 const fields = credentials.toFields();
@@ -63,7 +63,7 @@ console.log(fields.accessoryIdentifier, fields.pairingId);
 
 ## Credentials from a protocol package
 
-When you pair with `pair()` from `@corewire/airplay` or `@corewire/companion-link` directly, you get raw `AccessoryCredentials`. `Credentials.from()` wraps them for a device:
+`pair()` from `@corewire/airplay` or `@corewire/companion-link` returns raw `AccessoryCredentials`. `Credentials.from()` wraps them for a device:
 
 ```ts
 import { pair } from '@corewire/airplay';

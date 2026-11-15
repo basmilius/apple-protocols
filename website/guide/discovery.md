@@ -6,7 +6,7 @@ import { createDevice, discover } from '@corewire/devices';
 
 ## Scanning
 
-`discover()` sends one multicast DNS-SD query for `_airplay._tcp`, `_companion-link._tcp` and `_raop._tcp`, listens for about four seconds, and merges the answers of one host by address. Each result is a `DiscoveredDevice`.
+`discover()` sends one multicast DNS-SD query for `_airplay._tcp`, `_companion-link._tcp` and `_raop._tcp` and listens for about four seconds. It merges the answers of one host by address into a `DiscoveredDevice`.
 
 ```ts
 import { discover } from '@corewire/devices';
@@ -54,7 +54,7 @@ if (device instanceof AppleTV) {
 }
 ```
 
-You can also pass `first.target` to a constructor yourself. The target carries the address, the AirPlay port, the TXT record and the id, so the first connect skips the lookup.
+You can also pass `first.target` to a constructor. The target carries the address, the AirPlay port, the TXT record and the id, so the first connect skips the lookup.
 
 ## Without discovery
 

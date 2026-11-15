@@ -37,11 +37,11 @@ reporter.enable('warn');
 reporter.enable('error');
 ```
 
-`reporter.setSink()` also sends every entry of every device to one function; `{silenceConsole: true}` stops the console output while it is installed. See [Transport and logging](/protocols/transport#logging).
+`reporter.setSink()` sends every entry of every device to one function. With `{silenceConsole: true}` the console stays quiet while the sink is installed. See [Transport and logging](/protocols/transport#logging).
 
 ## Errors
 
-Every error the packages throw on purpose extends `AppleProtocolError`. `@corewire/devices` re-exports every error class of `@corewire/core`, so you import them all from the package you already depend on:
+Every error the packages throw on purpose extends `AppleProtocolError`. `@corewire/devices` re-exports every error class of `@corewire/core`, so one import covers them all:
 
 ```ts
 import { CommandRefusedError, PairingError, UnavailableError } from '@corewire/devices';
@@ -73,7 +73,7 @@ AppleProtocolError
 
 The classes without a package name come from `@corewire/core`.
 
-What you meet through `@corewire/devices`:
+The errors `@corewire/devices` throws:
 
 | Error | When |
 | --- | --- |

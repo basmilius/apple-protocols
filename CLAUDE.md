@@ -10,9 +10,9 @@ De merknaam is **CoreWire** (hoofdletter C en W) in proza, titels, de website, R
 bash build.sh        # Bouwt alle packages in dependency-volgorde, diagnostics als laatste
 ```
 
-Elke library gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `tsgo --noEmit` + `electron-vite build`; `bun run pack` draait electron-builder (macOS arm64/x64, Linux arm64/x64, Windows x64).
+Elke library gebruikt `tsgo --noEmit && tsdown` (type-check + bundel). Diagnostics gebruikt `tsgo --noEmit` + `electron-vite build`. `bun run pack` draait electron-builder (macOS arm64/x64, Linux arm64/x64, Windows x64).
 
-`build.sh` bouwt diagnostics met `bun --cwd packages/diagnostics build:check` naar `packages/diagnostics/out-check/` (via de env `DIAGNOSTICS_OUT_DIR`). Zo herschrijft een controle nooit `out/` onder een draaiende dev-app; dat gaf eerder "Cannot find module .../out/main/decode-worker.mjs". `build` en `pack` schrijven nog naar `out/`.
+`build.sh` bouwt diagnostics met `bun --cwd packages/diagnostics build:check` naar `packages/diagnostics/out-check/` (via de env `DIAGNOSTICS_OUT_DIR`). Zo herschrijft een controle nooit `out/` onder een draaiende dev-app. Dat gaf eerder "Cannot find module .../out/main/decode-worker.mjs". `build` en `pack` schrijven nog naar `out/`.
 
 Na een wijziging zijn dit de controles, ook in CI:
 
@@ -72,7 +72,7 @@ Faalt stap 3, dan is er een breaking change in de publieke API. `audio-source` b
 
 Subpaths van core: `@corewire/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport`. De hoofdingang heeft de foutklassen, `reporter`/`Logger` en `waitFor`. AirPlay-helpers (`HTTP_TIMEOUT`, `getMacAddress`, `randomInt32/64`, `uint16ToBE`) en de standaardidentiteit zitten intern in airplay. `core/crypto` heeft alleen namespaces (`AES`, `ChaCha20`, `Curve25519`, `Ed25519`, `HKDF`) plus de types `KeyPair` en `HKDFOptions`. Afkortingen staan in hoofdletters: `AES`, `ChaCha20`, `HKDF`, `DAAP`, `NTP`, `OPack`, `RTI`, `TLV8`. `DiscoverOptions` staat één keer in `core/discovery`; `DiscoveryResult` heeft `id`, `fqdn`, `address`, `txt` en `service` (het model komt uit `txt.model ?? txt.am`).
 
-Audio-source-klassen eindigen op `Source`, zodat geen ervan een global als `File` of `URL` overschaduwt. Klassen met een factory (`fromPath`, `fromUrl`, `fromBuffer`) hebben een private constructor; de rest krijgt een options-object (`new SineWaveSource({duration})`, `new FfmpegSource({path, duration})`, `new LiveSource({bufferDuration})`, `new PcmSource(pcm, {sampleRate})`).
+Audio-source-klassen eindigen op `Source`, zodat geen ervan een global als `File` of `URL` overschaduwt. Klassen met een factory (`fromPath`, `fromUrl`, `fromBuffer`) hebben een private constructor. De rest krijgt een options-object (`new SineWaveSource({duration})`, `new FfmpegSource({path, duration})`, `new LiveSource({bufferDuration})`, `new PcmSource(pcm, {sampleRate})`).
 
 ## Dependency graph
 
@@ -104,7 +104,7 @@ devices (AppleTV, HomePod)
 ```
 
 - `AppleTV` = AirPlay + Companion Link (remote, media, apps, accounts, power, text, touch, system). `HomePod` = alleen AirPlay. Er is geen `HomePodMini`; gebruik `device.model`.
-- Een device wordt gemaakt van een doel (`{address, port?, txt?, id?}`) plus opties. Logger, credentials, timing, `resolve` en `identity` gaan mee als optie; geen `configure()`, geen setters achteraf.
+- Je maakt een device van een doel (`{address, port?, txt?, id?}`) plus opties. Logger, credentials, timing, `resolve` en `identity` gaan mee als optie. Er is geen `configure()` en er zijn geen setters achteraf.
 - Capabilities zijn interfaces (`NowPlayingControl`, `VolumeControl`, `PowerControl`, `TextControl`, `AppsControl`, `AccountsControl`, `SystemControl`, `TouchControl`, `RemoteControl`, `PlaybackControl`, `ArtworkControl`, `MediaControl`, `MultiroomControl`, `MediaPlayback`); de klassen erachter zijn intern. Lifecycle-methoden (`hold`, `resume`, `reset`) en constructors met `MediaRemoteState` of sessies zijn dus niet publiek. Capabilities met events extenden `EventEmitter<...EventMap>`. `AppleDevice` heeft één protected hook: `reset()`, aan het begin van `disconnect()`; `AppleTV` overschrijft hem voor power.
 - `devices` is de foutgrens: het re-exporteert alle foutklassen van core, vertaalt `SendCommandError` naar `CommandRefusedError` (`reason` en `status` als string) en `/catalog` gooit `CatalogError` (`reason`, `status`). Een consumer importeert geen `Proto`-enums of core-fouten.
 - De clientnaam is overal `CoreWire` (`DEFAULT_CLIENT_NAME` in `core/transport`) tenzij `identity.name` iets anders zegt: pair-setup M5, AirPlay SETUP, URL-playback (`clientProcName`), MRP device info en Companion Link `_systemInfo`. De RAOP-metadata zonder stream-metadata is `Streaming with CoreWire` / `CoreWire` / `AirPlay`, in te stellen met de `metadata`-optie van RAOP `connect()`. Bewust niet veranderd: `clientBundleID` `com.basmilius.apple-protocols`, de RAOP digest-username `apple-protocols` en de paden onder `~/.config/apple-protocols`.
@@ -136,7 +136,7 @@ Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, C
 
 ### Connection management
 - `Connection<TEventMap>` (`core/transport`): TCP socket wrapper, verbindt één keer zonder retry, `keepAlive(true, 10s)`, eindigt via één `closed`-event met een reden.
-- `EncryptionAwareConnection`: voegt `enableEncryption(readKey, writeKey)` toe met `EncryptionState` (keys + counters), voor subklassen leesbaar via de protected getter `encryption`; `buildNonce(counter, format)` maakt de nonce per protocol.
+- `EncryptionAwareConnection`: voegt `enableEncryption(readKey, writeKey)` toe met `EncryptionState` (keys + counters), voor subklassen leesbaar via de protected getter `encryption`. `buildNonce(counter, format)` maakt de nonce per protocol.
 - Herstel zit alleen in `devices` (`packages/devices/src/lifecycle/`): per protocol een link met retries na 1, 2 en 4 s, daarna voor een Apple TV 15 pogingen elke 2 minuten en daarna elke 15 minuten, voor een HomePod elke 15 minuten. Nooit opgeven. Elke retry zoekt het device eerst opnieuw (unicast DNS-SD met een wake knock, dan de `resolve(last, signal)`-optie of een multicast scan). `resolve` krijgt een signal dat na 15 s of bij `disconnect()` afgaat. AirPlay en Companion Link doen elk hun eigen unicast query (afwijking B13 in `docs/parity/devices-api.md`). Verbindt het ene protocol terwijl het andere op een retry wacht, dan probeert het andere het meteen, ook in zijn fase van 2 of 15 minuten (`retryNow()`, ook bij een nieuw adres van AirPlay). Een mislukte poging telt als de poging die hij verving.
 - Het device meldt één `status`-event met `disconnected | connecting | connected | degraded | recovering | offline`, een reden en de stand per protocol. `degraded`: AirPlay werkt, Companion Link nog niet. Een listener die gooit, stopt de andere listeners niet; de fout gaat naar de log.
 - `disconnect()` reset meteen de aangekondigde waarden (now playing, volume, power, text, multiroom outputs) en beide modellen, meldt één `status` `disconnected` en wacht daarna op het sluiten van de sessies (Companion Link tot 10 s). `connect()` direct erna, ook zonder await, start een nieuwe poging.
@@ -149,7 +149,7 @@ Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, C
 `device.multiroom` (`packages/devices/src/multiroom/`) heeft `outputs` (eigen type `OutputDevice`: `uid`, `name`, `model`, `groupId`, `isLocal`, `isGroupLeader`, `hasVolumeControl`, geen protobuf) met een `change`-event, `add/remove/set(...uids)` en volume per output: `getVolume(uid)` (GET_VOLUME), `setVolume(uid, level)` (SET_VOLUME met de output-UID), `mute/unmute(uid)` (SET_VOLUME_MUTED). `change` vuurt alleen als de lijst verschilt van de laatst aangekondigde; de lijst overleeft een herverbinding en `disconnect()` wist hem. Zonder AirPlay gooien de methoden `UnavailableError`.
 
 ### Storage
-Opslag hoort bij de app, niet bij de libraries. Diagnostics heeft `JsonStorage` in `packages/diagnostics/src/main/storage.ts` en schrijft naar `~/.config/apple-protocols/storage.json`. Nieuwe pairings gaan in de `Credentials`-tekstvorm; bestaande entries worden gelezen zoals ze zijn.
+Opslag hoort bij de app, niet bij de libraries. Diagnostics heeft `JsonStorage` in `packages/diagnostics/src/main/storage.ts` en schrijft naar `~/.config/apple-protocols/storage.json`. Nieuwe pairings gaan in de `Credentials`-tekstvorm. Bestaande entries leest hij zoals ze zijn.
 
 ## Diagnostics app
 
@@ -196,7 +196,7 @@ Verbinden, stap voor stap:
 
 Loopt het vast, lees dan eerst het verkeer in plaats van de code: `traffic --limit 60` toont waar de handshake stopt, `logs --group error` de fout. Een `Exchange timed out for <uuid>` zoek je op met `traffic --grep <uuid> --decoded`: staat er alleen een uitgaand bericht, dan beantwoordt het device dat berichttype niet en hoort het een `send()` te zijn. Zet `timeout 20` voor een commando dat kan blijven hangen.
 
-Het recept: `mark`, actie uitvoeren, `traffic`/`events`/`logs --since-mark` lezen, code aanpassen, `wait-ready`, herhalen. Een wijziging in `packages/*/src` herstart main vanzelf; de bridge verbindt de devices die via `connect` verbonden waren opnieuw. Cursors beginnen na een herstart weer bij 0, `--since-mark` vangt dat op.
+Het recept: `mark`, actie uitvoeren, `traffic`/`events`/`logs --since-mark` lezen, code aanpassen, `wait-ready`, herhalen. Een wijziging in `packages/*/src` herstart main vanzelf. De bridge verbindt de devices die via `connect` verbonden waren opnieuw. Cursors beginnen na een herstart weer bij 0, `--since-mark` vangt dat op.
 
 Herstel en proxy:
 
@@ -254,13 +254,13 @@ AppleProtocolError                (packages/core/src/errors.ts)
 └── CatalogError                  (packages/devices/src/catalog/errors.ts)
 ```
 
-Alles zonder pad staat in `packages/core/src/errors.ts`. `devices` re-exporteert alle foutklassen van core. `CommandRefusedError` vervangt aan de devices-grens de `SendCommandError` met `Proto`-enums door strings (`reason`, `status`); de oorspronkelijke fout zit in `cause`. `CatalogError` heeft `reason` (`invalidArgument | unauthorized | forbidden | requestFailed | invalidResponse | tooLarge`) en `status` (HTTP of null).
+Alles zonder pad staat in `packages/core/src/errors.ts`. `devices` re-exporteert alle foutklassen van core. `CommandRefusedError` vervangt aan de devices-grens de `SendCommandError` met `Proto`-enums door strings (`reason`, `status`). De oorspronkelijke fout zit in `cause`. `CatalogError` heeft `reason` (`invalidArgument | unauthorized | forbidden | requestFailed | invalidResponse | tooLarge`) en `status` (HTTP of null).
 
 ## Logging
 
 Eigen twee-laags systeem in `packages/core/src/reporter.ts`:
 - `Reporter` (singleton `reporter`): beheert debug-groepen (`debug`, `error`, `info`, `net`, `raw`, `warn`), `.all()` / `.none()` / `.enable(group)` / `.disable(group)`, plus `setSink()` en `setTrafficSink()`
-- `Logger` (per device via `Context` uit `core/transport`): methoden `debug()`, `error()`, `info()`, `net()`, `raw()`, `warn()`, `traffic()` met ANSI-kleuren. Een optionele `LogSink` stuurt de entries per device door; `devices` gebruikt dat voor de `log`-optie.
+- `Logger` (per device via `Context` uit `core/transport`): methoden `debug()`, `error()`, `info()`, `net()`, `raw()`, `warn()`, `traffic()` met ANSI-kleuren. Een optionele `LogSink` stuurt de entries per device door. `devices` gebruikt dat voor de `log`-optie.
 - Productie-library code gebruikt alleen het Logger-systeem, nooit `console.log` direct
 
 ## TypeScript configuratie
@@ -270,7 +270,7 @@ Alle packages delen deze instellingen:
 - `strict: false`, `isolatedModules: true`, `skipLibCheck: true`
 - `isolatedDeclarations: true` (behalve `devices`)
 - Path aliases voor dev-tijd cross-package imports: `@corewire/core/*` → `../core/src/*`, `@corewire/airplay/*` → `../airplay/src/*`, `@corewire/*` → `../*/src`
-- Output: ESM (`.mjs` + `.d.mts`) per ingang in `dist`; audio-source bundelt ook `decode-worker.mjs` en de gedeelde decoderchunks. De decoders draaien in die worker; ontbreekt het bestand (`MODULE_NOT_FOUND`), dan decoderen ze op de aanroepende thread
+- Output: ESM (`.mjs` + `.d.mts`) per ingang in `dist`. Audio-source bundelt ook `decode-worker.mjs` en de gedeelde decoderchunks. De decoders draaien in die worker. Ontbreekt het bestand (`MODULE_NOT_FOUND`), dan decoderen ze op de aanroepende thread
 - tsdown haalt het output-target uit `engines.node` (`^18.17.0 || >=20.3.0`)
 
 ## Code conventions
@@ -304,7 +304,7 @@ In code maakt `buildNonce(counter, format)` (`core/transport`) ze: `counter-at-0
 `EncryptedChannel` (`packages/airplay/src/channels/encrypted.ts`, basis van DataChannel en EventChannel) en `RtspClient` (`packages/airplay/src/rtsp/client.ts`) gebruiken een aparte `#encryptedBuffer` voor inkomende TCP data en `#buffer` voor reeds-gedecrypte plaintext. Bij gedeeltelijke TCP-frames voorkomt dit dat nieuwe ciphertext bij plaintext terechtkomt. De ChaCha20-decoder zou die plaintext anders als frame-header lezen, met corruptie of een deadlock als gevolg.
 
 ### AirPlay receive-frames zijn niet begrensd op 1024 bytes
-De encoder verstuurt chunks van 1024 bytes, maar receivers sturen ook grotere ChaCha20-blokken. Gebruik bij ontvangst de 2-byte LE lengte en de buffergrens van de stream; een 1024-byte parsergrens verbreekt de verbinding met Apple TV en HomePod. De lengte is AAD en de auth tag blijft verplicht.
+De encoder verstuurt chunks van 1024 bytes, maar receivers sturen ook grotere ChaCha20-blokken. Gebruik bij ontvangst de 2-byte LE lengte en de buffergrens van de stream. Een 1024-byte parsergrens verbreekt de verbinding met Apple TV en HomePod. De lengte is AAD en de auth tag blijft verplicht.
 
 ### NTP timestamps moeten wall-clock zijn
 `NTP.now()` in `packages/core/src/encoding/ntp.ts` moet `Date.now()` gebruiken (wall-clock ms sinds Unix epoch). `process.hrtime.bigint()` is een monotone klok (nanoseconden sinds processtart) en levert NTP timestamps op die ~50 jaar afwijken. De Apple TV compenseert met een constant offset, maar bij procesherstart verandert dit offset volledig.

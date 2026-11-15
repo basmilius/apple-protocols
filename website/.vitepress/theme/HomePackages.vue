@@ -45,7 +45,7 @@
         },
         {
             title: 'Protocols',
-            summary: 'The sessions underneath, for when you want a protocol without the device layer.',
+            summary: 'The sessions underneath, for a protocol without the device layer.',
             packages: [
                 {name: '@corewire/airplay', link: '/protocols/airplay', blurb: 'AirPlay 2 sessions, URL playback, audio streams and timing'},
                 {name: '@corewire/airplay/mrp', link: '/protocols/mrp', blurb: 'Media Remote: keys, commands, volume and now playing state'},

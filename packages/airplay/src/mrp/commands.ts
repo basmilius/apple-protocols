@@ -4,6 +4,12 @@ import type { DataChannel } from '../channels/data';
 import * as Messages from './messages';
 import * as Proto from './proto';
 
+/**
+ * Milliseconds a command waits for its result. The Music app on tvOS answers Play after about
+ * 9 s while playback starts within a second, and the receiver handles commands one at a time.
+ */
+const COMMAND_TIMEOUT = 15_000;
+
 /** The receiver refused a SendCommand. */
 export class SendCommandError extends CommandError {
     readonly sendError: Proto.SendError_Enum;
@@ -144,7 +150,7 @@ export class Commands {
     }
 
     async #exchange(message: [Proto.ProtocolMessage, DescExtension]): Promise<Proto.SendCommandResultMessage | undefined> {
-        const response = await this.#channel.exchange(message);
+        const response = await this.#channel.exchange(message, COMMAND_TIMEOUT);
         let result: Proto.SendCommandResultMessage | undefined;
 
         try {

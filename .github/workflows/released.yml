@@ -59,3 +59,26 @@ jobs:
                     for package in core airplay companion-link audio-source devices; do
                         (cd "packages/$package" && npm publish --provenance --access public --tag "$DIST_TAG")
                     done
+
+            -   name: 📚 Build the docs
+                run: bun --cwd docs build
+
+            # A pre-release uploads a version of the docs without sending traffic to it; the live site stays on the last release.
+            -   name: 🚀 Publish the docs (pre-release)
+                uses: cloudflare/wrangler-action@v3
+                if: ${{ github.event.release.prerelease }}
+                with:
+                    accountId: 5e565cf9fa55b0eae1f8131903da2ca9
+                    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                    command: versions upload --tag prerelease-${{ env.RELEASE_VERSION }}
+                    gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+                    wranglerVersion: '4.141.0'
+
+            -   name: 🚀 Publish the docs
+                uses: cloudflare/wrangler-action@v3
+                if: ${{ !github.event.release.prerelease }}
+                with:
+                    accountId: 5e565cf9fa55b0eae1f8131903da2ca9
+                    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                    gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+                    wranglerVersion: '4.141.0'

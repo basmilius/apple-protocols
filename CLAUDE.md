@@ -29,7 +29,7 @@ Alle gepubliceerde packages hebben `engines.node` `^18.17.0 || >=20.3.0` (`Abort
 
 `docs/` is de VitePress-site voor corewire.dev: guide, protocols en een reference per package. Elke export staat in de reference en elke genoemde naam bestaat. Na een API-wijziging pas je de reference, de guides, `README.md` en de README per package aan. De codevoorbeelden moeten type-checken tegen de bronnen met de path aliases van de repo.
 
-Deploy: `wrangler.toml` in de root (Cloudflare Workers met static assets uit `docs/.vitepress/dist`, custom domain corewire.dev). `.github/workflows/website.yml` bouwt en deployt bij een push naar `main` die `docs/**` raakt, of handmatig.
+Deploy: `wrangler.toml` in de root (Cloudflare Workers met static assets uit `docs/.vitepress/dist`, custom domain corewire.dev). De release-workflow deployt de docs mee: een gewone release zet ze live, een prerelease uploadt alleen een versie met tag `prerelease-<versie>` zonder verkeer. `.github/workflows/docs.yml` deployt handmatig vanaf `main`, voor een fix tussen twee releases. Lokaal kan het ook: `bun --cwd docs build && bunx wrangler@4.141.0 deploy`.
 
 ### Protobuf genereren
 
@@ -315,7 +315,7 @@ Een referentie (`0xA0` tot `0xC4`) wijst naar de n-de waarde in een tabel die en
 
 ## CI/CD
 
-`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics, naar `out-check/`), de pairing-test van core, de proxy smoke test en de build van de website. `.github/workflows/website.yml` bouwt de website en deployt hem met `cloudflare/wrangler-action` naar Cloudflare Workers (corewire.dev) bij een push naar `main` die `docs/**`, `wrangler.toml` of de workflow raakt, of handmatig; secrets `CLOUDFLARE_API_TOKEN` en `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/released.yml` (trigger: GitHub Release) vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt de vijf libraries en publiceert `core`, `airplay`, `companion-link`, `audio-source` en `devices` met `npm publish --provenance --access public`. Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
+`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics, naar `out-check/`), de pairing-test van core, de proxy smoke test en de build van de website. `.github/workflows/released.yml` (trigger: elke gepubliceerde GitHub Release) vervangt `"0.0.0"` → versie (de tag zonder `v`) en `workspace:*` → versie, bouwt de vijf libraries en publiceert `core`, `airplay`, `companion-link`, `audio-source` en `devices` met `npm publish --provenance --access public`, onder dist-tag `next` bij een prerelease en `latest` bij een gewone release. Daarna deployt hij de docs met `cloudflare/wrangler-action` naar Cloudflare Workers (corewire.dev): live bij een release, als versie zonder verkeer bij een prerelease. `.github/workflows/docs.yml` deployt de docs handmatig vanaf `main`. De deploys gebruiken het secret `CLOUDFLARE_API_TOKEN`; het account-id staat in de workflow. De workflow draait op Node 24 met npm `^11.5.1` (npm 12 installeert niet op elke Node-versie). Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
 
 ## Tests en tooling
 

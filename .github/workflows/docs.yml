@@ -1,0 +1,39 @@
+name: 📚 Docs
+
+# Deploys the docs from main without a release, for a fix to a page between two versions.
+on:
+    workflow_dispatch:
+
+concurrency:
+    group: docs
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        name: 🚀 Build and deploy the docs
+        steps:
+            -   name: 👀 Checkout
+                uses: actions/checkout@v6
+                with:
+                    ref: main
+
+            -   name: 🍞 Setup Bun
+                uses: oven-sh/setup-bun@v2
+
+            -   name: 📦️ Install dependencies
+                run: bun install --frozen-lockfile
+
+            -   name: 📚 Build the docs
+                run: bun --cwd docs build
+
+            -   name: 🚀 Publish the docs
+                uses: cloudflare/wrangler-action@v3
+                with:
+                    accountId: 5e565cf9fa55b0eae1f8131903da2ca9
+                    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                    gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+                    wranglerVersion: '4.141.0'

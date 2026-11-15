@@ -1,16 +1,20 @@
 import { hkdfSync } from 'node:crypto';
 
-/** Configuration options for HKDF key derivation. */
+/** Input of an HKDF derivation. */
 export type HKDFOptions = {
-    /** The hash algorithm to use (e.g. 'sha512'). */
+    /** A Node.js digest name, such as `sha512`. */
     readonly hash: string;
-    /** The input key material (e.g. a shared secret from Diffie-Hellman). */
+
+    /** The input key material, such as a Diffie-Hellman shared secret. */
     readonly key: Buffer;
-    /** The desired length of the derived key in bytes. */
+
+    /** Length of the derived key in bytes. */
     readonly length: number;
-    /** Optional salt value for the extract step (can be zero-length). */
+
+    /** Salt for the extract step; may be empty. */
     readonly salt: Buffer;
-    /** Context and application-specific info string for the expand step. */
+
+    /** Info for the expand step. */
     readonly info: Buffer;
 };
 

@@ -20,12 +20,11 @@ export type DeviceIdentity = {
 };
 
 /**
- * Shared context for a device connection, carrying the device identifier,
- * the client identity presented to the accessory, and a scoped logger.
- * Passed through the entire protocol stack for consistent identification and logging.
+ * Travels through every protocol layer of one device connection, so all layers log under the
+ * same device id and present the same identity.
  */
 export class Context {
-    /** Unique identifier of the target device (typically its mDNS hostname). */
+    /** Identifies the target device, usually by its mDNS host name. */
     get deviceId(): string {
         return this.#deviceId;
     }
@@ -35,7 +34,7 @@ export class Context {
         return this.#identity;
     }
 
-    /** Scoped logger instance tagged with the device identifier. */
+    /** Prefixes its output with the device id. */
     get logger(): Logger {
         return this.#logger;
     }
@@ -45,8 +44,6 @@ export class Context {
     readonly #logger: Logger;
 
     /**
-     * @param deviceId - Unique identifier of the target device.
-     * @param identity - Overrides of the identity this client presents.
      * @param sink - Also receives every log record of this context.
      */
     constructor(deviceId: string, identity: DeviceIdentity = {}, sink?: LogSink) {

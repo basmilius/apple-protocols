@@ -60,7 +60,7 @@ export function decodeSession(data: Uint8Array | ArrayBuffer): TextInputSession 
 
 const uid = (index: number): { 'CF$UID': number } => ({'CF$UID': index});
 
-/** RTITextOperations / TIKeyboardOutput, matching Apple's RTIKeyedArchiver layout. */
+/** Encodes an RTITextOperations archive that inserts `text`, or clears the field when `clear` is set. */
 export function encodeOperation(sessionUUID: Uint8Array, text: string, clear: boolean): ArrayBuffer {
     if (sessionUUID.byteLength !== 16) throw new Error('Invalid RTI session UUID.');
     return Plist.serialize({

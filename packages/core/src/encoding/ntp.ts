@@ -1,18 +1,12 @@
-/**
- * NTP epoch offset: the number of seconds between the NTP epoch (1900-01-01)
- * and the Unix epoch (1970-01-01).
- */
+/** Seconds between the NTP epoch (1900-01-01) and the Unix epoch (1970-01-01). */
 const EPOCH = 0x83AA7E80n;
 
 /**
- * Returns the current wall-clock time as a 64-bit NTP timestamp.
- * The upper 32 bits are whole seconds since the NTP epoch (1900-01-01),
- * and the lower 32 bits are the fractional second.
+ * Returns the wall-clock time as a 64-bit NTP timestamp: whole seconds since 1900 in the upper
+ * 32 bits, the fraction in the lower 32 bits.
  *
- * Uses `Date.now()` (wall-clock) rather than a monotone clock because Apple
- * devices expect NTP timestamps anchored to real time.
- *
- * @returns The current time as a 64-bit NTP timestamp.
+ * It reads `Date.now()` instead of a monotonic clock, because Apple devices expect NTP
+ * timestamps anchored to real time.
  */
 export function now(): bigint {
     const nowMs = BigInt(Date.now());
@@ -22,12 +16,7 @@ export function now(): bigint {
     return ((seconds + EPOCH) << 32n) | ((frac << 32n) / 1000n);
 }
 
-/**
- * Splits a 64-bit NTP timestamp into its seconds and fractional parts.
- *
- * @param ntp - A 64-bit NTP timestamp (upper 32 bits = seconds, lower 32 bits = fraction).
- * @returns A tuple of [seconds, fraction] as 32-bit unsigned integers.
- */
+/** Splits a 64-bit NTP timestamp into `[seconds, fraction]`, both 32-bit unsigned integers. */
 export function parts(ntp: bigint): [number, number] {
     return [
         Number(ntp >> 32n),
@@ -36,13 +25,10 @@ export function parts(ntp: bigint): [number, number] {
 }
 
 /**
- * Decodes an NTP timing packet from a buffer into its constituent fields.
- * Expects at least 24 bytes; the send timestamp fields (bytes 24-31) default
- * to 0 if the buffer is shorter than 32 bytes.
+ * Decodes an NTP timing packet. The send timestamp (bytes 24 to 31) reads as 0 when the packet
+ * stops before it.
  *
- * @param buffer - The raw NTP packet buffer (minimum 24 bytes).
- * @returns The decoded packet fields.
- * @throws RangeError if the buffer is shorter than 24 bytes.
+ * @throws {RangeError} When the packet is shorter than 24 bytes.
  */
 export function decode(buffer: Buffer): PacketFields {
     if (buffer.length < 24) {
@@ -63,12 +49,7 @@ export function decode(buffer: Buffer): PacketFields {
     };
 }
 
-/**
- * Encodes NTP timing packet fields into a 32-byte buffer.
- *
- * @param fields - The packet fields to encode.
- * @returns A 32-byte buffer containing the encoded NTP packet.
- */
+/** Encodes a 32-byte NTP timing packet. */
 export function encode(fields: PacketFields): Buffer {
     const buffer = Buffer.allocUnsafe(32);
 
@@ -86,26 +67,19 @@ export function encode(fields: PacketFields): Buffer {
     return buffer;
 }
 
-/** Fields of an NTP timing packet used for clock synchronization with Apple devices. */
+/**
+ * The fields of an AirPlay NTP timing packet. Each timestamp is split into whole seconds since
+ * 1900 (`_sec`) and a 32-bit fraction (`_frac`).
+ */
 export type PacketFields = {
-    /** Protocol identifier byte. */
     readonly proto: number;
-    /** Packet type (e.g. request or response). */
     readonly type: number;
-    /** Sequence number for correlating requests and responses. */
     readonly seqno: number;
-    /** Padding field (typically zero). */
     readonly padding: number;
-    /** Reference timestamp, seconds part. */
     readonly reftime_sec: number;
-    /** Reference timestamp, fractional part. */
     readonly reftime_frac: number;
-    /** Receive timestamp, seconds part. */
     readonly recvtime_sec: number;
-    /** Receive timestamp, fractional part. */
     readonly recvtime_frac: number;
-    /** Send timestamp, seconds part. */
     readonly sendtime_sec: number;
-    /** Send timestamp, fractional part. */
     readonly sendtime_frac: number;
 };

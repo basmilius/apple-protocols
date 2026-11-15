@@ -53,13 +53,7 @@ export function encrypt(key: Buffer, nonce: Buffer, aad: Buffer | null, plaintex
     };
 }
 
-/**
- * Pads a nonce to the required 12-byte length by prepending zero bytes.
- * If the nonce is already 12 bytes or longer, it is returned unchanged.
- *
- * @param nonce - The nonce to pad.
- * @returns A nonce buffer of at least 12 bytes.
- */
+/** Left-pads a nonce with zero bytes to 12 bytes. A nonce of 12 bytes or more comes back unchanged. */
 export function padNonce(nonce: Buffer): Buffer {
     if (nonce.length >= CHACHA20_NONCE_LENGTH) {
         return nonce;
@@ -71,10 +65,10 @@ export function padNonce(nonce: Buffer): Buffer {
     ]);
 }
 
-/** Ciphertext and authentication tag are returned separately. */
+/** Output of {@link encrypt}, with the authentication tag split from the ciphertext. */
 export type EncryptedData = {
-    /** The encrypted payload. */
     readonly ciphertext: Buffer;
-    /** The 16-byte Poly1305 authentication tag for integrity verification. */
+
+    /** The 16-byte Poly1305 tag. */
     readonly authTag: Buffer;
 };

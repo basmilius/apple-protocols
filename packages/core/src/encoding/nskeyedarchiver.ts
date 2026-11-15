@@ -1,10 +1,9 @@
 /**
- * Decodes an NSKeyedArchiver binary plist into plain JavaScript objects.
- * Resolves CF$UID references, decodes NS.objects/NS.keys into arrays/dicts,
- * and strips $class metadata.
+ * Decodes an NSKeyedArchiver plist into plain objects. It resolves `CF$UID` references, turns
+ * NSArray and NSDictionary into arrays and objects, and drops the class metadata.
  *
- * @param archive - The parsed plist archive containing `$objects` and `$top` keys.
- * @returns The resolved root object, or null if the archive is invalid.
+ * @param archive - The parsed plist, with `$objects` and `$top`.
+ * @returns The root object, or null when the archive lacks `$objects` or `$top`.
  */
 export function decode(archive: any): unknown {
     const objects = archive?.['$objects'];
@@ -43,7 +42,6 @@ export function decode(archive: any): unknown {
                 return (obj['NS.objects'] as unknown[]).map(resolve);
             }
 
-            /* Resolve plain-object values, excluding archive class metadata. */
             const result: Record<string, unknown> = {};
 
             for (const [key, value] of Object.entries(obj)) {
@@ -63,14 +61,9 @@ export function decode(archive: any): unknown {
     return resolve(top.root ?? top);
 }
 
-/**
- * Decodes an NSKeyedArchiver plist and returns the root as an array.
- * If the root is not an array, wraps it in one.
- *
- * @param archive - The parsed plist archive containing `$objects` and `$top` keys.
- * @returns The resolved root as an array. Non-array roots are wrapped in a single-element array.
- */
+/** Like {@link decode}, but wraps a root that is not an array in a single-element array. */
 export function decodeAsArray(archive: any): unknown[] {
     const root = decode(archive);
+
     return Array.isArray(root) ? root : [root];
 }

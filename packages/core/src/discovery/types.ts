@@ -1,4 +1,4 @@
-/** A discovered service instance: its host id, address, port and TXT record. */
+/** One service instance that an mDNS scan found. */
 export type DiscoveryResult = {
     /** The mDNS host name, e.g. `Woonkamer-TV.local`. */
     readonly id: string;

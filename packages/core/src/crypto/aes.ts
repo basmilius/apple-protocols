@@ -8,6 +8,7 @@ import { createCipheriv, createDecipheriv } from 'node:crypto';
  */
 export function encrypt(key: Buffer, iv: Buffer, plaintext: Buffer): Buffer {
     const cipher = createCipheriv('aes-128-ctr', key, iv);
+
     return Buffer.concat([cipher.update(plaintext), cipher.final()]);
 }
 
@@ -19,5 +20,6 @@ export function encrypt(key: Buffer, iv: Buffer, plaintext: Buffer): Buffer {
  */
 export function decrypt(key: Buffer, iv: Buffer, ciphertext: Buffer): Buffer {
     const decipher = createDecipheriv('aes-128-ctr', key, iv);
+
     return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }

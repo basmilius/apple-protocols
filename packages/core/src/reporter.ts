@@ -1,7 +1,4 @@
-/**
- * Available debug output groups. Each group can be independently enabled
- * or disabled via the global {@link Reporter} singleton.
- */
+/** A log group. The global {@link reporter} turns each group on or off. */
 export type DebugGroup =
     | 'debug'
     | 'error'
@@ -10,31 +7,28 @@ export type DebugGroup =
     | 'raw'
     | 'warn';
 
-/**
- * A single log record handed to a {@link ReporterSink}.
- */
+/** One log record, as a {@link ReporterSink} receives it. */
 export type ReporterEntry = {
-    /** The debug group the record belongs to. */
     readonly group: DebugGroup;
+
     /** The {@link Logger} identifier, or `null` for output not tied to a logger. */
     readonly deviceId: string | null;
+
     /** The values passed to the logging method, unformatted. */
     readonly args: readonly unknown[];
+
     /** Wall-clock milliseconds since the Unix epoch. */
     readonly timestamp: number;
 };
 
-/**
- * Receives every log record, whether or not its group prints to the console.
- */
+/** Receives every log record, whether or not its group prints to the console. */
 export type ReporterSink = (entry: ReporterEntry) => void;
 
-/**
- * Options for {@link Reporter.setSink}.
- */
+/** Options for {@link Reporter.setSink}. */
 export type ReporterSinkOptions = {
     /** Stops console output entirely while the sink is installed. Default: false. */
     readonly silenceConsole?: boolean;
+
     /** Limits which groups reach the sink. Default: every group. */
     readonly groups?: readonly DebugGroup[];
 };
@@ -44,20 +38,23 @@ export type TrafficProtocol = string;
 
 export type TrafficDirection = 'in' | 'out';
 
-/**
- * One protocol message as it crossed the wire, after decryption or before encryption.
- */
+/** One protocol message as it crossed the wire, after decryption or before encryption. */
 export type TrafficEntry = {
     /** The {@link Logger} identifier of the device the message belongs to. */
     readonly deviceId: string | null;
+
     readonly protocol: TrafficProtocol;
     readonly direction: TrafficDirection;
+
     /** One line that identifies the message, for example `SETUP /stream cseq=4`. */
     readonly summary: string;
+
     /** The decoded message, when the caller has one. */
     readonly decoded?: unknown;
+
     /** The plaintext frame. */
     readonly bytes?: Uint8Array;
+
     /** Wall-clock milliseconds since the Unix epoch. */
     readonly timestamp: number;
 };
@@ -70,9 +67,8 @@ export type LogSink = (group: DebugGroup, args: readonly unknown[]) => void;
 const ALL_GROUPS: readonly DebugGroup[] = ['debug', 'error', 'info', 'net', 'raw', 'warn'];
 
 /**
- * Scoped logger instance tagged with a device or component identifier.
- * All log output is gated by the global {@link reporter} singleton — messages
- * are only printed when the corresponding debug group is enabled.
+ * Logs under an identifier, usually a device id. The global {@link reporter} decides which groups
+ * print.
  */
 export class Logger {
     /** The identifier this logger is scoped to. */
@@ -90,7 +86,7 @@ export class Logger {
     readonly #sink?: LogSink;
 
     /**
-     * @param id - Identifier used as a prefix in log output (typically a device ID or component name).
+     * @param id - Prefix of every line, usually a device id.
      * @param sink - Also receives every record of this logger, next to the global reporter.
      */
     constructor(id: string, sink?: LogSink) {
@@ -99,45 +95,32 @@ export class Logger {
         this.#sink = sink;
     }
 
-    /**
-     * Logs a debug-level message (cyan). Only printed when the 'debug' group is enabled.
-     */
+    /** Logs in the `debug` group, in cyan. */
     debug(...data: any[]): void {
         this.#write('debug', data);
     }
 
-    /**
-     * Logs an error-level message (red). Only printed when the 'error' group is enabled.
-     */
+    /** Logs in the `error` group, in red. */
     error(...data: any[]): void {
         this.#write('error', data);
     }
 
-    /**
-     * Logs an info-level message (green). Only printed when the 'info' group is enabled.
-     */
+    /** Logs in the `info` group, in green. */
     info(...data: any[]): void {
         this.#write('info', data);
     }
 
-    /**
-     * Logs a network-level message (yellow). Only printed when the 'net' group is enabled.
-     */
+    /** Logs in the `net` group, in yellow. */
     net(...data: any[]): void {
         this.#write('net', data);
     }
 
-    /**
-     * Logs a raw data message (blue). Only printed when the 'raw' group is enabled.
-     * Typically used for hex dumps and binary protocol data.
-     */
+    /** Logs in the `raw` group, in blue; meant for hex dumps and binary protocol data. */
     raw(...data: any[]): void {
         this.#write('raw', data);
     }
 
-    /**
-     * Logs a warning-level message (yellow). Only printed when the 'warn' group is enabled.
-     */
+    /** Logs in the `warn` group, in yellow. */
     warn(...data: any[]): void {
         this.#write('warn', data);
     }
@@ -146,11 +129,7 @@ export class Logger {
      * Hands one protocol message to the traffic sink. Does nothing without a sink, so callers
      * that have to build `decoded` first should check {@link Reporter.tapsTraffic}.
      *
-     * @param protocol - The channel the message crossed.
      * @param direction - `out` for what we sent, `in` for what the device sent.
-     * @param summary - One line that identifies the message.
-     * @param decoded - The decoded message.
-     * @param bytes - The plaintext frame.
      */
     traffic(protocol: TrafficProtocol, direction: TrafficDirection, summary: string, decoded?: unknown, bytes?: Uint8Array): void {
         reporter.reportTraffic({deviceId: this.#id, protocol, direction, summary, decoded, bytes, timestamp: Date.now()});
@@ -166,14 +145,14 @@ export class Logger {
         try {
             this.#sink(group, data);
         } catch {
-            /* Sink errors must not interrupt protocol operations. */
+            // A failing sink must not interrupt the protocol.
         }
     }
 }
 
 /**
- * Global log output controller that manages which debug groups are active.
- * All {@link Logger} instances check the singleton {@link reporter} before printing.
+ * Decides which log groups print, and where log records and traffic go. Every {@link Logger}
+ * goes through the {@link reporter} singleton.
  */
 export class Reporter {
     #enabled: DebugGroup[] = [];
@@ -187,39 +166,29 @@ export class Reporter {
         return this.#trafficSink !== null;
     }
 
-    /** Enables all debug groups (except 'raw' which is very verbose). */
+    /** Enables every group except the verbose `raw`. */
     all(): void {
         this.#enabled = ['debug', 'error', 'info', 'net', 'warn'] as DebugGroup[];
     }
 
-    /** Disables all debug groups, silencing all log output. */
+    /** Disables every group. */
     none(): void {
         this.#enabled = [];
     }
 
-    /**
-     * Disables a specific debug group.
-     *
-     * @param group - The debug group to disable.
-     */
     disable(group: DebugGroup): void {
         if (this.#enabled.includes(group)) {
             this.#enabled.splice(this.#enabled.indexOf(group), 1);
         }
     }
 
-    /**
-     * Enables a specific debug group.
-     *
-     * @param group - The debug group to enable.
-     */
     enable(group: DebugGroup): void {
         if (!this.#enabled.includes(group)) {
             this.#enabled.push(group);
         }
     }
 
-    /** Checks for a consumer before callers build expensive message descriptions. */
+    /** Whether a group reaches the console or the sink, so a caller can skip building an expensive message. */
     accepts(group: DebugGroup): boolean {
         return this.printsToConsole(group) || (this.#sink !== null && this.#sinkGroups.includes(group));
     }
@@ -229,11 +198,8 @@ export class Reporter {
     }
 
     /**
-     * Installs a sink that receives every log record, regardless of which groups
-     * print. Replaces a sink that was already installed.
-     *
-     * @param sink - Receives one record per logging call.
-     * @param options - Console silencing and group filtering.
+     * Installs a sink that receives one record per logging call, whichever groups print. Replaces
+     * a sink that was already installed.
      */
     setSink(sink: ReporterSink, options: ReporterSinkOptions = {}): void {
         this.#sink = sink;
@@ -248,12 +214,7 @@ export class Reporter {
         this.#silenceConsole = false;
     }
 
-    /**
-     * Installs a sink that receives every tapped protocol message. Replaces a sink that was
-     * already installed.
-     *
-     * @param sink - Receives one entry per message.
-     */
+    /** Installs a sink that receives every tapped protocol message. Replaces a sink that was already installed. */
     setTrafficSink(sink: TrafficSink): void {
         this.#trafficSink = sink;
     }
@@ -263,11 +224,7 @@ export class Reporter {
         this.#trafficSink = null;
     }
 
-    /**
-     * Hands one entry to the traffic sink, swallowing a failing sink like {@link report} does.
-     *
-     * @param entry - The tapped message.
-     */
+    /** Hands one entry to the traffic sink, swallowing a failing sink like {@link report} does. */
     reportTraffic(entry: TrafficEntry): void {
         if (this.#trafficSink === null) {
             return;
@@ -276,27 +233,20 @@ export class Reporter {
         try {
             this.#trafficSink(entry);
         } catch {
-            /* Sink errors must not interrupt protocol operations. */
+            // A failing sink must not interrupt the protocol.
         }
     }
 
-    /**
-     * Whether a group still reaches the console. False while a sink asked to take
-     * console output over.
-     *
-     * @param group - The debug group to check.
-     */
+    /** Whether a group still reaches the console. False while a sink silences the console. */
     printsToConsole(group: DebugGroup): boolean {
         return !this.#silenceConsole && this.#enabled.includes(group);
     }
 
     /**
-     * Hands one record to the installed sink. A throwing sink must never take the
-     * caller down with it, so the failure is swallowed here.
+     * Hands one record to the installed sink. A throwing sink must never take the caller down
+     * with it, so this swallows the failure.
      *
-     * @param group - The debug group of the record.
      * @param deviceId - The logger identifier, or null when there is none.
-     * @param args - The values passed to the logging method.
      */
     report(group: DebugGroup, deviceId: string | null, args: readonly unknown[]): void {
         if (this.#sink === null || !this.#sinkGroups.includes(group)) {
@@ -306,7 +256,7 @@ export class Reporter {
         try {
             this.#sink({group, deviceId, args, timestamp: Date.now()});
         } catch {
-            /* Sink errors must not interrupt protocol operations. */
+            // A failing sink must not interrupt the protocol.
         }
     }
 }
@@ -322,13 +272,11 @@ const CONSOLE: Record<DebugGroup, { method: 'debug' | 'error' | 'info' | 'log' |
 };
 
 /**
- * The single path every {@link Logger} method takes: the console, gated by the
- * enabled groups, and the sink, which sees a record whether or not it printed.
+ * The one path every {@link Logger} method takes. The console prints only the enabled groups; the
+ * sink sees every record, whether or not it printed.
  *
- * @param group - The debug group of the record.
  * @param id - The logger identifier, or null when the record has no logger.
  * @param label - ANSI-colored prefix printed before the values.
- * @param data - The values passed to the logging method.
  */
 function write(group: DebugGroup, id: string | null, label: string | null, data: readonly unknown[]): void {
     reporter.report(group, id, data);
@@ -347,5 +295,5 @@ function write(group: DebugGroup, id: string | null, label: string | null, data:
     }
 }
 
-/** Global reporter singleton controlling which debug groups produce output. */
+/** The global {@link Reporter} that decides which log groups print. */
 export const reporter: Reporter = new Reporter();

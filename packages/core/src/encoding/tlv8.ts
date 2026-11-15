@@ -72,14 +72,7 @@ export const Value = {
     Flags: 0x13
 } as const;
 
-/**
- * Inspects a decoded TLV8 response for error or back-off conditions and throws
- * an appropriate {@link TLV8PairingError}. Always throws; the return type `never`
- * signals to the compiler that execution does not continue past this call.
- *
- * @param data - The decoded TLV8 map from a pairing response.
- * @throws TLV8PairingError with the specific error code, back-off time, or a generic message.
- */
+/** Throws the {@link TLV8PairingError} for the error or back-off in a decoded pairing response. */
 export function bail(data: Map<number, Buffer>): never {
     if (data.has(Value.BackOff)) {
         const buffer = data.get(Value.BackOff);
@@ -104,16 +97,12 @@ export function bail(data: Map<number, Buffer>): never {
 }
 
 /**
- * Encodes an array of TLV8 entries into a single buffer.
- * Values longer than 255 bytes are automatically split into multiple
- * consecutive TLV fragments of the same type, as required by the TLV8 spec.
- *
- * @param entries - An array of [type, value] tuples. Values can be a single byte (number),
- *                  a Buffer, or a Uint8Array.
- * @returns A buffer containing all TLV8 entries concatenated.
+ * Encodes `[type, value]` entries; a number value is a single byte. A value longer than 255 bytes
+ * becomes consecutive fragments of the same type, as TLV8 requires.
  */
 export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffer {
     let totalSize = 0;
+
     for (const [, valueRaw] of entries) {
         const len = typeof valueRaw === 'number' ? 1 : valueRaw.length;
         const chunks = Math.max(1, Math.ceil(len / 255));
@@ -149,6 +138,7 @@ export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffe
                 } else {
                     result.set(value.subarray(offset, offset + len), pos);
                 }
+
                 pos += len;
             }
 
@@ -160,12 +150,10 @@ export function encode(entries: [number, number | Buffer | Uint8Array][]): Buffe
 }
 
 /**
- * Decodes a TLV8 buffer into a map of type to value.
- * Consecutive entries with the same type are automatically concatenated,
- * reassembling fragmented values as required by the TLV8 spec.
+ * Decodes a TLV8 buffer into a map from type to value. Entries of the same type are concatenated,
+ * which reassembles fragmented values.
  *
- * @param buf - The raw TLV8-encoded buffer.
- * @returns A map from TLV8 type byte to the reassembled value buffer.
+ * @throws {RangeError} When an entry is truncated.
  */
 export function decode(buf: Buffer): Map<number, Buffer> {
     const map = new Map<number, Buffer>();
@@ -184,6 +172,7 @@ export function decode(buf: Buffer): Map<number, Buffer> {
         }
 
         const existing = map.get(type);
+
         if (existing) {
             const newBuf = Buffer.allocUnsafe(existing.length + len);
             existing.copy(newBuf, 0);

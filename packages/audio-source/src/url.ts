@@ -22,12 +22,14 @@ export class UrlSource extends BufferAudioSource {
         try {
             const buffer = await fetchAudio(url, options);
             pcm = options.format === 'pcm' ? buffer : await decode(buffer, {signal: options.signal});
+
             if (pcm.length % (AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL) !== 0) {
                 throw new Error('PCM data does not contain complete stereo frames');
             }
         } catch (err) {
             const error = new PlaybackError(`Failed to decode audio from ${url}: ${err instanceof Error ? err.message : String(err)}`);
             error.cause = err;
+
             throw error;
         }
 

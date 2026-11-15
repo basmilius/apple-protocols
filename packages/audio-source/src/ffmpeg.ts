@@ -49,9 +49,11 @@ export class FfmpegSource implements AudioSource {
         if (this.#stopping) {
             await this.#stopping;
         }
+
         if (this.#ffmpeg) {
             return;
         }
+
         this.#clear();
         this.#ended = false;
         this.#failure = undefined;
@@ -60,34 +62,42 @@ export class FfmpegSource implements AudioSource {
 
         const child = spawn('ffmpeg', ['-nostdin', '-v', 'error', '-i', this.#filePath, '-f', 's16be', '-acodec', 'pcm_s16be', '-ar', String(AUDIO_SAMPLE_RATE), '-ac', String(AUDIO_CHANNELS), '-'], {stdio: ['ignore', 'pipe', 'pipe']});
         this.#ffmpeg = child;
+
         child.stderr!.on('data', chunk => {
             if (this.#ffmpeg === child) {
                 this.#stderr = (this.#stderr + chunk.toString()).slice(-STDERR_LIMIT);
             }
         });
+
         child.stdout!.on('data', (chunk: Buffer) => {
             if (this.#ffmpeg !== child) {
                 return;
             }
+
             this.#chunks.push(chunk);
             this.#buffered += chunk.length;
             this.#peakBuffered = Math.max(this.#peakBuffered, this.#buffered);
             this.#flush();
+
             if (this.#buffered >= BUFFER_LIMIT) {
                 child.stdout!.pause();
             }
         });
+
         child.on('error', error => {
             if (this.#ffmpeg === child) {
                 this.#fail(error.message);
             }
         });
+
         child.once('close', (code, signal) => {
             if (this.#ffmpeg !== child) {
                 return;
             }
+
             this.#ffmpeg = null;
             this.#ended = true;
+
             if (code !== 0) {
                 this.#fail(`FFmpeg exited with ${code ?? signal}: ${this.#stderr.trim()}`);
             } else if (this.#buffered % FRAME_SIZE !== 0) {
@@ -96,6 +106,7 @@ export class FfmpegSource implements AudioSource {
                 this.#flush();
             }
         });
+
         await new Promise<void>((resolve, reject) => {
             child.once('spawn', resolve);
             child.once('error', error => reject(new PlaybackError(`Cannot start FFmpeg: ${error.message}`)));
@@ -111,33 +122,47 @@ export class FfmpegSource implements AudioSource {
         if (this.#stopping) {
             return this.#stopping;
         }
+
         const child = this.#ffmpeg;
         this.#ffmpeg = null;
         this.#ended = true;
         this.#clear();
+
         for (const reader of this.#readers.splice(0)) {
             reader.resolve(null);
         }
+
         if (!child) {
             return Promise.resolve();
         }
+
         this.#stopping = new Promise<void>(resolve => {
             const timeout = setTimeout(() => child.kill('SIGKILL'), 2000);
-            child.once('close', () => {clearTimeout(timeout); resolve();});
+
+            child.once('close', () => {
+                clearTimeout(timeout);
+                resolve();
+            });
+
             child.stdout?.resume();
             child.kill();
-        }).finally(() => {this.#stopping = undefined;});
+        }).finally(() => {
+            this.#stopping = undefined;
+        });
+
         return this.#stopping;
     }
 
-    /** Reads must fit the one-second producer buffer; failures reject rather than masquerading as EOF. */
+    /** Reads must fit the one-second producer buffer. A failure rejects instead of reading as the end of the stream. */
     async readFrames(count: number): Promise<Buffer | null> {
         if (!Number.isSafeInteger(count) || count <= 0 || count * FRAME_SIZE > BUFFER_LIMIT) {
             throw new RangeError('FFmpeg frame count must be positive and fit the producer buffer.');
         }
+
         if (this.#failure) {
             throw this.#failure;
         }
+
         return new Promise((resolve, reject) => {
             this.#readers.push({bytes: count * FRAME_SIZE, resolve, reject});
             this.#flush();
@@ -147,6 +172,7 @@ export class FfmpegSource implements AudioSource {
     #flush(): void {
         while (this.#readers.length > 0) {
             const reader = this.#readers[0];
+
             if (this.#failure) {
                 this.#readers.shift()!.reject(this.#failure);
             } else if (this.#buffered >= reader.bytes || this.#ended) {
@@ -157,6 +183,7 @@ export class FfmpegSource implements AudioSource {
                 break;
             }
         }
+
         if (this.#buffered < BUFFER_LIMIT / 2) {
             this.#ffmpeg?.stdout?.resume();
         }
@@ -165,18 +192,22 @@ export class FfmpegSource implements AudioSource {
     #take(bytes: number): Buffer {
         const output = Buffer.allocUnsafe(bytes);
         let written = 0;
+
         while (written < bytes) {
             const chunk = this.#chunks[0];
             const size = Math.min(bytes - written, chunk.length - this.#offset);
             chunk.copy(output, written, this.#offset, this.#offset + size);
             this.#offset += size;
             written += size;
+
             if (this.#offset === chunk.length) {
                 this.#chunks.shift();
                 this.#offset = 0;
             }
         }
+
         this.#buffered -= bytes;
+
         return output;
     }
 

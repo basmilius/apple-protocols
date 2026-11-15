@@ -3,20 +3,25 @@ import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from '../c
 /** Converts to 44100 Hz signed 16-bit big-endian stereo PCM using linear interpolation and channel mapping. */
 export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
     const {inputChannels, inputSampleRate, inputBitsPerSample, inputEndian} = options;
+
     if (!Number.isSafeInteger(inputChannels) || inputChannels < 1 || !Number.isFinite(inputSampleRate) || inputSampleRate <= 0 || ![8, 16, 24, 32].includes(inputBitsPerSample)) {
         throw new RangeError('Invalid PCM input format.');
     }
+
     const bytesPerSample = inputBitsPerSample / 8;
     const inputFrameSize = inputChannels * bytesPerSample;
+
     if (input.length % inputFrameSize !== 0) {
         throw new RangeError('PCM input must contain complete frames.');
     }
-    const inputFrames = Math.floor(input.length / inputFrameSize);
 
+    const inputFrames = Math.floor(input.length / inputFrameSize);
     const outputFrames = Math.floor(inputFrames * AUDIO_SAMPLE_RATE / inputSampleRate);
+
     if (!Number.isSafeInteger(outputFrames) || outputFrames * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL > 256 * 1024 * 1024) {
         throw new RangeError('Converted PCM exceeds the output limit.');
     }
+
     const output = Buffer.alloc(outputFrames * AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL);
 
     for (let i = 0; i < outputFrames; i++) {
@@ -43,18 +48,10 @@ export function convertPcm(input: Buffer, options: ConvertPcmOptions): Buffer {
 }
 
 /**
- * Reads a single PCM sample from the buffer and returns it as a
- * signed 16-bit integer value. Supports 8, 16, 24, and 32-bit
- * sample depths in both little-endian and big-endian byte order.
+ * Reads one sample of 8, 16, 24 or 32 bits, in either byte order.
  *
- * @param buffer - Source PCM data buffer.
- * @param frame - Frame index (sample index across all channels).
- * @param channel - Channel index within the frame.
- * @param frameSize - Size of a single frame in bytes (all channels).
- * @param bytesPerSample - Number of bytes per individual sample.
- * @param bitsPerSample - Bit depth of the samples (8, 16, 24, or 32).
- * @param endian - Byte order of the samples.
- * @returns The sample value scaled to signed 16-bit range, or 0 for unsupported bit depths.
+ * @param frameSize - In bytes, all channels together.
+ * @returns The sample scaled to the signed 16-bit range; 0 past the end or for another bit depth.
  */
 function readSample(buffer: Buffer, frame: number, channel: number, frameSize: number, bytesPerSample: number, bitsPerSample: number, endian: 'little' | 'big'): number {
     const offset = frame * frameSize + channel * bytesPerSample;
@@ -79,6 +76,7 @@ function readSample(buffer: Buffer, frame: number, channel: number, frameSize: n
         } else {
             value = (buffer[offset] << 16) | (buffer[offset + 1] << 8) | buffer[offset + 2];
         }
+
         if (value & 0x800000) {
             value |= ~0xFFFFFF;
         }
@@ -97,16 +95,15 @@ function readSample(buffer: Buffer, frame: number, channel: number, frameSize: n
     return 0;
 }
 
-/**
- * Options describing the format of input PCM data for conversion.
- */
+/** The format of the PCM to convert. */
 type ConvertPcmOptions = {
-    /** Number of audio channels in the input data. */
     readonly inputChannels: number;
-    /** Sample rate of the input data in Hz. */
+
+    /** In Hz. */
     readonly inputSampleRate: number;
-    /** Bit depth of the input samples (8, 16, 24, or 32). */
+
+    /** 8, 16, 24 or 32. */
     readonly inputBitsPerSample: number;
-    /** Byte order of the input samples. */
+
     readonly inputEndian: 'little' | 'big';
 };

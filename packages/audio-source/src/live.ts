@@ -1,7 +1,7 @@
 import type { AudioSource } from '@corewire/airplay';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 
-/** Default ring buffer duration in seconds of audio. */
+/** In seconds of audio. */
 const DEFAULT_BUFFER_DURATION = 2;
 
 export type LiveSourceOptions = {
@@ -11,37 +11,27 @@ export type LiveSourceOptions = {
 
 /** Live PCM ring buffer. Drops the oldest data when producers outpace the consumer. */
 export class LiveSource implements AudioSource {
-    /** Duration is always Infinity for live sources. */
+    /** Always Infinity. */
     readonly duration: number = Infinity;
 
-    /** Size of a single audio frame in bytes. */
+    /** Bytes per frame. */
     readonly #frameSize: number;
 
-    /** Fixed-size ring buffer for PCM data. */
     readonly #buffer: Buffer;
 
-    /** Total capacity of the ring buffer in bytes. */
+    /** In bytes. */
     readonly #capacity: number;
 
-    /** Current read position in the ring buffer. */
     #readPos: number = 0;
-
-    /** Current write position in the ring buffer. */
     #writePos: number = 0;
-
-    /** Number of bytes currently available for reading. */
     #available: number = 0;
-
-    /** Whether the source has been signaled as ended via {@link end}. */
     #ended: boolean = false;
-
-    /** Whether the source has been started via {@link start}. */
     #started: boolean = false;
 
-    /** Resolve function for a pending consumer waiting for data. */
+    /** Resolves the one consumer that waits for data. */
     #pendingResolve: ((value: Buffer | null) => void) | null = null;
 
-    /** Number of bytes the pending consumer is waiting for. */
+    /** Bytes the waiting consumer asked for. */
     #pendingBytes: number = 0;
 
     constructor(options: LiveSourceOptions = {}) {
@@ -50,38 +40,31 @@ export class LiveSource implements AudioSource {
         if (!Number.isFinite(bufferDuration) || bufferDuration <= 0 || bufferDuration * AUDIO_SAMPLE_RATE < 1) {
             throw new RangeError('Live buffer duration must hold at least one audio frame.');
         }
+
         this.#frameSize = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;
         this.#capacity = Math.floor(bufferDuration * AUDIO_SAMPLE_RATE) * this.#frameSize;
         this.#buffer = Buffer.alloc(this.#capacity);
     }
 
-    /**
-     * The number of bytes available for reading.
-     */
+    /** Bytes ready to read. */
     get available(): number {
         return this.#available;
     }
 
-    /**
-     * The total capacity in bytes.
-     */
+    /** In bytes. */
     get capacity(): number {
         return this.#capacity;
     }
 
-    /**
-     * Whether the source has been ended.
-     */
+    /** True after {@link end} or {@link stop}, until {@link reset}. */
     get ended(): boolean {
         return this.#ended;
     }
 
     /**
-     * Writes PCM data into the ring buffer. If the buffer is full,
-     * the oldest data is dropped to make room for new data.
+     * Writes PCM into the ring buffer and drops the oldest data when it is full.
      *
-     * @param data - PCM audio data to write into the ring buffer.
-     * @returns The number of bytes actually written.
+     * @returns Bytes written; 0 after {@link end}, at most the capacity.
      */
     write(data: Buffer): number {
         if (data.length % this.#frameSize !== 0) {
@@ -93,7 +76,6 @@ export class LiveSource implements AudioSource {
         }
 
         const length = Math.min(data.length, this.#capacity);
-
         const source = length < data.length
             ? data.subarray(data.length - length)
             : data;
@@ -122,9 +104,7 @@ export class LiveSource implements AudioSource {
         return length;
     }
 
-    /**
-     * Signal that no more data will be written.
-     */
+    /** Marks the end of the stream; later writes are ignored and the waiting read gets what is left. */
     end(): void {
         this.#ended = true;
 
@@ -142,17 +122,16 @@ export class LiveSource implements AudioSource {
     }
 
     /**
-     * Reads the specified number of audio frames from the ring buffer.
-     * Blocks until enough data is available, the stream ends, or data
-     * is written by the producer.
+     * Reads `count` frames and waits until they are written or the stream ends.
+     * Only one read may wait at a time.
      *
-     * @param count - Number of audio frames to read.
-     * @returns A buffer containing the requested PCM data, or null if the stream has ended.
+     * @returns Null once the stream has ended and the buffer is empty.
      */
     async readFrames(count: number): Promise<Buffer | null> {
         if (!Number.isSafeInteger(count) || count <= 0 || count * this.#frameSize > this.#capacity) {
             throw new RangeError('Frame count must be positive and fit in the Live buffer.');
         }
+
         const bytesNeeded = count * this.#frameSize;
 
         if (this.#available >= bytesNeeded) {
@@ -167,7 +146,6 @@ export class LiveSource implements AudioSource {
             return null;
         }
 
-        /* Only one consumer may wait for producer data at a time. */
         if (this.#pendingResolve) {
             throw new Error('Only one concurrent readFrames() call is supported on Live sources.');
         }
@@ -178,10 +156,7 @@ export class LiveSource implements AudioSource {
         });
     }
 
-    /**
-     * Resets the ring buffer to its initial state, clearing all data
-     * and re-enabling writes after an {@link end} call.
-     */
+    /** Empties the buffer and accepts writes again after {@link end}. A waiting read gets null. */
     async reset(): Promise<void> {
         this.#pendingResolve?.(null);
         this.#readPos = 0;
@@ -192,29 +167,17 @@ export class LiveSource implements AudioSource {
         this.#pendingBytes = 0;
     }
 
-    /**
-     * Marks the live source as started, allowing data to flow.
-     */
     async start(): Promise<void> {
         this.#started = true;
     }
 
-    /**
-     * Stops the live source and signals end-of-stream. Any pending
-     * consumer will receive remaining data or null.
-     */
+    /** Ends the stream, see {@link end}. */
     async stop(): Promise<void> {
         this.#started = false;
         this.end();
     }
 
-    /**
-     * Reads the specified number of bytes from the ring buffer,
-     * handling wrap-around at the buffer boundary.
-     *
-     * @param bytes - Number of bytes to read.
-     * @returns A new buffer containing the read data.
-     */
+    /** Copies `bytes` out of the ring buffer, across the wrap point when needed. */
     #read(bytes: number): Buffer {
         const result = Buffer.allocUnsafe(bytes);
         const firstChunk = Math.min(bytes, this.#capacity - this.#readPos);
@@ -231,10 +194,6 @@ export class LiveSource implements AudioSource {
         return result;
     }
 
-    /**
-     * Attempts to fulfill a pending consumer's read request if enough
-     * data has accumulated in the ring buffer.
-     */
     #tryFulfillPending(): void {
         if (!this.#pendingResolve || this.#available < this.#pendingBytes) {
             return;

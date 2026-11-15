@@ -2,10 +2,13 @@ name: 🚀 Release packages
 
 on:
     release:
-        types: [ released ]
+        types: [ published ]
 
 env:
-    RELEASE_VERSION: ${{ github.event.release.tag_name }}
+    RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+    # A pre-release goes out under the dist-tag next, so `npm install @corewire/devices` keeps the stable version.
+    DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
 
 permissions:
     contents: read
@@ -31,10 +34,13 @@ jobs:
             -   name: 📦️ Update npm
                 run: npm install --global npm@latest
 
-            -   name: ✏️ Tag v${{ env.RELEASE_VERSION }}
+            # The tag may start with a v; the package version never does.
+            -   name: ✏️ Version ${{ env.RELEASE_TAG }}
                 run: |
-                    sed -i 's/0.0.0/${{ env.RELEASE_VERSION }}/g' packages/*/package.json
-                    sed -i 's/workspace:\*/${{ env.RELEASE_VERSION }}/g' packages/*/package.json
+                    version="${RELEASE_TAG#v}"
+                    echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+                    sed -i "s/\"0\.0\.0\"/\"$version\"/g" packages/*/package.json
+                    sed -i "s/workspace:\*/$version/g" packages/*/package.json
 
             -   name: 📦️ Install dependencies
                 run: bun install --frozen-lockfile
@@ -48,10 +54,8 @@ jobs:
                     bun --cwd packages/devices build
 
             # No NPM_TOKEN: npm authenticates through the trusted publisher configured per package on npmjs.com.
-            -   name: 🚀 Publish v${{ env.RELEASE_VERSION }}
+            -   name: 🚀 Publish ${{ env.RELEASE_VERSION }} as ${{ env.DIST_TAG }}
                 run: |
-                    (cd packages/core && npm publish --provenance --access public)
-                    (cd packages/airplay && npm publish --provenance --access public)
-                    (cd packages/companion-link && npm publish --provenance --access public)
-                    (cd packages/audio-source && npm publish --provenance --access public)
-                    (cd packages/devices && npm publish --provenance --access public)
+                    for package in core airplay companion-link audio-source devices; do
+                        (cd "packages/$package" && npm publish --provenance --access public --tag "$DIST_TAG")
+                    done

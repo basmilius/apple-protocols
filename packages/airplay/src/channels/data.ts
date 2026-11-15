@@ -132,7 +132,7 @@ export class DataChannel extends EncryptedChannel<DataChannelEventMap> {
             }
 
             if (plaintext.byteLength - offset < totalLength) {
-                this.context.logger.warn('[data]', `Data packet is too short needed=${totalLength} available=${plaintext.byteLength - offset} receivedLength=${received}`);
+                this.context.logger.debug('[data]', `Data packet is too short needed=${totalLength} available=${plaintext.byteLength - offset} receivedLength=${received}`);
                 break;
             }
 

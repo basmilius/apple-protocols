@@ -221,7 +221,7 @@ export class Stream extends EncryptionAwareConnection<StreamEventMap> {
                 const totalLength = HEADER_SIZE + header.readUintBE(1, 3);
 
                 if (this.#buffer.byteLength < totalLength) {
-                    this.context.logger.warn('[companion-link]', `Data packet is too short needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
+                    this.context.logger.debug('[companion-link]', `Data packet is too short needed=${totalLength} available=${this.#buffer.byteLength} receivedLength=${data.byteLength}`);
 
                     return;
                 }

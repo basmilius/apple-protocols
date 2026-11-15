@@ -1,7 +1,5 @@
 import type { CallResult } from './contract';
 
-// --- Tool playground ---
-
 export type ToolCategory = 'encoding' | 'encryption' | 'features';
 
 export type ToolInputType = 'text' | 'textarea' | 'number' | 'boolean' | 'select';
@@ -18,10 +16,13 @@ export type ToolInput = {
     readonly type: ToolInputType;
     readonly placeholder?: string;
     readonly default?: string | number | boolean;
+
     /** Only for `select`. */
     readonly options?: readonly ToolInputOption[];
+
     readonly hint?: string;
     readonly optional?: boolean;
+
     /** Rows for a `textarea`. */
     readonly rows?: number;
 };
@@ -31,8 +32,10 @@ export type ToolInfo = {
     readonly title: string;
     readonly description: string;
     readonly category: ToolCategory;
+
     /** A heading inside the category, such as `OPack` or `ChaCha20-Poly1305`. */
     readonly section: string;
+
     readonly inputs: readonly ToolInput[];
 };
 
@@ -54,8 +57,6 @@ export type RoundTripResult = {
     readonly output: string;
 };
 
-// --- Storage ---
-
 export type StorageProtocol = 'airplay' | 'companionLink' | 'raop';
 
 export type StoredDeviceInfo = {
@@ -70,23 +71,25 @@ export type StorageDump = {
     readonly data: unknown;
 };
 
-// --- mDNS ---
-
 export type MdnsMode = 'multicast' | 'unicast';
 
 export type MdnsQuery = {
     readonly mode: MdnsMode;
     readonly services: readonly string[];
+
     /** Addresses to query directly; only read for a unicast scan. */
     readonly hosts?: readonly string[];
+
     readonly timeoutMs?: number;
 };
 
 /** The features TXT value of a record, decoded. Null on a record that carries none. */
 export type MdnsFeatures = {
     readonly raw: string;
+
     /** The 64-bit mask as hex, since it does not fit a number. */
     readonly mask: string;
+
     readonly flags: readonly string[];
 };
 
@@ -118,18 +121,19 @@ export type MdnsCombinedRecord = {
 
 export type DiscoveryService = 'airplay' | 'companionLink' | 'raop';
 
-// --- Proxy ---
-
 export type ProxyProtocol = 'airplay' | 'companionLink';
 
 export type ProxyDirection = 'controller->device' | 'device->controller';
 
 export type ProxyStartRequest = {
     readonly protocol: ProxyProtocol;
+
     /** The device in the last discovery result the proxy relays to. Its credentials must be stored. */
     readonly deviceId: string;
+
     /** 7000 for AirPlay and 49152 for Companion Link when omitted. */
     readonly port?: number;
+
     /** Appends every relayed message to a JSONL file under `~/.config/apple-protocols/proxy-captures`. */
     readonly capture?: boolean;
 };
@@ -143,11 +147,15 @@ export type ProxyStatus = {
         readonly address: string;
         readonly port: number;
     };
+
     /** The name controllers see. */
     readonly instanceName: string;
+
     readonly port: number;
+
     /** What a controller enters to pair with the proxy. */
     readonly pin: string;
+
     readonly startedAt: number;
     readonly capturePath: string | null;
     readonly messages: Readonly<Record<ProxyDirection, number>>;

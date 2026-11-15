@@ -2,10 +2,10 @@ import { MEDIA_EVENT_CHANNELS, MEDIA_INVOKE_CHANNELS, type MediaEventMap, type M
 import { TOOLS_EVENT_CHANNELS, TOOLS_INVOKE_CHANNELS, type ToolsEventMap, type ToolsInvokeMap } from './contract.tools';
 import type { StatisticsSnapshot } from './statistics';
 
-/**
- * The whole surface between the Electron main process and the renderer. Main registers a handler
- * per {@link InvokeMap} channel, the preload bridge forwards it, and the renderer client is typed
- * from the same map, so a new channel is one entry here plus one handler in main.
+/*
+ * The contract between the Electron main process and the renderer. Main registers a handler per
+ * {@link InvokeMap} channel, the preload bridge forwards it and the renderer client is typed from the
+ * same map. A new channel is an entry in a map and a channel list, plus a handler in main.
  */
 
 export type ProtocolName = 'airplay' | 'companionLink';
@@ -27,8 +27,6 @@ export type SerializedError = {
     readonly stack: string | null;
 };
 
-// --- Discovery ---
-
 export type ServiceInfo = {
     readonly id: string;
     readonly fqdn: string;
@@ -48,15 +46,15 @@ export type DiscoveredDeviceInfo = {
         readonly airplay: ServiceInfo | null;
         readonly companionLink: ServiceInfo | null;
     };
+
     /** The protocols credentials are stored for. */
     readonly paired: readonly ProtocolName[];
+
     /** Whether main currently holds a session for this device. */
     readonly session: DeviceSessionStatus;
 };
 
 export type DeviceSessionStatus = 'disconnected' | 'connecting' | 'connected' | 'recovering' | 'failed';
-
-// --- State snapshot ---
 
 export type ConnectionSnapshot = {
     readonly status: DeviceSessionStatus;
@@ -69,6 +67,7 @@ export type ConnectionSnapshot = {
         readonly available: boolean;
         readonly connected: boolean;
     };
+
     /** The reason the last connect attempt failed, or null. */
     readonly error: string | null;
 };
@@ -93,8 +92,10 @@ export type NowPlayingSnapshot = {
     readonly playbackRate: number;
     readonly playbackState: string;
     readonly mediaType: string;
+
     /** A data URL, or an http(s) URL the device handed out. Null when there is no artwork. */
     readonly artworkUrl: string | null;
+
     readonly appName: string | null;
     readonly bundleIdentifier: string | null;
 };
@@ -105,6 +106,7 @@ export type VolumeControl = 'none' | 'relative' | 'absolute' | 'both';
 export type VolumeSnapshot = {
     /** 0 to 100. */
     readonly level: number;
+
     readonly available: boolean;
     readonly muted: boolean;
     readonly control: VolumeControl;
@@ -190,12 +192,12 @@ export type StateSnapshot = {
     readonly outputDevices: readonly OutputDeviceSnapshot[];
     readonly participants: readonly ParticipantSnapshot[];
     readonly clients: readonly ClientSnapshot[];
+
     /** The commands the active player reports, by name. */
     readonly supportedCommands: readonly string[];
+
     readonly updatedAt: number;
 };
-
-// --- Forwarded events ---
 
 export type DeviceEventSource = 'device' | 'state' | 'airplayState' | 'dataStream' | 'eventStream' | 'companionLink';
 
@@ -203,27 +205,29 @@ export type DeviceEvent = {
     readonly deviceId: string;
     readonly source: DeviceEventSource;
     readonly name: string;
+
     /** The listener arguments, serialized. */
     readonly payload: readonly unknown[];
+
     readonly timestamp: number;
+
     /** Monotonic within one main process run; the renderer keys rows on it. */
     readonly sequence: number;
 };
-
-// --- Logging ---
 
 export type LogEntry = {
     readonly id: number;
     readonly group: DebugGroup;
     readonly deviceId: string | null;
+
     /** The arguments rendered to one line, which is what the console would have printed. */
     readonly message: string;
+
     /** The non-string arguments, serialized, so the console can show them as a tree. */
     readonly args: readonly unknown[];
+
     readonly timestamp: number;
 };
-
-// --- Traffic ---
 
 /** `proxy` is what a running proxy relays, under the id of the device it relays to. */
 export type TrafficProtocol = 'companionLink' | 'dataStream' | 'eventStream' | 'rtsp' | 'proxy';
@@ -235,16 +239,18 @@ export type TrafficRecord = {
     readonly protocol: TrafficProtocol;
     readonly direction: 'in' | 'out';
     readonly summary: string;
+
     /** The decoded message, serialized. */
     readonly decoded: unknown;
+
     /** Lowercase hex, cut at 16 KiB. `null` when the tap had no frame to give. */
     readonly bytes: string | null;
+
     /** The uncut frame length in bytes. */
     readonly size: number | null;
+
     readonly timestamp: number;
 };
-
-// --- Generic call channel ---
 
 /**
  * The objects `device:call` may resolve a path against: the device, and the protocol sessions it
@@ -256,16 +262,20 @@ export type CallRoot = 'device' | 'airplay' | 'mediaRemote' | 'companionLink';
 export type CallRequest = {
     readonly deviceId: string;
     readonly root: CallRoot;
+
     /** A dotted path, for example `playback.seek` or `state.volume`. */
     readonly path: string;
+
     /** Left out for a getter read. */
     readonly args?: readonly unknown[];
 };
 
 export type CallSuccess<T = unknown> = {
     readonly ok: true;
+
     /** Whether the path ended in a function that was invoked, or in a value that was read. */
     readonly kind: 'call' | 'value';
+
     readonly value: T;
     readonly durationMs: number;
 };
@@ -289,8 +299,6 @@ export function isCallSuccess<T>(result: CallResult<T>): result is CallSuccess<T
     return result.ok;
 }
 
-// --- Channels ---
-
 export type AppInfo = {
     readonly platform: string;
     readonly versions: {
@@ -307,11 +315,8 @@ export type ThemeRequest = {
     readonly background: string;
 };
 
-/**
- * Channel name to `[request, response]`. `void` on either side means the channel takes or returns
- * nothing. Every device-scoped request carries `deviceId`.
- */
 export type RetentionStats = {readonly entries: number; readonly retainedBytes: number; readonly byteLimit: number; readonly dropped: number};
+
 export type PerformanceStatus = {
     readonly sampledAt: number;
     readonly startedAt: number;
@@ -320,6 +325,10 @@ export type PerformanceStatus = {
     readonly retention: Readonly<Record<string, RetentionStats>>;
 };
 
+/**
+ * Channel name to `[request, response]`. `void` on either side means the channel takes or returns
+ * nothing. Every device-scoped request carries `deviceId`.
+ */
 export type CoreInvokeMap = {
     'app:info': [void, AppInfo];
     'performance:status': [void, PerformanceStatus];
@@ -365,6 +374,7 @@ export type InvokeResponse<C extends InvokeChannel> = InvokeMap[C][1];
 /** What `contextBridge` exposes as `window.diagnostics`. */
 export type DiagnosticsBridge = {
     invoke<C extends InvokeChannel>(channel: C, request: InvokeRequest<C>): Promise<InvokeResponse<C>>;
+
     /** Returns the unsubscribe function. */
     on<C extends EventChannel>(channel: C, listener: (payload: EventMap[C]) => void): () => void;
 };

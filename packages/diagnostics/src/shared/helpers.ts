@@ -26,5 +26,6 @@ export function formatDuration(seconds: number): string {
 export function formatTime(timestamp: number): string {
     const date = new Date(timestamp);
     const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+
     return `${time}.${String(date.getMilliseconds()).padStart(3, '0')}`;
 }

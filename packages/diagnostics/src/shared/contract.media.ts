@@ -1,7 +1,5 @@
 import type { CallResult, ProtocolName } from './contract';
 
-// --- Pairing ---
-
 export type PairRequest = {
     readonly deviceId: string;
     readonly protocol: ProtocolName;
@@ -14,12 +12,12 @@ export type PairStatus = {
     readonly protocol: ProtocolName;
     readonly stage: PairStage;
     readonly error: string | null;
+
     /** The service id the credentials are stored under, once pairing reached that point. */
     readonly serviceId: string | null;
+
     readonly updatedAt: number;
 };
-
-// --- Audio sources ---
 
 /** Serializable source specifications; main constructs the Node-only audio source classes. */
 export type AudioSourceSpec =
@@ -37,22 +35,21 @@ export type AudioSourceKind = AudioSourceSpec['kind'];
 
 export const AUDIO_SOURCE_KINDS: readonly AudioSourceKind[] = ['url', 'file', 'wav', 'mp3', 'ogg', 'pcm', 'sineWave', 'ffmpeg', 'live'];
 
-// --- Audio: play URL ---
-
 export type PlayUrlRequest = {
     readonly deviceId: string;
     readonly url: string;
+
     /** Start position in seconds. */
     readonly position?: number;
 };
 
-// --- Audio: stream ---
-
 export type StreamRequest = {
     readonly deviceId: string;
     readonly source: AudioSourceSpec;
+
     /** -144 mutes, 0 is the loudest the receiver accepts. */
     readonly volumeDb?: number;
+
     /** Uses a separate PTP grandmaster instead of shared NTP. Known to produce silent playback on PTP-capable receivers. */
     readonly ptpExperiment?: boolean;
 };
@@ -95,8 +92,6 @@ export type AudioStatus = {
     readonly telemetry: AudioTelemetry | null;
 };
 
-// --- RAOP ---
-
 export type RaopServiceInfo = {
     readonly id: string;
     readonly fqdn: string;
@@ -114,6 +109,7 @@ export type RaopMetadata = {
 
 export type RaopConnectRequest = {
     readonly deviceId: string;
+
     /** A service from `raop:services`. Left out to pick the one on the device address. */
     readonly serviceId?: string;
 };
@@ -122,6 +118,7 @@ export type RaopStreamRequest = {
     readonly deviceId: string;
     readonly source: AudioSourceSpec;
     readonly metadata?: RaopMetadata;
+
     /** 0 to 100. */
     readonly volume?: number;
 };
@@ -139,8 +136,6 @@ export type RaopStatus = {
     readonly error: string | null;
     readonly updatedAt: number;
 };
-
-// --- Raw protocol ---
 
 export type RawTransport = 'dataStream' | 'companionLink' | 'controlStream';
 
@@ -165,8 +160,10 @@ export type RawBuilderInfo = {
     readonly id: string;
     readonly title: string;
     readonly transport: RawTransport;
+
     /** Groups the picker, for example `Playback` or `Volume`. */
     readonly category: string;
+
     readonly description: string;
     readonly supportsExchange: boolean;
     readonly params: readonly RawParam[];
@@ -177,40 +174,45 @@ export type RawMessageRequest = {
     readonly transport: RawTransport;
     readonly id: string;
     readonly args: Readonly<Record<string, unknown>>;
+
     /** Wait for a reply instead of firing and forgetting. */
     readonly exchange?: boolean;
 };
 
-// --- Connection recovery ---
-
 /** One protocol link of the device, as `Status` of `@corewire/devices` reports it. */
 export type RecoveryLink = {
     readonly state: 'off' | 'connecting' | 'connected' | 'waiting';
+
     /** Failed attempts since the link was last connected. */
     readonly attempt: number;
+
     readonly phase: 'quick' | 'slow' | 'rare' | null;
+
     /** Epoch milliseconds. */
     readonly nextAttemptAt: number | null;
+
     readonly error: string | null;
 };
 
 /** The recovery the device runs by itself; diagnostics only reports it. */
 export type RecoveryStatus = {
     readonly deviceId: string;
+
     /** `disconnected`, `connecting`, `connected`, `degraded`, `recovering` or `offline`; null without a session. */
     readonly state: string | null;
+
     readonly reason: string | null;
     readonly error: string | null;
     readonly airplay: RecoveryLink | null;
+
     /** Null on a HomePod. */
     readonly companionLink: RecoveryLink | null;
+
     readonly lastEvent: string | null;
     readonly updatedAt: number;
 };
 
 export type RecoveryDropTarget = 'control' | 'data' | 'event' | 'companionLink';
-
-// --- Apple Music catalog ---
 
 export type CatalogLyricsRequest = {
     readonly deviceId: string;

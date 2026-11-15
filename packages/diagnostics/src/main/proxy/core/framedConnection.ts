@@ -3,27 +3,25 @@ import type { Socket } from 'node:net';
 import { buildNonce, type Context, EncryptionState } from '@corewire/core/transport';
 import { ChaCha20 } from '@corewire/core/crypto';
 
-/** Size of the frame header in bytes (1 byte type + 3 bytes payload length, big-endian). */
+/** One type byte and a 3-byte big-endian payload length. */
 const HEADER_SIZE = 4;
 
-/** ChaCha20-Poly1305 authentication tag length appended to every encrypted payload. */
+/** ChaCha20-Poly1305 auth tag length. */
 const AUTH_TAG_LENGTH = 16;
 
-/** Maximum buffered bytes before the connection is reset to prevent memory exhaustion. */
+/** Past this many buffered bytes the connection closes. */
 const MAX_BUFFER_SIZE = 1024 * 1024;
 
-/** A parsed-but-not-yet-decrypted frame awaiting serial processing. */
+/** A complete frame, still encrypted, waiting for its turn. */
 type QueuedFrame = {
     readonly type: number;
     readonly header: Buffer;
     readonly body: Buffer;
 };
 
-/** Lifecycle events emitted by a {@link FramedConnection} (frames are delivered via {@link FramedConnection.onFrame}). */
+/** Frames go to {@link FramedConnection.onFrame}, not through an event. */
 type FramedConnectionEvents = {
-    /** The underlying socket closed. */
     close: [];
-    /** A socket or framing error occurred. */
     error: [error: Error];
 };
 
@@ -35,7 +33,6 @@ type FramedConnectionEvents = {
  * Await each handler before decrypting the next frame: a pairing handler may enable encryption for a frame in the same TCP segment.
  */
 export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
-    /** Whether encryption has been enabled for this connection. */
     get isEncrypted(): boolean {
         return !!this.#encryption;
     }
@@ -53,8 +50,8 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
     #handler?: (type: number, payload: Buffer) => void | Promise<void>;
 
     /**
-     * @param socket - The already-open TCP socket to frame over.
-     * @param plaintextTypes - Frame types that are always sent/received unencrypted.
+     * @param socket - Already connected.
+     * @param plaintextTypes - Never encrypted, also after {@link enableEncryption}.
      */
     constructor(context: Context, socket: Socket, plaintextTypes: number[] = []) {
         super();
@@ -70,10 +67,8 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
     }
 
     /**
-     * Registers the serial frame handler. Frames received before this is called are buffered and delivered
-     * in order once it is set.
-     *
-     * @param handler - Invoked with each decrypted frame; awaited before the next frame is processed.
+     * Sets the handler, which gets the decrypted frames one at a time and is awaited before the next one.
+     * Frames that arrived before it was set are delivered then, in order.
      */
     onFrame(handler: (type: number, payload: Buffer) => void | Promise<void>): void {
         this.#handler = handler;
@@ -81,28 +76,18 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
     }
 
     /**
-     * Enables ChaCha20-Poly1305 encryption with the given directional keys. After this, all frames except
-     * {@link plaintextTypes} are encrypted on send and decrypted on receive.
-     *
-     * @param readKey - The 32-byte key for decrypting incoming frames.
-     * @param writeKey - The 32-byte key for encrypting outgoing frames.
+     * @param readKey - 32 bytes, decrypts incoming frames.
+     * @param writeKey - 32 bytes, encrypts outgoing frames.
      */
     enableEncryption(readKey: Buffer, writeKey: Buffer): void {
         this.#encryption = new EncryptionState(readKey, writeKey);
     }
 
-    /** Destroys the underlying socket. */
     close(): void {
         this.#clear();
         this.#socket.destroy();
     }
 
-    /**
-     * Frames and sends a payload, encrypting it unless the type is a plaintext type.
-     *
-     * @param type - The frame type byte.
-     * @param payload - The raw payload to send.
-     */
     send(type: number, payload: Buffer): void {
         const encrypt = this.isEncrypted && !this.#plaintextTypes.has(type);
         let payloadLength = payload.byteLength;
@@ -120,6 +105,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         if (encrypt) {
             const nonce = buildNonce(this.#encryption.writeCount++, 'counter-at-0');
             const encrypted = ChaCha20.encrypt(this.#encryption.writeKey, nonce, header, payload);
+
             data = Buffer.concat([header, encrypted.ciphertext, encrypted.authTag]);
         } else {
             data = Buffer.concat([header, payload]);
@@ -128,8 +114,10 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         if (!this.#closed && this.#socket.writable) {
             if (this.#socket.writableLength + data.length > MAX_BUFFER_SIZE) {
                 this.#fail(new Error('Proxy write buffer limit exceeded.'));
+
                 return;
             }
+
             if (!this.#socket.write(data)) {
                 this.#writeBlocked = true;
                 this.#flow();
@@ -137,19 +125,18 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         }
     }
 
-    /**
-     * Appends incoming data, queues every complete (still-encrypted) frame, and kicks off serial draining.
-     *
-     * @param chunk - The raw data chunk from the socket.
-     */
+    /** Queues every complete frame, still encrypted, and starts draining. */
     #onData(chunk: Buffer): void {
         if (this.#closed) {
             return;
         }
+
         if (this.#buffer.length + this.#queuedBytes + chunk.length > MAX_BUFFER_SIZE) {
             this.#fail(new Error('Proxy receive queue limit exceeded.'));
+
             return;
         }
+
         this.#buffer = Buffer.concat([this.#buffer, chunk]);
 
         while (this.#buffer.byteLength >= HEADER_SIZE) {
@@ -162,6 +149,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
             }
 
             this.#queuedBytes += totalLength;
+
             this.#queue.push({
                 type: header.readUint8(0),
                 header: Buffer.from(header),
@@ -175,10 +163,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         void this.#drain();
     }
 
-    /**
-     * Processes queued frames one at a time, decrypting at processing time (so encryption enabled by a
-     * prior frame's handler applies) and awaiting the handler before moving on.
-     */
+    /** Decrypts a frame only when its turn comes, so encryption that a previous handler enabled applies. */
     async #drain(): Promise<void> {
         if (this.#closed || this.#draining || !this.#handler) {
             return;
@@ -195,10 +180,12 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
                     if (body.byteLength < AUTH_TAG_LENGTH) {
                         throw new Error('Encrypted proxy frame has no authentication tag.');
                     }
+
                     payload = this.#decrypt(header, body);
                 }
 
                 await this.#handler(type, payload);
+
                 if (!this.#closed) {
                     this.#queuedBytes -= HEADER_SIZE + body.length;
                     this.#flow();
@@ -206,6 +193,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
             }
         } catch (error) {
             this.#context.logger.error('[proxy]', 'FramedConnection.drain()', error);
+
             if (!this.#closed) {
                 this.#fail(error as Error);
             }
@@ -222,6 +210,7 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         if (this.#closed) {
             return;
         }
+
         if (this.#writeBlocked || this.#queuedBytes + this.#buffer.length >= MAX_BUFFER_SIZE / 2) {
             this.#socket.pause();
         } else {
@@ -241,17 +230,10 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         this.emit('error', error);
     }
 
-    /**
-     * Decrypts a frame body using ChaCha20-Poly1305 with the 4-byte header as additional data.
-     *
-     * @param header - The 4-byte frame header (used as AAD).
-     * @param body - The ciphertext followed by the 16-byte auth tag.
-     * @returns The decrypted payload.
-     */
+    /** The header is the AAD; the body is the ciphertext followed by the auth tag. */
     #decrypt(header: Buffer, body: Buffer): Buffer {
         const authTag = body.subarray(body.byteLength - AUTH_TAG_LENGTH);
         const ciphertext = body.subarray(0, body.byteLength - AUTH_TAG_LENGTH);
-
         const nonce = buildNonce(this.#encryption.readCount++, 'counter-at-0');
 
         return ChaCha20.decrypt(this.#encryption.readKey, nonce, header, ciphertext, authTag);

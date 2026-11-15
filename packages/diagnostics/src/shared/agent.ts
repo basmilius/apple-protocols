@@ -19,24 +19,30 @@ export type AgentCursors = Record<AgentKind, number>;
 export type AgentStatus = {
     readonly pid: number;
     readonly startedAt: number;
+
     /** True while the devices of the previous run are still being reconnected. */
     readonly resuming: boolean;
+
     readonly cursors: AgentCursors;
     readonly devices: readonly DiscoveredDeviceInfo[];
 };
 
 export type AgentPage<T = unknown> = {
     readonly entries: readonly T[];
+
     /** Pass as `after` to continue where this page stopped. */
     readonly next: number;
+
     /** True when `limit` cut the page short. */
     readonly more: boolean;
+
     readonly timedOut?: boolean;
 };
 
 export type AgentInvokeRequest = {
     readonly channel: string;
     readonly request?: unknown;
+
     /** Lifts the volume limit and the refusal of credential-removing channels. */
     readonly confirm?: boolean;
 };

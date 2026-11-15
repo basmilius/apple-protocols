@@ -18,7 +18,7 @@ export type ControlMessage =
     | {readonly kind: 'request'; readonly raw: Buffer; readonly request: RtspRequest}
     | {readonly kind: 'response'; readonly raw: Buffer; readonly status: number; readonly statusText: string; readonly headers: Headers; readonly body: Buffer};
 
-/** Lifecycle events (messages are delivered via {@link ControlConnection.onMessage}). */
+/** Messages go to {@link ControlConnection.onMessage}, not through an event. */
 type ControlConnectionEvents = {
     close: [];
     error: [error: Error];
@@ -34,7 +34,6 @@ const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
  * Await each handler before parsing the next message: pairing handlers can enable encryption for subsequent bytes.
  */
 export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
-    /** Whether encryption has been enabled for this connection. */
     get isEncrypted(): boolean {
         return this.#encrypted;
     }
@@ -55,10 +54,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     #activeBytes = 0;
     #handler?: (message: ControlMessage) => void | Promise<void>;
 
-    /**
-     * @param socket - The already-open TCP socket.
-     * @param mode - Whether to parse incoming bytes as requests (server) or responses (client).
-     */
+    /** @param socket - Already connected. */
     constructor(context: Context, socket: Socket, mode: ControlMode) {
         super();
 
@@ -73,9 +69,8 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     }
 
     /**
-     * Registers the serial message handler. Messages buffered before this is set are delivered once it is.
-     *
-     * @param handler - Invoked per parsed message; awaited before the next one is parsed.
+     * Sets the handler, which gets the messages one at a time and is awaited before the next one. Messages
+     * that arrived before it was set are delivered then.
      */
     onMessage(handler: (message: ControlMessage) => void | Promise<void>): void {
         this.#handler = handler;
@@ -83,10 +78,8 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     }
 
     /**
-     * Enables AirPlay control-stream encryption with the given directional keys.
-     *
-     * @param readKey - The 32-byte key for decrypting incoming frames.
-     * @param writeKey - The 32-byte key for encrypting outgoing frames.
+     * @param readKey - 32 bytes, decrypts incoming frames.
+     * @param writeKey - 32 bytes, encrypts outgoing frames.
      */
     enableEncryption(readKey: Buffer, writeKey: Buffer): void {
         this.#readKey = readKey;
@@ -94,18 +87,13 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         this.#encrypted = true;
     }
 
-    /** Destroys the socket. */
     close(): void {
         this.#closed = true;
         this.#encBuffer = this.#plainBuffer = Buffer.alloc(0);
         this.#socket.destroy();
     }
 
-    /**
-     * Sends raw RTSP bytes, wrapping them in encrypted frames once encryption is enabled.
-     *
-     * @param raw - The plaintext RTSP bytes to send.
-     */
+    /** Sends plaintext RTSP bytes, in encrypted frames once encryption is on. */
     send(raw: Buffer): void {
         if (!this.#socket.writable) {
             return;
@@ -113,6 +101,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
         if (!this.#encrypted) {
             this.#write(raw);
+
             return;
         }
 
@@ -132,11 +121,6 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         this.#write(Buffer.concat(out));
     }
 
-    /**
-     * Handles incoming socket data: decrypt complete frames into the plaintext buffer, then drain.
-     *
-     * @param chunk - The raw data chunk from the socket.
-     */
     #onData(chunk: Buffer): void {
         try {
             if (this.#closed) return;
@@ -146,6 +130,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             this.#context.logger.error('[proxy]', 'AirPlay control decrypt failed', error);
             this.close();
             this.emit('error', error as Error);
+
             return;
         }
 
@@ -153,13 +138,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         void this.#drain();
     }
 
-    /**
-     * Consumes whole encrypted frames from the internal buffer and returns their concatenated plaintext.
-     * Partial trailing frames remain buffered for the next chunk.
-     *
-     * @param chunk - Newly received encrypted bytes.
-     * @returns The plaintext recovered from the complete frames.
-     */
+    /** Returns the plaintext of every complete frame; a partial trailing frame waits for the next chunk. */
     #decryptFrames(chunk: Buffer): Buffer {
         this.#encBuffer = Buffer.concat([this.#encBuffer, chunk]);
 
@@ -188,9 +167,6 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         return Buffer.concat(out);
     }
 
-    /**
-     * Parses complete RTSP messages from the plaintext buffer and delivers them serially.
-     */
     async #drain(): Promise<void> {
         if (this.#closed || this.#draining || !this.#handler) {
             return;
@@ -208,7 +184,9 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
                 this.#activeBytes = message.raw.length;
                 this.#flow();
+
                 await this.#handler(message);
+
                 this.#activeBytes = 0;
                 this.#flow();
             }
@@ -237,7 +215,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         else this.#socket.resume();
     }
 
-    /** Parses one RTSP request from the plaintext buffer, advancing it, or returns null if incomplete. */
+    /** Takes one RTSP request off the plaintext buffer, or returns null while it is incomplete. */
     #parseRequest(): ControlMessage | null {
         const request = parseRequest(this.#plainBuffer);
 
@@ -251,7 +229,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         return {kind: 'request', raw, request};
     }
 
-    /** Parses one RTSP response from the plaintext buffer, advancing it, or returns null if incomplete. */
+    /** Takes one RTSP response off the plaintext buffer, or returns null while it is incomplete. */
     #parseResponse(): ControlMessage | null {
         const parsed = parseResponse(this.#plainBuffer);
 

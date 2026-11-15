@@ -47,6 +47,7 @@ for (const name of readdirSync(baselineDir).filter(file => file.endsWith('.traff
     if (!existsSync(other)) {
         console.log(`MISSING  ${name}`);
         failures++;
+
         continue;
     }
 
@@ -66,11 +67,13 @@ for (const name of readdirSync(baselineDir).filter(file => file.endsWith('.traff
 
             if (!left || !right || left.label !== right.label) {
                 problems.push(`  ${protocol}[${index}] baseline: ${left?.label ?? '(none)'} | new: ${right?.label ?? '(none)'}`);
+
                 continue;
             }
 
             if (left.size !== null && right.size !== null && left.size !== right.size) {
                 const delta = right.size - left.size;
+
                 (Math.abs(delta) > 4 ? problems : notes).push(`  ${protocol}[${index}] ${left.label}: ${left.size}B -> ${right.size}B (${delta > 0 ? '+' : ''}${delta})`);
             }
         }

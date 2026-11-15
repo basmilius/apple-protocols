@@ -145,7 +145,7 @@ async function bufferQuery(): Promise<URLSearchParams> {
     return query;
 }
 
-/** A mark from before a main-process restart refers to discarded buffers. Read from the start in that case. */
+/** A mark from before a restart of main points into buffers that are gone, so read from the start. */
 async function cursorFor(kind: AgentKind): Promise<number> {
     if (flags.after !== undefined) {
         return Number(flags.after);
@@ -319,6 +319,7 @@ async function main(): Promise<void> {
 
             print(result);
             process.exitCode = result.ok ? 0 : 1;
+
             return;
         }
 
@@ -357,6 +358,7 @@ async function main(): Promise<void> {
 
             printPage(kind, page);
             process.exitCode = page.timedOut ? 1 : 0;
+
             return;
         }
 

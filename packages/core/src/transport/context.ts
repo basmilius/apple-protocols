@@ -1,11 +1,14 @@
 import { Logger, type LogSink } from '../reporter';
 
+/** The name every protocol presents for this client when the identity has none. */
+export const DEFAULT_CLIENT_NAME = 'CoreWire';
+
 /**
  * Overrides of the identity this client presents to Apple devices during pairing and protocol
  * negotiation. Each protocol fills what is missing with its own defaults.
  */
 export type DeviceIdentity = {
-    /** The name the device shows for this client, such as in its list of paired devices. */
+    /** The name the device shows for this client, such as in its list of paired devices; {@link DEFAULT_CLIENT_NAME} when omitted. */
     readonly name?: string;
     readonly model?: string;
     readonly osName?: string;

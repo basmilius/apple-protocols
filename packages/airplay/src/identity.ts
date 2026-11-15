@@ -1,4 +1,4 @@
-import type { Context, DeviceIdentity } from '@corewire/core/transport';
+import { type Context, DEFAULT_CLIENT_NAME, type DeviceIdentity } from '@corewire/core/transport';
 
 /** Every identity field, with the defaults filled in. */
 export type ResolvedIdentity = Required<DeviceIdentity>;
@@ -8,7 +8,7 @@ export type ResolvedIdentity = Required<DeviceIdentity>;
  * the Apple TV Remote app, which receivers accept for remote control and audio.
  */
 export const DEFAULT_IDENTITY: ResolvedIdentity = {
-    name: 'apple-protocols',
+    name: DEFAULT_CLIENT_NAME,
     model: 'iPhone17,3',
     osName: 'iPhone OS',
     osVersion: '26.3',

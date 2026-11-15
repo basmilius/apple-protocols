@@ -3,13 +3,10 @@ import { SRP, SrpClient } from 'fast-srp-hap';
 import { Curve25519, Ed25519, type KeyPair } from '../crypto';
 import { OPack, TLV8 } from '../encoding';
 import { AuthenticationError, PairingError } from '../errors';
-import type { Context } from '../transport';
+import { type Context, DEFAULT_CLIENT_NAME } from '../transport';
 import { decodeTlv, deriveControlKeys, deriveKey, pairingCipher } from './cipher';
 import { TRANSIENT_PAIRING_PIN } from './const';
 import type { AccessoryCredentials, AccessoryKeys, PairingOptions, PairingTransport } from './types';
-
-/** The name this controller presents to the accessory in M5 when the identity of the context has none. */
-const CONTROLLER_NAME = 'CoreWire';
 
 /**
  * Controller side of HAP pair-setup (SRP-6a, then an Ed25519 identity exchange).
@@ -137,7 +134,7 @@ export class PairSetup {
             [TLV8.Value.PublicKey, this.#publicKey],
             [TLV8.Value.Signature, Buffer.from(signature)],
             [TLV8.Value.Name, OPack.encode({
-                name: this.#context.identity.name ?? CONTROLLER_NAME
+                name: this.#context.identity.name ?? DEFAULT_CLIENT_NAME
             })]
         ]);
 

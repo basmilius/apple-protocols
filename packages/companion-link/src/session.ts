@@ -2,7 +2,7 @@ import { randomInt } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { ConnectionClosedError, CredentialsError } from '@corewire/core';
 import type { AccessoryCredentials } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { Context, DEFAULT_CLIENT_NAME } from '@corewire/core/transport';
 import { Accounts } from './accounts';
 import { Apps } from './apps';
 import { Channel, type EventListener } from './channel';
@@ -395,7 +395,7 @@ export class CompanionLinkSession extends EventEmitter<EventMap> {
     async #start(credentials: AccessoryCredentials, activeUserAccount?: string): Promise<void> {
         const channel = this.#channel;
 
-        const systemInfo = await channel.exchange(Messages.systemInfo(credentials.pairingId));
+        const systemInfo = await channel.exchange(Messages.systemInfo(credentials.pairingId, this.#context.identity.name ?? DEFAULT_CLIENT_NAME));
         this.#checkpoint();
 
         const sourceVersion = systemInfo?._c?._sv;

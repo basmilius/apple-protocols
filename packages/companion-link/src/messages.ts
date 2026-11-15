@@ -49,7 +49,7 @@ function event(identifier: string, content: Record<string, unknown> = {}): OPack
  * @param sourceVersion - Protocol source version string.
  * @returns The system info request message.
  */
-export function systemInfo(pairingId: Buffer, name: string = 'AP Companion Link', model: string = 'iPhone16,2', sourceVersion: string = '715.2'): OPackMessage {
+export function systemInfo(pairingId: Buffer, name: string, model: string = 'iPhone16,2', sourceVersion: string = '715.2'): OPackMessage {
     return requestBtHP('_systemInfo', {
         // _bf: build flags, _cf: capability flags, _clFl: Companion Link flags
         _bf: 0,

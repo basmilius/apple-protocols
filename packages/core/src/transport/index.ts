@@ -5,6 +5,7 @@ export {
 
 export {
     Context,
+    DEFAULT_CLIENT_NAME,
     type DeviceIdentity
 } from './context';
 

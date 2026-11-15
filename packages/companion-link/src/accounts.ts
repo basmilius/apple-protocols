@@ -25,7 +25,7 @@ export class Accounts {
         await this.#channel.exchange(Messages.switchActiveUserAccount(iCloudAltDSID));
     }
 
-    /** @param requestType `appleID`, `password` or `custom`. */
+    /** @param requestType The kind of sign-in: `appleID`, `password` or `custom`. */
     async requestAppSignIn(bundleId: string, requestType: string = 'appleID'): Promise<object> {
         return await this.#channel.exchange(Messages.appSignInRequest(bundleId, requestType));
     }

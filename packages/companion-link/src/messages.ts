@@ -110,8 +110,8 @@ export function touchStop(): OPackMessage {
 /**
  * A `_touchC` event, in the coordinate space of the touchpad.
  *
- * @param finger - 0-based.
- * @param phase - See {@link TouchPhase}.
+ * @param finger - The finger index, 0-based.
+ * @param phase - A {@link TouchPhase} value.
  */
 export function touchEvent(finger: number, phase: number, x: number, y: number): OPackMessage {
     return event('_touchC', { _tFg: finger, _tPh: phase, _tX: OPack.float(x), _tY: OPack.float(y) });
@@ -121,9 +121,9 @@ export function touchEvent(finger: number, phase: number, x: number, y: number):
  * A `_hidT` event, the form an Apple remote sends touchpad gestures in on the wire. Unlike
  * {@link touchEvent}, the coordinates are integers and the event carries a timestamp.
  *
- * @param finger - 1-based.
- * @param phase - See {@link HidTouchPhase}.
- * @param timestamp - Monotonic, in nanoseconds.
+ * @param finger - The finger index, 1-based.
+ * @param phase - A {@link HidTouchPhase} value.
+ * @param timestamp - A monotonic timestamp in nanoseconds.
  */
 export function hidTouchEvent(finger: number, phase: number, x: number, y: number, timestamp: number = Number(process.hrtime.bigint())): OPackMessage {
     return event('_hidT', { _ns: OPack.sizedInteger(timestamp, 8), _tFg: finger, _cx: Math.round(x), _tPh: phase, _cy: Math.round(y) });
@@ -146,7 +146,7 @@ export function tiChange(tiD: Buffer): OPackMessage {
 /**
  * A `_mcc` request.
  *
- * @param commandId - From {@link MediaControlCommand}.
+ * @param commandId - A {@link MediaControlCommand} value.
  * @param content - Extra fields, such as the volume for `SetVolume`.
  */
 export function mediaControlCommand(commandId: number, content?: Record<string, unknown>): OPackMessage {
@@ -243,7 +243,7 @@ export function toggleReduceLoudSounds(enabled: boolean): OPackMessage {
     return request('ToggleReduceLoudSounds', { ReduceLoundSoundsEnabled: enabled });
 }
 
-/** The Find My finding mode. */
+/** Turns the Find My finding mode on or off. */
 export function toggleFindingMode(enabled: boolean): OPackMessage {
     return request('ToggleFindingMode', { FindingModeEnabledKey: enabled });
 }
@@ -253,7 +253,7 @@ export function fetchUpNext(paginationToken?: string): OPackMessage {
     return request('FetchUpNextInfoEvent', paginationToken ? { PaginationTokenKey: paginationToken } : {});
 }
 
-/** @param kind - Such as movie or episode. */
+/** @param kind - The content kind, such as movie or episode. */
 export function addToUpNext(identifier: string, kind: string): OPackMessage {
     return request('AddToUpNextEvent', { IdentifierKey: identifier, KindKey: kind });
 }
@@ -270,12 +270,12 @@ export function playMedia(item: Record<string, unknown>): OPackMessage {
     return request('PlayMediaEvent', item);
 }
 
-/** Push-to-talk begin. */
+/** Starts Siri push-to-talk. */
 export function siriStart(): OPackMessage {
     return request('_siriStart');
 }
 
-/** Push-to-talk end. */
+/** Ends Siri push-to-talk. */
 export function siriStop(): OPackMessage {
     return request('_siriStop');
 }
@@ -296,7 +296,7 @@ export function gameControllerStop(): OPackMessage {
 /**
  * Runs the sign-in of an Apple TV app through this controller, as a paired iPhone or iPad does.
  *
- * @param requestType - `appleID`, `password` or `custom`.
+ * @param requestType - The kind of sign-in: `appleID`, `password` or `custom`.
  */
 export function appSignInRequest(bundleId: string, requestType: string = 'appleID'): OPackMessage {
     return request('_cpsAISR', {_bundleID: bundleId, _reqType: requestType});

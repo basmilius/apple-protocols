@@ -94,7 +94,7 @@ export type ButtonPressType =
     | 'SingleTap';
 
 export type LaunchableApp = {
-    /** Such as `com.apple.TVMovies`. */
+    /** The bundle identifier, such as `com.apple.TVMovies`. */
     readonly bundleId: string;
 
     readonly name: string;

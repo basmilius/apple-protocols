@@ -29,8 +29,8 @@ export class Touch {
      * Sends a `_touchC` event. Kept for protocol work: tvOS registers no handler for it, so
      * {@link sendHid} is what reaches the device.
      *
-     * @param finger 0-based.
-     * @param phase See `TouchPhase`.
+     * @param finger The finger index, 0-based.
+     * @param phase A `TouchPhase` value.
      */
     send(finger: number, phase: number, x: number, y: number): void {
         this.#channel.send(Messages.touchEvent(finger, phase, x, y));
@@ -39,8 +39,8 @@ export class Touch {
     /**
      * Sends a `_hidT` event, the form the HID daemon of the Apple TV listens for.
      *
-     * @param finger 1-based.
-     * @param phase See {@link HidTouchPhase}.
+     * @param finger The finger index, 1-based.
+     * @param phase A {@link HidTouchPhase} value.
      */
     sendHid(finger: number, phase: number, x: number, y: number): void {
         this.#channel.send(Messages.hidTouchEvent(finger, phase, x, y));

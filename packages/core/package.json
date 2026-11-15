@@ -1,6 +1,6 @@
 {
     "name": "@corewire/core",
-    "description": "Shared core for the Corewire protocol packages: encoding, crypto, transport, pairing and discovery.",
+    "description": "Shared core for the CoreWire protocol packages: encoding, crypto, transport, pairing and discovery.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -27,8 +27,12 @@
     ],
     "files": [
         "dist",
-        "LICENSE"
+        "LICENSE",
+        "README.md"
     ],
+    "engines": {
+        "node": "^18.17.0 || >=20.3.0"
+    },
     "publishConfig": {
         "access": "public"
     },

@@ -1,4 +1,5 @@
 import { builtinModules } from 'node:module';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'electron-vite';
 import react from '@vitejs/plugin-react';
@@ -16,6 +17,10 @@ const protocolAliases = {
     '@corewire/devices': `${packages}/devices/src`
 };
 
+/* `DIAGNOSTICS_OUT_DIR` builds elsewhere than `out/`, so a check build never rewrites the files of a running app. */
+const outDir = process.env.DIAGNOSTICS_OUT_DIR ? resolve(here, process.env.DIAGNOSTICS_OUT_DIR) : undefined;
+const outDirOf = (scope: string): {outDir?: string} => outDir ? {outDir: `${outDir}/${scope}`} : {};
+
 const external = ['electron', /^electron\/.+/, ...builtinModules, ...builtinModules.map(name => `node:${name}`)];
 
 export default defineConfig({
@@ -27,6 +32,7 @@ export default defineConfig({
             }
         },
         build: {
+            ...outDirOf('main'),
             rollupOptions: {
                 external,
                 input: {index: `${here}src/main/index.ts`, 'decode-worker': `${packages}/audio-source/src/decoder/worker.ts`},
@@ -44,6 +50,7 @@ export default defineConfig({
             }
         },
         build: {
+            ...outDirOf('preload'),
             rollupOptions: {
                 external,
                 input: `${here}src/preload/index.ts`,
@@ -65,6 +72,7 @@ export default defineConfig({
         },
         plugins: [react(), tailwindcss()],
         build: {
+            ...outDirOf('renderer'),
             rollupOptions: {
                 input: `${here}src/renderer/index.html`
             }

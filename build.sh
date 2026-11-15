@@ -8,4 +8,5 @@ bun --cwd packages/audio-source build
 
 bun --cwd packages/devices build
 
-bun --cwd packages/diagnostics build
+# Into out-check/, so a check never rewrites out/ under a running diagnostics app.
+bun --cwd packages/diagnostics build:check

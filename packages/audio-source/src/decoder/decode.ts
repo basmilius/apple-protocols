@@ -1,8 +1,21 @@
 import { Worker } from 'node:worker_threads';
 import { PlaybackError } from '@corewire/core';
+import { decodeDirect } from './decodeDirect';
 
 const MAX_INPUT_BYTES = 64 * 1024 * 1024;
 const MAX_PENDING = 8;
+const MISSING_MODULE_CODES: readonly (string | undefined)[] = ['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND'];
+
+/** The worker could not load its file; the job runs in this thread instead. */
+class WorkerUnavailableError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'WorkerUnavailableError';
+    }
+}
+
+/** Set once the worker file failed to load, so later jobs skip the attempt. */
+let workerUnavailable = false;
 type Slot = {worker: Worker; finish?: (error?: Error, result?: Buffer) => void; idleTimer?: ReturnType<typeof setTimeout>; closed: boolean};
 let active = 0;
 const idle: Slot[] = [];
@@ -27,6 +40,14 @@ function createSlot(): Slot {
     });
     slot.worker.on('error', error => {
         slot.closed = true;
+
+        // The worker file is missing, for example while a bundler rewrites its output, or cannot load from an archive.
+        if (MISSING_MODULE_CODES.includes((error as NodeJS.ErrnoException).code)) {
+            slot.finish?.(new WorkerUnavailableError((error as Error).message));
+
+            return;
+        }
+
         slot.finish?.(new PlaybackError(`Audio decode failed: ${error instanceof Error ? error.message : String(error)}`));
     });
     slot.worker.on('exit', code => {
@@ -39,12 +60,38 @@ function createSlot(): Slot {
     return slot;
 }
 
-/** Two reusable workers keep WASM initialization off subsequent jobs and bound concurrent PCM allocations. */
+/**
+ * Two reusable workers keep WASM initialization off subsequent jobs and bound concurrent PCM allocations.
+ * When the worker file cannot be loaded, the decoding runs in this thread instead.
+ */
 export async function decode(buffer: Buffer, options: {signal?: AbortSignal} = {}): Promise<Buffer> {
     if (buffer.length > MAX_INPUT_BYTES || pending.length >= MAX_PENDING) {
         throw new PlaybackError('Audio exceeds the decode input or pending-job limit.');
     }
     options.signal?.throwIfAborted();
+
+    if (!workerUnavailable) {
+        try {
+            return await decodeInWorker(buffer, options);
+        } catch (err) {
+            if (!(err instanceof WorkerUnavailableError)) {
+                throw err;
+            }
+
+            workerUnavailable = true;
+        }
+    }
+
+    options.signal?.throwIfAborted();
+
+    try {
+        return await decodeDirect(buffer);
+    } catch (err) {
+        throw new PlaybackError(`Audio decode failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+}
+
+function decodeInWorker(buffer: Buffer, options: {signal?: AbortSignal}): Promise<Buffer> {
     return new Promise<Buffer>((resolve, reject) => {
         const run = (): void => {
             options.signal?.removeEventListener('abort', cancelPending);

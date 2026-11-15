@@ -1,14 +1,14 @@
 import { app, BrowserWindow } from 'electron';
-import { type DeviceEvent, type EventChannel, type EventMap, type StateSnapshot } from '@shared/contract';
-import { AgentServer } from './agent/server';
+import type { DeviceEvent, EventChannel, EventMap, StateSnapshot } from '@shared/contract';
 import { ResumeList } from './agent/resume';
+import { AgentServer } from './agent/server';
 import { registerMediaChannels } from './channels/media';
 import { registerToolsChannels } from './channels/tools';
 import { handle } from './ipc';
 import { LogBuffer } from './logs';
-import { Ring } from './ring';
 import { RuntimeMetrics } from './performance';
 import { ProxyManager } from './proxy/manager';
+import { Ring } from './ring';
 import { SessionManager, type SessionHost } from './session';
 import { StatisticsBuffer } from './statistics';
 import { StorageQueue } from './storage';

@@ -1,8 +1,8 @@
 import { inspect } from 'node:util';
 import { reporter, type ReporterEntry } from '@corewire/core';
 import type { LogEntry } from '@shared/contract';
-import { serializeAll } from './serialize';
 import { Ring } from './ring';
+import { serializeAll } from './serialize';
 
 const CAPACITY = 5000;
 

@@ -22,11 +22,18 @@ export type BuiltSource = {
 
 /** Constructs an audio source from the renderer's serializable specification. */
 export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
-    if (!spec || typeof spec !== 'object') throw new Error('An audio source specification is required.');
+    if (!spec || typeof spec !== 'object') {
+        throw new Error('An audio source specification is required.');
+    }
+
     for (const key of ['frequency', 'duration', 'bufferDuration', 'sampleRate'] as const) {
         const value = spec[key as keyof AudioSourceSpec];
-        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) throw new RangeError(`Audio ${key} must be a positive finite number.`);
+
+        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) {
+            throw new RangeError(`Audio ${key} must be a positive finite number.`);
+        }
     }
+
     switch (spec.kind) {
         case 'url':
             return plain(await UrlSource.fromUrl(demand(spec.url, 'url')), `Url ${spec.url}`);
@@ -122,7 +129,14 @@ function describeOrigin(spec: Extract<AudioSourceSpec, { from: 'url' | 'file' }>
 }
 
 function plain(source: AudioSource, description: string): BuiltSource {
-    return {source, description, bufferStats: () => source instanceof FfmpegSource ? source.stats : null, dispose: () => {void source.stop().catch(() => {});}};
+    return {
+        source,
+        description,
+        bufferStats: () => source instanceof FfmpegSource ? source.stats : null,
+        dispose: () => {
+            void source.stop().catch(() => {});
+        }
+    };
 }
 
 function demand(value: string | undefined, name: string): string {

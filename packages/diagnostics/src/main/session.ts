@@ -83,14 +83,23 @@ export class DeviceSession {
 
     /** Connects AirPlay and, when credentials exist, Companion Link. Apple TV needs credentials; HomePod pairs transiently. */
     async connect(storage: JsonStorage): Promise<StateSnapshot> {
-        if (this.#connecting) return this.#connecting;
-        if (this.#status === 'connected' && this.#device) return this.snapshot();
+        if (this.#connecting) {
+            return this.#connecting;
+        }
+
+        if (this.#status === 'connected' && this.#device) {
+            return this.snapshot();
+        }
+
         const operation = this.#connect(storage);
         this.#connecting = operation;
+
         try {
             return await operation;
         } finally {
-            if (this.#connecting === operation) this.#connecting = undefined;
+            if (this.#connecting === operation) {
+                this.#connecting = undefined;
+            }
         }
     }
 
@@ -138,10 +147,17 @@ export class DeviceSession {
 
         try {
             await device.connect();
-            if (generation !== this.#generation || this.#device !== device) throw new Error('Device connect cancelled.');
+
+            if (generation !== this.#generation || this.#device !== device) {
+                throw new Error('Device connect cancelled.');
+            }
         } catch (error) {
             void device.disconnect().catch(() => undefined);
-            if (generation !== this.#generation || this.#device !== device) throw error;
+
+            if (generation !== this.#generation || this.#device !== device) {
+                throw error;
+            }
+
             this.#status = 'failed';
             this.#error = error instanceof Error ? error.message : String(error);
             this.#teardown();
@@ -225,7 +241,10 @@ export class DeviceSession {
 
         try {
             const artwork = await device.artwork.get();
-            if (this.#device !== device) return;
+
+            if (this.#device !== device) {
+                return;
+            }
 
             if (artwork === null) {
                 this.#artworkUrl = null;
@@ -235,9 +254,13 @@ export class DeviceSession {
                 this.#artworkUrl = artwork.url;
             }
         } catch {
-            if (this.#device === device) this.#artworkUrl = null;
+            if (this.#device === device) {
+                this.#artworkUrl = null;
+            }
         } finally {
-            if (this.#artworkPending === device) this.#artworkPending = null;
+            if (this.#artworkPending === device) {
+                this.#artworkPending = null;
+            }
         }
 
         this.#host.emitSnapshot(this.snapshot());
@@ -466,17 +489,26 @@ export class SessionManager {
     }
 
     async #timing(): Promise<TimingServer> {
-        if (this.#timingServer) return this.#timingServer;
+        if (this.#timingServer) {
+            return this.#timingServer;
+        }
+
         if (!this.#timingPromise) {
             const server = new TimingServer();
+
             this.#timingPromise = server.listen().then(() => {
                 this.#timingServer = server;
+
                 return server;
             }, error => {
                 server.close();
+
                 throw error;
-            }).finally(() => {this.#timingPromise = undefined;});
+            }).finally(() => {
+                this.#timingPromise = undefined;
+            });
         }
+
         return this.#timingPromise;
     }
 

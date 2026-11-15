@@ -288,13 +288,13 @@ function callOn(target: ControlStreamTarget | undefined, name: string, method: s
         throw new Error(`This device has no ${name}. Connect over AirPlay first.`);
     }
 
-    const fn = target[method];
+    const member = target[method];
 
-    if (typeof fn !== 'function') {
+    if (typeof member !== 'function') {
         throw new Error(`'${method}' is not available on the ${name}.`);
     }
 
-    return fn.apply(target, args as never[]);
+    return member.apply(target, args as never[]);
 }
 
 export const RAW_ENTRIES: readonly RawEntry[] = [...DATA_STREAM_ENTRIES, ...COMPANION_LINK_ENTRIES, ...CONTROL_STREAM_ENTRIES];
@@ -313,26 +313,56 @@ export function rawEntry(transport: RawTransport, id: string): RawEntry {
 
 export function validateRawRequest(request: RawMessageRequest): void {
     const entry = rawEntry(request.transport, request.id);
-    if (!request.args || typeof request.args !== 'object' || Array.isArray(request.args)) throw new Error('Raw arguments must be an object.');
-    for (const name of Object.keys(request.args)) {
-        if (!entry.params.some(param => param.name === name)) throw new Error(`Unknown raw argument '${name}'.`);
+
+    if (!request.args || typeof request.args !== 'object' || Array.isArray(request.args)) {
+        throw new Error('Raw arguments must be an object.');
     }
+
+    for (const name of Object.keys(request.args)) {
+        if (!entry.params.some(param => param.name === name)) {
+            throw new Error(`Unknown raw argument '${name}'.`);
+        }
+    }
+
     for (const param of entry.params) {
         const value = request.args[param.name];
-        if (value === undefined && (param.optional || param.defaultValue !== undefined)) continue;
+
+        if (value === undefined && (param.optional || param.defaultValue !== undefined)) {
+            continue;
+        }
+
         let valid = false;
+
         switch (param.type) {
-            case 'number': valid = typeof value === 'number' && Number.isFinite(value); break;
-            case 'boolean': valid = typeof value === 'boolean'; break;
-            case 'string': valid = typeof value === 'string'; break;
-            case 'enum': valid = param.options?.some(option => option.value === value) === true; break;
-            case 'stringList': valid = Array.isArray(value) && value.every(item => typeof item === 'string'); break;
+            case 'number':
+                valid = typeof value === 'number' && Number.isFinite(value);
+                break;
+
+            case 'boolean':
+                valid = typeof value === 'boolean';
+                break;
+
+            case 'string':
+                valid = typeof value === 'string';
+                break;
+
+            case 'enum':
+                valid = param.options?.some(option => option.value === value) === true;
+                break;
+
+            case 'stringList':
+                valid = Array.isArray(value) && value.every(item => typeof item === 'string');
+                break;
+
             case 'json': {
                 const parsed = typeof value === 'string' ? JSON.parse(value) : value;
                 valid = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
                 break;
             }
         }
-        if (!valid) throw new Error(`Invalid raw argument '${param.name}': expected ${param.type}.`);
+
+        if (!valid) {
+            throw new Error(`Invalid raw argument '${param.name}': expected ${param.type}.`);
+        }
     }
 }

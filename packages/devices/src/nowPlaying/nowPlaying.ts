@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import type { Client, MediaRemote, MediaRemoteState, Proto } from '@corewire/airplay/mrp';
+import type { Client, MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
 import { UnavailableError } from '../errors';
 import type { Lyrics, NowPlaying, NowPlayingCommand, PlaybackState } from '../types';
 import { COMMANDS, playbackStateOf, toNowPlaying } from './snapshot';
@@ -112,7 +112,7 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
         this.#state = state;
 
         state.on('nowPlayingChanged', client => this.#onNowPlayingChanged(client));
-        state.on('playbackStateChanged', (client, _player, _oldState, newState) => this.#onPlaybackStateChanged(client, newState));
+        state.on('playbackStateChanged', client => this.#onPlaybackStateChanged(client));
         state.on('artworkChanged', client => this.#onArtworkChanged(client));
     }
 
@@ -261,12 +261,12 @@ export class NowPlayingController extends EventEmitter<NowPlayingEventMap> imple
      * Announces a playback state change. During a restore the state belongs to the item that ends the
      * restore, so it waits for that item.
      */
-    #onPlaybackStateChanged(client: Client, newState: Proto.PlaybackState_Enum): void {
+    #onPlaybackStateChanged(client: Client): void {
         if (this.#restoring) {
             return;
         }
 
-        const state = playbackStateOf(newState);
+        const state = playbackStateOf(client.playbackState);
         const previous = this.#lastState;
 
         if (state === previous) {

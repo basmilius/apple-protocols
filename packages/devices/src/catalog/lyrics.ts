@@ -1,3 +1,4 @@
+import { readBody } from './body';
 import { CatalogError } from './errors';
 
 export type AppleMusicLyricsOptions = {
@@ -87,39 +88,11 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
         throw new CatalogError('requestFailed', `Apple Music lyrics request failed (${response.status}).`, response.status);
     }
 
-    const reader = response.body?.getReader();
-
-    if (!reader) {
-        throw new CatalogError('invalidResponse', 'Apple Music returned an empty lyrics response.');
-    }
-
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-
-    try {
-        while (true) {
-            const {done, value} = await reader.read();
-
-            if (done) {
-                break;
-            }
-
-            size += value.byteLength;
-
-            if (size > 2 * 1024 * 1024) {
-                throw new CatalogError('tooLarge', 'Apple Music lyrics response exceeds 2 MB.');
-            }
-
-            chunks.push(value);
-        }
-    } finally {
-        await reader.cancel();
-    }
-
+    const body = await readBody(response, 'lyrics response');
     let payload: unknown;
 
     try {
-        payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        payload = JSON.parse(body);
     } catch {
         throw new CatalogError('invalidResponse', 'Apple Music returned invalid lyrics JSON.');
     }

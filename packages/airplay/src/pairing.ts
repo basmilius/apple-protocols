@@ -62,6 +62,11 @@ export async function transientPairing(control: ControlChannel, context: Context
  * @throws {PairingError} When the receiver refuses to start pairing.
  */
 export async function pair(target: AirPlayTarget, options: PairOptions = {}): Promise<PinPairing> {
+    // The abort listener below misses an abort that already happened.
+    if (options.signal?.aborted) {
+        throw new ConnectionClosedError('Pairing was interrupted.');
+    }
+
     const context = options.context ?? new Context(target.id ?? target.address, options.identity);
     const control = new ControlChannel(context, target.address, target.port ?? DEFAULT_PORT);
     const interrupt = (): void => control.destroy();

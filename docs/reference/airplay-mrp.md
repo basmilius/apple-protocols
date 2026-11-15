@@ -63,6 +63,8 @@ See [Media Remote (MRP)](/protocols/mrp).
 | `volumeControlChanged` | `available: boolean, capabilities: VolumeCapabilities_Enum` |
 | `volumeMutedChanged` | `muted: boolean` |
 
+`playbackStateChanged`, `supportedCommandsChanged` and `playbackQueueChanged` fire only for the active player of the now-playing client.
+
 ## Client and Player
 
 `Client` is an app, identified by its bundle identifier. `Player` is a player within it.

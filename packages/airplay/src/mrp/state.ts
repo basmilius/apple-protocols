@@ -10,10 +10,12 @@ import * as Proto from './proto';
  */
 type NowPlayingSnapshot = {
     bundleIdentifier: string | null;
+    displayName: string | null;
     playerIdentifier: string | null;
     playbackState: Proto.PlaybackState_Enum;
     title: string;
     artist: string;
+    trackArtist: string;
     album: string;
     genre: string;
     duration: number;
@@ -27,6 +29,8 @@ type NowPlayingSnapshot = {
     episodeTitle: string;
     contentRating: string;
     contentIdentifier: string;
+    storeAlbumId: string;
+    lyricsId: string;
     artworkId: string | null;
     hasArtworkUrl: boolean;
     hasArtworkData: boolean;
@@ -333,7 +337,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         this.#emitNowPlayingChangedIfNeeded();
     }
 
-    /** One SET_STATE can carry playback state, now-playing info, commands and queue at once; only the active client emits. */
+    /** One SET_STATE can carry playback state, now-playing info, commands and queue at once; only the active player of the active client emits. */
     #onSetState(message: Proto.SetStateMessage): void {
         const bundleIdentifier = message.playerPath?.client?.bundleIdentifier;
 
@@ -344,13 +348,14 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         const client = this.#client(bundleIdentifier, message.displayName);
         const playerIdentifier = message.playerPath?.player?.identifier || DEFAULT_PLAYER_ID;
         const player = client.getOrCreatePlayer(playerIdentifier, message.playerPath?.player?.displayName);
-        const isActiveClient = bundleIdentifier === this.#nowPlayingClientBundleIdentifier;
+        // A background player of the active app must not speak for the app.
+        const isActive = bundleIdentifier === this.#nowPlayingClientBundleIdentifier && player === client.activePlayer;
 
         if (message.playbackState) {
             const oldState = player.playbackState;
             player.setPlaybackState(message.playbackState, message.playbackStateTimestamp);
 
-            if (isActiveClient && oldState !== player.playbackState) {
+            if (isActive && oldState !== player.playbackState) {
                 this.emit('playbackStateChanged', client, player, oldState, player.playbackState);
             }
         }
@@ -362,7 +367,7 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         if (message.supportedCommands) {
             player.setSupportedCommands(message.supportedCommands.supportedCommands);
 
-            if (isActiveClient) {
+            if (isActive) {
                 this.emit('supportedCommandsChanged', client, player, player.supportedCommands);
             }
         }
@@ -370,12 +375,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
         if (message.playbackQueue) {
             player.setPlaybackQueue(message.playbackQueue);
 
-            if (isActiveClient) {
+            if (isActive) {
                 this.emit('playbackQueueChanged', client, player);
             }
         }
 
-        if (isActiveClient) {
+        if (isActive) {
             this.#emitNowPlayingChangedIfNeeded();
         }
     }
@@ -542,13 +547,16 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
     #createNowPlayingSnapshot(): NowPlayingSnapshot {
         const client = this.nowPlayingClient;
         const player = client?.activePlayer ?? null;
+        const metadata = player?.currentItemMetadata;
 
         return {
             bundleIdentifier: client?.bundleIdentifier ?? null,
+            displayName: client?.displayName ?? null,
             playerIdentifier: player?.identifier ?? null,
             playbackState: player?.playbackState ?? Proto.PlaybackState_Enum.Unknown,
             title: player?.title ?? '',
             artist: player?.artist ?? '',
+            trackArtist: metadata?.trackArtistName ?? '',
             album: player?.album ?? '',
             genre: player?.genre ?? '',
             duration: player?.duration ?? 0,
@@ -562,6 +570,8 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             episodeTitle: player?.episodeTitle ?? '',
             contentRating: player?.contentRating ?? '',
             contentIdentifier: player?.contentIdentifier ?? '',
+            storeAlbumId: String(metadata?.iTunesStoreAlbumIdentifier ?? ''),
+            lyricsId: String(metadata?.lyricsAdamID ?? ''),
             artworkId: player?.artworkId ?? null,
             hasArtworkUrl: player?.artworkUrl() != null,
             hasArtworkData: player?.currentItemArtwork != null,
@@ -591,10 +601,12 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
 
     #snapshotsEqual(a: NowPlayingSnapshot, b: NowPlayingSnapshot): boolean {
         return a.bundleIdentifier === b.bundleIdentifier
+            && a.displayName === b.displayName
             && a.playerIdentifier === b.playerIdentifier
             && a.playbackState === b.playbackState
             && a.title === b.title
             && a.artist === b.artist
+            && a.trackArtist === b.trackArtist
             && a.album === b.album
             && a.genre === b.genre
             && a.duration === b.duration
@@ -608,6 +620,8 @@ export class MediaRemoteState extends EventEmitter<MediaRemoteStateEventMap> {
             && a.episodeTitle === b.episodeTitle
             && a.contentRating === b.contentRating
             && a.contentIdentifier === b.contentIdentifier
+            && a.storeAlbumId === b.storeAlbumId
+            && a.lyricsId === b.lyricsId
             && a.artworkId === b.artworkId
             && a.hasArtworkUrl === b.hasArtworkUrl
             && a.hasArtworkData === b.hasArtworkData

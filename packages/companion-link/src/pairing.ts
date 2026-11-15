@@ -60,6 +60,11 @@ export async function verifyPairing(stream: Stream, context: Context, credential
  * @throws {ConnectionClosedError} When the signal aborts first.
  */
 export async function pair(target: CompanionLinkTarget, options: PairOptions = {}): Promise<PinPairing> {
+    // The abort listener below misses an abort that already happened.
+    if (options.signal?.aborted) {
+        throw new ConnectionClosedError('Pairing was interrupted.');
+    }
+
     const context = options.context ?? new Context(target.id ?? target.address, options.identity);
     const stream = new Stream(context, target.address, target.port);
     const interrupt = (): void => stream.destroy();

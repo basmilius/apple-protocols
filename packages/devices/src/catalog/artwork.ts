@@ -1,4 +1,5 @@
 import type { AnimatedArtwork } from '../types';
+import { readBody } from './body';
 import { CatalogError } from './errors';
 
 export type AnimatedArtworkOptions = {
@@ -19,7 +20,14 @@ function parseAppleMusicArtwork(html: string, albumId: string): AnimatedArtwork[
         throw new CatalogError('invalidResponse', 'Apple Music did not return album page data.');
     }
 
-    const page = JSON.parse(script[1]);
+    let page: any;
+
+    try {
+        page = JSON.parse(script[1]);
+    } catch {
+        throw new CatalogError('invalidResponse', 'Apple Music returned invalid album page data.');
+    }
+
     const results: AnimatedArtwork[] = [];
 
     for (const entry of page.data ?? []) {
@@ -35,7 +43,7 @@ function parseAppleMusicArtwork(html: string, albumId: string): AnimatedArtwork[
                     for (const [format, value] of Object.entries(artwork?.dictionary ?? {})) {
                         const video = (value as {video?: unknown}).video;
 
-                        if (typeof video !== 'string') {
+                        if (typeof video !== 'string' || !URL.canParse(video)) {
                             continue;
                         }
 
@@ -87,34 +95,5 @@ export async function fetchAnimatedArtwork(albumId: string, options: AnimatedArt
         throw new CatalogError('requestFailed', `Apple Music artwork request failed (${response.status}).`, response.status);
     }
 
-    const reader = response.body?.getReader();
-
-    if (!reader) {
-        throw new CatalogError('invalidResponse', 'Apple Music returned an empty response.');
-    }
-
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-
-    try {
-        while (true) {
-            const {done, value} = await reader.read();
-
-            if (done) {
-                break;
-            }
-
-            size += value.byteLength;
-
-            if (size > 2 * 1024 * 1024) {
-                throw new CatalogError('tooLarge', 'Apple Music album page exceeds 2 MB.');
-            }
-
-            chunks.push(value);
-        }
-    } finally {
-        await reader.cancel();
-    }
-
-    return parseAppleMusicArtwork(Buffer.concat(chunks).toString('utf8'), albumId);
+    return parseAppleMusicArtwork(await readBody(response, 'album page'), albumId);
 }

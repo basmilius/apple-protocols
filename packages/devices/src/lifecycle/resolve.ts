@@ -69,11 +69,19 @@ export class Resolver {
      */
     async refreshAirPlay(signal: AbortSignal): Promise<void> {
         const answer = (await this.#unicast(AIRPLAY_SERVICE))[0];
+        const mac = macOf(this.#target.txt);
 
-        if (answer) {
+        // After a DHCP reshuffle another device may answer on the old address.
+        const sameDevice = answer && (!mac || macOf(answer.properties) === mac);
+
+        if (sameDevice) {
             this.#target = {...this.#target, port: answer.port, txt: answer.properties};
 
             return;
+        }
+
+        if (answer) {
+            this.#logger.info('[device]', `Another device answers on ${this.#target.address}.`);
         }
 
         const found = this.#resolve ? await this.#consumerResolve(signal) : await this.#multicast();
@@ -100,6 +108,11 @@ export class Resolver {
      * hangs neither freezes the retries nor blocks a disconnect.
      */
     async #consumerResolve(signal: AbortSignal): Promise<DeviceTarget | null> {
+        // An abort listener misses an abort that already happened.
+        if (signal.aborted) {
+            throw new ConnectionClosedError('AirPlay setup was interrupted.');
+        }
+
         const bounded = AbortSignal.any([signal, AbortSignal.timeout(RESOLVE_TIMEOUT)]);
         let onAbort: () => void;
 

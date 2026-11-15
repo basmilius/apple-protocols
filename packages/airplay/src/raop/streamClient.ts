@@ -248,8 +248,11 @@ export class StreamClient extends EventEmitter<EventMap> {
         } finally {
             this.#packetBacklog.clear();
 
+            // A failed TEARDOWN must not leave the sockets and timers below running.
             if (transport) {
-                await this.#rtsp.teardown(this.#streamContext.rtspSession);
+                await this.#rtsp.teardown(this.#streamContext.rtspSession)
+                    .catch(err => this.#context.logger.warn('TEARDOWN failed.', err));
+
                 transport.close();
             }
 

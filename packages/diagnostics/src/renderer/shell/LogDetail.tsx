@@ -16,7 +16,7 @@ type DumpLine = {
     readonly ascii: string;
 };
 
-const dumpOf = (hex: string): DumpLine[] => {
+function dumpOf(hex: string): DumpLine[] {
     const bytes = hex.match(/.{1,2}/g) ?? [];
     const lines: DumpLine[] = [];
 
@@ -34,7 +34,7 @@ const dumpOf = (hex: string): DumpLine[] => {
     }
 
     return lines;
-};
+}
 
 function HexDump({hex, length}: { readonly hex: string; readonly length: number }) {
     const lines = useMemo(() => dumpOf(hex), [hex]);
@@ -54,7 +54,7 @@ function HexDump({hex, length}: { readonly hex: string; readonly length: number 
 }
 
 /** A message main already rendered to one line, parsed back into a tree when it is one. */
-const treeOf = (message: string): unknown => {
+function treeOf(message: string): unknown {
     const trimmed = message.trim();
     const start = trimmed.search(/[[{]/);
 
@@ -67,11 +67,11 @@ const treeOf = (message: string): unknown => {
     } catch {
         return null;
     }
-};
+}
 
-const copy = (text: string): void => {
+function copy(text: string): void {
     void navigator.clipboard.writeText(text);
-};
+}
 
 export function LogDetail({entry, deviceName, groupColor, onClose, className}: {
     readonly entry: LogEntry;

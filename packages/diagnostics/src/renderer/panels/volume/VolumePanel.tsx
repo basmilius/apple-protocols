@@ -5,7 +5,9 @@ import type { PanelProps } from '@/panels/registry';
 import { NotConnected, NumberInput, numberOf, ResultBlock, Row, setsLevel, VOLUME_ADJUSTMENT_ITEMS, VOLUME_ADJUSTMENTS, VolumeControls, VolumeModePill, valueOf } from '@/panels/sdk-shared';
 import { ButtonGroup, CommandButton, ControlRow, CountPill, DisabledReason, IconButton, ICONS, MiddleTruncate, PanelBody, PanelGroup, Section, Select, type SelectItem, Slider, StatusPill, TextInput } from '@/ui';
 
-const toDevice = (percent: number): number => percent / 100;
+function toDevice(percent: number): number {
+    return percent / 100;
+}
 
 /* Select items need a non-empty value; this one stands for "no output device given". */
 const DEFAULT_OUTPUT = '-';

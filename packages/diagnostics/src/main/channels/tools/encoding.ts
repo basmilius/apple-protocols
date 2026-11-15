@@ -4,11 +4,15 @@ import { firstDifference, parseBytes, readJson, readString, toHex } from './byte
 import { bytesInput, jsonInput, type ToolDefinition } from './registry';
 
 /** `parse` wants an `ArrayBuffer`, and a pooled `Buffer` is a window on a much larger one. */
-const toArrayBuffer = (buffer: Buffer): ArrayBuffer => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+function toArrayBuffer(buffer: Buffer): ArrayBuffer {
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+}
 
-const byteAt = (buffer: Buffer, offset: number): string | null => (offset < 0 || offset >= buffer.length ? null : `0x${buffer[offset]!.toString(16).padStart(2, '0')}`);
+function byteAt(buffer: Buffer, offset: number): string | null {
+    return offset < 0 || offset >= buffer.length ? null : `0x${buffer[offset]!.toString(16).padStart(2, '0')}`;
+}
 
-const roundTrip = (input: Buffer, output: Buffer): RoundTripResult => {
+function roundTrip(input: Buffer, output: Buffer): RoundTripResult {
     const offset = firstDifference(input, output);
 
     return {
@@ -21,22 +25,23 @@ const roundTrip = (input: Buffer, output: Buffer): RoundTripResult => {
         input: input.toString('hex'),
         output: output.toString('hex')
     };
-};
+}
 
 const TLV8_NAMES = new Map<number, string>(Object.entries(TLV8.Value).map(([name, type]) => [type as number, name]));
 
 /** Represent TLV8 entries as rows with type names and hex/text values for the renderer. */
-const tlv8Rows = (entries: Map<number, Buffer>): unknown[] =>
-    Array.from(entries.entries()).map(([type, value]) => ({
+function tlv8Rows(entries: Map<number, Buffer>): unknown[] {
+    return Array.from(entries.entries()).map(([type, value]) => ({
         type: `0x${type.toString(16).padStart(2, '0')}`,
         name: TLV8_NAMES.get(type) ?? 'Unknown',
         length: value.length,
         hex: value.toString('hex'),
         text: value.every(byte => byte >= 0x20 && byte < 0x7f) ? value.toString('utf8') : null
     }));
+}
 
 /** Accepts `[[6, "01"], ["State", "01"]]`: a type byte or the name of one, plus a hex value. */
-const tlv8Entries = (value: unknown): [number, Buffer][] => {
+function tlv8Entries(value: unknown): [number, Buffer][] {
     if (!Array.isArray(value)) {
         throw new Error('Expected an array of [type, value] pairs.');
     }
@@ -55,7 +60,7 @@ const tlv8Entries = (value: unknown): [number, Buffer][] => {
 
         return [resolved, parseBytes(data, `entry ${index}`)];
     });
-};
+}
 
 export const ENCODING_TOOLS: readonly ToolDefinition[] = [
     {

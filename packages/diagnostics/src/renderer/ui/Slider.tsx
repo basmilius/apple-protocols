@@ -14,9 +14,13 @@ type SliderProps = {
     readonly className?: string;
 };
 
-const placesOf = (value: number): number => (String(value).split('.')[1] ?? '').length;
+function placesOf(value: number): number {
+    return (String(value).split('.')[1] ?? '').length;
+}
 
-const first = (next: number | readonly number[]): number => (Array.isArray(next) ? next[0] : (next as number));
+function first(next: number | readonly number[]): number {
+    return Array.isArray(next) ? next[0] : (next as number);
+}
 
 /* Stands in for the adecore slider, which has no `onValueCommitted`. */
 export function Slider({value, onValueChange, onValueCommitted, label, min = 0, max = 100, step = 1, disabled, className}: SliderProps) {

@@ -28,13 +28,29 @@ type CompanionLinkTarget = CompanionLinkSession;
 
 type ControlStreamTarget = Record<string, (...args: never[]) => unknown>;
 
-const string = (name: string, label: string, defaultValue = '', optional = false, hint?: string): RawParam => ({name, label, type: 'string', defaultValue, optional, hint});
-const number = (name: string, label: string, defaultValue = 0, hint?: string): RawParam => ({name, label, type: 'number', defaultValue, hint});
-const boolean = (name: string, label: string, defaultValue = false): RawParam => ({name, label, type: 'boolean', defaultValue});
-const json = (name: string, label: string, defaultValue = '{}', hint?: string): RawParam => ({name, label, type: 'json', defaultValue, hint});
-const stringList = (name: string, label: string, defaultValue: readonly string[] = [], hint?: string): RawParam => ({name, label, type: 'stringList', defaultValue, hint});
+function string(name: string, label: string, defaultValue = '', optional = false, hint?: string): RawParam {
+    return {name, label, type: 'string', defaultValue, optional, hint};
+}
 
-const choice = (name: string, label: string, source: object, defaultValue: number): RawParam => ({name, label, type: 'enum', options: optionsOf(source), defaultValue});
+function number(name: string, label: string, defaultValue = 0, hint?: string): RawParam {
+    return {name, label, type: 'number', defaultValue, hint};
+}
+
+function boolean(name: string, label: string, defaultValue = false): RawParam {
+    return {name, label, type: 'boolean', defaultValue};
+}
+
+function json(name: string, label: string, defaultValue = '{}', hint?: string): RawParam {
+    return {name, label, type: 'json', defaultValue, hint};
+}
+
+function stringList(name: string, label: string, defaultValue: readonly string[] = [], hint?: string): RawParam {
+    return {name, label, type: 'stringList', defaultValue, hint};
+}
+
+function choice(name: string, label: string, source: object, defaultValue: number): RawParam {
+    return {name, label, type: 'enum', options: optionsOf(source), defaultValue};
+}
 
 /** The named values of a generated protobuf enum, which TypeScript keeps as a reverse map. */
 function optionsOf(source: object): readonly RawParamOption[] {
@@ -43,18 +59,25 @@ function optionsOf(source: object): readonly RawParamOption[] {
         .map(([label, value]) => ({label, value: value as number}));
 }
 
-const asString = (args: Args, name: string): string => String(args[name] ?? '');
+function asString(args: Args, name: string): string {
+    return String(args[name] ?? '');
+}
 
-const asNumber = (args: Args, name: string, fallback = 0): number => {
+function asNumber(args: Args, name: string, fallback = 0): number {
     const value = Number(args[name]);
 
     return Number.isFinite(value) ? value : fallback;
-};
+}
 
-const asBoolean = (args: Args, name: string): boolean => args[name] === true;
-const asList = (args: Args, name: string): string[] => (Array.isArray(args[name]) ? (args[name] as unknown[]).map(entry => String(entry)) : []);
+function asBoolean(args: Args, name: string): boolean {
+    return args[name] === true;
+}
 
-const asRecord = (args: Args, name: string): Record<string, unknown> => {
+function asList(args: Args, name: string): string[] {
+    return Array.isArray(args[name]) ? (args[name] as unknown[]).map(entry => String(entry)) : [];
+}
+
+function asRecord(args: Args, name: string): Record<string, unknown> {
     const value = args[name];
 
     if (typeof value === 'string') {
@@ -62,7 +85,7 @@ const asRecord = (args: Args, name: string): Record<string, unknown> => {
     }
 
     return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-};
+}
 
 /** Every DataStream builder is sent the same way; only the message differs. */
 function dataStream(id: string, title: string, category: string, description: string, params: readonly RawParam[], build: (args: Args) => Message): RawEntry {

@@ -15,11 +15,18 @@ type Bucket = {
     readonly types: Map<string, MessageType>;
 };
 
-const protocolCounts = (): ProtocolCounts => ({dataStream: 0, eventStream: 0, companionLink: 0, rtsp: 0, proxy: 0});
-const emptyTotals = (): StatisticsTotals => ({received: 0, sent: 0, bytes: 0, errors: 0, warnings: 0});
+function protocolCounts(): ProtocolCounts {
+    return {dataStream: 0, eventStream: 0, companionLink: 0, rtsp: 0, proxy: 0};
+}
+
+function emptyTotals(): StatisticsTotals {
+    return {received: 0, sent: 0, bytes: 0, errors: 0, warnings: 0};
+}
 
 /* RTSP sequence numbers and frame sizes describe individual messages rather than message types. */
-const typeOf = (summary: string): string => summary.replace(/\s*cseq=\d+/, '').replace(/\s*\(\d+B\)/, '').trim().slice(0, 256);
+function typeOf(summary: string): string {
+    return summary.replace(/\s*cseq=\d+/, '').replace(/\s*\(\d+B\)/, '').trim().slice(0, 256);
+}
 
 /** Keeps time-based counters independently of the payload buffers and the renderer's lifetime. */
 export class StatisticsBuffer {

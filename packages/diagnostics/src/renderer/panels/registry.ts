@@ -75,4 +75,6 @@ export const PANELS: readonly PanelDefinition[] = [
     ...TOOLS_PANELS
 ];
 
-export const panelsFor = (context: PanelContext): PanelDefinition[] => PANELS.filter(panel => panel.appliesTo(context));
+export function panelsFor(context: PanelContext): PanelDefinition[] {
+    return PANELS.filter(panel => panel.appliesTo(context));
+}

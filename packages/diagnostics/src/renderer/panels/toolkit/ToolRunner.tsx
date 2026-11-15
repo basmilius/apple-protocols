@@ -7,7 +7,7 @@ import { Banner, Button, CopyButton, Field, Icon, ICONS, JsonView, Pill, Select,
 
 type Values = Record<string, string | boolean>;
 
-const initialValues = (inputs: readonly ToolInput[]): Values => {
+function initialValues(inputs: readonly ToolInput[]): Values {
     const values: Values = {};
 
     for (const input of inputs) {
@@ -15,10 +15,11 @@ const initialValues = (inputs: readonly ToolInput[]): Values => {
     }
 
     return values;
-};
+}
 
-const isRoundTrip = (value: unknown): value is RoundTripResult =>
-    typeof value === 'object' && value !== null && typeof (value as RoundTripResult).offset === 'number' && typeof (value as RoundTripResult).input === 'string';
+function isRoundTrip(value: unknown): value is RoundTripResult {
+    return typeof value === 'object' && value !== null && typeof (value as RoundTripResult).offset === 'number' && typeof (value as RoundTripResult).input === 'string';
+}
 
 function InputRow({input, value, onChange}: { readonly input: ToolInput; readonly value: string | boolean; readonly onChange: (next: string | boolean) => void }) {
     const options = useMemo<SelectItem<string>[]>(() => (input.options ?? []).map(option => ({value: option.value, label: option.label})), [input.options]);

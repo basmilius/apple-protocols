@@ -16,10 +16,14 @@ type Getter = {
     readonly snapshot?: (snapshot: StateSnapshot | null) => unknown;
 };
 
-const activePlayer = (snapshot: StateSnapshot | null): PlayerSnapshot | null => snapshot?.clients.flatMap(client => client.players).find(player => player.isActive) ?? null;
+function activePlayer(snapshot: StateSnapshot | null): PlayerSnapshot | null {
+    return snapshot?.clients.flatMap(client => client.players).find(player => player.isActive) ?? null;
+}
 
 /* The model reports Unknown where the device API reports 'off'. */
-const modeOf = (mode: string | undefined): string | undefined => (mode === undefined ? undefined : mode === 'Unknown' ? 'off' : mode.toLowerCase());
+function modeOf(mode: string | undefined): string | undefined {
+    return mode === undefined ? undefined : mode === 'Unknown' ? 'off' : mode.toLowerCase();
+}
 
 const GETTERS: readonly Getter[] = [
     {name: 'nowPlaying.current.title', snapshot: snapshot => snapshot?.nowPlaying?.title},
@@ -45,7 +49,9 @@ const GETTERS: readonly Getter[] = [
 const STATE_SOURCE = ['state'] as const;
 const COLUMNS = [{width: 'minmax(0,1fr)'}, {width: 'minmax(0,1.2fr)'}, {width: 'minmax(0,1.2fr)'}, {width: '1.5rem'}] as const;
 
-const show = (value: unknown): string => (value === undefined ? '-' : (JSON.stringify(value) ?? 'undefined'));
+function show(value: unknown): string {
+    return value === undefined ? '-' : (JSON.stringify(value) ?? 'undefined');
+}
 
 function PlayerRow({player, updatedAt}: { readonly player: PlayerSnapshot; readonly updatedAt: number | undefined }) {
     const [open, setOpen] = useState(player.isActive);

@@ -25,7 +25,7 @@ const theme = createTheme({
 
 let state: WindowState | null = null;
 
-const isDiagnosticsUrl = (url: string): boolean => {
+function isDiagnosticsUrl(url: string): boolean {
     if (process.env.ELECTRON_RENDERER_URL) {
         return appWindowNavigation(url, new URL(process.env.ELECTRON_RENDERER_URL).origin) === 'allow';
     }
@@ -37,10 +37,11 @@ const isDiagnosticsUrl = (url: string): boolean => {
     } catch {
         return false;
     }
-};
+}
 
-export const isDiagnosticsSender = (event: IpcMainInvokeEvent): boolean =>
-    BrowserWindow.fromWebContents(event.sender) !== null && event.senderFrame?.parent === null && isDiagnosticsUrl(event.senderFrame.url);
+export function isDiagnosticsSender(event: IpcMainInvokeEvent): boolean {
+    return BrowserWindow.fromWebContents(event.sender) !== null && event.senderFrame?.parent === null && isDiagnosticsUrl(event.senderFrame.url);
+}
 
 export function createWindow(): BrowserWindow {
     if (state === null) {

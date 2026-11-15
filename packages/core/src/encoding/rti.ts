@@ -86,7 +86,9 @@ export function decodeSession(data: Uint8Array | ArrayBuffer): TextInputSession 
     };
 }
 
-const uid = (index: number): { 'CF$UID': number } => ({'CF$UID': index});
+function uid(index: number): { 'CF$UID': number } {
+    return {'CF$UID': index};
+}
 
 /** Encodes an RTITextOperations archive that inserts `text`, or clears the field when `clear` is set. */
 export function encodeOperation(sessionUUID: Uint8Array, text: string, clear: boolean): ArrayBuffer {

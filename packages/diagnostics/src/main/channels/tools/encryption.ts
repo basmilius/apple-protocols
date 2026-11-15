@@ -12,7 +12,7 @@ const NONCE_OPTIONS: readonly ToolInputOption[] = [
     {value: 'raw', label: 'Raw nonce'}
 ];
 
-const buildNonce = (layout: NonceLayout, counter: number, raw: string): Buffer => {
+function buildNonce(layout: NonceLayout, counter: number, raw: string): Buffer {
     if (layout === 'raw') {
         return parseBytes(raw, 'nonce');
     }
@@ -21,7 +21,7 @@ const buildNonce = (layout: NonceLayout, counter: number, raw: string): Buffer =
     nonce.writeBigUInt64LE(BigInt(counter), layout === 'airplay' ? 4 : 0);
 
     return nonce;
-};
+}
 
 type HkdfPreset = {
     readonly value: string;

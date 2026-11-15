@@ -22,9 +22,11 @@ const SERVICES: Record<DiscoveryService, string> = {
     raop: RAOP_SERVICE
 };
 
-const seconds = (timeoutMs: number | undefined): number => Math.max(1, Math.round((timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000));
+function seconds(timeoutMs: number | undefined): number {
+    return Math.max(1, Math.round((timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000));
+}
 
-const decodeFeatures = (raw: string | undefined): MdnsFeatures | null => {
+function decodeFeatures(raw: string | undefined): MdnsFeatures | null {
     if (raw === undefined || raw.length === 0) {
         return null;
     }
@@ -36,9 +38,9 @@ const decodeFeatures = (raw: string | undefined): MdnsFeatures | null => {
     } catch {
         return {raw, mask: '', flags: []};
     }
-};
+}
 
-const toRecord = (name: string, service: string, address: string, port: number, txt: Record<string, string>): MdnsRecord => {
+function toRecord(name: string, service: string, address: string, port: number, txt: Record<string, string>): MdnsRecord {
     const model = txt.model ?? txt.am ?? '';
     const hostname = name.replace(/\s+/g, '-');
 
@@ -58,7 +60,7 @@ const toRecord = (name: string, service: string, address: string, port: number, 
         passwordRequired: isPasswordRequired(txt),
         remoteControl: isRemoteControlSupported(txt)
     };
-};
+}
 
 type DiscoveryHit = {
     readonly id: string;
@@ -67,9 +69,13 @@ type DiscoveryHit = {
     readonly service: { readonly port: number; readonly type: string };
 };
 
-const fromDiscovery = (result: DiscoveryHit): MdnsRecord => toRecord(result.id.replace(/\.local$/, ''), result.service.type, result.address, result.service.port, result.txt);
+function fromDiscovery(result: DiscoveryHit): MdnsRecord {
+    return toRecord(result.id.replace(/\.local$/, ''), result.service.type, result.address, result.service.port, result.txt);
+}
 
-const discoveryFor = (service: DiscoveryService): Discovery => new Discovery(SERVICES[service] ?? AIRPLAY_SERVICE);
+function discoveryFor(service: DiscoveryService): Discovery {
+    return new Discovery(SERVICES[service] ?? AIRPLAY_SERVICE);
+}
 
 export async function scan(query: MdnsQuery): Promise<readonly MdnsRecord[]> {
     const services = query.services.map(service => service.trim()).filter(service => service.length > 0);

@@ -38,7 +38,7 @@ type LayoutState = Stored & {
     setSidePanelWidth(width: number): void;
 };
 
-const restore = (): Stored => {
+function restore(): Stored {
     try {
         const stored = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<Stored> | null;
 
@@ -46,16 +46,18 @@ const restore = (): Stored => {
     } catch {
         return {deviceId: null, panels: {}};
     }
-};
+}
 
-const restoreWidth = (): number => {
+function restoreWidth(): number {
     const stored = Number(localStorage.getItem('diagnostics.sidePanel.width'));
 
     return Number.isFinite(stored) && stored >= SIDE_PANEL_SIZE.min ? stored : SIDE_PANEL_SIZE.initial;
-};
+}
 
 /** The panel the selected device shows. Every device remembers its own. */
-export const currentPanel = (state: Stored): string => (state.deviceId === null ? DEFAULT_PANEL : (state.panels[state.deviceId] ?? DEFAULT_PANEL));
+export function currentPanel(state: Stored): string {
+    return state.deviceId === null ? DEFAULT_PANEL : (state.panels[state.deviceId] ?? DEFAULT_PANEL);
+}
 
 export const useLayout = create<LayoutState>((set, get) => {
     const save = (stored: Stored): void => {

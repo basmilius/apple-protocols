@@ -40,7 +40,7 @@ type TouchPadProps = {
     readonly finger: number;
 };
 
-const pointOf = (event: ReactPointerEvent<HTMLDivElement>): Point => {
+function pointOf(event: ReactPointerEvent<HTMLDivElement>): Point {
     const bounds = event.currentTarget.getBoundingClientRect();
     const clamp = (value: number): number => Math.min(TOUCH_RANGE, Math.max(0, Math.round(value)));
 
@@ -48,9 +48,11 @@ const pointOf = (event: ReactPointerEvent<HTMLDivElement>): Point => {
         x: clamp(((event.clientX - bounds.left) / bounds.width) * TOUCH_RANGE),
         y: clamp(((event.clientY - bounds.top) / bounds.height) * TOUCH_RANGE)
     };
-};
+}
 
-const percent = (value: number): string => `${(value / TOUCH_RANGE) * 100}%`;
+function percent(value: number): string {
+    return `${(value / TOUCH_RANGE) * 100}%`;
+}
 
 /*
  * Drags go through raw `_hidT`, because the SDK keeps touch phases private. The HID touch device has no click, so a

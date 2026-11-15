@@ -38,13 +38,13 @@ process.stdout.on('error', () => {});
 process.stderr.on('error', () => {});
 
 /* While quitting the window still exists but its frame may be gone, and Electron logs each send to it. */
-const send = <C extends EventChannel>(channel: C, payload: EventMap[C]): void => {
+function send<C extends EventChannel>(channel: C, payload: EventMap[C]): void {
     if (quitting || window === null || window.isDestroyed() || window.webContents.isDestroyed()) {
         return;
     }
 
     window.webContents.send(channel, payload);
-};
+}
 
 const eventListeners = new Set<(event: DeviceEvent) => void>();
 
@@ -64,11 +64,11 @@ const host: SessionHost = {
 const sessions = new SessionManager(host, storage.storage);
 const proxies = new ProxyManager(sessions, storage.storage, status => send('proxy:status', status));
 
-const onEvent = (listener: (event: DeviceEvent) => void): void => {
+function onEvent(listener: (event: DeviceEvent) => void): void {
     eventListeners.add(listener);
-};
+}
 
-const registerChannels = (): void => {
+function registerChannels(): void {
     handle('performance:status', () => metrics.status());
     handle('performance:reset', () => metrics.reset());
     handle('statistics:history', request => statistics.snapshot(request.deviceId));
@@ -115,9 +115,9 @@ const registerChannels = (): void => {
 
     registerMediaChannels({sessions, storage, proxies, send, onEvent});
     registerToolsChannels({sessions, storage, proxies, send, onEvent});
-};
+}
 
-const start = async (): Promise<void> => {
+async function start(): Promise<void> {
     logs.install();
 
     logs.onListener(entry => {
@@ -145,9 +145,9 @@ const start = async (): Promise<void> => {
     if (AGENT_ENABLED) {
         await startAgent();
     }
-};
+}
 
-const startAgent = async (): Promise<void> => {
+async function startAgent(): Promise<void> {
     await resume.load();
     resuming = resume.deviceIds.length > 0;
 
@@ -164,7 +164,7 @@ const startAgent = async (): Promise<void> => {
     } finally {
         resuming = false;
     }
-};
+}
 
 // Chromium bounces a scroller at its end only on macOS by default; Windows and Linux get the same through this feature.
 if (process.platform !== 'darwin') {

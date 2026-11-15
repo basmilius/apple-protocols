@@ -5,28 +5,31 @@ export type ToolDefinition = ToolInfo & {
 };
 
 /** The input every decoder shares: a pasted byte string. */
-export const bytesInput = (name = 'data', label = 'Bytes (hex or base64)', rows = 4) =>
-    ({
+export function bytesInput(name = 'data', label = 'Bytes (hex or base64)', rows = 4) {
+    return {
         name,
         label,
         type: 'textarea',
         placeholder: 'e1 41 61 41 62 03',
         rows
-    }) as const;
+    } as const;
+}
 
-export const jsonInput = (name = 'value', label = 'Value (JSON)', rows = 6) =>
-    ({
+export function jsonInput(name = 'value', label = 'Value (JSON)', rows = 6) {
+    return {
         name,
         label,
         type: 'textarea',
         placeholder: '{"a": 1}',
         rows
-    }) as const;
+    } as const;
+}
 
-export const keyInput = (name: string, label: string) =>
-    ({
+export function keyInput(name: string, label: string) {
+    return {
         name,
         label,
         type: 'text',
         placeholder: '32 bytes of hex'
-    }) as const;
+    } as const;
+}

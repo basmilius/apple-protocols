@@ -19,12 +19,12 @@ import { readString } from './bytes';
 import type { ToolDefinition } from './registry';
 
 /** Synthesize a TXT record when only a features string is supplied, so pairing checks can still run. */
-const readTxt = (args: Readonly<Record<string, unknown>>, features: string): Record<string, string> => {
+function readTxt(args: Readonly<Record<string, unknown>>, features: string): Record<string, string> {
     const text = readString(args, 'txt').trim();
     const parsed = text.length === 0 ? {} : (JSON.parse(text) as Record<string, string>);
 
     return features.length === 0 ? parsed : {features, ...parsed};
-};
+}
 
 export const FEATURE_TOOLS: readonly ToolDefinition[] = [
     {

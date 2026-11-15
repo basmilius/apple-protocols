@@ -24,7 +24,9 @@ type ControlConnectionEvents = {
     error: [error: Error];
 };
 
-const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
+function nonce(counter: number): Buffer {
+    return buildNonce(counter, 'counter-at-4');
+}
 
 /**
  * AirPlay RTSP over an existing TCP socket, plaintext until {@link enableEncryption}.

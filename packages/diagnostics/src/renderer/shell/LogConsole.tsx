@@ -27,12 +27,14 @@ const GROUP_COLOR: Record<DebugGroup, string> = {
 
 const ALL = '*';
 
-const asText = (entries: readonly LogEntry[]): string =>
-    entries.map(entry => `${formatTime(entry.timestamp)} ${entry.group}${entry.deviceId === null ? '' : ` ${entry.deviceId}`} ${entry.message}`).join('\n');
+function asText(entries: readonly LogEntry[]): string {
+    return entries.map(entry => `${formatTime(entry.timestamp)} ${entry.group}${entry.deviceId === null ? '' : ` ${entry.deviceId}`} ${entry.message}`).join('\n');
+}
 
 /* An input has first claim on an arrow key: it moves the caret. */
-const isTyping = (target: EventTarget | null): boolean =>
-    target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+function isTyping(target: EventTarget | null): boolean {
+    return target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+}
 
 /* Virtualize the log buffer because rendering thousands of hex-dump rows would stall the window. */
 export function LogConsole() {

@@ -12,7 +12,9 @@ export type NamedValue = {
     readonly value: number;
 };
 
-const itemsOf = (entries: readonly NamedValue[]): readonly SelectItem<string>[] => entries.map(entry => ({value: entry.name, label: entry.name}));
+function itemsOf(entries: readonly NamedValue[]): readonly SelectItem<string>[] {
+    return entries.map(entry => ({value: entry.name, label: entry.name}));
+}
 
 /** `ShuffleMode` and `RepeatMode` of `@corewire/devices`. */
 export const SHUFFLE_MODES: readonly string[] = ['off', 'albums', 'songs'];

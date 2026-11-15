@@ -23,11 +23,12 @@ const SERVICE_ITEMS: readonly SelectItem<DiscoveryService>[] = [
     {value: 'raop', label: 'RAOP'}
 ];
 
-const splitList = (text: string): string[] =>
-    text
+function splitList(text: string): string[] {
+    return text
         .split(',')
         .map(entry => entry.trim())
         .filter(entry => entry.length > 0);
+}
 
 function RecordRow({record}: { readonly record: MdnsRecord }) {
     const [open, setOpen] = useState(false);

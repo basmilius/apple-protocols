@@ -277,7 +277,8 @@ Alle packages delen deze instellingen:
 
 - Zie `.editorconfig`: 4 spaties, single quotes, semicolons, LF, geen trailing comma's
 - Private class fields met `#` prefix
-- Arrow functions waar mogelijk
+- Een top-level functie en een benoemd component zijn een `function`-declaratie. Een helper binnen een functie is een arrow function aan een `const`
+- Een class-methode is een methode, nooit een arrow function als property. Bind hem waar je hem doorgeeft
 - Functieleden van een type of interface schrijf je als method signature (`open(signal: AbortSignal): Promise<T>;`), niet als property met een arrow type. `readonly` vervalt op die leden. Een callback als parameter mag een arrow type blijven.
 - Listeners op een sessie of kanaal ruim je op via het `AbortSignal` van de sessie, niet met `#bound*` velden en handmatig `off()`
 - `waitFor(ms)` voor delays in HID press/release

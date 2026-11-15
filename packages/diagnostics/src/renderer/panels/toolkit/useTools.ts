@@ -6,7 +6,7 @@ import { invoke, messageOf } from '@/client';
 let cache: readonly ToolInfo[] | null = null;
 let pending: Promise<readonly ToolInfo[]> | null = null;
 
-const load = (): Promise<readonly ToolInfo[]> => {
+function load(): Promise<readonly ToolInfo[]> {
     if (cache !== null) {
         return Promise.resolve(cache);
     }
@@ -17,7 +17,7 @@ const load = (): Promise<readonly ToolInfo[]> => {
     });
 
     return pending;
-};
+}
 
 export type ToolsHandle = {
     readonly tools: readonly ToolInfo[];

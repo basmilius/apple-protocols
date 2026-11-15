@@ -21,7 +21,9 @@ const TrafficChart = createChart<TrafficBucket>();
 const LogChart = createChart<LogBucket>();
 const TypeChart = createChart<MessageType>();
 
-const formatTimeOfDay = (timestamp: string | number): string => formatTime(Number(timestamp)).slice(0, 8);
+function formatTimeOfDay(timestamp: string | number): string {
+    return formatTime(Number(timestamp)).slice(0, 8);
+}
 
 function useStatistics(deviceId: string | null) {
     const [result, setResult] = useState<{deviceId: string | null; snapshot: StatisticsSnapshot} | null>(null);

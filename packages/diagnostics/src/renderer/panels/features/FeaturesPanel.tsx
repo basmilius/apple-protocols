@@ -35,7 +35,9 @@ type KnownFlag = {
 /* Select items need a non-empty value; this one stands for typing a value by hand. */
 const NO_DEVICE = '-';
 
-const featuresOf = (txt: Readonly<Record<string, string>> | undefined): string => txt?.features ?? txt?.ft ?? '';
+function featuresOf(txt: Readonly<Record<string, string>> | undefined): string {
+    return txt?.features ?? txt?.ft ?? '';
+}
 
 async function runTool<T>(toolId: string, args: Record<string, string>): Promise<T> {
     const result = await invoke('tool:run', {toolId, deviceId: null, args});

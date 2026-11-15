@@ -13,7 +13,9 @@ export type RelayDirection = 'controller->device' | 'device->controller';
 /** Receives each decrypted chunk as it is relayed. */
 export type RelayLogger = (direction: RelayDirection, plaintext: Buffer) => void;
 
-const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
+function nonce(counter: number): Buffer {
+    return buildNonce(counter, 'counter-at-4');
+}
 
 /**
  * ChaCha20-Poly1305 cipher for both directions of one AirPlay stream. Frames are

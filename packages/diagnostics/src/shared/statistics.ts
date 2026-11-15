@@ -39,4 +39,6 @@ export type StatisticsSnapshot = {
 };
 
 /** Includes the current interval, also when `now` falls exactly on its boundary. */
-export const statisticsWindowStart = (now: number): number => Math.floor(now / STATISTICS_INTERVAL_MS) * STATISTICS_INTERVAL_MS + STATISTICS_INTERVAL_MS - STATISTICS_WINDOW_MS;
+export function statisticsWindowStart(now: number): number {
+    return Math.floor(now / STATISTICS_INTERVAL_MS) * STATISTICS_INTERVAL_MS + STATISTICS_INTERVAL_MS - STATISTICS_WINDOW_MS;
+}

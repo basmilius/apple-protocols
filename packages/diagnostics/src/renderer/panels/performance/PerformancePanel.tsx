@@ -6,7 +6,9 @@ import { invoke, messageOf } from '@/client';
 import { Sparkline } from '@/panels/shared-media/Telemetry';
 import { EmptyState, FormError, IconButton, ICONS, KeyValue, KeyValueList, Meter, PanelBody, RelativeTime, Section, StatusBar } from '@/ui';
 
-const ms = (value: number): string => `${value.toFixed(1)} ms`;
+function ms(value: number): string {
+    return `${value.toFixed(1)} ms`;
+}
 
 export function PerformancePanel() {
     const [status, setStatus] = useState<PerformanceStatus | null>(null);

@@ -9,7 +9,9 @@ import { DeviceIcon } from '@/shell/DeviceIcon';
 import { EmptyState, Icon, IconButton, ICONS, KeyValue, KeyValueList, MiddleTruncate, Pill, Section, StatusPill, Tile } from '@/ui';
 
 /* The same order as the device switcher: a live session first, then paired devices, then the rest; names keep the store's order. */
-const rankOf = (device: DiscoveredDeviceInfo): number => (device.session !== 'disconnected' ? 0 : device.paired.length > 0 ? 1 : 2);
+function rankOf(device: DiscoveredDeviceInfo): number {
+    return device.session !== 'disconnected' ? 0 : device.paired.length > 0 ? 1 : 2;
+}
 
 function DeviceSummary({device}: { readonly device: DiscoveredDeviceInfo }) {
     return (

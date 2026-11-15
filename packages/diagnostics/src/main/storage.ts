@@ -35,9 +35,13 @@ export type StorageData = {
 const LEGACY_FIELDS: readonly (keyof LegacyCredentials)[] = ['accessoryIdentifier', 'accessoryLongTermPublicKey', 'pairingId', 'publicKey', 'secretKey'];
 const STRING_PREFIX = 'cw1.';
 
-const credentialKey = (deviceId: string, protocol: ProtocolType): string => `${deviceId}:${protocol}`;
+function credentialKey(deviceId: string, protocol: ProtocolType): string {
+    return `${deviceId}:${protocol}`;
+}
 
-const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
 /** Reads either stored form back into the credentials the protocol packages take. */
 function accessoryCredentialsOf(stored: StoredCredentials): AccessoryCredentials {

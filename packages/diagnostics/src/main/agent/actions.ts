@@ -3,20 +3,32 @@ import type { CallRequest } from '@shared/contract';
 type Check = (value: unknown) => boolean;
 type Action = {args: readonly Check[]; optional?: number; volume?: number; confirm?: boolean};
 
-const number = (min: number, max = Number.MAX_SAFE_INTEGER): Check => value => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
-const integer = (min: number, max: number): Check => value => Number.isInteger(value) && number(min, max)(value);
-const string: Check = value => typeof value === 'string' && value.length <= 8192;
-const oneOf = (...values: readonly string[]): Check => value => values.includes(value as string);
+function number(min: number, max = Number.MAX_SAFE_INTEGER): Check {
+    return value => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+}
+
+function integer(min: number, max: number): Check {
+    return value => Number.isInteger(value) && number(min, max)(value);
+}
+
+function string(value: unknown): boolean {
+    return typeof value === 'string' && value.length <= 8192;
+}
+
+function oneOf(...values: readonly string[]): Check {
+    return value => values.includes(value as string);
+}
+
 const fraction = number(0, 1);
 const actions = new Map<string, Action>();
 
-const register = (root: CallRequest['root'], path: string, action: Action): void => {
+function register(root: CallRequest['root'], path: string, action: Action): void {
     actions.set(`${root}:${path}`, action);
-};
+}
 
 const REMOTE_KEYS = ['up', 'down', 'left', 'right', 'select', 'menu', 'home', 'topMenu', 'play', 'pause', 'playPause', 'stop', 'next', 'previous', 'channelUp', 'channelDown', 'volumeDown', 'mute', 'wake', 'suspend', 'siri', 'screensaver', 'guide', 'pageUp', 'pageDown', 'info', 'captions', 'back', 'exit', 'skipForward', 'skipBackward'];
 
-const pressOptions: Check = value => {
+function pressOptions(value: unknown): boolean {
     if (value === null || typeof value !== 'object') {
         return false;
     }
@@ -24,7 +36,7 @@ const pressOptions: Check = value => {
     const {mode, holdMs} = value as {mode?: unknown; holdMs?: unknown};
 
     return (mode === undefined || oneOf('tap', 'double', 'hold')(mode)) && (holdMs === undefined || number(0, 10000)(holdMs));
-};
+}
 
 // `volumeUp` raises the volume, so it needs a confirm like `volume.up`; checkAction asks for it.
 register('device', 'remote.press', {args: [oneOf(...REMOTE_KEYS, 'volumeUp'), pressOptions], optional: 1});

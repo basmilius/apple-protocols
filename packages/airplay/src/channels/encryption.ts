@@ -4,7 +4,9 @@ import { buildNonce, type EncryptionState } from '@corewire/core/transport';
 /** Frames we send carry at most this much plaintext. */
 const FRAME_LENGTH = 1024;
 
-const nonce = (counter: number): Buffer => buildNonce(counter, 'counter-at-4');
+function nonce(counter: number): Buffer {
+    return buildNonce(counter, 'counter-at-4');
+}
 
 /**
  * Decrypts the complete frames at the start of `data`: `[2-byte LE length] [ciphertext] [16-byte

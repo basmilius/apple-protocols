@@ -4,14 +4,14 @@ import type { StorageData, StoredCredentials, StorageQueue } from '../../storage
 /** Mask credential key material; keep `accessoryIdentifier` visible as the device name. */
 const SECRET_FIELDS: readonly string[] = ['accessoryLongTermPublicKey', 'pairingId', 'publicKey', 'secretKey'];
 
-const mask = (value: unknown): string => {
+function mask(value: unknown): string {
     const length = typeof value === 'string' ? Buffer.from(value, 'base64').length : 0;
 
     return `[hidden, ${length} bytes]`;
-};
+}
 
 /** The string form starts with the accessory id; everything after it is key material. */
-const maskCredentials = (credentials: StoredCredentials): unknown => {
+function maskCredentials(credentials: StoredCredentials): unknown {
     if (typeof credentials === 'string') {
         const [prefix, identifier = ''] = credentials.split('.');
 
@@ -19,13 +19,15 @@ const maskCredentials = (credentials: StoredCredentials): unknown => {
     }
 
     return Object.fromEntries(Object.entries(credentials).map(([field, value]) => [field, SECRET_FIELDS.includes(field) ? mask(value) : value]));
-};
+}
 
 /** Mask keys in main so they never cross IPC without an explicit reveal request. */
-const maskData = (data: StorageData): unknown => ({
-    ...data,
-    credentials: Object.fromEntries(Object.entries(data.credentials).map(([key, credentials]) => [key, maskCredentials(credentials)]))
-});
+function maskData(data: StorageData): unknown {
+    return {
+        ...data,
+        credentials: Object.fromEntries(Object.entries(data.credentials).map(([key, credentials]) => [key, maskCredentials(credentials)]))
+    };
+}
 
 export function listDevices(storage: StorageQueue): readonly StoredDeviceInfo[] {
     return storage.storage.listDevices().map(device => ({

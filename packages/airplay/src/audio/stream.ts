@@ -129,7 +129,7 @@ export type AudioStreamContext = {
 const USE_ENCRYPTION = true;
 
 /** Converts an RTP timestamp to NTP against the wall-clock anchor taken at stream start, for multiroom sync. */
-const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint => {
+function rtpToNtp(rtpTimestamp: number, sampleRate: number, anchorRtp: number, anchorNtp: bigint): bigint {
     let elapsedSamples: number;
 
     if (rtpTimestamp >= anchorRtp) {
@@ -144,7 +144,7 @@ const rtpToNtp = (rtpTimestamp: number, sampleRate: number, anchorRtp: number, a
     const elapsedNtp = (BigInt(elapsedSeconds) << 32n) | BigInt(Math.floor(elapsedFraction));
 
     return anchorNtp + elapsedNtp;
-};
+}
 
 /**
  * Encrypted RTP audio over UDP with RTCP synchronization, NACK retransmission and optional RFC 2198 redundancy.

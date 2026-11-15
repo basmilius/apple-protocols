@@ -28,15 +28,16 @@ type DevicesState = {
 };
 
 /* Discovery answers in the order the devices reply, which differs per scan. */
-const byName = (devices: readonly DiscoveredDeviceInfo[]): DiscoveredDeviceInfo[] =>
-    [...devices].sort((one, other) => one.name.localeCompare(other.name, undefined, {sensitivity: 'base', numeric: true}));
+function byName(devices: readonly DiscoveredDeviceInfo[]): DiscoveredDeviceInfo[] {
+    return [...devices].sort((one, other) => one.name.localeCompare(other.name, undefined, {sensitivity: 'base', numeric: true}));
+}
 
 const eventCapture = new Capture<DeviceEvent>(MAX_EVENTS);
 const logCapture = new Capture<LogEntry>(MAX_LOGS);
 const trafficCapture = new Capture<TrafficRecord>(1000);
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
 
-const flushSoon = (): void => {
+function flushSoon(): void {
     if (flushTimer !== undefined) {
         return;
     }
@@ -45,7 +46,7 @@ const flushSoon = (): void => {
         flushTimer = undefined;
         useDevices.setState({events: eventCapture.snapshot(), logs: logCapture.snapshot(), traffic: trafficCapture.snapshot()});
     }, 50);
-};
+}
 
 export const useDevices = create<DevicesState>((set, get) => ({
     devices: [],

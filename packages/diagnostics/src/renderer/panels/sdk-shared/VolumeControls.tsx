@@ -12,7 +12,9 @@ const MODES: Record<VolumeControl, { readonly label: string; readonly icon: Luci
 };
 
 /** The SDK sets and fades the level only with absolute control; up, down, mute and adjust also work relative. */
-export const setsLevel = (control: VolumeControl): boolean => control === 'absolute' || control === 'both';
+export function setsLevel(control: VolumeControl): boolean {
+    return control === 'absolute' || control === 'both';
+}
 
 export function VolumeModePill({control}: { readonly control: VolumeControl }) {
     const mode = MODES[control];

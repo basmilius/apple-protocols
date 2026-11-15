@@ -8,9 +8,9 @@ const COCOA_EPOCH_OFFSET = 978307200;
 const DEFAULT_PLAYER_ID = 'MediaRemote-DefaultPlayer';
 
 /** The artwork CDN serves HEIC by default, which most browsers cannot show; a `.jpg` extension makes it return JPEG. */
-const convertArtworkUrl = (url: string): string => {
+function convertArtworkUrl(url: string): string {
     return url.replace(/\.heic(\b|$)/gi, '.jpg');
-};
+}
 
 /**
  * Moves an elapsed time from its snapshot to now at the playback rate, never below 0.
@@ -18,7 +18,7 @@ const convertArtworkUrl = (url: string): string => {
  * @param elapsed - Seconds at the moment of the snapshot.
  * @param cocoaTimestamp - Moment of the snapshot, in seconds since the Cocoa epoch.
  */
-const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: number | undefined): number => {
+function extrapolateElapsed(elapsed: number, cocoaTimestamp: number, rate: number | undefined): number {
     if (!rate) {
         return elapsed;
     }
@@ -27,7 +27,7 @@ const extrapolateElapsed = (elapsed: number, cocoaTimestamp: number, rate: numbe
     const delta = (Date.now() / 1000 - timestampUnix) * rate;
 
     return Math.max(0, elapsed + delta);
-};
+}
 
 export { DEFAULT_PLAYER_ID };
 

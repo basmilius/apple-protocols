@@ -60,7 +60,7 @@ type SrvRecord = {
  * Encodes a domain name as DNS labels, each prefixed with its length and the last followed
  * by a zero byte. A label longer than 63 bytes is cut off.
  */
-const encodeQName = (name: string): Buffer => {
+function encodeQName(name: string): Buffer {
     const parts = [];
     const labels = splitServiceName(name);
 
@@ -77,14 +77,14 @@ const encodeQName = (name: string): Buffer => {
     parts.push(Buffer.from([0x00]));
 
     return Buffer.concat(parts);
-};
+}
 
 /**
  * Splits a service name into DNS labels. An instance name can contain dots, so the split
  * happens at the service type: `Living Room._hap._tcp.local` gives
  * `['Living Room', '_hap', '_tcp', 'local']`.
  */
-const splitServiceName = (name: string): string[] => {
+function splitServiceName(name: string): string[] {
     const servicePattern = /\._[a-z0-9-]+\._(?:tcp|udp)\.local$/;
     const match = name.match(servicePattern);
 
@@ -96,12 +96,12 @@ const splitServiceName = (name: string): string[] => {
     }
 
     return name.split('.');
-};
+}
 
 /**
  * Encodes the 12-byte DNS header.
  */
-const encodeDnsHeader = (header: DnsHeader): Buffer => {
+function encodeDnsHeader(header: DnsHeader): Buffer {
     const buf = Buffer.allocUnsafe(12);
     buf.writeUInt16BE(header.id, 0);
     buf.writeUInt16BE(header.flags, 2);
@@ -111,21 +111,21 @@ const encodeDnsHeader = (header: DnsHeader): Buffer => {
     buf.writeUInt16BE(header.arcount, 10);
 
     return buf;
-};
+}
 
 /**
  * Encodes one DNS question.
  *
  * @param unicastResponse - Sets the QU bit, which asks for a unicast response.
  */
-const encodeDnsQuestion = (name: string, qtype: number, unicastResponse: boolean = false): Buffer => {
+function encodeDnsQuestion(name: string, qtype: number, unicastResponse: boolean = false): Buffer {
     const qname = encodeQName(name);
     const suffix = Buffer.allocUnsafe(4);
     suffix.writeUInt16BE(qtype, 0);
     suffix.writeUInt16BE(unicastResponse ? 0x8001 : 0x0001, 2);
 
     return Buffer.concat([qname, suffix]);
-};
+}
 
 /**
  * Builds the DNS query packets for the service types, {@link SERVICES_PER_MSG} questions per packet.
@@ -163,7 +163,7 @@ const MAX_POINTER_JUMPS = 128;
  *
  * @returns The name and the offset after it in the packet.
  */
-const decodeQName = (buf: Buffer, offset: number): [string, number] => {
+function decodeQName(buf: Buffer, offset: number): [string, number] {
     const labels: string[] = [];
     let currentOffset = offset;
     let jumped = false;
@@ -214,38 +214,40 @@ const decodeQName = (buf: Buffer, offset: number): [string, number] => {
     }
 
     return [labels.join('.'), returnOffset];
-};
+}
 
 /**
  * Decodes the 12-byte DNS header.
  */
-const decodeDnsHeader = (buf: Buffer): DnsHeader => ({
-    id: buf.readUInt16BE(0),
-    flags: buf.readUInt16BE(2),
-    qdcount: buf.readUInt16BE(4),
-    ancount: buf.readUInt16BE(6),
-    nscount: buf.readUInt16BE(8),
-    arcount: buf.readUInt16BE(10)
-});
+function decodeDnsHeader(buf: Buffer): DnsHeader {
+    return {
+        id: buf.readUInt16BE(0),
+        flags: buf.readUInt16BE(2),
+        qdcount: buf.readUInt16BE(4),
+        ancount: buf.readUInt16BE(6),
+        nscount: buf.readUInt16BE(8),
+        arcount: buf.readUInt16BE(10)
+    };
+}
 
 /**
  * Decodes one DNS question.
  *
  * @returns The question and the offset after it.
  */
-const decodeQuestion = (buf: Buffer, offset: number): [{ qname: string; qtype: number; qclass: number }, number] => {
+function decodeQuestion(buf: Buffer, offset: number): [{ qname: string; qtype: number; qclass: number }, number] {
     const [qname, newOffset] = decodeQName(buf, offset);
     const qtype = buf.readUInt16BE(newOffset);
     const qclass = buf.readUInt16BE(newOffset + 2);
 
     return [{ qname, qtype, qclass }, newOffset + 4];
-};
+}
 
 /**
  * Decodes the data of a TXT record into properties. Each entry is a length-prefixed UTF-8
  * `key=value` string; an entry without `=` gets an empty value.
  */
-const decodeTxtRecord = (buf: Buffer, offset: number, length: number): Record<string, string> => {
+function decodeTxtRecord(buf: Buffer, offset: number, length: number): Record<string, string> {
     const properties: Record<string, string> = {};
     let pos = offset;
     const end = offset + length;
@@ -271,19 +273,19 @@ const decodeTxtRecord = (buf: Buffer, offset: number, length: number): Record<st
     }
 
     return properties;
-};
+}
 
 /**
  * Decodes the data of an SRV record.
  */
-const decodeSrvRecord = (buf: Buffer, offset: number): SrvRecord => {
+function decodeSrvRecord(buf: Buffer, offset: number): SrvRecord {
     const priority = buf.readUInt16BE(offset);
     const weight = buf.readUInt16BE(offset + 2);
     const port = buf.readUInt16BE(offset + 4);
     const [target] = decodeQName(buf, offset + 6);
 
     return { priority, weight, port, target };
-};
+}
 
 /**
  * Decodes one resource record. The data of A, AAAA, PTR, SRV and TXT records is parsed;
@@ -291,7 +293,7 @@ const decodeSrvRecord = (buf: Buffer, offset: number): SrvRecord => {
  *
  * @returns The record and the offset after it, or null when the packet ends inside the record header.
  */
-const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | null => {
+function decodeResource(buf: Buffer, offset: number): [DnsResource, number] | null {
     const [qname, nameEnd] = decodeQName(buf, offset);
 
     if (nameEnd + 10 > buf.byteLength) {
@@ -346,7 +348,7 @@ const decodeResource = (buf: Buffer, offset: number): [DnsResource, number] | nu
     }
 
     return [{ qname, qtype, qclass, ttl, rdata }, rdOffset + rdLength];
-};
+}
 
 /**
  * Decodes a DNS response into its header, answers and additional records. The question and

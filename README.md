@@ -1,4 +1,9 @@
-# CoreWire
+<h1>
+    <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">
+        <img src=".github/assets/logo-light.svg" alt="CoreWire" width="276" height="60">
+    </picture>
+</h1>
 
 [![Build checks](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml)
 [![Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)

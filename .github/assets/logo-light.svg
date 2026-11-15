@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 184 40" width="276" height="60" role="img" aria-label="CoreWire">
+    <g transform="scale(1.6667)">
+        <circle cx="12" cy="12" r="2.75" fill="#155dfc"/>
+        <path stroke="#155dfc" stroke-linecap="round" stroke-width="2" opacity="0.55" d="M8.11 8.11a5.5 5.5 0 0 0 0 7.78M15.89 8.11a5.5 5.5 0 0 1 0 7.78M5.28 5.28a9.5 9.5 0 0 0 0 13.44M18.72 5.28a9.5 9.5 0 0 1 0 13.44"/>
+    </g>
+    <text x="50" y="28.5" fill="#1f2328" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26" font-weight="600" letter-spacing="-0.5">CoreWire</text>
+</svg>

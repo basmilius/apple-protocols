@@ -63,7 +63,7 @@ export class Discovery {
                 return device;
             }
 
-            logger.debug(`Device '${id}' not found, retrying in ${timeout}ms...`, devices.map(d => d.id));
+            logger.debug(`Device '${id}' not found, retrying in ${timeout}ms...`, devices.map(device => device.id));
 
             tries--;
 

@@ -84,7 +84,7 @@ export function bail(data: Map<number, Buffer>): never {
     if (data.has(Value.Error)) {
         const code = data.get(Value.Error).readUint8();
         const errorCodeEntries = Object.entries(ErrorCode) as [string, number][];
-        const errorCode = errorCodeEntries.find(([_, c]) => c === code);
+        const errorCode = errorCodeEntries.find(([, value]) => value === code);
 
         if (!errorCode) {
             throw new TLV8PairingError(`Device returned an unknown error code: ${code}`, code);

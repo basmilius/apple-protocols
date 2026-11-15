@@ -154,8 +154,13 @@ export function encodePlaybackStatus(status: PlaybackStatus): Buffer {
 
     if (status.repeat !== undefined) {
         let repeatValue = 0;
-        if (status.repeat === 'one') repeatValue = 1;
-        else if (status.repeat === 'all') repeatValue = 2;
+
+        if (status.repeat === 'one') {
+            repeatValue = 1;
+        } else if (status.repeat === 'all') {
+            repeatValue = 2;
+        }
+
         tags.push(encodeTagWithSize('carp', repeatValue, 1));
     }
 
@@ -286,7 +291,10 @@ export function decode(buffer: Buffer): DecodedTag[] {
 
     while (remaining.length > 0) {
         const result = decodeTag(remaining);
-        if (!result) break;
+
+        if (!result) {
+            break;
+        }
 
         const [tag, rest] = result;
         tags.push(tag);
@@ -357,8 +365,8 @@ export function decodeToObject(buffer: Buffer): Record<string, unknown> {
  * The duration goes from the milliseconds of `astm` back to seconds.
  */
 export function decodeTrackMetadata(buffer: Buffer): TrackMetadata {
-    const obj = decodeToObject(buffer);
-    const mlit = (obj.mlit as Record<string, unknown>) ?? obj;
+    const decoded = decodeToObject(buffer);
+    const mlit = (decoded.mlit as Record<string, unknown>) ?? decoded;
 
     return {
         title: mlit.minm as string | undefined,

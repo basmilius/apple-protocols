@@ -138,7 +138,7 @@ export function createQueryPackets(services: string[], qtype: number = QueryType
 
     for (let i = 0; i < services.length; i += SERVICES_PER_MSG) {
         const chunk = services.slice(i, i + SERVICES_PER_MSG);
-        const questions = chunk.map(s => encodeDnsQuestion(s, qtype, unicastResponse));
+        const questions = chunk.map(service => encodeDnsQuestion(service, qtype, unicastResponse));
 
         const header = encodeDnsHeader({
             id: QUERY_ID,
@@ -251,22 +251,22 @@ const decodeTxtRecord = (buf: Buffer, offset: number, length: number): Record<st
     const end = offset + length;
 
     while (pos < end) {
-        const strLen = buf[pos];
+        const entryLength = buf[pos];
         pos++;
 
-        if (strLen === 0 || pos + strLen > end) {
+        if (entryLength === 0 || pos + entryLength > end) {
             break;
         }
 
-        const str = buf.toString('utf-8', pos, pos + strLen);
-        pos += strLen;
+        const entry = buf.toString('utf-8', pos, pos + entryLength);
+        pos += entryLength;
 
-        const eqIndex = str.indexOf('=');
+        const eqIndex = entry.indexOf('=');
 
         if (eqIndex >= 0) {
-            properties[str.substring(0, eqIndex)] = str.substring(eqIndex + 1);
+            properties[entry.substring(0, eqIndex)] = entry.substring(eqIndex + 1);
         } else {
-            properties[str] = '';
+            properties[entry] = '';
         }
     }
 
@@ -480,7 +480,7 @@ class ServiceCollector {
                 const typeIndex = instanceQName.indexOf('._');
                 const name = typeIndex >= 0 ? instanceQName.substring(0, typeIndex) : instanceQName;
 
-                if (!results.some(s => s.name === name && s.type === serviceType)) {
+                if (!results.some(result => result.name === name && result.type === serviceType)) {
                     results.push({ name, type: serviceType, address, port: srv.port, properties: txt });
                 }
             }

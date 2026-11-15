@@ -155,9 +155,9 @@ export class MdnsResponder {
         const ptr = record(this.#service.type, Type.PTR, CLASS_IN, encodeName(instanceFqdn));
         const srv = record(instanceFqdn, Type.SRV, CLASS_FLUSH, encodeSrv(this.#service.port, this.#service.host));
         const txt = record(instanceFqdn, Type.TXT, CLASS_FLUSH, encodeTxt(this.#service.txt));
-        const a = record(this.#service.host, Type.A, CLASS_FLUSH, encodeAddress(this.#address));
+        const address = record(this.#service.host, Type.A, CLASS_FLUSH, encodeAddress(this.#address));
 
-        return Buffer.concat([header, ptr, srv, txt, a]);
+        return Buffer.concat([header, ptr, srv, txt, address]);
     }
 }
 

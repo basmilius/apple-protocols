@@ -167,13 +167,13 @@ export function encode(data: any): Uint8Array {
  * Joins byte arrays into one.
  */
 function concat(arrays: Uint8Array[]): Uint8Array {
-    const total = arrays.reduce((sum, a) => sum + a.length, 0);
+    const total = arrays.reduce((sum, array) => sum + array.length, 0);
     const out = new Uint8Array(total);
     let offset = 0;
 
-    for (const a of arrays) {
-        out.set(a, offset);
-        offset += a.length;
+    for (const array of arrays) {
+        out.set(array, offset);
+        offset += array.length;
     }
 
     return out;
@@ -182,8 +182,8 @@ function concat(arrays: Uint8Array[]): Uint8Array {
 /**
  * Returns a byte array that holds one byte.
  */
-function u8(b: number) {
-    return Uint8Array.of(b);
+function u8(byte: number) {
+    return Uint8Array.of(byte);
 }
 
 /**
@@ -191,11 +191,11 @@ function u8(b: number) {
  */
 function uintToLEBytes(value: number | bigint, byteLen: number): Uint8Array {
     const out = new Uint8Array(byteLen);
-    let v = BigInt(value);
+    let remaining = BigInt(value);
 
     for (let i = 0; i < byteLen; i++) {
-        out[i] = Number(v & 0xffn);
-        v >>= 8n;
+        out[i] = Number(remaining & 0xffn);
+        remaining >>= 8n;
     }
 
     return out;
@@ -213,19 +213,23 @@ function readLittleEndian(buf: Uint8Array, offset: number, len: number) {
 
     if (len === 1) {
         return buf[offset];
-    } else if (len === 2) {
-        return buf[offset] | (buf[offset + 1] << 8);
-    } else if (len === 4) {
-        return (buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24)) >>> 0;
-    } else {
-        let v = 0n;
-
-        for (let i = len - 1; i >= 0; i--) {
-            v = (v << 8n) | BigInt(buf[offset + i]);
-        }
-
-        return Number(v);
     }
+
+    if (len === 2) {
+        return buf[offset] | (buf[offset + 1] << 8);
+    }
+
+    if (len === 4) {
+        return (buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16) | (buf[offset + 3] << 24)) >>> 0;
+    }
+
+    let value = 0n;
+
+    for (let i = len - 1; i >= 0; i--) {
+        value = (value << 8n) | BigInt(buf[offset + i]);
+    }
+
+    return Number(value);
 }
 
 /**
@@ -329,31 +333,31 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             packed.set(uintToLEBytes(data.valueOf(), 8), 1);
         }
     } else if (typeof data === 'string') {
-        const b = textEncoder.encode(data);
-        const len = b.length;
+        const encoded = textEncoder.encode(data);
+        const len = encoded.length;
 
         if (len <= 0x20) {
             packed = new Uint8Array(1 + len);
             packed[0] = TAG.STR_BASE + len;
-            packed.set(b, 1);
+            packed.set(encoded, 1);
         } else if (len <= 0xFF) {
             packed = new Uint8Array(2 + len);
             packed[0] = TAG.STR_1BYTE_LEN;
             packed[1] = len;
-            packed.set(b, 2);
+            packed.set(encoded, 2);
         } else if (len <= 0xFFFF) {
             packed = new Uint8Array(3 + len);
             packed[0] = TAG.STR_2BYTE_LEN;
             packed[1] = len & 0xFF;
             packed[2] = (len >> 8) & 0xFF;
-            packed.set(b, 3);
+            packed.set(encoded, 3);
         } else if (len <= 0xFFFFFF) {
             packed = new Uint8Array(4 + len);
             packed[0] = TAG.STR_3BYTE_LEN;
             packed[1] = len & 0xFF;
             packed[2] = (len >> 8) & 0xFF;
             packed[3] = (len >> 16) & 0xFF;
-            packed.set(b, 4);
+            packed.set(encoded, 4);
         } else {
             packed = new Uint8Array(5 + len);
             packed[0] = TAG.STR_4BYTE_LEN;
@@ -361,7 +365,7 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             packed[2] = (len >> 8) & 0xFF;
             packed[3] = (len >> 16) & 0xFF;
             packed[4] = (len >> 24) & 0xFF;
-            packed.set(b, 5);
+            packed.set(encoded, 5);
         }
     } else if (data instanceof Uint8Array || Buffer.isBuffer(data)) {
         const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
@@ -392,8 +396,8 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
             packed.set(bytes, 5);
         }
     } else if (Array.isArray(data)) {
-        const parts = data.map(d => _pack(d, objectList));
-        const bodyLen = parts.reduce((sum, p) => sum + p.length, 0);
+        const parts = data.map(item => _pack(item, objectList));
+        const bodyLen = parts.reduce((sum, part) => sum + part.length, 0);
         const len = data.length;
 
         if (len < 0x0F) {
@@ -423,9 +427,9 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
         const parts: Uint8Array[] = [];
         let bodyLen = 0;
 
-        for (const k of keys) {
-            const keyPacked = _pack(k, objectList);
-            const valPacked = _pack((data as any)[k], objectList);
+        for (const key of keys) {
+            const keyPacked = _pack(key, objectList);
+            const valPacked = _pack((data as any)[key], objectList);
             parts.push(keyPacked, valPacked);
             bodyLen += keyPacked.length + valPacked.length;
         }
@@ -507,8 +511,13 @@ function _pack(data: any, objectList: ObjectList): Uint8Array {
  * @throws TypeError if the buffer ends early, nests too deep or holds an unknown tag.
  */
 function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 0): UnpackResult {
-    if (depth > 128) throw new TypeError('OPack nesting limit exceeded');
-    if (offset >= data.length) throw new TypeError('No data to unpack');
+    if (depth > 128) {
+        throw new TypeError('OPack nesting limit exceeded');
+    }
+
+    if (offset >= data.length) {
+        throw new TypeError('No data to unpack');
+    }
 
     const tag = data[offset];
     let addToObjectList = true;
@@ -576,11 +585,11 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 
         let pos = offset + 1;
 
         if (count === 0xF) {
-            const arr: any[] = [];
+            const items: any[] = [];
 
             while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
                 const result = _unpackAt(data, pos, objectList, depth + 1);
-                arr.push(result.value);
+                items.push(result.value);
                 pos = result.offset;
             }
 
@@ -589,30 +598,30 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 
             }
 
             pos++;
-            value = arr;
+            value = items;
         } else {
-            const arr = new Array(count);
+            const items = new Array(count);
 
             for (let i = 0; i < count; i++) {
                 const result = _unpackAt(data, pos, objectList, depth + 1);
-                arr[i] = result.value;
+                items[i] = result.value;
                 pos = result.offset;
             }
 
-            value = arr;
+            value = items;
         }
 
         newOffset = pos;
     } else if ((tag & 0xF0) === TAG.DICT_BASE) {
         const count = tag & 0xF;
-        const obj: Record<string, any> = {};
+        const dictionary: Record<string, any> = {};
         let pos = offset + 1;
 
         if (count === 0xF) {
             while (pos < data.length && data[pos] !== TAG.TERMINATOR) {
                 const keyResult = _unpackAt(data, pos, objectList, depth + 1);
                 const valResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
-                Object.defineProperty(obj, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
+                Object.defineProperty(dictionary, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
                 pos = valResult.offset;
             }
 
@@ -625,12 +634,12 @@ function _unpackAt(data: Uint8Array, offset: number, objectList: any[], depth = 
             for (let i = 0; i < count; i++) {
                 const keyResult = _unpackAt(data, pos, objectList, depth + 1);
                 const valResult = _unpackAt(data, keyResult.offset, objectList, depth + 1);
-                Object.defineProperty(obj, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
+                Object.defineProperty(dictionary, keyResult.value, {value: valResult.value, enumerable: true, configurable: true, writable: true});
                 pos = valResult.offset;
             }
         }
 
-        value = obj;
+        value = dictionary;
         newOffset = pos;
     } else if (tag >= TAG.REF_BASE && tag <= TAG.REF_MAX_INLINE) {
         const idx = tag - TAG.REF_BASE;

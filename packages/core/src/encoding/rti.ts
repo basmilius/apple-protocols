@@ -14,27 +14,50 @@ export function decodeSession(data: Uint8Array | ArrayBuffer): TextInputSession 
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
     const archive = Plist.parse(Uint8Array.from(bytes).buffer) as any;
     const objects = archive?.$objects;
+
     if (!Array.isArray(objects) || !archive?.$top) {
         throw new Error('Invalid RTI archive.');
     }
 
     const resolve = (value: any, depth = 0): any => {
-        if (depth > 64) throw new Error('Invalid RTI archive reference cycle.');
-        if (value === '$null') return null;
-        if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value;
-        if (!value || typeof value !== 'object') return value;
+        if (depth > 64) {
+            throw new Error('Invalid RTI archive reference cycle.');
+        }
+
+        if (value === '$null') {
+            return null;
+        }
+
+        if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+            return value;
+        }
+
+        if (!value || typeof value !== 'object') {
+            return value;
+        }
+
         if ('CF$UID' in value) {
             const index = value['CF$UID'];
+
             if (!Number.isInteger(index) || index < 0 || index >= objects.length) {
                 throw new Error('Invalid RTI archive reference.');
             }
+
             return resolve(objects[index], depth + 1);
         }
-        if (Array.isArray(value)) return value.map(item => resolve(item, depth + 1));
-        const result: Record<string, any> = {};
-        for (const [key, item] of Object.entries(value)) {
-            if (key !== '$class') result[key] = resolve(item, depth + 1);
+
+        if (Array.isArray(value)) {
+            return value.map(item => resolve(item, depth + 1));
         }
+
+        const result: Record<string, any> = {};
+
+        for (const [key, item] of Object.entries(value)) {
+            if (key !== '$class') {
+                result[key] = resolve(item, depth + 1);
+            }
+        }
+
         return result;
     };
 
@@ -43,11 +66,16 @@ export function decodeSession(data: Uint8Array | ArrayBuffer): TextInputSession 
     const uuidValue = root.sessionUUID?.['NS.uuidbytes'] ?? root.sessionUUID;
     const uuid = uuidValue instanceof ArrayBuffer ? new Uint8Array(uuidValue)
         : uuidValue instanceof Uint8Array ? uuidValue : null;
-    if (!uuid || uuid.byteLength !== 16) throw new Error('Invalid RTI session UUID.');
+
+    if (!uuid || uuid.byteLength !== 16) {
+        throw new Error('Invalid RTI session UUID.');
+    }
+
     const document = root.documentState ?? {};
     const traits = root.documentTraits ?? {};
     const text = document.docSt ?? document.documentContextBeforeInput ?? '';
     const documentText = typeof text === 'string' ? text : text?.['NS.string'] ?? '';
+
     return {
         uuid: Uint8Array.from(uuid),
         documentText: typeof documentText === 'string' ? documentText : '',
@@ -62,7 +90,10 @@ const uid = (index: number): { 'CF$UID': number } => ({'CF$UID': index});
 
 /** Encodes an RTITextOperations archive that inserts `text`, or clears the field when `clear` is set. */
 export function encodeOperation(sessionUUID: Uint8Array, text: string, clear: boolean): ArrayBuffer {
-    if (sessionUUID.byteLength !== 16) throw new Error('Invalid RTI session UUID.');
+    if (sessionUUID.byteLength !== 16) {
+        throw new Error('Invalid RTI session UUID.');
+    }
+
     return Plist.serialize({
         '$version': 100000,
         '$archiver': 'RTIKeyedArchiver',

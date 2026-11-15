@@ -100,7 +100,9 @@ export async function fetchAnimatedArtwork(albumId: string, options: AnimatedArt
         while (true) {
             const {done, value} = await reader.read();
 
-            if (done) break;
+            if (done) {
+                break;
+            }
 
             size += value.byteLength;
 

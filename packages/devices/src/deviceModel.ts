@@ -14,7 +14,7 @@ export enum DeviceModel {
     HomePodGen2 = 12,
 
     AirPortExpress = 20,
-    AirPortExpressGen2 = 21,
+    AirPortExpressGen2 = 21
 }
 
 /** The family a device model belongs to. */
@@ -22,7 +22,7 @@ export enum DeviceFamily {
     Unknown = 0,
     AppleTV = 1,
     HomePod = 2,
-    AirPort = 3,
+    AirPort = 3
 }
 
 /** Maps Apple model identifiers (e.g. "AppleTV6,2") to known device models. */
@@ -42,7 +42,7 @@ const MODEL_IDENTIFIERS: Record<string, DeviceModel> = {
     'AudioAccessory6,1': DeviceModel.HomePodGen2,
 
     'AirPort4,107': DeviceModel.AirPortExpress,
-    'AirPort10,115': DeviceModel.AirPortExpressGen2,
+    'AirPort10,115': DeviceModel.AirPortExpressGen2
 };
 
 /** Maps Apple internal code names (e.g. "J305AP") to known device models. */
@@ -54,7 +54,7 @@ const INTERNAL_NAMES: Record<string, DeviceModel> = {
     'J105aAP': DeviceModel.AppleTV4K,
     'J305AP': DeviceModel.AppleTV4KGen2,
     'J255AP': DeviceModel.AppleTV4KGen3,
-    'B520AP': DeviceModel.HomePodMini,
+    'B520AP': DeviceModel.HomePodMini
 };
 
 const MODEL_NAMES: Record<DeviceModel, string> = {
@@ -69,7 +69,7 @@ const MODEL_NAMES: Record<DeviceModel, string> = {
     [DeviceModel.HomePodMini]: 'HomePod mini',
     [DeviceModel.HomePodGen2]: 'HomePod (2nd generation)',
     [DeviceModel.AirPortExpress]: 'AirPort Express',
-    [DeviceModel.AirPortExpressGen2]: 'AirPort Express (2nd generation)',
+    [DeviceModel.AirPortExpressGen2]: 'AirPort Express (2nd generation)'
 };
 
 const MODEL_TYPES: Record<DeviceModel, DeviceFamily> = {
@@ -84,7 +84,7 @@ const MODEL_TYPES: Record<DeviceModel, DeviceFamily> = {
     [DeviceModel.HomePodMini]: DeviceFamily.HomePod,
     [DeviceModel.HomePodGen2]: DeviceFamily.HomePod,
     [DeviceModel.AirPortExpress]: DeviceFamily.AirPort,
-    [DeviceModel.AirPortExpressGen2]: DeviceFamily.AirPort,
+    [DeviceModel.AirPortExpressGen2]: DeviceFamily.AirPort
 };
 
 /**

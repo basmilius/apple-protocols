@@ -20,7 +20,9 @@ function extractAppleMusicLyrics(payload: unknown): string | null {
         const attributes = item?.attributes;
 
         for (const text of [attributes?.ttmlLocalizations, attributes?.ttml]) {
-            if (typeof text === 'string' && text.trim()) return text;
+            if (typeof text === 'string' && text.trim()) {
+                return text;
+            }
         }
     }
 
@@ -46,8 +48,13 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
     const url = new URL(`https://amp-api.music.apple.com/v1/catalog/${options.storefront}/songs/${catalogId}/syllable-lyrics`);
     url.searchParams.set('extend', 'ttmlLocalizations');
 
-    if (options.language) url.searchParams.set('l[lyrics]', options.language);
-    if (options.script) url.searchParams.set('l[script]', options.script);
+    if (options.language) {
+        url.searchParams.set('l[lyrics]', options.language);
+    }
+
+    if (options.script) {
+        url.searchParams.set('l[script]', options.script);
+    }
 
     let response: Response;
 
@@ -65,16 +72,26 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
     if (!response.ok) {
         await response.body?.cancel();
 
-        if (response.status === 401) throw new CatalogError('unauthorized', 'Apple Music rejected the bearer token (401).', 401);
-        if (response.status === 403) throw new CatalogError('forbidden', 'Apple Music denied lyrics access. Check the account token, subscription and storefront (403).', 403);
-        if (response.status === 404) return null;
+        if (response.status === 401) {
+            throw new CatalogError('unauthorized', 'Apple Music rejected the bearer token (401).', 401);
+        }
+
+        if (response.status === 403) {
+            throw new CatalogError('forbidden', 'Apple Music denied lyrics access. Check the account token, subscription and storefront (403).', 403);
+        }
+
+        if (response.status === 404) {
+            return null;
+        }
 
         throw new CatalogError('requestFailed', `Apple Music lyrics request failed (${response.status}).`, response.status);
     }
 
     const reader = response.body?.getReader();
 
-    if (!reader) throw new CatalogError('invalidResponse', 'Apple Music returned an empty lyrics response.');
+    if (!reader) {
+        throw new CatalogError('invalidResponse', 'Apple Music returned an empty lyrics response.');
+    }
 
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -83,11 +100,15 @@ export async function fetchLyrics(catalogId: string, options: AppleMusicLyricsOp
         while (true) {
             const {done, value} = await reader.read();
 
-            if (done) break;
+            if (done) {
+                break;
+            }
 
             size += value.byteLength;
 
-            if (size > 2 * 1024 * 1024) throw new CatalogError('tooLarge', 'Apple Music lyrics response exceeds 2 MB.');
+            if (size > 2 * 1024 * 1024) {
+                throw new CatalogError('tooLarge', 'Apple Music lyrics response exceeds 2 MB.');
+            }
 
             chunks.push(value);
         }

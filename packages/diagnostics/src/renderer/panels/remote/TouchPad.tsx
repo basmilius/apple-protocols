@@ -237,5 +237,5 @@ function describe(gesture: Gesture | null): string {
         return `select held ${gesture.durationMs} ms`;
     }
 
-    return `swipe(${gesture.from.x}, ${gesture.from.y}) to (${gesture.to.x}, ${gesture.to.y}) finger ${gesture.finger}, ${gesture.durationMs} ms`;
+    return `swipe (${gesture.from.x}, ${gesture.from.y}) to (${gesture.to.x}, ${gesture.to.y}), finger ${gesture.finger}, ${gesture.durationMs} ms`;
 }

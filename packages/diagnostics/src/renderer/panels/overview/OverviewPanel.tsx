@@ -98,7 +98,7 @@ export function OverviewPanel({deviceId}: PanelProps) {
                     <KeyValue label="Model" icon={ICONS.model}>{device.modelName || 'Unknown'}</KeyValue>
                     <KeyValue label="Type" icon={ICONS.model}>{device.deviceType}</KeyValue>
                     {device.services.airplay && <KeyValue label="AirPlay port" icon={ICONS.port}>{device.services.airplay.port}</KeyValue>}
-                    {device.services.companionLink && <KeyValue label="Companion port" icon={ICONS.port}>{device.services.companionLink.port}</KeyValue>}
+                    {device.services.companionLink && <KeyValue label="Companion Link port" icon={ICONS.port}>{device.services.companionLink.port}</KeyValue>}
                 </KeyValueList>
             </Section>
 

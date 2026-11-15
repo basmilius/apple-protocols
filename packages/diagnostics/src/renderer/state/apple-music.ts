@@ -50,7 +50,7 @@ export const useAppleMusic = create<AppleMusicState>((set, get) => ({
                 localStorage.removeItem(KEY);
             }
         } catch {
-            storageError = 'Could not update local Apple Music storage.';
+            storageError = 'Could not store the Apple Music tokens.';
         }
 
         set({...credentials, storageError});

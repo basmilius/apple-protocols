@@ -96,7 +96,7 @@ export function PerformancePanel() {
                         </KeyValue>
                     ))}
                 </KeyValueList>
-                <p className="text-xs text-text-muted">Older entries are evicted at the byte or entry limit. Binary previews keep their original length and mark the cut.</p>
+                <p className="text-xs text-text-muted">Each buffer drops its oldest entries at the byte or entry limit. Binary previews keep their original length and mark the cut.</p>
             </Section>
         </PanelBody>
     );

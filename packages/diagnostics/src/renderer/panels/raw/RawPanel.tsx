@@ -29,7 +29,7 @@ export function RawPanel({deviceId}: PanelProps) {
                 <Segmented<RawTransport> label="Transport" value={transport} onValueChange={setTransport} items={items}/>
             </header>
             <div className="min-h-0 grow">
-                <RawConsole deviceId={deviceId} transport={transport} emptyText="The builder catalog could not be read from main."/>
+                <RawConsole deviceId={deviceId} transport={transport} emptyText="Main did not return the builder catalog."/>
             </div>
         </div>
     );

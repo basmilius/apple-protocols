@@ -42,7 +42,7 @@ export function useTools(category: ToolCategory): ToolsHandle {
             },
             failure => {
                 if (alive) {
-                    setError(messageOf(failure, 'The tool list could not be read.'));
+                    setError(messageOf(failure, 'Could not read the tool list.'));
                     setLoading(false);
                 }
             }

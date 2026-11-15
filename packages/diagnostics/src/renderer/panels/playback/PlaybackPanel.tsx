@@ -223,7 +223,7 @@ export function PlaybackPanel({deviceId}: PanelProps) {
                         <PlaybackCommand {...context} root="mediaRemote" label="Previous" command="PreviousChapter" path="commands.previousChapter"/>
                         <PlaybackCommand {...context} root="mediaRemote" label="Next" command="NextChapter" path="commands.nextChapter"/>
                     </ControlRow>
-                    <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. It still runs, to see what the device does.</p>
+                    <p className="text-xs text-text-muted">A dot marks a command the device does not list in its supported commands. You can still run it to see what the device does.</p>
                 </Section>
             </PanelGroup>
 

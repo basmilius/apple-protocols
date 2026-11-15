@@ -60,7 +60,7 @@ export function StoragePanel(_props: PanelProps) {
             setDevices(stored);
             setDump(raw);
         } catch (failure) {
-            setError(messageOf(failure, 'The storage file could not be read.'));
+            setError(messageOf(failure, 'Could not read the storage file.'));
         }
     }, []);
 
@@ -144,8 +144,8 @@ export function StoragePanel(_props: PanelProps) {
                     pending === null
                         ? ''
                         : pending.protocol === null
-                          ? `${pending.device.name} and every credential stored for it are deleted from the storage file. Pairing again is the only way back.`
-                          : `The ${LABELS[pending.protocol]} credentials of ${pending.device.name} are deleted. Pairing again is the only way back.`
+                          ? `This deletes ${pending.device.name} and all its credentials from the storage file. Only pairing again brings them back.`
+                          : `This deletes the ${LABELS[pending.protocol]} credentials of ${pending.device.name}. Only pairing again brings them back.`
                 }
                 confirmLabel={pending?.protocol === null ? 'Remove' : 'Forget'}
                 onConfirm={confirm}

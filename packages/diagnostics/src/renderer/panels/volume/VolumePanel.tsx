@@ -144,7 +144,7 @@ export function VolumePanel({deviceId}: PanelProps) {
                 </Section>
 
                 <Section title="Sound modes" icon={ICONS.experimental} collapsible defaultOpen={false}>
-                    <p className="text-xs text-text-muted">These go straight at the AirPlay session and its MRP remote. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
+                    <p className="text-xs text-text-muted">These go straight to the AirPlay session and its MRP remote. Most receivers answer only a subset, and a HomePod answers different ones than an Apple TV.</p>
                     <ControlRow label="Audio mode" icon={ICONS.audio}>
                         <TextInput label="Audio mode" mono className="h-7 min-w-0 flex-1 basis-40" value={audioMode} onChange={event => setAudioMode(event.target.value)}/>
                         <CommandButton label="Set" tooltip="airplay.control.setAudioMode" run={() => call('airplay', 'control.setAudioMode', [audioMode])} disabled={!connected}/>

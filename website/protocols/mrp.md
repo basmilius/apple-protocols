@@ -27,7 +27,7 @@ await session.close();
 
 `MediaRemote.open(session, options?)` opens remote control on the session and runs the MRP startup: DEVICE_INFO as an exchange, then the connection state, the update subscription and GET_STATE. The state listens from before the data channel connects, so it misses nothing. A failed startup ends the session. It throws `SetupError`, `TimeoutError` (DEVICE_INFO got no reply) or `ConnectionClosedError`.
 
-Pass `{state}` to feed a `MediaRemoteState` you keep across sessions. It is fed as it is; call `state.clear()` yourself when a new session should start empty.
+Pass `{state}` to feed a `MediaRemoteState` you keep across sessions. `open()` does not clear it. Call `state.clear()` when a new session should start empty.
 
 A `MediaRemote` lives as long as its session.
 
@@ -75,11 +75,11 @@ await remote.hid.longPress(0x0c, 0x40, 1000);
 
 Its events: `nowPlayingChanged`, `activePlayerChanged`, `playbackStateChanged`, `playbackQueueChanged`, `supportedCommandsChanged`, `artworkChanged`, `lyricsEvent`, `volumeChanged`, `volumeMutedChanged`, `volumeControlChanged`, `keyboardChanged`, `outputDevicesChanged`, `participantsChanged`, `clusterChanged` and `clients`.
 
-A `Client` is an app; it holds `Player`s and proxies its getters (`title`, `artist`, `duration`, `elapsedTime`, `playbackState`, `isCommandSupported()` and more) to the active player. `elapsedTime` extrapolates from the timestamp of the last state and the playback rate.
+A `Client` is an app. It holds `Player`s and proxies its getters (`title`, `artist`, `duration`, `elapsedTime`, `playbackState`, `isCommandSupported()` and more) to the active player. `elapsedTime` extrapolates from the timestamp of the last state and the playback rate.
 
 ### Feeding recorded messages
 
-The state does no I/O. `apply(name, message)` feeds it one decoded message; `decodeMessage()` turns a `ProtocolMessage` into that pair.
+The state does no I/O. `apply(name, message)` feeds it one decoded message. `decodeMessage()` turns a `ProtocolMessage` into that pair.
 
 ```ts
 import { decodeMessage, MediaRemoteState, parseMessages } from '@corewire/airplay/mrp';
@@ -103,7 +103,7 @@ for (const message of parseMessages(recorded)) {
 
 ## Sending your own messages
 
-`Messages` builds `ProtocolMessage`s with their extension; `Proto` holds the generated protobuf types and enums. Send them on the data channel:
+`Messages` builds `ProtocolMessage`s with their extension. `Proto` holds the generated protobuf types and enums. Send them on the data channel:
 
 ```ts
 import { Messages, Proto, type MediaRemote } from '@corewire/airplay/mrp';

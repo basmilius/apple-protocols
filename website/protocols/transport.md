@@ -19,7 +19,7 @@ const context = new Context('Living-Room.local', {name: 'Kitchen hub'}, (group, 
 context.logger.info('[example]', 'hello');
 ```
 
-The second argument is a `DeviceIdentity` with the fields you override (`name`, `model`, `osName`, `osVersion`, `osBuildVersion`, `sourceVersion`, `applicationBundleIdentifier`, `applicationBundleVersion`), all optional. `context.identity` returns only those overrides; each protocol package fills in its own defaults where it sends the identity. The name defaults to `DEFAULT_CLIENT_NAME`, `CoreWire`. The third argument is a `LogSink` that receives every log call of this context.
+The second argument is a `DeviceIdentity` with the fields you override (`name`, `model`, `osName`, `osVersion`, `osBuildVersion`, `sourceVersion`, `applicationBundleIdentifier`, `applicationBundleVersion`), all optional. `context.identity` returns only those overrides. Each protocol package fills in its own defaults where it sends the identity. The name defaults to `DEFAULT_CLIENT_NAME`, `CoreWire`. The third argument is a `LogSink` that receives every log call of this context.
 
 Pass one context to several connections of the same device, such as an AirPlay and a Companion Link session, so their logs line up.
 
@@ -67,7 +67,7 @@ reporter.setSink(entry => {
 
 ### Traffic
 
-The protocol packages report every message they send and receive with `logger.traffic()`: the protocol, the direction, a one-line summary, the decoded message and the plaintext bytes. Without a traffic sink this costs nothing. With one you can build a traffic view, as the [diagnostics app](/diagnostics) does.
+The protocol packages report every message they send and receive with `logger.traffic()`: the protocol, the direction, a one-line summary, the decoded message and the plaintext bytes. Without a traffic sink the call does nothing. With one you can build a traffic view, as the [diagnostics app](/diagnostics) does.
 
 ```ts
 import { reporter } from '@corewire/core';
@@ -77,4 +77,4 @@ reporter.setTrafficSink(entry => {
 });
 ```
 
-Traffic is plaintext, taken after decryption on the way in and before encryption on the way out. RTP audio packets are not reported.
+Traffic is plaintext, taken after decryption on the way in and before encryption on the way out. RTP audio packets are left out.

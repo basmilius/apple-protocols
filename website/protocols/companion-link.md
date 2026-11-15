@@ -36,14 +36,14 @@ await session.close();
 | `credentials` | Required |
 | `context`, `identity` | As for AirPlay |
 | `activeUserAccount` | The iCloud alternate DSID to announce as the active user at startup |
-| `state` | A `CompanionLinkState` to feed; keep one across sessions to keep its listeners |
+| `state` | A `CompanionLinkState` to feed. Keep one across sessions to keep its listeners |
 | `signal` | Ends the session, or interrupts the handshake, when aborted |
 
 A `CompanionLinkTarget` needs the `address` and the `port` of the `_companion-link._tcp` service. Unlike AirPlay there is no default port.
 
 ## Pairing
 
-`pair(target, options?)` sends pair-setup M1, upon which the Apple TV shows its PIN. `PinPairing.pin(code)` finishes and resolves `AccessoryCredentials`. It works like [AirPlay pairing](/protocols/airplay#pairing).
+`pair(target, options?)` sends pair-setup M1, and the Apple TV shows its PIN. `PinPairing.pin(code)` finishes and resolves `AccessoryCredentials`. It works like [AirPlay pairing](/protocols/airplay#pairing).
 
 ## The groups
 
@@ -86,6 +86,6 @@ session.state.on('textInputChanged', input => console.log('keyboard', input.isAc
 
 ## Raw messages
 
-`Messages` builds the OPack messages the groups send. `session.stream` is the encrypted `Stream`, with `exchange(type, message)` for a request and `sendOPack(type, message)` for an event. `FrameType` and `MessageType` name the frame and message types. Prefer the groups; they track replies and errors for you.
+`Messages` builds the OPack messages the groups send. `session.stream` is the encrypted `Stream`, with `exchange(type, message)` for a request and `sendOPack(type, message)` for an event. `FrameType` and `MessageType` name the frame and message types. Prefer the groups, which track replies and errors for you.
 
-The session sends a heartbeat to keep the connection open. Companion Link has no request and response keepalive, so a peer that vanished without closing the socket is noticed only when TCP gives up on the heartbeat bytes.
+The session sends a heartbeat to keep the connection open. Companion Link has no request and response keepalive. A peer that vanished without closing the socket therefore ends the session only when TCP gives up on the heartbeat bytes.

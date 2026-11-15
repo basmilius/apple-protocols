@@ -39,7 +39,7 @@ export default defineConfig({
             {icon: 'npm', link: 'https://www.npmjs.com/org/corewire'}
         ],
         editLink: {
-            pattern: 'https://github.com/basmilius/apple-protocols/edit/main/website/:path'
+            pattern: 'https://github.com/basmilius/apple-protocols/edit/main/docs/:path'
         },
         outline: {
             level: [2, 3]

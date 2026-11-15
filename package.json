@@ -15,7 +15,7 @@
     },
     "workspaces": [
         "packages/*",
-        "website"
+        "docs"
     ],
     "devDependencies": {
         "@basmilius/tools": "^3.35.0",

@@ -20,16 +20,16 @@ Na een wijziging zijn dit de controles, ook in CI:
 rm -rf packages/*/dist && bash build.sh
 bun run packages/core/test/pairing-server.ts          # pair-setup en pair-verify in geheugen
 bun run packages/diagnostics/test/proxy-smoke.ts      # proxy-onderdelen aanmaken zonder sockets
-bun --cwd website build                               # de documentatie op corewire.dev
+bun --cwd docs build                                  # de documentatie op corewire.dev
 ```
 
 Alle gepubliceerde packages hebben `engines.node` `^18.17.0 || >=20.3.0` (`AbortSignal.any` is de nieuwste API die de code gebruikt), een `README.md` en een `LICENSE`.
 
 ### Website
 
-`website/` is de VitePress-site voor corewire.dev: guide, protocols en een reference per package. Elke export staat in de reference en elke genoemde naam bestaat. Na een API-wijziging pas je de reference, de guides, `README.md` en de README per package aan. De codevoorbeelden moeten type-checken tegen de bronnen met de path aliases van de repo.
+`docs/` is de VitePress-site voor corewire.dev: guide, protocols en een reference per package. Elke export staat in de reference en elke genoemde naam bestaat. Na een API-wijziging pas je de reference, de guides, `README.md` en de README per package aan. De codevoorbeelden moeten type-checken tegen de bronnen met de path aliases van de repo.
 
-Deploy: `wrangler.toml` in de root (Cloudflare Workers met static assets uit `website/.vitepress/dist`, custom domain corewire.dev). `.github/workflows/website.yml` bouwt en deployt bij een push naar `main` die `website/**` raakt, of handmatig.
+Deploy: `wrangler.toml` in de root (Cloudflare Workers met static assets uit `docs/.vitepress/dist`, custom domain corewire.dev). `.github/workflows/website.yml` bouwt en deployt bij een push naar `main` die `docs/**` raakt, of handmatig.
 
 ### Protobuf genereren
 
@@ -108,7 +108,7 @@ devices (AppleTV, HomePod)
 - Capabilities zijn interfaces (`NowPlayingControl`, `VolumeControl`, `PowerControl`, `TextControl`, `AppsControl`, `AccountsControl`, `SystemControl`, `TouchControl`, `RemoteControl`, `PlaybackControl`, `ArtworkControl`, `MediaControl`, `MultiroomControl`, `MediaPlayback`); de klassen erachter zijn intern. Lifecycle-methoden (`hold`, `resume`, `reset`) en constructors met `MediaRemoteState` of sessies zijn dus niet publiek. Capabilities met events extenden `EventEmitter<...EventMap>`. `AppleDevice` heeft één protected hook: `reset()`, aan het begin van `disconnect()`; `AppleTV` overschrijft hem voor power.
 - `devices` is de foutgrens: het re-exporteert alle foutklassen van core, vertaalt `SendCommandError` naar `CommandRefusedError` (`reason` en `status` als string) en `/catalog` gooit `CatalogError` (`reason`, `status`). Een consumer importeert geen `Proto`-enums of core-fouten.
 - De clientnaam is overal `CoreWire` (`DEFAULT_CLIENT_NAME` in `core/transport`) tenzij `identity.name` iets anders zegt: pair-setup M5, AirPlay SETUP, URL-playback (`clientProcName`), MRP device info en Companion Link `_systemInfo`. De RAOP-metadata zonder stream-metadata is `Streaming with CoreWire` / `CoreWire` / `AirPlay`, in te stellen met de `metadata`-optie van RAOP `connect()`. Bewust niet veranderd: `clientBundleID` `com.basmilius.apple-protocols`, de RAOP digest-username `apple-protocols` en de paden onder `~/.config/apple-protocols`.
-- Ontwerp en afwijkingen: `docs/reports/package-structure.tsx` (goedgekeurd ontwerp) en `docs/parity/devices-api.md` (de devices API, sectie 0 voor wat anders werd).
+- Ontwerp en afwijkingen: `.research/reports/package-structure.tsx` (goedgekeurd ontwerp) en `.research/parity/devices-api.md` (de devices API, sectie 0 voor wat anders werd).
 
 ## Patronen
 
@@ -137,7 +137,7 @@ Remote control via USB HID usage pages: Generic Desktop (0x01) voor navigatie, C
 ### Connection management
 - `Connection<TEventMap>` (`core/transport`): TCP socket wrapper, verbindt één keer zonder retry, `keepAlive(true, 10s)`, eindigt via één `closed`-event met een reden.
 - `EncryptionAwareConnection`: voegt `enableEncryption(readKey, writeKey)` toe met `EncryptionState` (keys + counters), voor subklassen leesbaar via de protected getter `encryption`. `buildNonce(counter, format)` maakt de nonce per protocol.
-- Herstel zit alleen in `devices` (`packages/devices/src/lifecycle/`): per protocol een link met retries na 1, 2 en 4 s, daarna voor een Apple TV 15 pogingen elke 2 minuten en daarna elke 15 minuten, voor een HomePod elke 15 minuten. Nooit opgeven. Elke retry zoekt het device eerst opnieuw (unicast DNS-SD met een wake knock, dan de `resolve(last, signal)`-optie of een multicast scan). `resolve` krijgt een signal dat na 15 s of bij `disconnect()` afgaat. AirPlay en Companion Link doen elk hun eigen unicast query (afwijking B13 in `docs/parity/devices-api.md`). Verbindt het ene protocol terwijl het andere op een retry wacht, dan probeert het andere het meteen, ook in zijn fase van 2 of 15 minuten (`retryNow()`, ook bij een nieuw adres van AirPlay). Een mislukte poging telt als de poging die hij verving.
+- Herstel zit alleen in `devices` (`packages/devices/src/lifecycle/`): per protocol een link met retries na 1, 2 en 4 s, daarna voor een Apple TV 15 pogingen elke 2 minuten en daarna elke 15 minuten, voor een HomePod elke 15 minuten. Nooit opgeven. Elke retry zoekt het device eerst opnieuw (unicast DNS-SD met een wake knock, dan de `resolve(last, signal)`-optie of een multicast scan). `resolve` krijgt een signal dat na 15 s of bij `disconnect()` afgaat. AirPlay en Companion Link doen elk hun eigen unicast query (afwijking B13 in `.research/parity/devices-api.md`). Verbindt het ene protocol terwijl het andere op een retry wacht, dan probeert het andere het meteen, ook in zijn fase van 2 of 15 minuten (`retryNow()`, ook bij een nieuw adres van AirPlay). Een mislukte poging telt als de poging die hij verving.
 - Het device meldt één `status`-event met `disconnected | connecting | connected | degraded | recovering | offline`, een reden en de stand per protocol. `degraded`: AirPlay werkt, Companion Link nog niet. Een listener die gooit, stopt de andere listeners niet; de fout gaat naar de log.
 - `disconnect()` reset meteen de aangekondigde waarden (now playing, volume, power, text, multiroom outputs) en beide modellen, meldt één `status` `disconnected` en wacht daarna op het sluiten van de sessies (Companion Link tot 10 s). `connect()` direct erna, ook zonder await, start een nieuwe poging.
 - De gedeelde `TimingServer` telt zijn gebruikers: het eerste device dat zonder eigen `timing` verbindt start hem, het laatste dat `disconnect()` doet sluit hem. Een Node-script eindigt dus na `disconnect()`. Zijn logs gaan naar de `log`-optie van die devices (logger-id `timing-server`).
@@ -315,11 +315,11 @@ Een referentie (`0xA0` tot `0xC4`) wijst naar de n-de waarde in een tabel die en
 
 ## CI/CD
 
-`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics, naar `out-check/`), de pairing-test van core, de proxy smoke test en de build van de website. `.github/workflows/website.yml` bouwt de website en deployt hem met `cloudflare/wrangler-action` naar Cloudflare Workers (corewire.dev) bij een push naar `main` die `website/**`, `wrangler.toml` of de workflow raakt, of handmatig; secrets `CLOUDFLARE_API_TOKEN` en `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/released.yml` (trigger: GitHub Release) vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt de vijf libraries en publiceert `core`, `airplay`, `companion-link`, `audio-source` en `devices` met `npm publish --provenance --access public`. Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
+`.github/workflows/checks.yml` draait op pull requests en pushes naar main: `bash build.sh` (ook diagnostics, naar `out-check/`), de pairing-test van core, de proxy smoke test en de build van de website. `.github/workflows/website.yml` bouwt de website en deployt hem met `cloudflare/wrangler-action` naar Cloudflare Workers (corewire.dev) bij een push naar `main` die `docs/**`, `wrangler.toml` of de workflow raakt, of handmatig; secrets `CLOUDFLARE_API_TOKEN` en `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/released.yml` (trigger: GitHub Release) vervangt `0.0.0` → release tag en `workspace:*` → versie, bouwt de vijf libraries en publiceert `core`, `airplay`, `companion-link`, `audio-source` en `devices` met `npm publish --provenance --access public`. Publiceren loopt via npm trusted publishing (OIDC, `id-token: write`), zonder `NPM_TOKEN`; de trust per package zet Bas zelf op npm. `diagnostics` is privé en wordt niet gepubliceerd.
 
 ## Tests en tooling
 
 - Geautomatiseerde tests zijn uitgesteld tot een apart, grondig testtraject. Voeg voorlopig geen tests toe. Valideer wijzigingen met de builds, de twee testscripts hierboven, de website-build en diagnostics.
-- Handmatige device-tests lopen via diagnostics. Voor vergelijkingen met de productieversie: `tools/parity/capture.sh` en `tools/parity/compare.ts` (zie `docs/parity/HANDOFF.md`).
+- Handmatige device-tests lopen via diagnostics. Voor vergelijkingen met de productieversie: `tools/parity/capture.sh` en `tools/parity/compare.ts` (zie `.research/parity/HANDOFF.md`).
 - Geen linter of formatter; stijlregels staan in `.editorconfig`.
 - Geen Docker of `.env`-bestanden.

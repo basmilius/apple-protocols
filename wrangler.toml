@@ -4,7 +4,7 @@ routes = [{ pattern = "corewire.dev", custom_domain = true }]
 
 # VitePress builds with clean URLs: /guide/installation is served from guide/installation.html.
 [assets]
-directory = "./website/.vitepress/dist"
+directory = "./docs/.vitepress/dist"
 html_handling = "auto-trailing-slash"
 not_found_handling = "404-page"
 

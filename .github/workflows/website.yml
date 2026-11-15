@@ -5,7 +5,7 @@ on:
     push:
         branches: [main]
         paths:
-            - 'website/**'
+            - 'docs/**'
             - 'wrangler.toml'
             - '.github/workflows/website.yml'
     workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
             - uses: actions/checkout@v6
             - uses: oven-sh/setup-bun@v2
             - run: bun install --frozen-lockfile
-            - run: bun --cwd website build
+            - run: bun --cwd docs build
             - uses: cloudflare/wrangler-action@v3
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

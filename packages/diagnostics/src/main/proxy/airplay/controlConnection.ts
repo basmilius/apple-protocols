@@ -46,7 +46,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     #writeKey?: Buffer;
     #readCount = 0;
     #writeCount = 0;
-    #encBuffer: Buffer = Buffer.alloc(0);
+    #encryptedBuffer: Buffer = Buffer.alloc(0);
     #plainBuffer: Buffer = Buffer.alloc(0);
     #draining = false;
     #closed = false;
@@ -63,9 +63,18 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
         this.#mode = mode;
 
         this.#socket.on('data', (data: Buffer) => this.#onData(data));
-        this.#socket.on('close', () => {this.#closed = true; this.#encBuffer = this.#plainBuffer = Buffer.alloc(0); this.emit('close');});
-        this.#socket.on('drain', () => {this.#writeBlocked = false; this.#flow();});
         this.#socket.on('error', (error: Error) => this.emit('error', error));
+
+        this.#socket.on('close', () => {
+            this.#closed = true;
+            this.#encryptedBuffer = this.#plainBuffer = Buffer.alloc(0);
+            this.emit('close');
+        });
+
+        this.#socket.on('drain', () => {
+            this.#writeBlocked = false;
+            this.#flow();
+        });
     }
 
     /**
@@ -89,7 +98,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
     close(): void {
         this.#closed = true;
-        this.#encBuffer = this.#plainBuffer = Buffer.alloc(0);
+        this.#encryptedBuffer = this.#plainBuffer = Buffer.alloc(0);
         this.#socket.destroy();
     }
 
@@ -105,7 +114,7 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             return;
         }
 
-        const out: Buffer[] = [];
+        const frames: Buffer[] = [];
 
         for (let offset = 0; offset < raw.length;) {
             const frame = raw.subarray(offset, offset + FRAME_LENGTH);
@@ -115,16 +124,22 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
             length.writeUInt16LE(frame.length, 0);
 
             const encrypted = ChaCha20.encrypt(this.#writeKey, nonce(this.#writeCount++), length, frame);
-            out.push(length, encrypted.ciphertext, encrypted.authTag);
+            frames.push(length, encrypted.ciphertext, encrypted.authTag);
         }
 
-        this.#write(Buffer.concat(out));
+        this.#write(Buffer.concat(frames));
     }
 
     #onData(chunk: Buffer): void {
         try {
-            if (this.#closed) return;
-            if (this.#plainBuffer.length + this.#encBuffer.length + this.#activeBytes + chunk.length > 1024 * 1024) throw new Error('Control receive buffer limit exceeded.');
+            if (this.#closed) {
+                return;
+            }
+
+            if (this.#plainBuffer.length + this.#encryptedBuffer.length + this.#activeBytes + chunk.length > 1024 * 1024) {
+                throw new Error('Control receive buffer limit exceeded.');
+            }
+
             this.#plainBuffer = Buffer.concat([this.#plainBuffer, this.#encrypted ? this.#decryptFrames(chunk) : chunk]);
         } catch (error) {
             this.#context.logger.error('[proxy]', 'AirPlay control decrypt failed', error);
@@ -140,31 +155,35 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
 
     /** Returns the plaintext of every complete frame; a partial trailing frame waits for the next chunk. */
     #decryptFrames(chunk: Buffer): Buffer {
-        this.#encBuffer = Buffer.concat([this.#encBuffer, chunk]);
+        this.#encryptedBuffer = Buffer.concat([this.#encryptedBuffer, chunk]);
 
-        const out: Buffer[] = [];
+        const plaintexts: Buffer[] = [];
         let offset = 0;
 
-        while (offset + 2 <= this.#encBuffer.length) {
-            const frameLength = this.#encBuffer.readUInt16LE(offset);
-            if (frameLength === 0) throw new Error('Invalid control frame length.');
+        while (offset + 2 <= this.#encryptedBuffer.length) {
+            const frameLength = this.#encryptedBuffer.readUInt16LE(offset);
+
+            if (frameLength === 0) {
+                throw new Error('Invalid control frame length.');
+            }
+
             const end = offset + 2 + frameLength + AUTH_TAG_LENGTH;
 
-            if (end > this.#encBuffer.length) {
+            if (end > this.#encryptedBuffer.length) {
                 break;
             }
 
-            const aad = this.#encBuffer.subarray(offset, offset + 2);
-            const ciphertext = this.#encBuffer.subarray(offset + 2, offset + 2 + frameLength);
-            const authTag = this.#encBuffer.subarray(offset + 2 + frameLength, end);
+            const aad = this.#encryptedBuffer.subarray(offset, offset + 2);
+            const ciphertext = this.#encryptedBuffer.subarray(offset + 2, offset + 2 + frameLength);
+            const authTag = this.#encryptedBuffer.subarray(offset + 2 + frameLength, end);
 
-            out.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
+            plaintexts.push(ChaCha20.decrypt(this.#readKey, nonce(this.#readCount++), aad, ciphertext, authTag));
             offset = end;
         }
 
-        this.#encBuffer = Buffer.from(this.#encBuffer.subarray(offset));
+        this.#encryptedBuffer = Buffer.from(this.#encryptedBuffer.subarray(offset));
 
-        return Buffer.concat(out);
+        return Buffer.concat(plaintexts);
     }
 
     async #drain(): Promise<void> {
@@ -200,19 +219,33 @@ export class ControlConnection extends EventEmitter<ControlConnectionEvents> {
     }
 
     #write(data: Buffer): void {
-        if (this.#closed) return;
+        if (this.#closed) {
+            return;
+        }
+
         if (this.#socket.writableLength + data.length > 1024 * 1024) {
             this.close();
             this.emit('error', new Error('Control write buffer limit exceeded.'));
+
             return;
         }
-        if (!this.#socket.write(data)) {this.#writeBlocked = true; this.#flow();}
+
+        if (!this.#socket.write(data)) {
+            this.#writeBlocked = true;
+            this.#flow();
+        }
     }
 
     #flow(): void {
-        if (this.#closed) return;
-        if (this.#writeBlocked || this.#plainBuffer.length + this.#encBuffer.length + this.#activeBytes >= 512 * 1024) this.#socket.pause();
-        else this.#socket.resume();
+        if (this.#closed) {
+            return;
+        }
+
+        if (this.#writeBlocked || this.#plainBuffer.length + this.#encryptedBuffer.length + this.#activeBytes >= 512 * 1024) {
+            this.#socket.pause();
+        } else {
+            this.#socket.resume();
+        }
     }
 
     /** Takes one RTSP request off the plaintext buffer, or returns null while it is incomplete. */

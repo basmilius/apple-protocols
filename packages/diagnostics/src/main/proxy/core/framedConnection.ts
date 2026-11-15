@@ -61,9 +61,17 @@ export class FramedConnection extends EventEmitter<FramedConnectionEvents> {
         this.#plaintextTypes = new Set(plaintextTypes);
 
         this.#socket.on('data', (data: Buffer) => this.#onData(data));
-        this.#socket.on('close', () => {this.#clear(); this.emit('close');});
-        this.#socket.on('drain', () => {this.#writeBlocked = false; this.#flow();});
         this.#socket.on('error', (error: Error) => this.emit('error', error));
+
+        this.#socket.on('close', () => {
+            this.#clear();
+            this.emit('close');
+        });
+
+        this.#socket.on('drain', () => {
+            this.#writeBlocked = false;
+            this.#flow();
+        });
     }
 
     /**

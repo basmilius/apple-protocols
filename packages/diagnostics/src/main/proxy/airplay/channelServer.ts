@@ -3,8 +3,8 @@ import type { Context } from '@corewire/core/transport';
 import { HKDF } from '@corewire/core/crypto';
 import { parseRequest, parseResponse } from '@corewire/airplay/rtsp';
 import { parseMessages } from '@corewire/airplay/mrp';
-import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
 import type { ProxyTap } from '../core/tap';
+import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
 
 /** Size of the AirPlay DataStream frame header. */
 const DATA_HEADER_LENGTH = 32;
@@ -31,10 +31,10 @@ abstract class ChannelServer {
 
     /** Returns the local port, which goes into the rewritten SETUP response for the controller. */
     async listen(): Promise<number> {
-        const server = createServer((socket) => this.#handle(socket));
+        const server = createServer(socket => this.#handle(socket));
         this.#server = server;
 
-        await new Promise<void>((resolve) => server.listen(0, resolve));
+        await new Promise<void>(resolve => server.listen(0, resolve));
 
         return (server.address() as {port: number}).port;
     }
@@ -77,14 +77,14 @@ export class EventChannelServer extends ChannelServer {
 
     /** @inheritDoc */
     protected ciphers(): {controller: AirPlayCipher; device: AirPlayCipher} {
-        const c = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
-        const d = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+        const controllerKeys = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
+        const deviceKeys = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, 'Events-Salt', 'Events-Read-Encryption-Key', 'Events-Write-Encryption-Key');
 
         // Toward the controller the proxy is the receiver, so it reads with Events-Read and writes with
         // Events-Write. Toward the device it is the controller, so the keys swap as in EventChannel.
         return {
-            controller: new AirPlayCipher(c.readKey, c.writeKey),
-            device: new AirPlayCipher(d.writeKey, d.readKey)
+            controller: new AirPlayCipher(controllerKeys.readKey, controllerKeys.writeKey),
+            device: new AirPlayCipher(deviceKeys.writeKey, deviceKeys.readKey)
         };
     }
 
@@ -138,14 +138,14 @@ export class DataChannelServer extends ChannelServer {
     /** @inheritDoc */
     protected ciphers(): {controller: AirPlayCipher; device: AirPlayCipher} {
         const salt = `DataStream-Salt${this.#seed}`;
-        const c = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
-        const d = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
+        const controllerKeys = HKDF.deriveEncryptionKeys(this.#controllerSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
+        const deviceKeys = HKDF.deriveEncryptionKeys(this.#deviceSharedSecret, salt, 'DataStream-Input-Encryption-Key', 'DataStream-Output-Encryption-Key');
 
         // A client reads with Input and writes with Output. Toward the device the proxy is the client;
         // toward the controller it is the device, so it reads with Output.
         return {
-            controller: new AirPlayCipher(c.writeKey, c.readKey),
-            device: new AirPlayCipher(d.readKey, d.writeKey)
+            controller: new AirPlayCipher(controllerKeys.writeKey, controllerKeys.readKey),
+            device: new AirPlayCipher(deviceKeys.readKey, deviceKeys.writeKey)
         };
     }
 

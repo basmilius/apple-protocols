@@ -33,18 +33,30 @@ export class ProxyStore {
     load(): void {
         try {
             const parsed = JSON.parse(readFileSync(this.#path, 'utf8')) as Partial<ProxyStoreData>;
-            if (parsed.version !== 1 || !parsed.identities || typeof parsed.identities !== 'object' || Array.isArray(parsed.identities) || !parsed.controllers || typeof parsed.controllers !== 'object' || Array.isArray(parsed.controllers)) throw new Error('Invalid proxy store schema.');
-            const hex = (value: unknown, bytes: number): boolean => typeof value === 'string' && new RegExp(`^[a-f0-9]{${bytes * 2}}$`, 'i').test(value);
-            for (const identity of Object.values(parsed.identities)) {
-                if (!identity || typeof identity.identifier !== 'string' || !hex(identity.publicKey, 32) || !hex(identity.secretKey, 64)) throw new Error('Invalid proxy identity.');
+
+            if (parsed.version !== 1 || !parsed.identities || typeof parsed.identities !== 'object' || Array.isArray(parsed.identities) || !parsed.controllers || typeof parsed.controllers !== 'object' || Array.isArray(parsed.controllers)) {
+                throw new Error('Invalid proxy store schema.');
             }
-            if (Object.values(parsed.controllers).some(key => !hex(key, 32))) throw new Error('Invalid controller public key.');
+
+            const isHex = (value: unknown, bytes: number): boolean => typeof value === 'string' && new RegExp(`^[a-f0-9]{${bytes * 2}}$`, 'i').test(value);
+
+            for (const identity of Object.values(parsed.identities)) {
+                if (!identity || typeof identity.identifier !== 'string' || !isHex(identity.publicKey, 32) || !isHex(identity.secretKey, 64)) {
+                    throw new Error('Invalid proxy identity.');
+                }
+            }
+
+            if (Object.values(parsed.controllers).some(key => !isHex(key, 32))) {
+                throw new Error('Invalid controller public key.');
+            }
+
             this.#data = parsed as ProxyStoreData;
             chmodSync(this.#path, 0o600);
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
                 throw new Error(`Cannot load proxy identities from ${this.#path}`, {cause: error});
             }
+
             this.#data = {version: 1, identities: {}, controllers: {}};
         }
     }
@@ -96,7 +108,10 @@ export class ProxyStore {
      * @param longTermPublicKey - Ed25519, 32 bytes.
      */
     rememberController(pairingId: string, longTermPublicKey: Buffer): void {
-        if (longTermPublicKey.length !== 32) throw new Error('Controller public key must contain 32 bytes.');
+        if (longTermPublicKey.length !== 32) {
+            throw new Error('Controller public key must contain 32 bytes.');
+        }
+
         Object.defineProperty(this.#data.controllers, pairingId, {enumerable: true, configurable: true, writable: true, value: longTermPublicKey.toString('hex')});
         this.save();
     }

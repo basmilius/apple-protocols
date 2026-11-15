@@ -54,7 +54,7 @@ export class AirPlayProxy implements ProtocolProxy {
         const identity = this.#options.store.accessoryIdentity(`airplay:${this.#options.device.id}`);
         const host = `${sanitize(this.#options.instanceName)}.local`;
 
-        this.#server = createServer((socket) => {
+        this.#server = createServer(socket => {
             this.#context.logger.info('[proxy]', `Controller connected from ${socket.remoteAddress}`);
             new AirPlaySession(this.#context, this.#options, identity).start(socket);
         });
@@ -102,7 +102,7 @@ class AirPlaySession {
         this.#context = context;
         this.#options = options;
         this.#pairServer = new PairSetupServer(context, identity, options.pin);
-        this.#verifyServer = new PairVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
+        this.#verifyServer = new PairVerifyServer(context, identity, pairingId => options.store.controller(pairingId));
 
         this.#deviceHeaders = {
             'Active-Remote': generateActiveRemoteId(),
@@ -118,14 +118,14 @@ class AirPlaySession {
         const controller = new ControlConnection(this.#context, socket, 'server');
         this.#controller = controller;
 
-        controller.onMessage((message) => this.#onControllerMessage(message));
+        controller.onMessage(message => this.#onControllerMessage(message));
         controller.on('close', () => this.#teardown());
-        controller.on('error', (error) => {
+        controller.on('error', error => {
             this.#context.logger.warn('[proxy]', 'controller connection error', error.message);
             this.#teardown();
         });
 
-        this.#connectDevice().catch((error) => {
+        this.#connectDevice().catch(error => {
             this.#context.logger.error('[proxy]', 'device connect/verify failed', error);
             this.#teardown();
         });
@@ -283,19 +283,19 @@ class AirPlaySession {
             socket.once('error', reject);
         });
 
-        device.onMessage((message) => {
+        device.onMessage(message => {
             const resolve = this.#devicePending;
             this.#devicePending = undefined;
             resolve?.(message);
         });
 
         device.on('close', () => this.#teardown());
-        device.on('error', (error) => {
+        device.on('error', error => {
             this.#context.logger.warn('[proxy]', 'device connection error', error.message);
             this.#teardown();
         });
 
-        const verify = new PairVerify(this.#context, async (tlv) => {
+        const verify = new PairVerify(this.#context, async tlv => {
             const response = await this.#deviceExchange(this.#buildDeviceRequest('/pair-verify', tlv));
 
             return response.kind === 'response' ? response.body : Buffer.alloc(0);
@@ -322,8 +322,15 @@ class AirPlaySession {
     async #relayToDevice(raw: Buffer): Promise<Extract<ControlMessage, {kind: 'response'}> | null> {
         if (!this.#deviceReady || !this.#device) {
             this.#pendingBytes += raw.length;
-            if (this.#pendingBytes > 1024 * 1024) {this.#teardown(); return null;}
+
+            if (this.#pendingBytes > 1024 * 1024) {
+                this.#teardown();
+
+                return null;
+            }
+
             this.#pending.push(raw);
+
             return null;
         }
 
@@ -337,7 +344,7 @@ class AirPlaySession {
         return new Promise<ControlMessage>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('Device control exchange timed out.')), 30000);
 
-            this.#devicePending = (message) => {
+            this.#devicePending = message => {
                 clearTimeout(timer);
                 resolve(message);
             };

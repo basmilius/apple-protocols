@@ -57,7 +57,7 @@ export class CompanionLinkProxy implements ProtocolProxy {
         const identity = this.#options.store.accessoryIdentity(this.#options.device.id);
         const host = `${sanitize(this.#options.instanceName)}.local`;
 
-        this.#server = createServer((socket) => {
+        this.#server = createServer(socket => {
             this.#context.logger.info('[proxy]', `Controller connected from ${socket.remoteAddress}`);
 
             const session = new ProxySession(this.#context, this.#options, identity);
@@ -103,7 +103,7 @@ class ProxySession {
         this.#context = context;
         this.#options = options;
         this.#pairServer = new PairSetupServer(context, identity, options.pin);
-        this.#verifyServer = new PairVerifyServer(context, identity, (pairingId) => options.store.controller(pairingId));
+        this.#verifyServer = new PairVerifyServer(context, identity, pairingId => options.store.controller(pairingId));
     }
 
     start(socket: Socket): void {
@@ -112,7 +112,7 @@ class ProxySession {
 
         controller.onFrame((type, payload) => this.#onControllerFrame(type, payload));
         controller.on('close', () => this.#teardown());
-        controller.on('error', (error) => {
+        controller.on('error', error => {
             this.#context.logger.warn('[proxy]', 'controller connection error', error.message);
             this.#teardown();
         });
@@ -169,7 +169,7 @@ class ProxySession {
 
         device.onFrame((type, payload) => this.#onDeviceFrame(type, payload));
         device.on('close', () => this.#teardown());
-        device.on('error', (error) => {
+        device.on('error', error => {
             this.#context.logger.warn('[proxy]', 'device connection error', error.message);
             this.#teardown();
         });
@@ -216,7 +216,7 @@ class ProxySession {
         return new Promise<Buffer>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('Device pairing timed out.')), 30000);
 
-            this.#devicePairingResolve = (payload) => {
+            this.#devicePairingResolve = payload => {
                 clearTimeout(timer);
                 resolve(payload);
             };
@@ -229,11 +229,19 @@ class ProxySession {
     #forwardToDevice(type: number, payload: Buffer): void {
         if (this.#deviceReady && this.#device) {
             this.#device.send(type, payload);
-        } else {
-            this.#pendingBytes += payload.length + 4;
-            if (this.#pendingBytes > 1024 * 1024) {this.#teardown(); return;}
-            this.#pending.push([type, payload]);
+
+            return;
         }
+
+        this.#pendingBytes += payload.length + 4;
+
+        if (this.#pendingBytes > 1024 * 1024) {
+            this.#teardown();
+
+            return;
+        }
+
+        this.#pending.push([type, payload]);
     }
 
     /** Records OPack frames in the tap and skips the rest, such as NoOp. */

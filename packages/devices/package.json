@@ -11,12 +11,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/basmilius/apple-protocols",
+        "url": "https://github.com/basmilius/corewire",
         "directory": "packages/devices"
     },
     "homepage": "https://corewire.dev",
     "bugs": {
-        "url": "https://github.com/basmilius/apple-protocols/issues"
+        "url": "https://github.com/basmilius/corewire/issues"
     },
     "keywords": [
         "apple",

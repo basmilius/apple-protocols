@@ -5,8 +5,8 @@
     </picture>
 </h1>
 
-[![Build checks](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml)
-[![Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)
+[![Build checks](https://github.com/basmilius/corewire/actions/workflows/checks.yml/badge.svg)](https://github.com/basmilius/corewire/actions/workflows/checks.yml)
+[![Release packages](https://github.com/basmilius/corewire/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/corewire/actions/workflows/released.yml)
 
 CoreWire talks to Apple TVs and HomePods from TypeScript. It implements AirPlay 2, the Media Remote Protocol (MRP), RAOP and Companion Link, and runs on Node.js and Bun with no native dependencies.
 

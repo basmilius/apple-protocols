@@ -1,6 +1,6 @@
 # CoreWire
 
-CoreWire is a TypeScript monorepo for Apple device protocols (AirPlay 2, MRP, RAOP, Companion Link) under the npm scope `@corewire`. It is a Bun workspace. The repository keeps its name `apple-protocols` for now.
+CoreWire is a TypeScript monorepo for Apple device protocols (AirPlay 2, MRP, RAOP, Companion Link) under the npm scope `@corewire`. It is a Bun workspace. The GitHub repository is `basmilius/corewire`; the local folder may still be called `apple-protocols`.
 
 The brand name is **CoreWire** (capital C and W) in prose, titles, the docs site, READMEs, UI text and default names. Package names (`@corewire/*`), import paths, the domain `corewire.dev` and identifiers stay lowercase.
 

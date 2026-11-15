@@ -35,11 +35,11 @@ export default defineConfig({
         nav,
         sidebar,
         socialLinks: [
-            {icon: 'github', link: 'https://github.com/basmilius/apple-protocols'},
+            {icon: 'github', link: 'https://github.com/basmilius/corewire'},
             {icon: 'npm', link: 'https://www.npmjs.com/org/corewire'}
         ],
         editLink: {
-            pattern: 'https://github.com/basmilius/apple-protocols/edit/main/docs/:path'
+            pattern: 'https://github.com/basmilius/corewire/edit/main/docs/:path'
         },
         outline: {
             level: [2, 3]

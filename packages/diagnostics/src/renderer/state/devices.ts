@@ -35,8 +35,10 @@ const eventCapture = new Capture<DeviceEvent>(MAX_EVENTS);
 const logCapture = new Capture<LogEntry>(MAX_LOGS);
 const trafficCapture = new Capture<TrafficRecord>(1000);
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
+
 const flushSoon = (): void => {
     if (flushTimer !== undefined) return;
+
     flushTimer = setTimeout(() => {
         flushTimer = undefined;
         useDevices.setState({events: eventCapture.snapshot(), logs: logCapture.snapshot(), traffic: trafficCapture.snapshot()});
@@ -134,15 +136,20 @@ export async function startDevices(): Promise<void> {
     });
 
     on('traffic:entry', record => {trafficCapture.push(record); flushSoon();});
+
     const [logs, traffic] = await Promise.all([invoke('log:history', undefined), invoke('traffic:history', undefined)]);
     const currentLogs = logCapture.snapshot();
     const currentTraffic = trafficCapture.snapshot();
+
     logCapture.clear();
     trafficCapture.clear();
+
     const mergedLogs = new Map([...logs, ...currentLogs].map(entry => [entry.id, entry]));
     const mergedTraffic = new Map([...traffic, ...currentTraffic].map(entry => [entry.id, entry]));
+
     for (const entry of [...mergedLogs.values()].sort((a, b) => a.id - b.id)) logCapture.push(entry);
     for (const entry of [...mergedTraffic.values()].sort((a, b) => a.id - b.id)) trafficCapture.push(entry);
+
     flushSoon();
     await useDevices.getState().scan();
 }

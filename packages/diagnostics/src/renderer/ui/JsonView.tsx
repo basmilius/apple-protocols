@@ -114,5 +114,6 @@ function summaryOf(value: unknown, count: number): string {
 function hexPreview(hex: string): string {
     const head = hex.slice(0, 32);
     const grouped = head.match(/.{1,2}/g)?.join(' ') ?? '';
+
     return hex.length > 32 ? `${grouped} ...` : grouped;
 }

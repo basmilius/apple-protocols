@@ -18,7 +18,7 @@ const placesOf = (value: number): number => (String(value).split('.')[1] ?? '').
 
 const first = (next: number | readonly number[]): number => (Array.isArray(next) ? next[0] : (next as number));
 
-/* The ADE CORE slider looks the same but has no `onValueCommitted`, and a device command belongs on release, not on every move. */
+/* Stands in for the adecore slider, which has no `onValueCommitted`. */
 export function Slider({value, onValueChange, onValueCommitted, label, min = 0, max = 100, step = 1, disabled, className}: SliderProps) {
     // Base UI adds steps in floating point, so 0.2 plus 0.1 would arrive as 0.30000000000000004.
     const places = Math.max(placesOf(step), placesOf(min));

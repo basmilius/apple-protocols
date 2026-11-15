@@ -25,7 +25,7 @@ export type FaceCommand = {
     /** USB HID usage page and usage, which is what the hold variant holds down. */
     readonly page: number;
     readonly usage: number;
-    /** The `RemoteController` method a tap runs over AirPlay. */
+    /** The `remote.<key>` path whose key a tap presses over AirPlay. */
     readonly path: string;
     /** Replaces `remote.longPress` where the SDK names the held variant, as suspend does under power. */
     readonly holdPath?: string;
@@ -135,7 +135,7 @@ export function callFor(command: FaceCommand, gesture: Gesture, transport: Trans
     return {root: 'device', path: 'remote.press', args: [keyOf(command.path)]};
 }
 
-/** The remote key of a `remote.<key>` path; a tap on the device goes over AirPlay HID as before. */
+/** The key of a `remote.<key>` path, as `remote.press` takes it. */
 export function keyOf(path: string): string {
     return path.replace(/^remote\./, '');
 }

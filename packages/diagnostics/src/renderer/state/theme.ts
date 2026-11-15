@@ -6,7 +6,7 @@ export type ResolvedTheme = 'light' | 'dark';
 
 const KEY = 'diagnostics.theme';
 
-/** Match the current `--bg` to prevent a different color flashing during resize. */
+/** Matches `--bg`, so no other color flashes while the window resizes. */
 const BACKGROUND: Record<ResolvedTheme, string> = {
     light: '#f4f4f5',
     dark: '#0d0d10'
@@ -30,6 +30,7 @@ const resolve = (preference: ThemePreference): ResolvedTheme => {
 
 const stored = (): ThemePreference => {
     const value = localStorage.getItem(KEY);
+
     return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
 };
 

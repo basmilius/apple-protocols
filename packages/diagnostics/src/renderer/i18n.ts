@@ -21,6 +21,7 @@ export const formatSource: FormatSource = {
     systemLocale: () => navigator.language,
     subscribe(onChange) {
         i18n.on('languageChanged', onChange);
+
         return () => { i18n.off('languageChanged', onChange); };
     }
 };

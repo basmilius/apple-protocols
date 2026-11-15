@@ -19,6 +19,7 @@ export function Sparkline({label, value, format}: SparklineProps) {
     useEffect(() => {
         setHistory(previous => {
             const next = [...previous, latest.current];
+
             return next.length > HISTORY ? next.slice(next.length - HISTORY) : next;
         });
     }, [value]);

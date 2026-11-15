@@ -136,6 +136,7 @@ export function LogConsole() {
         if (event.key === 'Escape' && detailId !== null) {
             event.preventDefault();
             setDetailId(null);
+
             return;
         }
 
@@ -209,6 +210,7 @@ export function LogConsole() {
                                             onClick={event => {
                                                 if (event.metaKey || event.ctrlKey) {
                                                     setSelected(current => toggleIn(current, entry.id));
+
                                                     return;
                                                 }
 

@@ -1,23 +1,38 @@
 # @corewire/audio-source
 
 ```ts
-import { File, Live, Url } from '@corewire/audio-source';
+import { FileSource, LiveSource, UrlSource } from '@corewire/audio-source';
 ```
 
-Every source implements `AudioSource` from `@corewire/airplay` and produces 44100 Hz stereo signed 16-bit big-endian PCM. See [URLs and audio streams](/guide/media#audio-sources).
+Every source implements `AudioSource` from `@corewire/airplay` and produces 44100 Hz stereo signed 16-bit big-endian PCM. Every class name ends in `Source`, so none of them shadows a global such as `File` or `URL`. See [URLs and audio streams](/guide/media#audio-sources).
+
+## Sources
 
 | Export | Description |
 | --- | --- |
 | `abstract class BufferAudioSource` | A source over a decoded PCM buffer. `constructor(buffer: Buffer, duration: number, frameSize?: number)`; `readFrames()`, `reset()`, `start()`, `stop()` |
-| `class Url extends BufferAudioSource` | `static fromUrl(url: string, options?: {format?: 'encoded' \| 'pcm'; signal?: AbortSignal; maxBytes?: number; timeoutMs?: number}): Promise<Url>`. Detects MP3, OGG Vorbis, FLAC, WAV and QOA; raw PCM needs `format: 'pcm'` |
-| `class File extends BufferAudioSource` | `static fromPath(filePath: string): Promise<File>`. MP3, OGG and WAV; raw PCM otherwise |
-| `class Mp3 extends BufferAudioSource` | `static fromBuffer(mp3Buffer: Buffer): Promise<Mp3>`, `static fromUrl(url: string): Promise<Mp3>` |
-| `class Ogg extends BufferAudioSource` | `static fromBuffer(oggBuffer: Buffer): Promise<Ogg>`, `static fromUrl(url: string): Promise<Ogg>` |
-| `class Wav extends BufferAudioSource` | `static fromBuffer(wavBuffer: Buffer): Promise<Wav>`, `static fromUrl(url: string): Promise<Wav>` |
-| `class Pcm extends BufferAudioSource` | `constructor(pcmBuffer: Buffer, sampleRate = 44100)`; resamples to 44100 Hz when needed |
-| `class SineWave extends BufferAudioSource` | `constructor(durationSeconds: number, frequency = 440, sampleRate = 44100, channels = 2, bytesPerChannel = 2)`; with a 50 ms fade in and out |
-| `class Ffmpeg implements AudioSource` | `constructor(filePath: string, duration: number, sampleRate = 44100, channels = 2, bytesPerChannel = 2)`. Decodes with `ffmpeg` from the `PATH` while streaming; `stats` reports its buffer. `reset()` makes the next `start()` decode from the beginning |
-| `class Live implements AudioSource` | `constructor(bufferDuration = 2)`. A ring buffer: `write(data: Buffer): number`, `end(): void`, `available`, `capacity`, `ended`. `duration` is `Infinity` |
+| `class UrlSource extends BufferAudioSource` | `static fromUrl(url: string, options?: UrlSourceOptions): Promise<UrlSource>`. Detects MP3, OGG Vorbis, FLAC, WAV and QOA; raw PCM needs `format: 'pcm'` |
+| `class FileSource extends BufferAudioSource` | `static fromPath(path: string): Promise<FileSource>`. MP3, OGG and WAV; raw PCM otherwise |
+| `class Mp3Source extends BufferAudioSource` | `static fromBuffer(data: Buffer): Promise<Mp3Source>`, `static fromUrl(url: string, options?: FetchOptions): Promise<Mp3Source>` |
+| `class OggSource extends BufferAudioSource` | `static fromBuffer(data: Buffer): Promise<OggSource>`, `static fromUrl(url: string, options?: FetchOptions): Promise<OggSource>` |
+| `class WavSource extends BufferAudioSource` | `static fromBuffer(data: Buffer): Promise<WavSource>`, `static fromUrl(url: string, options?: FetchOptions): Promise<WavSource>` |
+| `class PcmSource extends BufferAudioSource` | `constructor(pcm: Buffer, options?: PcmSourceOptions)`; resamples to 44100 Hz when needed |
+| `class SineWaveSource extends BufferAudioSource` | `constructor(options: SineWaveSourceOptions)`; a tone with a 50 ms fade in and out |
+| `class FfmpegSource implements AudioSource` | `constructor(options: FfmpegSourceOptions)`. Decodes with `ffmpeg` from the `PATH` while streaming; `stats` reports its buffer (`bufferedBytes`, `peakBufferedBytes`, `bufferLimit`, `paused`). `reset()` makes the next `start()` decode from the beginning |
+| `class LiveSource implements AudioSource` | `constructor(options?: LiveSourceOptions)`. A ring buffer: `write(data: Buffer): number`, `end(): void`, `available`, `capacity`, `ended`. `duration` is `Infinity` |
+
+The classes with a factory have a private constructor. The decoders run in a worker thread (`decode-worker.mjs` in the package); when that file cannot load, decoding runs on the calling thread instead.
+
+## Options
+
+| Type | Definition |
+| --- | --- |
+| `FetchOptions` | `{signal?: AbortSignal; maxBytes?: number; timeoutMs?: number}`; `maxBytes` defaults to 64 MiB, `timeoutMs` to 30000 |
+| `UrlSourceOptions` | `FetchOptions & {format?: 'encoded' \| 'pcm'}`; `encoded` when omitted |
+| `PcmSourceOptions` | `{sampleRate?: number}`; 44100 when omitted |
+| `SineWaveSourceOptions` | `{duration: number; frequency?: number; sampleRate?: number; channels?: number}`; seconds, 440 Hz, 44100 Hz and 2 channels when omitted |
+| `FfmpegSourceOptions` | `{path: string; duration: number}`; the file and its length in seconds |
+| `LiveSourceOptions` | `{bufferDuration?: number}`; seconds of audio the ring buffer holds, 2 when omitted |
 
 ## AudioSource
 

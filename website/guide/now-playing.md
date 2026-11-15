@@ -88,7 +88,7 @@ if (artwork?.data) {
 }
 ```
 
-`get(width = 600, height = -1)` resolves an `Artwork` with a `url`, the image `data`, or both, or null when there is none or no session. A height of -1 keeps the aspect ratio. `getAnimated(width, height)` resolves the animated artwork formats the device knows, as `AnimatedArtwork` entries with a `format` and a `url`.
+`get(width = 600, height = -1)` resolves an `Artwork` with a `url`, the image `data`, or both, or null when the current item has none. A height of -1 keeps the aspect ratio. `getAnimated(width, height)` resolves the animated artwork formats the device knows, as `AnimatedArtwork` entries with a `format` and a `url`; empty when there are none. Both throw `UnavailableError` while AirPlay is down, like every other capability. Check `supports('artwork')` first, or catch the error.
 
 Listen to `nowPlaying` `artwork` events to know when to fetch again.
 

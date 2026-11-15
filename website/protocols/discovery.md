@@ -31,7 +31,9 @@ console.log(all.length, one.address, byAddress?.service.port);
 | `Discovery.clearCache()` | Forgets every cached scan |
 | `Discovery.wake(address, ports)` | Knocks on each port to wake a sleeping device |
 
-A `DiscoveryResult` has the `id`, `address`, `txt` record, `modelName`, `fqdn` and the `service` port, protocol and type.
+A `DiscoveryResult` has the `id`, `address`, `txt` record, `fqdn` and the `service` port, protocol and type. The model identifier is in the TXT record, as `txt.model` or `txt.am`.
+
+`DiscoverOptions` (`{useCache?: boolean}`) is defined here once; the `discover()` of every protocol package and of `@corewire/devices` takes it.
 
 The service constants live in the protocol packages: `AIRPLAY_SERVICE` in `@corewire/airplay`, `RAOP_SERVICE` in `@corewire/airplay/raop` and `COMPANION_LINK_SERVICE` in `@corewire/companion-link`. Each package also has a `discover()` of its own.
 

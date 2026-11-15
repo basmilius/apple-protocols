@@ -102,11 +102,13 @@ A Companion Link authentication failure keeps retrying on the schedule. The reas
 Before every attempt, except the very first AirPlay attempt with a known port, the device looks itself up:
 
 1. It knocks on `WAKE_PORTS` to wake a sleeping device, then sends a unicast DNS-SD query to the last known address and waits up to 5 seconds.
-2. When AirPlay did not answer there, it calls your `resolve(last)` option.
+2. When AirPlay did not answer there, it calls your `resolve(last, signal)` option. The `signal` aborts after 15 seconds, or when `disconnect()` cancels the attempt; a lookup that hangs no longer holds up the device.
 3. Without a `resolve` option, it runs a multicast scan and matches on the MAC (`deviceid` in the TXT record), then on the id.
 4. When nothing answers, the attempt still connects to the last known address and port.
 
-A hit updates `address`, the AirPlay port and the TXT record. A new DHCP lease therefore does not strand a device. The Companion Link port always comes from the latest unicast answer.
+A hit updates `address`, the AirPlay port and the TXT record. A new DHCP lease therefore does not strand a device. The Companion Link port always comes from the latest unicast answer. When AirPlay comes back at a new address, Companion Link retries there at once, even when it was waiting in its 2 or 15 minute phase.
+
+AirPlay and Companion Link each send their own unicast query: AirPlay before its connect, Companion Link after the first AirPlay attempt.
 
 Supply `resolve` when your app already runs its own discovery, or when multicast does not reach the device:
 
@@ -116,9 +118,15 @@ import { AppleTV, type DeviceTarget } from '@corewire/devices';
 const known = new Map<string, DeviceTarget>();
 
 const tv = new AppleTV({address: '192.168.1.20', id: 'Living-Room.local'}, {
-    resolve: async last => known.get(last.id) ?? null
+    resolve: async (last, signal) => {
+        signal.throwIfAborted();
+
+        return known.get(last.id) ?? null;
+    }
 });
 ```
+
+After a timeout the attempt goes on with the last known address.
 
 ## State across a reconnect
 
@@ -126,8 +134,16 @@ The capabilities keep their values across sessions. A reconnect that brings back
 
 `power.change` is the exception. It fires at every Companion Link connect, so you can resync after a real drop.
 
-An explicit `disconnect()` is not a reconnect. It resets the announced now playing, volume and power, so `await disconnect(); await connect();` announces everything fresh, like a new device.
+An explicit `disconnect()` is not a reconnect. It resets the announced now playing, volume, power, text state and multiroom outputs, so `disconnect(); connect();` announces everything fresh, like a new device.
 
 ## disconnect()
 
-`disconnect()` stops every retry, aborts an attempt in flight, ends running URL playback and audio streams and closes every session. It is idempotent. Once it resolved, no capability event fires anymore.
+`disconnect()` stops every retry, aborts an attempt in flight, ends running URL playback and audio streams and closes every session. It is idempotent.
+
+It works in two steps. At once, it resets the announced values and emits one `status` with state `disconnected`, reason `requested` and both protocols `off`. Then it waits for the sessions to close; a graceful Companion Link stop takes up to 10 seconds. The promise resolves after that. Once it resolved, no capability event fires anymore.
+
+You do not have to await it before you connect again. `connect()` right after `disconnect()`, even in the same tick, starts a new attempt, and the values of the new session stay. A `connect()` that was still pending from before rejects.
+
+## The shared timing server
+
+Audio streams need an NTP timing server. Without a `timing` option, the devices share one. The first device that connects starts it, and the last one to disconnect closes it, so a Node.js script exits after `disconnect()`. Its errors go to the `log` option of the devices that use it, with the logger id `timing-server`. With `timing: false`, SETUP announces no timing. Pass your own `TimingServer` to manage it yourself.

@@ -24,13 +24,13 @@ Only devices that play URLs themselves can do this. `supports('playUrl')` tells 
 Install `@corewire/audio-source` for ready sources, or write your own [`AudioSource`](#your-own-source).
 
 ```ts
-import { Url } from '@corewire/audio-source';
+import { UrlSource } from '@corewire/audio-source';
 import { HomePod } from '@corewire/devices';
 
 const pod = new HomePod({address: '192.168.1.30'});
 await pod.connect();
 
-const source = await Url.fromUrl('https://example.com/song.mp3');
+const source = await UrlSource.fromUrl('https://example.com/song.mp3');
 const playback = await pod.media.streamAudio(source, {volume: 0.4});
 
 await playback.ended;
@@ -50,7 +50,7 @@ Both methods resolve a `MediaPlayback`:
 | `ended` | Settles when playback ended: the source ran out, the URL finished, `stop()` was called, or the AirPlay session of the device ended |
 | `stop()` | Stops playback and closes its connection |
 
-For a URL, `ended` starts watching the device on its first read. A consumer that never reads it sends nothing extra.
+For a URL, `ended` starts watching the device on its first read. A consumer that never reads it sends nothing extra. `MediaPlayback` is an interface, so `instanceof` does not work on it; check `kind` instead.
 
 ```ts
 const playback = await tv.media.playUrl('https://example.com/movie.mp4');
@@ -66,26 +66,28 @@ try {
 
 ## Audio sources
 
-`@corewire/audio-source` decodes to the format AirPlay streams: 44100 Hz, stereo, signed 16-bit big-endian PCM.
+`@corewire/audio-source` decodes to the format AirPlay streams: 44100 Hz, stereo, signed 16-bit big-endian PCM. Every class name ends in `Source`.
 
 | Source | Creates from |
 | --- | --- |
-| `Url.fromUrl(url, options?)` | A URL; detects MP3, OGG Vorbis, FLAC, WAV and QOA |
-| `File.fromPath(path)` | A file; MP3, OGG and WAV, raw PCM otherwise |
-| `Mp3`, `Ogg`, `Wav` | `fromBuffer(buffer)` or `fromUrl(url)` |
-| `new Pcm(buffer, sampleRate?)` | Raw signed 16-bit big-endian stereo PCM, resampled to 44100 Hz when needed |
-| `new Ffmpeg(path, duration)` | Anything `ffmpeg` reads; decodes while it streams. Needs `ffmpeg` on the `PATH` |
-| `new Live(bufferDuration?)` | PCM you `write()` while the stream runs, such as a microphone or a mixer |
-| `new SineWave(seconds, frequency?)` | A test tone, 440 Hz by default |
+| `UrlSource.fromUrl(url, options?)` | A URL; detects MP3, OGG Vorbis, FLAC, WAV and QOA |
+| `FileSource.fromPath(path)` | A file; MP3, OGG and WAV, raw PCM otherwise |
+| `Mp3Source`, `OggSource`, `WavSource` | `fromBuffer(data)` or `fromUrl(url, options?)` |
+| `new PcmSource(pcm, {sampleRate?})` | Raw signed 16-bit big-endian stereo PCM, resampled to 44100 Hz when needed |
+| `new FfmpegSource({path, duration})` | Anything `ffmpeg` reads; decodes while it streams. Needs `ffmpeg` on the `PATH` |
+| `new LiveSource({bufferDuration?})` | PCM you `write()` while the stream runs, such as a microphone or a mixer |
+| `new SineWaveSource({duration, frequency?})` | A test tone, 440 Hz by default |
 
-The decoded sources load the whole file into memory before streaming starts. Use `Ffmpeg` or `Live` for long or endless audio.
+Every `fromUrl()` takes the download limits of `FetchOptions`: `signal`, `maxBytes` (64 MiB by default) and `timeoutMs` (30 seconds by default). `UrlSource` also takes `format: 'pcm'` for raw PCM.
+
+The decoded sources load the whole file into memory before streaming starts. Use `FfmpegSource` or `LiveSource` for long or endless audio. Decoding runs in a worker thread; when the worker file (`decode-worker.mjs`) cannot load, it runs on the calling thread instead.
 
 ### Live input
 
 ```ts
-import { Live } from '@corewire/audio-source';
+import { LiveSource } from '@corewire/audio-source';
 
-const live = new Live(2);
+const live = new LiveSource({bufferDuration: 2});
 const playback = await pod.media.streamAudio(live, {volume: 0.3});
 
 declare function onPcm(listener: (chunk: Buffer) => void): void;
@@ -97,7 +99,7 @@ live.end();
 await playback.ended;
 ```
 
-`Live` is a ring buffer that holds `bufferDuration` seconds (2 by default). When you write faster than the stream reads, it drops the oldest data.
+`LiveSource` is a ring buffer that holds `bufferDuration` seconds (2 by default). When you write faster than the stream reads, it drops the oldest data.
 
 ### Your own source
 

@@ -1,9 +1,9 @@
-# Apple Protocols
+# CoreWire
 
 [![Build checks](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/checks.yml)
 [![Release packages](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml/badge.svg)](https://github.com/basmilius/apple-protocols/actions/workflows/released.yml)
 
-TypeScript implementations of AirPlay 2, the Media Remote Protocol (MRP), RAOP and Companion Link, published under the `@corewire` scope. They run on Node.js and Bun without native dependencies.
+CoreWire is a set of TypeScript implementations of AirPlay 2, the Media Remote Protocol (MRP), RAOP and Companion Link, published under the `@corewire` scope. They run on Node.js 18.17 or later (20.3 or later on the 20 line) and on Bun, without native dependencies. The documentation lives at [corewire.dev](https://corewire.dev).
 
 I wrote most of this by studying network traffic and reading other implementations of Apple's undocumented protocols. The rewrite to TypeScript started so the [Homey app](https://github.com/basmilius/homey-apple) could control Apple TVs and HomePods without a Python runtime. That app is still the main user, and it shapes what `@corewire/devices` promises to keep stable.
 
@@ -11,7 +11,7 @@ I wrote most of this by studying network traffic and reading other implementatio
 
 | Package                    | What it is                                                                                                   |
 |----------------------------|--------------------------------------------------------------------------------------------------------------|
-| `@corewire/devices`        | `AppleTV` and `HomePod`. They connect, recover on their own and expose remote, now playing, volume, apps and media. Start here. |
+| `@corewire/devices`        | `AppleTV` and `HomePod`. They connect, recover on their own and expose remote, now playing, volume, multiroom, apps and media. Start here. |
 | `@corewire/airplay`        | The AirPlay 2 session with its control, event and data channels, URL playback, audio streaming and timing. MRP lives on `@corewire/airplay/mrp`, RAOP on `/raop`, RTSP on `/rtsp`. |
 | `@corewire/companion-link` | The Companion Link session of an Apple TV: HID, touch, text input, power, apps, accounts, media, system settings. |
 | `@corewire/audio-source`   | Audio sources for streaming: MP3, OGG, WAV, FLAC and QOA decoders, PCM, FFmpeg, URLs, live input and a sine wave. |
@@ -45,7 +45,7 @@ const credentials = await pairing.pin('1234');
 await save(credentials.toString());
 ```
 
-`Credentials.parse()` reads that string back. It also reads the hex object older versions of the Homey app stored.
+`Credentials.parse()` reads that string back. It also reads the hex object older versions of the Homey app stored, and `toFields()` writes that object form for storage an older release still has to read. The Apple TV lists the pairing under the name `CoreWire`; pass `identity: {name}` to `pair()` to choose another.
 
 ### Connect and stay connected
 
@@ -82,7 +82,7 @@ await tv.disconnect();
 
 `connect()` resolves once the device is usable. After that the device keeps itself connected until `disconnect()`. When a connection drops it retries after 1, 2 and 4 seconds. An Apple TV then tries every 2 minutes for half an hour and every 15 minutes after that. A HomePod goes straight to every 15 minutes. Neither gives up. Before every retry the device looks up its address again, so a new DHCP lease does not strand it.
 
-`degraded` means AirPlay works and Companion Link does not yet. Remote, now playing and volume keep working, and the device attaches Companion Link as soon as it answers. Capabilities such as `tv.apps` always exist. `supports()` tells you whether one works right now, and a call that cannot work throws an `UnavailableError`.
+`degraded` means AirPlay works and Companion Link does not yet. Remote, now playing and volume keep working, and the device attaches Companion Link as soon as it answers. Capabilities such as `tv.apps` always exist. `supports()` tells you whether one works right now, and a call that cannot work throws an `UnavailableError`. Every error class comes from `@corewire/devices`; a playback command the device refuses throws a `CommandRefusedError` with a `reason` and a `status`.
 
 ### Find devices
 
@@ -104,18 +104,24 @@ You don't need discovery to connect. A device built from only an address finds i
 ### Stream audio to a HomePod
 
 ```ts
-import { Url } from '@corewire/audio-source';
+import { UrlSource } from '@corewire/audio-source';
 import { HomePod } from '@corewire/devices';
 
 const pod = new HomePod({address: '192.168.1.30'});
 await pod.connect();
 
-const source = await Url.fromUrl('https://example.com/song.mp3');
+const source = await UrlSource.fromUrl('https://example.com/song.mp3');
 const playback = await pod.media.streamAudio(source, {volume: 0.4});
 await playback.ended;
+```
 
-// Or let the device fetch and play the URL itself.
-await pod.media.playUrl('https://example.com/stream.m3u8', {position: 30});
+An Apple TV can also fetch and play a URL itself. A HomePod cannot. There `supports('playUrl')` is false and `playUrl()` throws.
+
+```ts
+if (tv.supports('playUrl')) {
+    const playback = await tv.media.playUrl('https://example.com/stream.m3u8', {position: 30});
+    await playback.ended;
+}
 ```
 
 Volume is always 0 to 1 on a device. Lyrics and animated artwork from the Apple Music catalog live in `@corewire/devices/catalog`. The device never goes to the internet on its own.
@@ -206,9 +212,10 @@ bun install
 bash build.sh
 bun run packages/core/test/pairing-server.ts
 bun run packages/diagnostics/test/proxy-smoke.ts
+bun --cwd website build
 ```
 
-`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`, and diagnostics runs its type checks and an Electron Vite build. CI runs the same three commands on every pull request. A GitHub release publishes the five libraries to npm with provenance.
+`build.sh` builds every package in dependency order. Libraries run `tsgo --noEmit && tsdown`, and diagnostics runs its type checks and an Electron Vite build into `packages/diagnostics/out-check/`, so a check never overwrites the `out/` of a running diagnostics app. CI runs the same commands on every pull request. A GitHub release publishes the five libraries to npm with provenance, and a push to `main` that touches `website/` deploys [corewire.dev](https://corewire.dev).
 
 Build or watch a single package:
 

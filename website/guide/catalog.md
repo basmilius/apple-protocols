@@ -61,3 +61,32 @@ if (id) {
 | `signal` | Cancels the request |
 
 This uses a private catalog endpoint. The tokens go with this one request and are never stored. Redirects are refused, so the tokens never reach another host. The request times out after 15 seconds. A 401 or 403 rejects with a message that says which token or subscription is at fault.
+
+## Errors
+
+Both functions throw a `CatalogError`, also for a network failure or a timeout. Its `reason` says what went wrong, and `status` holds the HTTP status when there was one, or null.
+
+| Reason | When |
+| --- | --- |
+| `invalidArgument` | An id that is not numeric, a storefront that is not two letters, or a missing token |
+| `unauthorized` | Apple Music rejected the bearer token (401) |
+| `forbidden` | Apple Music denied access: the user token, the subscription or the storefront (403) |
+| `requestFailed` | The request failed, timed out or got another error status |
+| `invalidResponse` | The response was empty or could not be read |
+| `tooLarge` | The response is over 2 MB |
+
+```ts
+import { CatalogError, fetchLyrics } from '@corewire/devices/catalog';
+
+try {
+    await fetchLyrics('1440857781', {
+        bearerToken: process.env.APPLE_MUSIC_BEARER ?? '',
+        musicUserToken: process.env.APPLE_MUSIC_USER_TOKEN ?? '',
+        storefront: 'us'
+    });
+} catch (err) {
+    if (err instanceof CatalogError && err.reason === 'unauthorized') {
+        console.warn('Renew the developer token.');
+    }
+}
+```

@@ -1,12 +1,12 @@
 # Introduction
 
-corewire is a set of TypeScript packages that talk to Apple TVs and HomePods on the local network. They implement AirPlay 2, the Media Remote Protocol (MRP) that runs inside it, RAOP and Companion Link. Everything runs on Node.js and Bun. There are no native dependencies.
+CoreWire is a set of TypeScript packages that talk to Apple TVs and HomePods on the local network. They implement AirPlay 2, the Media Remote Protocol (MRP) that runs inside it, RAOP and Companion Link. Everything runs on Node.js and Bun. There are no native dependencies.
 
 ## The packages
 
 | Package | What it is |
 | --- | --- |
-| `@corewire/devices` | `AppleTV` and `HomePod`. They connect, recover on their own and expose remote, now playing, volume, apps and media. Start here. |
+| `@corewire/devices` | `AppleTV` and `HomePod`. They connect, recover on their own and expose remote, now playing, volume, multiroom, apps and media. Start here. |
 | `@corewire/airplay` | The AirPlay 2 session with its control, event and data channels, URL playback, audio streaming and timing. MRP lives on `@corewire/airplay/mrp`, RAOP on `/raop`, RTSP on `/rtsp`. |
 | `@corewire/companion-link` | The Companion Link session of an Apple TV: HID keys, touch, text input, power, apps, accounts, media and system settings. |
 | `@corewire/audio-source` | Sources for audio streaming: MP3, OGG, WAV, FLAC and QOA decoders, raw PCM, FFmpeg, URLs, live input and a sine wave. |

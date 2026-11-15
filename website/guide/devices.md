@@ -61,9 +61,9 @@ const tv = new AppleTV({address: '192.168.1.20'}, {
 | `activeUserAccount` | Apple TV only. An iCloud alternate DSID that Companion Link announces as the active user at startup |
 | `log(entry)` | Receives the log entries of this device at `logLevels` |
 | `logLevels` | Default `['error', 'warn']`. Any of `debug`, `error`, `info`, `net`, `raw`, `warn` |
-| `timing` | The NTP `TimingServer` announced in every SETUP. Omitted: one server shared by all devices, started at the first connect. `false`: no timing |
-| `resolve(last)` | Looks the device up before a retry when the unicast query at the last address found nothing. With this option the device never scans with multicast |
-| `identity` | Overrides of the name, model, OS and version this client presents to the device |
+| `timing` | The NTP `TimingServer` announced in every SETUP. Omitted: one server shared by all devices, started at the first connect and closed when the last device disconnects. `false`: no timing |
+| `resolve(last, signal)` | Looks the device up before a retry when the unicast query at the last address found nothing. With this option the device never scans with multicast. The `signal` aborts after 15 seconds or on `disconnect()` |
+| `identity` | Overrides of the name, model, OS and version this client presents to the device. The name, `CoreWire` when omitted, is what the Apple TV lists after a PIN pairing |
 
 ## Properties
 
@@ -83,10 +83,10 @@ const tv = new AppleTV({address: '192.168.1.20'}, {
 | Method | Meaning |
 | --- | --- |
 | `connect()` | Keeps the device connected until `disconnect()`. Resolves the first time it is connected or degraded |
-| `disconnect()` | Stops every retry and closes every session. Idempotent |
+| `disconnect()` | Stops every retry and closes every session. Emits `disconnected` at once and resolves once the sessions closed. Idempotent |
 | `supports(capability)` | Whether a capability works right now |
 | `AppleTV.pair(target, options?)` | Starts a PIN pairing. Static |
 
 ## Events
 
-A device emits one event, `status`, with the new `Status`. Each capability with state is an `EventEmitter` of its own: `nowPlaying`, `volume`, `power` and `text`.
+A device emits one event, `status`, with the new `Status`. Each capability with state is an `EventEmitter` of its own: `nowPlaying`, `volume`, `power`, `text` and `multiroom`. A `status` listener that throws does not stop the other listeners; the error goes to the log.

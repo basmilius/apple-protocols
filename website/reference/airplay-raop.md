@@ -1,48 +1,57 @@
 # @corewire/airplay/raop
 
 ```ts
-import { RaopClient } from '@corewire/airplay/raop';
+import { connect, discover, toTarget } from '@corewire/airplay/raop';
 ```
 
 See [RAOP](/protocols/raop).
 
-## RaopClient
-
-`class RaopClient extends EventEmitter<{stopped: []}>`
-
-| Member | Description |
-| --- | --- |
-| `static create(target: RaopTarget, timingServer: TimingServer): Promise<RaopClient>` | Connects over RTSP and negotiates the transport |
-| `static discover(deviceId: string, timingServer: TimingServer): Promise<RaopClient>` | Finds the receiver by id, then `create()` |
-| `context: Context` | |
-| `deviceId: string` | The target id, or its address |
-| `address: string` | |
-| `modelName: string` | From the TXT record; empty when unknown |
-| `info: Record<string, unknown>` | Fetched during setup |
-| `stream(source: AudioSource, options?: StreamOptions): Promise<void>` | Streams until the source runs out |
-| `stop(): void` | Ends the running `stream()` after it flushed |
-| `setVolume(volume: number): Promise<void>` | dBFS |
-| `close(): Promise<void>` | Closes every connection |
-| event `stopped` | |
-
-## Building blocks
+## Connecting
 
 | Export | Description |
 | --- | --- |
-| `RtspClient` | RAOP's RTSP client: `info()`, `authSetup()`, `announce()`, `setup()`, `record()`, `flush()`, `setParameter()`, `setMetadata()`, `setArtwork()`, `feedback()`, `teardown()` |
-| `StreamClient` | Sends audio over RTP: `initialize()`, `sendAudio()`, `setVolume()`, `stop()`, `close()` |
-| `ControlClient` | The UDP control channel for sync and retransmits: `bind()`, `start()`, `stop()`, `close()`, `port` |
-| `Statistics` | Frame pacing: `tick()`, `newInterval()`, `expectedFrameCount`, `framesBehind`, `intervalCompleted` |
-| `PacketFifo` | A bounded backlog of sent packets by sequence number |
-| `AudioPacketHeader.encode(header, payloadType, seqno, timestamp, ssrc): Buffer` | An RTP audio header |
-| `SyncPacket.encode(header, payloadType, seqno, rtpTimestamp, ntpSec, ntpFrac, rtpTimestampNow): Buffer` | A sync packet |
-| `decodeRetransmitRequest(data: Buffer): RetransmitRequest` | |
+| `connect(target: RaopTarget, options: RaopConnectOptions): Promise<RaopSession>` | Connects over RTSP and returns a ready session: the control channel, `GET /info`, `/auth-setup` for an AirPort, then ANNOUNCE and SETUP. Throws `ConnectionClosedError` when the signal aborts during the handshake |
+| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The RAOP receivers on the network; `DiscoverOptions` comes from `@corewire/core/discovery` |
+| `toTarget(result: DiscoveryResult): RaopTarget` | A target from a discovery result: address, port, id and TXT record |
+| `RAOP_SERVICE` | `'_raop._tcp.local'` |
+
+## RaopSession
+
+`class RaopSession extends EventEmitter<RaopEventMap>`
+
+One RAOP connection to a receiver. It ends exactly once, with a reason. Then its `signal` aborts and a running stream stops. Create it with `connect()`; the constructor takes internal parts.
+
+| Member | Description |
+| --- | --- |
+| `target: RaopTarget` | What `connect()` got |
+| `context: Context` | Its logger and identity |
+| `info: Record<string, unknown>` | The `/info` plist of the receiver; empty when it did not answer |
+| `isOpen: boolean` | |
+| `closeReason: CloseReason \| undefined` | Why the session ended, or undefined while it is open |
+| `signal: AbortSignal` | Aborts with a `ConnectionClosedError` when the session ends |
+| `volumeDb: number` | The volume last sent, in dBFS |
+| `stream(source: AudioSource, options?: RaopStreamOptions): Promise<RaopPlayback>` | Sends metadata, RECORD, FLUSH and the volume, then the audio over RTP. Resolves once audio flows. One stream at a time: a second one throws `PlaybackError` |
+| `setVolumeDb(volumeDb: number): Promise<void>` | dBFS, -144 (silent) to 0 |
+| `close(): Promise<void>` | Stops a running stream and closes the connection |
+| event `closed: [reason: CloseReason, error?: Error]` | The session ended; also when the RTSP connection drops |
+| event `playing: [info: RaopPlaybackInfo]` | |
+| event `stopped` | A stream stopped |
+
+## RaopPlayback
+
+| Member | Description |
+| --- | --- |
+| `ended: Promise<void>` | Settles when the source ran out and TEARDOWN went out |
+| `stop(): void` | Stops the stream |
+
+## Helpers
+
+| Export | Description |
+| --- | --- |
+| `pctToDbfs(volume: number): number` | A percentage (0 to 100) to dBFS |
 | `getEncryptionTypes(properties: Map<string, string>): EncryptionType` | From the TXT record |
 | `getMetadataTypes(properties: Map<string, string>): MetadataType` | From the TXT record |
 | `getAudioProperties(properties: Map<string, string>): [number, number, number]` | Sample rate, channels and bytes per channel |
-| `pctToDbfs(volume: number): number` | A percentage to dBFS |
-| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The RAOP receivers on the network |
-| `RAOP_SERVICE` | `'_raop._tcp.local'` |
 | `enum EncryptionType` | `Unknown`, `Unencrypted`, `MFiSAP` |
 | `enum MetadataType` | `NotSupported`, `Text`, `Artwork`, `Progress` |
 
@@ -50,11 +59,10 @@ See [RAOP](/protocols/raop).
 
 | Type | Definition |
 | --- | --- |
-| `RaopTarget` | `{address: string; port: number; id?: string; txt?: Readonly<Record<string, string>>}` |
-| `StreamOptions` | `{metadata?: MediaMetadata; volume?: number}`; volume is 0 to 100 |
+| `RaopTarget` | `{address: string; port?: number; id?: string; txt?: Readonly<Record<string, string>>}`; port 7000 when omitted |
+| `RaopConnectOptions` | `{timing: TimingServer; context?: Context; metadata?: Partial<{title; artist; album}>; password?: string; signal?: AbortSignal}`. The port of `timing` goes into SETUP. `metadata` shows while a stream has none of its own: title `Streaming with CoreWire`, artist `CoreWire`, album `AirPlay` when omitted. `password` answers a digest challenge on ANNOUNCE |
+| `RaopStreamOptions` | `{metadata?: MediaMetadata; volumeDb?: number}` |
+| `RaopPlayback` | `{ended: Promise<void>; stop(): void}` |
+| `RaopEventMap` | `{closed: [reason: CloseReason, error?: Error]; playing: [info: RaopPlaybackInfo]; stopped: []}` |
+| `RaopPlaybackInfo` | `{metadata: MediaMetadata; position: number}` |
 | `MediaMetadata` | `{title: string; artist: string; album: string; duration: number; artwork?: Buffer}` |
-| `EventMap` | `{stopped: []}` |
-| `PlaybackInfo` | `{position: number}` |
-| `RaopListener` | `{playing(playbackInfo: PlaybackInfo): void; stopped(): void}` |
-| `RetransmitRequest` | `{lostSeqno: number; lostPackets: number}` |
-| `Settings`, `StreamContext`, `StreamProtocol` | The internals `StreamClient` works with |

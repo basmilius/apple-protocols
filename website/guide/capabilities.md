@@ -64,7 +64,7 @@ try {
 }
 ```
 
-Reading state never throws. `nowPlaying.current`, `volume.level`, `power.state` and `text.state` return the last known values while a protocol is down. `artwork.get()` resolves null without a session.
+Reading state never throws. `nowPlaying.current`, `volume.level`, `power.state`, `text.state` and `multiroom.outputs` return the last known values while a protocol is down. Fetching is different. `artwork.get()` and `artwork.getAnimated()` ask the device, so they throw `UnavailableError` without a session, like every method.
 
 ## Commands the app accepts
 

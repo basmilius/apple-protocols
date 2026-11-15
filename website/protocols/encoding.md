@@ -2,10 +2,10 @@
 
 ```ts
 import { DAAP, NSKeyedArchiver, NTP, OPack, Plist, RTI, TLV8 } from '@corewire/core/encoding';
-import { Aes, Chacha20, Curve25519, Ed25519, deriveEncryptionKeys, hkdf } from '@corewire/core/crypto';
+import { AES, ChaCha20, Curve25519, Ed25519, HKDF } from '@corewire/core/crypto';
 ```
 
-Each codec is a namespace. They work on `Buffer` and `Uint8Array` and have no dependencies.
+Each codec and each cipher is a namespace. Acronyms stay in capitals in their names. They work on `Buffer` and `Uint8Array` and have no dependencies.
 
 ## Codecs
 
@@ -33,7 +33,7 @@ const fields = TLV8.decode(payload);
 console.log(fields.get(TLV8.Value.State));
 ```
 
-`encode(entries)` splits values over 255 bytes into fragments; `decode(buffer)` joins them again into a `Map` of type to value. `bail(fields)` throws a `TLV8PairingError` when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
+`encode(entries)` splits values over 255 bytes into fragments; `decode(buffer)` joins them again into a `Map` of type to value. `bail(fields)` throws a `TLV8PairingError` (a `PairingError` from `@corewire/core`, with the TLV8 error `code`) when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
 
 ### OPack
 
@@ -69,24 +69,23 @@ console.log(value);
 
 | Export | Contents |
 | --- | --- |
-| `Chacha20` | `encrypt(key, nonce, aad, plaintext)` and `decrypt(key, nonce, aad, ciphertext, authTag)` with ChaCha20-Poly1305; `padNonce()`, `DecryptionError` |
+| `ChaCha20` | `encrypt(key, nonce, aad, plaintext)` and `decrypt(key, nonce, aad, ciphertext, authTag)` with ChaCha20-Poly1305; `padNonce()` |
 | `Ed25519` | `generateKeyPair()`, `sign()`, `verify()` |
 | `Curve25519` | `generateKeyPair()`, `generateSharedSecKey()` |
-| `Aes` | `encrypt()` and `decrypt()` with AES-128-CTR |
-| `hkdf(options)` | HKDF (RFC 5869) with the `hash` you pass, such as `sha512` |
-| `deriveEncryptionKeys(sharedSecret, salt, readInfo, writeInfo)` | Read and write keys from a shared secret |
+| `AES` | `encrypt()` and `decrypt()` with AES-128-CTR |
+| `HKDF` | `derive(options)`: HKDF (RFC 5869) with the `hash` you pass, such as `sha512`. `deriveEncryptionKeys(sharedSecret, salt, readInfo, writeInfo)`: read and write keys from a shared secret |
 
 ```ts
 import { randomBytes } from 'node:crypto';
-import { Chacha20 } from '@corewire/core/crypto';
+import { ChaCha20 } from '@corewire/core/crypto';
 
 const key = randomBytes(32);
-const nonce = Chacha20.padNonce(Buffer.from([1, 0, 0, 0, 0, 0, 0, 0]));
+const nonce = ChaCha20.padNonce(Buffer.from([1, 0, 0, 0, 0, 0, 0, 0]));
 
-const {ciphertext, authTag} = Chacha20.encrypt(key, nonce, null, Buffer.from('hello'));
-const plaintext = Chacha20.decrypt(key, nonce, null, ciphertext, authTag);
+const {ciphertext, authTag} = ChaCha20.encrypt(key, nonce, null, Buffer.from('hello'));
+const plaintext = ChaCha20.decrypt(key, nonce, null, ciphertext, authTag);
 
 console.log(plaintext.toString());
 ```
 
-A wrong key, nonce or tag throws `DecryptionError`.
+A wrong key, nonce or tag throws `DecryptionError`, an `EncryptionError` from `@corewire/core`.

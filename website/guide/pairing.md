@@ -25,7 +25,7 @@ try {
 - On success `pin()` closes the connection itself.
 - `close()` gives up without credentials.
 
-`pair()` takes `PairOptions`: an `identity` that overrides the name, model and versions this client presents, and an abort `signal`.
+`pair()` takes `PairOptions`: an `identity` that overrides the name, model and versions this client presents, and an abort `signal`. The Apple TV lists the pairing under `identity.name`, or `CoreWire` without one. A home hub can pass its own name here.
 
 The credentials come from AirPlay pair-setup and serve Companion Link too. One pairing covers both protocols.
 
@@ -53,6 +53,14 @@ The string holds the secret key of this controller. Store it like a password.
 
 The object forms read credentials that were stored before the string form existed. Anything else throws a `CredentialsError`.
 
+`toFields()` writes that object form: the five fields as strings, the binary ones as hex. Use it when your storage has to stay readable for an older release of your app.
+
+```ts
+const fields = credentials.toFields();
+
+console.log(fields.accessoryIdentifier, fields.pairingId);
+```
+
 ## Credentials from a protocol package
 
 When you pair with `pair()` from `@corewire/airplay` or `@corewire/companion-link` directly, you get raw `AccessoryCredentials`. `Credentials.from()` wraps them for a device:
@@ -77,7 +85,7 @@ An `AppleTV` without credentials still connects. AirPlay pairs transiently, whic
 When the user removes the pairing on the Apple TV, pair-verify fails. The device keeps retrying on its schedule, and the error sits in `status.airplay.error` or `status.companionLink.error`. Check for a `PairingError` there and offer to pair again:
 
 ```ts
-import { PairingError } from '@corewire/core';
+import { PairingError } from '@corewire/devices';
 
 tv.on('status', status => {
     if (status.companionLink?.error instanceof PairingError) {
@@ -86,4 +94,4 @@ tv.on('status', status => {
 });
 ```
 
-`@corewire/core` exports the error classes. See [Logging and errors](/guide/logging-and-errors).
+`@corewire/devices` exports every error class. See [Logging and errors](/guide/logging-and-errors).

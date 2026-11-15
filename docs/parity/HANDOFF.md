@@ -1,6 +1,6 @@
-# Handoff: the @corewire rebuild
+# Handoff: the CoreWire rebuild
 
-State on 2026-11-14, branch `refactor/corewire` (not pushed). `main` equals `origin/main` (`5286829`), the version that runs in production in the Homey app on about 19,000 hubs. The requirement for the whole rebuild: no regression for the Homey app after it migrates.
+State on 2026-11-15, branch `refactor/corewire` (not pushed). Round 2 (the API cleanup before the first release) is in; see "Round 2" below. `main` equals `origin/main` (`5286829`), the version that runs in production in the Homey app on about 19,000 hubs. The requirement for the whole rebuild: no regression for the Homey app after it migrates.
 
 ## Read first
 
@@ -16,8 +16,9 @@ State on 2026-11-14, branch `refactor/corewire` (not pushed). `main` equals `ori
 - The existing code is not sacred: restructure and rewrite where the design is better served. Bytes on the wire and behavior toward devices and consumers are.
 - The proxy becomes part of diagnostics. `packages/proxy` disappears.
 - Sub-agents (Opus) do the work, the orchestrating chat decides. Each step is committed on the branch in English conventional commits with the behavior changes in the body. Never push, amend or rewrite commits.
-- No references to pyatv or any other project or external site in code comments. Keep the fact and the reason, drop the attribution.
-- The repository keeps its name for now.
+- No references to other implementations, projects or external sites in code comments or docs. Keep the fact and the reason, drop the attribution.
+- The repository keeps its name for now. The brand is CoreWire (capital C and W) in prose, titles, the website, READMEs, UI strings and default names; package names, import paths, the domain `corewire.dev` and identifiers stay lowercase.
+- The website is hosted on Cloudflare Workers with static assets, at corewire.dev.
 - Audio core deduplication between AirPlay audio and RAOP is postponed: it cannot be verified without listening. RAOP code only moved.
 
 ## Done and device-tested
@@ -37,6 +38,31 @@ State on 2026-11-14, branch `refactor/corewire` (not pushed). `main` equals `ori
 After every step the outgoing traffic was compared with the baseline on real devices and matched: connect (Apple TV with credentials, HomePod with transient pairing), remote keys, lists, power state, volume, playback queue, pause/play, URL playback, audio streaming, power off/on, app launch. Simulated drops of the control, data and event stream each end the session at once.
 
 The public API of `@corewire/devices` was kept as it was through the protocol steps, so diagnostics kept working; remaining steps 1 and 2 then redesigned it and moved diagnostics onto it. Both were device-tested against the baseline the same way.
+
+## Round 2: the API cleanup before the first release
+
+Two read-only reviews produced a list of findings. `audit.md` ("Round 2") has sections A to C with their status; the Homey items (D) belong to the app. The library and diagnostics part is done in these commits on top of `8cb6815`:
+
+| Commit | Area |
+| --- | --- |
+| `0a2a4f3` | core: trimmed main entry, crypto namespaces in capitals (`AES`, `ChaCha20`, `HKDF`), `DecryptionError` and `TLV8PairingError` in the hierarchy, `DiscoveryResult` without phantom fields, one `DiscoverOptions`, protected `encryption` getter |
+| `a9452e4` | airplay: trimmed main entry, `RemoteControlChannels`, `ended` everywhere, RAOP as `connect()` with a `RaopSession` |
+| `bbc0432` | audio-source: `*Source` names, consistent factories, options objects, download limits on every `fromUrl()`, fallback when the decode worker cannot load |
+| `482e801` | devices: capabilities as interfaces, one error boundary (`CommandRefusedError`, `CatalogError`, core errors re-exported), the lifecycle defects B1 to B10, `resolve(last, signal)`, reference-counted timing server, `artwork.get()` throws while AirPlay is down |
+| `c05f208` | devices: `multiroom.outputs` with a `change` event, volume and mute per output |
+| `8f3b755` | CoreWire as the client name in pair-setup M5 and the RAOP placeholder metadata, configurable (wire change) |
+| `6253a11` | diagnostics: the check build goes to `out-check/`, so the decode worker of a running app stays reachable |
+| `629d47c` | packaging: LICENSE, README and `engines` per published package |
+| `70e793a` | CoreWire as the default name in SETUP, URL playback, MRP device info and Companion Link `_systemInfo` (wire change) |
+
+After these commits the docs (website, READMEs, CLAUDE.md, this folder) follow the code, and `wrangler.toml` plus `.github/workflows/website.yml` deploy corewire.dev.
+
+Still open from round 2:
+
+- Test the wire changes during the PIN pairing session at the TV: the M5 name (`CoreWire`, or the Homey's name from the app), the client name in SETUP, URL playback, MRP device info and `_systemInfo`, and the RAOP placeholder metadata.
+- B13 stays a recorded deviation (section 0 of `devices-api.md`).
+- Homey (section D): the app adapts to the API changes on its `feat/corewire` branch.
+- Cloudflare: Bas creates the API token, sets the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` on the repository and makes sure the zone corewire.dev is on the account, so the custom domain can attach at the first deploy.
 
 ## How to test against the baseline
 
@@ -69,7 +95,7 @@ Design: report sections "Wat @corewire/devices wel en niet doet", "Hoe de code a
 - Move `packages/proxy` into `packages/diagnostics/src/main/proxy/` with a panel, `proxy:*` channels and `diag proxy status|start|stop`; `proxy:start` needs confirmation. The branch `experimental/reworked-api` contains an earlier version of this move inside the old layout; use it as reference, do not check it out.
 - The mDNS responder (advertising) moves from the proxy into `core/discovery`; the pairing servers stay in `core/pairing`.
 - `Storage`/`JsonStorage`/`MemoryStorage` move from `@corewire/core/storage` into diagnostics; the temporary subpath disappears. `Context` in `core/transport` stays as the plain object that is handed down.
-- Leftovers noted by agents: unused builders in `companion-link/src/messages.ts` (`ping`, `publishPresence`, `fetchSiriStatus`, `systemInfoUpdate`, `buildRtiClearPayload`, `buildRtiInputPayload`); `siriRemoteInfo` parses `Buffer.from(...).buffer` (possible wrong offset, inherited); raw `exchange` with a preset `_x` registers under the wrong key; `raop/raop.ts` still takes a `DiscoveryResult`; `raop/const.ts` sends the metadata strings `'Streaming with apple-raop'`/`'apple-raop'` to the device (behavior, untouched); import order in rewritten import blocks is not alphabetical everywhere.
+- Leftovers noted by agents: unused builders in `companion-link/src/messages.ts` (`ping`, `publishPresence`, `fetchSiriStatus`, `systemInfoUpdate`, `buildRtiClearPayload`, `buildRtiInputPayload`); `siriRemoteInfo` parses `Buffer.from(...).buffer` (possible wrong offset, inherited); raw `exchange` with a preset `_x` registers under the wrong key; `raop/raop.ts` still takes a `DiscoveryResult` (resolved in round 2: RAOP `connect()` takes a `RaopTarget`); `raop/const.ts` sends the metadata strings `'Streaming with apple-raop'`/`'apple-raop'` to the device (changed in round 2 to `CoreWire`, configurable); import order in rewritten import blocks is not alphabetical everywhere.
 
 ### 3. CI, README, CLAUDE.md (done, `6dedef5`)
 - `.github/workflows/checks.yml` and `released.yml` for the new package list; the release workflow publishes five packages under `@corewire`. Checks run `build.sh`, the core pairing test and the proxy smoke test. The release publishes with `npm publish --provenance` over OIDC and no `NPM_TOKEN`; `provenance: false` is gone from the `publishConfig` of the five packages. It only works once the trust is set up (step 6).

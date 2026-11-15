@@ -3,9 +3,14 @@ import llmstxt from 'vitepress-plugin-llms';
 import { nav, sidebar } from './navigation.ts';
 
 export default defineConfig({
-    title: 'corewire',
-    titleTemplate: ':title | corewire',
+    title: 'CoreWire',
+    titleTemplate: ':title | CoreWire',
     description: 'TypeScript packages that control Apple TVs and HomePods over AirPlay 2, the Media Remote Protocol, RAOP and Companion Link, on Node.js and Bun without native dependencies.',
+    head: [
+        ['meta', {name: 'application-name', content: 'CoreWire'}],
+        ['meta', {property: 'og:site_name', content: 'CoreWire'}],
+        ['meta', {property: 'og:type', content: 'website'}]
+    ],
     cleanUrls: true,
     sitemap: {
         hostname: 'https://corewire.dev'
@@ -39,7 +44,7 @@ export default defineConfig({
             level: [2, 3]
         },
         footer: {
-            message: 'Released under the MIT license.',
+            message: 'CoreWire is released under the MIT license.',
             copyright: 'Copyright 2026 <a href="https://github.com/basmilius">Bas Milius</a>'
         }
     }

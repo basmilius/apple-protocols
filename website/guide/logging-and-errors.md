@@ -41,7 +41,11 @@ reporter.enable('error');
 
 ## Errors
 
-Every error the packages throw on purpose extends `AppleProtocolError` from `@corewire/core`. Add `@corewire/core` to your dependencies to import them; your package manager may not expose the copy that `@corewire/devices` brings along.
+Every error the packages throw on purpose extends `AppleProtocolError`. `@corewire/devices` re-exports every error class of `@corewire/core`, so you import them all from the package you already depend on:
+
+```ts
+import { CommandRefusedError, PairingError, UnavailableError } from '@corewire/devices';
+```
 
 ```
 AppleProtocolError
@@ -51,19 +55,23 @@ AppleProtocolError
 │       └── SetupClosedError        (@corewire/companion-link)
 ├── PairingError
 │   ├── AuthenticationError
-│   └── CredentialsError
+│   ├── CredentialsError
+│   └── TLV8PairingError
 ├── CommandError
+│   ├── CommandRefusedError         (@corewire/devices)
 │   └── SendCommandError            (@corewire/airplay/mrp)
 ├── SetupError
 ├── DiscoveryError
 ├── EncryptionError
+│   └── DecryptionError
 ├── InvalidResponseError
 ├── TimeoutError
 ├── PlaybackError
-└── UnavailableError                (@corewire/devices)
+├── UnavailableError                (@corewire/devices)
+└── CatalogError                    (@corewire/devices/catalog)
 ```
 
-`TLV8PairingError` (in `TLV8` of `@corewire/core/encoding`) and `DecryptionError` (in `Chacha20` of `@corewire/core/crypto`) extend `Error` directly.
+The classes without a package name come from `@corewire/core`.
 
 What you meet through `@corewire/devices`:
 
@@ -72,7 +80,8 @@ What you meet through `@corewire/devices`:
 | `UnavailableError` | A capability was called while it cannot work |
 | `PairingError` | A PIN was wrong, or pair-verify failed |
 | `CredentialsError` | `Credentials.parse()` got a value it cannot read; also the Companion Link error of an Apple TV without credentials |
-| `SendCommandError` | The app refused a playback command |
+| `CommandRefusedError` | The device refused a playback command; `reason` and `status` say why, as strings |
 | `PlaybackError` | The device refused a URL |
 | `ConnectionClosedError` | A connect was interrupted, or a request went out on a session that ended |
 | `TimeoutError` | A request got no reply in time |
+| `CatalogError` | A request to the Apple Music catalog failed; see [Apple Music catalog](/guide/catalog) |

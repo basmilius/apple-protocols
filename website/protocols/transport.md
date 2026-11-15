@@ -19,7 +19,7 @@ const context = new Context('Living-Room.local', {name: 'Kitchen hub'}, (group, 
 context.logger.info('[example]', 'hello');
 ```
 
-The second argument overrides fields of the default `DeviceIdentity` (`name`, `model`, `osName`, `osVersion`, `osBuildVersion`, `sourceVersion`, `applicationBundleIdentifier`, `applicationBundleVersion`). The third is a `LogSink` that receives every log call of this context.
+The second argument is a `DeviceIdentity` with the fields you override (`name`, `model`, `osName`, `osVersion`, `osBuildVersion`, `sourceVersion`, `applicationBundleIdentifier`, `applicationBundleVersion`), all optional. `context.identity` returns only those overrides; each protocol package fills in its own defaults where it sends the identity. The name defaults to `DEFAULT_CLIENT_NAME`, `CoreWire`. The third argument is a `LogSink` that receives every log call of this context.
 
 Pass one context to several connections of the same device, such as an AirPlay and a Companion Link session, so their logs line up.
 
@@ -36,7 +36,7 @@ Pass one context to several connections of the same device, such as an AirPlay a
 | `state` | `connecting`, `connected`, `closing`, `disconnected` or `failed` |
 | `address`, `port`, `localAddress`, `isConnected`, `signal`, `context` | About the connection |
 
-`EncryptionAwareConnection` adds `enableEncryption(readKey, writeKey)` and an `EncryptionState` with the keys and frame counters. `buildNonce(counter, format)` builds the 12-byte ChaCha20 nonce: `counter-at-0` for Companion Link, `counter-at-4` for AirPlay.
+`EncryptionAwareConnection` adds `enableEncryption(readKey, writeKey)` and an `EncryptionState` with the keys and frame counters, which a subclass reads through the protected `encryption` getter. `buildNonce(counter, format)` builds the 12-byte ChaCha20 nonce: `counter-at-0` for Companion Link, `counter-at-4` for AirPlay.
 
 ## Logging
 

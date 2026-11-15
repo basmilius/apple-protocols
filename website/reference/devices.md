@@ -28,10 +28,12 @@ The base of `AppleTV` and `HomePod`. Its constructor is protected. See [Apple TV
 | `playback: PlaybackControl` | [Playback](/guide/playback) |
 | `remote: RemoteControl` | [Remote](/guide/remote) |
 | `volume: VolumeControl` | [Volume](/guide/volume) |
-| `connect(): Promise<void>` | Keeps the device connected until `disconnect()`. Resolves the first time it is connected or degraded; rejects when the first attempt and the quick retries failed |
-| `disconnect(): Promise<void>` | Stops every retry and closes every session. Idempotent |
+| `connect(): Promise<void>` | Keeps the device connected until `disconnect()`. Resolves the first time it is connected or degraded; rejects when the first attempt and the quick retries failed. Works right after a `disconnect()` you did not await |
+| `disconnect(): Promise<void>` | Stops every retry, clears the announced values and emits `disconnected` at once, then resolves once every session closed. Idempotent |
 | `supports(capability: TCapability): boolean` | Whether the capability works now |
 | event `status` | Fires on every change of the status |
+| protected `reset(): void` | Clears the announced values at the start of `disconnect()`; `AppleTV` overrides it to reset power |
+| protected `mediaRemoteState`, `companionLinkState` | The protocol models of the device |
 
 ### AppleTV
 
@@ -75,7 +77,10 @@ The base of `AppleTV` and `HomePod`. Its constructor is protected. See [Apple TV
 | `static from(credentials: AccessoryCredentials): Credentials` | Wraps credentials from a protocol `pair()` |
 | `static parse(value: string \| Readonly<Record<string, unknown>>): Credentials` | Reads the string form, an object with the five fields (hex or base64), or JSON of such an object. Throws `CredentialsError` |
 | `toString(): string` | `cw1.` and five base64url fields |
+| `toFields(): {accessoryIdentifier; accessoryLongTermPublicKey; pairingId; publicKey; secretKey}` | The five fields as strings, the binary ones as hex: the object form `parse()` reads. For storage an older release has to keep reading |
 | `toJSON(): string` | The same as `toString()` |
+
+The constructor is private.
 
 ### Pairing
 
@@ -83,12 +88,28 @@ The base of `AppleTV` and `HomePod`. Its constructor is protected. See [Apple TV
 
 | Member | Description |
 | --- | --- |
+| `static start(target: DeviceTarget, options?: PairOptions): Promise<Pairing>` | What `AppleTV.pair()` calls |
 | `pin(code: string): Promise<Credentials>` | Runs pair-setup with the PIN. Closes the connection on success; a wrong PIN keeps it open |
 | `close(): void` | Closes the connection without credentials |
 
-Start one with `AppleTV.pair()`.
+Start one with `AppleTV.pair()`. The name the Apple TV lists for the pairing is `identity.name`, `CoreWire` when omitted.
 
 ## Errors
+
+The entry point re-exports every error class of `@corewire/core`, so you import all errors from `@corewire/devices`: `AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError` and `TLV8PairingError`. See [Logging and errors](/guide/logging-and-errors#errors) for the hierarchy.
+
+### CommandRefusedError
+
+`class CommandRefusedError extends CommandError`
+
+The device refused a playback command, for example because nothing plays or the app does not handle it. Every `playback.*` method throws it.
+
+| Member | Description |
+| --- | --- |
+| `constructor(reason: string, status: string)` | |
+| `static from(error: SendCommandError): CommandRefusedError` | Translates the protocol error of `@corewire/airplay/mrp`; that error becomes the `cause` |
+| `reason: string` | The send error in lower camel case, such as `applicationNotFound`, `timedOut` or `noError` |
+| `status: string` | The handler status, such as `noActionableNowPlayingItem`, `commandFailed` or `success` |
 
 ### UnavailableError
 
@@ -115,7 +136,7 @@ Start one with `AppleTV.pair()`.
 
 ## Capability types
 
-These classes are exported as types. You reach them through a device.
+The capabilities are interfaces; the classes behind them are internal. You reach them through a device. The ones with events extend `EventEmitter` with their own event map: `NowPlayingEventMap`, `VolumeEventMap`, `PowerEventMap`, `TextEventMap` and `MultiroomEventMap`.
 
 ### AccountsControl
 
@@ -136,8 +157,10 @@ These classes are exported as types. You reach them through a device.
 
 | Member | Description |
 | --- | --- |
-| `get(width = 600, height = -1): Promise<Artwork \| null>` | The artwork of what plays now; a height of -1 keeps the aspect ratio |
-| `getAnimated(width = 600, height = -1): Promise<AnimatedArtwork[]>` | The animated artwork formats the device knows |
+| `get(width = 600, height = -1): Promise<Artwork \| null>` | The artwork of what plays now; a height of -1 keeps the aspect ratio. Null when the current item has none |
+| `getAnimated(width = 600, height = -1): Promise<AnimatedArtwork[]>` | The animated artwork formats the device knows; empty when the current item has none |
+
+Both throw `UnavailableError` while AirPlay is down.
 
 ### MediaControl
 
@@ -148,6 +171,8 @@ These classes are exported as types. You reach them through a device.
 
 ### MediaPlayback
 
+An interface; `instanceof` does not work on it.
+
 | Member | Description |
 | --- | --- |
 | `kind: 'url' \| 'audio'` | |
@@ -156,22 +181,31 @@ These classes are exported as types. You reach them through a device.
 
 ### MultiroomControl
 
+`extends EventEmitter<MultiroomEventMap>`
+
 | Member | Description |
 | --- | --- |
 | `clusterId: string \| null` | The group id |
 | `isClusterAware: boolean` | |
 | `isLeader: boolean` | |
-| `add(...deviceUids: string[]): Promise<void>` | Adds output devices to the group |
+| `outputs: readonly OutputDevice[]` | The output devices that play along now, as the device last reported them |
+| `add(...deviceUids: string[]): Promise<void>` | Adds output devices to the group by `uid` |
 | `remove(...deviceUids: string[]): Promise<void>` | Removes output devices |
 | `set(...deviceUids: string[]): Promise<void>` | Replaces the whole group |
+| `getVolume(deviceUid: string): Promise<number>` | The volume of one output device, 0 to 1 |
+| `setVolume(deviceUid: string, level: number): Promise<void>` | Sets the volume of one output device, clamped to 0 to 1 |
+| `mute(deviceUid: string): Promise<void>`, `unmute(deviceUid: string): Promise<void>` | Mutes or unmutes one output device |
+| event `change: [outputs: readonly OutputDevice[]]` | The list differs from the last one announced |
+
+`outputs` survives a reconnect like the volume does, and `disconnect()` clears it. Every method throws `UnavailableError` while AirPlay is down.
 
 ### NowPlayingControl
 
-`extends EventEmitter`
+`extends EventEmitter<NowPlayingEventMap>`
 
 | Member | Description |
 | --- | --- |
-| `current: NowPlaying \| null` | The current item; the last announced one while a reconnect restores |
+| `current: NowPlaying \| null` | The current item; the last announced one while a reconnect restores, null after `disconnect()` |
 | `elapsed: number` | Elapsed seconds now, extrapolated while playing |
 | `supports(command: NowPlayingCommand): boolean` | Whether the now playing app accepts the command |
 | `lyrics(): Promise<Lyrics \| null>` | Lyrics of the current item from the playback queue |
@@ -179,9 +213,9 @@ These classes are exported as types. You reach them through a device.
 | event `state: [state: PlaybackState, previous: PlaybackState, item: NowPlaying]` | The playback state differs from the last one announced |
 | event `artwork: [item: NowPlaying]` | The artwork of the current item changed |
 
-`hold()`, `resume()` and `stop()` are public for the device class and not meant for you.
-
 ### PlaybackControl
+
+Every method throws `UnavailableError` while AirPlay is down and `CommandRefusedError` when the device refuses the command.
 
 | Member | Description |
 | --- | --- |
@@ -195,7 +229,7 @@ These classes are exported as types. You reach them through a device.
 
 ### PowerControl
 
-`extends EventEmitter`
+`extends EventEmitter<PowerEventMap>`
 
 | Member | Description |
 | --- | --- |
@@ -222,7 +256,7 @@ These classes are exported as types. You reach them through a device.
 
 ### TextControl
 
-`extends EventEmitter`
+`extends EventEmitter<TextEventMap>`
 
 | Member | Description |
 | --- | --- |
@@ -241,7 +275,7 @@ These classes are exported as types. You reach them through a device.
 
 ### VolumeControl
 
-`extends EventEmitter implements VolumeState`
+`extends EventEmitter<VolumeEventMap>, VolumeState`
 
 | Member | Description |
 | --- | --- |
@@ -257,10 +291,10 @@ These classes are exported as types. You reach them through a device.
 | Type | Definition |
 | --- | --- |
 | `DeviceTarget` | `{address: string; port?: number; txt?: Readonly<Record<string, string>>; id?: string}` |
-| `DeviceOptions` | `{log?(entry: LogEntry): void; logLevels?: readonly LogLevel[]; timing?: TimingServer \| false; resolve?(last: DeviceTarget): Promise<DeviceTarget \| null>; identity?: ClientIdentity}` |
+| `DeviceOptions` | `{log?(entry: LogEntry): void; logLevels?: readonly LogLevel[]; timing?: TimingServer \| false; resolve?(last: DeviceTarget, signal: AbortSignal): Promise<DeviceTarget \| null>; identity?: ClientIdentity}`. The `signal` of `resolve` aborts after 15 seconds or when `disconnect()` cancels the attempt |
 | `AppleTVOptions` | `DeviceOptions & {credentials?: Credentials; activeUserAccount?: string}` |
 | `PairOptions` | `{identity?: ClientIdentity; signal?: AbortSignal}` |
-| `ClientIdentity` | `Partial<{name; model; osName; osVersion; osBuildVersion; sourceVersion}>`, all strings |
+| `ClientIdentity` | `Partial<{name; model; osName; osVersion; osBuildVersion; sourceVersion}>`, all strings. `name` defaults to `CoreWire`: the name the Apple TV lists after a PIN pairing, and the name in the AirPlay SETUP, URL playback, MRP device info and Companion Link system info |
 | `LogLevel` | `'debug' \| 'error' \| 'info' \| 'net' \| 'raw' \| 'warn'` |
 | `LogEntry` | `{level: LogLevel; device: string; message: string; args: readonly unknown[]; timestamp: number}` |
 | `DeviceState` | `'disconnected' \| 'connecting' \| 'connected' \| 'degraded' \| 'recovering' \| 'offline'` |
@@ -298,7 +332,13 @@ These classes are exported as types. You reach them through a device.
 | `StreamAudioOptions` | `{volume?: number; signal?: AbortSignal}`; volume is 0 to 1 |
 | `ServiceRecord` | `{name: string; port: number; txt: Readonly<Record<string, string>>}` |
 | `DiscoveredDevice` | `{id; name; address; model: DeviceModel; modelName; family: DeviceFamily; mac: string \| null; target: DeviceTarget; services: {airplay?; companionLink?; raop?: ServiceRecord}}` |
-| `DiscoverOptions` | `{useCache?: boolean}`; default true |
+| `DiscoverOptions` | `{useCache?: boolean}`; default true. The type of `@corewire/core/discovery`, re-exported |
+| `OutputDevice` | `{uid: string; name: string; model: string; groupId: string \| null; isLocal: boolean; isGroupLeader: boolean; hasVolumeControl: boolean}`; a speaker or TV in the multiroom group. `isLocal` marks the device the session runs on |
+| `NowPlayingEventMap` | `{change: [item: NowPlaying \| null]; state: [state: PlaybackState, previous: PlaybackState, item: NowPlaying]; artwork: [item: NowPlaying]}` |
+| `VolumeEventMap` | `{change: [volume: VolumeState]}` |
+| `PowerEventMap` | `{change: [state: PowerState]}` |
+| `TextEventMap` | `{change: [state: TextState]}` |
+| `MultiroomEventMap` | `{change: [outputs: readonly OutputDevice[]]}` |
 
 ## @corewire/devices/catalog
 
@@ -309,7 +349,9 @@ import { fetchAnimatedArtwork, fetchLyrics } from '@corewire/devices/catalog';
 | Export | Description |
 | --- | --- |
 | `fetchAnimatedArtwork(albumId: string, options: AnimatedArtworkOptions = {}): Promise<AnimatedArtwork[]>` | The animated artwork of an album, from its public Apple Music page |
-| `fetchLyrics(catalogId: string, options: AppleMusicLyricsOptions): Promise<string \| null>` | The TTML lyrics of a song from the Apple Music catalog; null when it has none |
+| `fetchLyrics(catalogId: string, options: AppleMusicLyricsOptions): Promise<string \| null>` | The TTML lyrics of a song from the Apple Music catalog; null when it has none (404) |
+| `class CatalogError extends AppleProtocolError` | `constructor(reason: CatalogErrorReason, message: string, status?: number \| null)`; `reason`, and `status`: the HTTP status, or null. Both functions throw it, also for a network failure or a timeout |
+| type `CatalogErrorReason` | `'invalidArgument' \| 'unauthorized' \| 'forbidden' \| 'requestFailed' \| 'invalidResponse' \| 'tooLarge'` |
 | type `AnimatedArtworkOptions` | `{storefront?: string; signal?: AbortSignal}`; storefront `us` when omitted |
 | type `AppleMusicLyricsOptions` | `{bearerToken: string; musicUserToken: string; storefront: string; language?: string; script?: string; signal?: AbortSignal}` |
 | type `AnimatedArtwork` | The same type as in the main entry point |

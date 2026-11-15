@@ -2,7 +2,7 @@
     <span
         :class="[$style.logo, { [$style.logoHero]: variant === 'hero' }]"
         role="img"
-        aria-label="corewire">
+        aria-label="CoreWire">
         <svg
             xmlns="http://www.w3.org/2000/svg"
             :class="$style.mark"
@@ -22,7 +22,7 @@
                 stroke-width="2"
                 d="M6 12h3l2-4 2 8 2-4h3"/>
         </svg>
-        <span :class="$style.word">corewire</span>
+        <span :class="$style.word">CoreWire</span>
     </span>
 </template>
 

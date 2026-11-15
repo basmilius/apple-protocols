@@ -38,7 +38,7 @@ await client.disconnect();
 | `headers` | Extra headers |
 | `allowError` | Resolve instead of reject on a status that is not OK |
 | `protocol` | `RTSP/1.0` (default) or `HTTP/1.1` |
-| `timeout` | Milliseconds; `HTTP_TIMEOUT` (6 seconds) by default |
+| `timeout` | Milliseconds; 6000 by default |
 
 Three more protected methods are the extension points: `getDefaultHeaders()` adds headers to every request, `transformOutgoing()` encrypts a formatted request, and `transformIncoming()` decrypts incoming data. The client keeps ciphertext and plaintext in separate buffers, so a partial TCP delivery never mixes them.
 

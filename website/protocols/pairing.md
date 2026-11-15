@@ -36,7 +36,7 @@ const credentials = await setup.pin(async () => await askForPin());
 console.log(credentials.accessoryIdentifier);
 ```
 
-`start()` generates the controller's long-term Ed25519 key pair. `pin(askPin)` runs M1 to M6 and calls `askPin` between M1 and M2, when the device shows its PIN. It resolves `AccessoryCredentials`: the accessory identifier and long-term public key, and this controller's pairing id and key pair.
+`start()` generates the controller's long-term Ed25519 key pair. `pin(askPin)` runs M1 to M6 and calls `askPin` between M1 and M2, when the device shows its PIN. It resolves `AccessoryCredentials`: the accessory identifier and long-term public key, and this controller's pairing id and key pair. M5 carries the name of the controller, which the device lists with its pairings: the `name` of the context identity, or `CoreWire` when it has none.
 
 The steps are public too (`m1()` to `m6()`) for a caller that has to wait for the PIN between M1 and M2 across calls, as `PinPairing` does.
 

@@ -1,4 +1,4 @@
-# Apple Protocols
+# CoreWire
 
 Project conventions, architecture and pitfalls are in [CLAUDE.md](CLAUDE.md). Read it first; it applies to every agent, not only Claude.
 

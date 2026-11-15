@@ -10,7 +10,7 @@
 | m3 | fixed | A `change` to null resets the announced state to `unknown`, so the next app that plays fires `state`. |
 | m4 | fixed | `connect()` while `offline` runs the next scheduled AirPlay attempt now; a failure counts as the attempt it replaced. |
 | m5 | open | Accepted: the slower first rejection buys whole-handshake retries; Homey waits in `onInit` either way. |
-| m6 | open | Rollback after a new pairing costs a re-pairing; decide in the Homey migration whether to keep writing the hex object. |
+| m6 | fixed | `Credentials.toFields()` (0063c6e) returns the five fields with the binary ones as hex, the object form `parse()` reads. The Homey app writes that form next to the string form, so a rollback to a release on `@basmilius/apple-sdk` still finds credentials after a new pairing. |
 | m7 | fixed | Artwork compares item and SET_ARTWORK bytes by length and hash, so other bytes for the same item fire `artwork` once. |
 | m8 | fixed | The code now reports `degraded`, as the design says: `connected` promises everything the device type offers. Homey always pairs an Apple TV and HomePods have no Companion Link, so Homey sees no difference. |
 | m9 | open | Homey keys animated artwork by track and covers the check; the helper documents that the caller owns it. |
@@ -19,6 +19,47 @@
 | m11 | fixed | `disconnect()` cancels the now-playing restore timers, so no `change` fires about a second after a disconnect. Volume, power and text only change on device messages and stay silent once the sessions are closed. |
 | m12 | fixed | A restore that ends on the same item compares the artwork with the last announced one and fires `artwork` once if it differs. A part the new session has not sent yet counts as unchanged, so the same artwork coming back fires nothing. |
 | Audio TEARDOWN race | fixed | Found on a real Apple TV: after the TEARDOWN at the end of an audio stream the device closed the event channel before its `200 OK`. The session ended on that close, which destroyed the control channel and rejected the pending TEARDOWN, so `AudioPlayback.finished` and `MediaPlayback.ended` rejected in 3 of 4 runs. Once TEARDOWN went out, a remote close of the event or data channel now waits for the reply or its timeout; a control channel the receiver closes before replying counts as a completed TEARDOWN. Outside that window a remote close still ends the session at once. Same bytes on the wire. |
+
+## Round 2: findings before the first release
+
+Two read-only reviews of `refactor/corewire` (a design review and a gaps review) found the items below. The library and diagnostics changes are in `0a2a4f3..70e793a`; the Homey items (D) are on the app's `feat/corewire` branch and are not tracked here. Section 0 of `devices-api.md` records the API changes and the one kept deviation.
+
+| Finding | Status | What happened |
+| --- | --- | --- |
+| A1 Public lifecycle methods on capabilities | fixed | Capabilities are interfaces; `hold`, `resume`, `stop`, `reset` and the constructors are internal. `AppleDevice` has one protected hook, `reset()`. |
+| A2 Error boundary of devices leaks | fixed | Devices re-exports every core error; a refused command is `CommandRefusedError` with string `reason` and `status`; `/catalog` throws `CatalogError`. |
+| A3 `DiscoveryResult` promises fields that do not exist | fixed | `packet`, `familyName`, `modelName` and the index signature are gone; the model comes from `txt.model ?? txt.am`. |
+| A4 AirPlay helpers in the core main entry | fixed | `HTTP_TIMEOUT`, `getMacAddress`, `randomInt32/64`, `uint16ToBE` and the default identity moved into airplay; `SOCKET_TIMEOUT` is internal; `getLocalIP` and `uint53ToLE` are deleted. |
+| A5 `EncryptionAwareConnection._encryption` public and mutable | fixed | A protected getter `encryption`. |
+| A6 Internals on the airplay main entry | fixed | `ControlChannel`, `AudioMultiplexer`, `AudioStream`, `LatencyManager`, `AudioSourceSession`, the sender feature masks, `AUDIO_FRAMES_PER_PACKET` and `selectTimingStrategy` are no longer exported. |
+| A7 Three names for "wait until done" | fixed | `ended: Promise<void>` on `UrlPlayback`, `AudioPlayback`, `RaopPlayback` and `MediaPlayback`. |
+| A8 Name clashes | fixed | `RemoteControlChannels`, `RaopEventMap`, `RaopPlaybackInfo`; the RAOP RTSP client is no longer exported. |
+| A9 RAOP without the session pattern | fixed | `connect(target, options)` returns a `RaopSession` with `closed`, `signal`, `close()`, `setVolumeDb()` and `stream()` returning a playback with `ended`. Same bytes on the wire. |
+| A10 audio-source names shadow globals | fixed | Every class ends in `Source`; factories are consistent and the constructors take options objects. |
+| A11 Naming in core | fixed | Namespaces only on `core/crypto` (`AES`, `ChaCha20`, `HKDF`, ...), no rename alias on discovery; `TLV8PairingError` is a `PairingError`, `DecryptionError` an `EncryptionError`. |
+| A12 `DiscoverOptions` defined three times | fixed | One type in `core/discovery`. |
+| B1 Unawaited `disconnect()` wipes the next session | fixed | The reset runs synchronously at the start of `disconnect()`. |
+| B2 `disconnect(); connect();` in one tick does not reconnect | fixed | It starts a new attempt; the earlier pending `connect()` rejects. |
+| B3 A throwing `status` listener leaves a session unwatched | fixed | The link watches the session before it announces `established`; listener errors are isolated and logged. |
+| B4 A hanging `resolve` freezes the device | fixed | `resolve(last, signal)`; the signal aborts after 15 s or on `disconnect()`. |
+| B5 `nowPlaying.current` keeps the old item after `disconnect()` | fixed | It is null, as section 0.1 of `devices-api.md` promised. |
+| B6 Keepalive deadline on the wall clock | fixed | `performance.now()`, also for the discovery cache, play queue extrapolation and the audio glitch window. NTP, PTP and Cocoa timestamps stay wall clock on purpose. |
+| B7 Shared timing server without an owner | fixed | Reference counted per device and closed by the last one; its logs go to the `log` option. |
+| B8 Companion Link slow to follow an address change (HY-16) | fixed | When AirPlay comes back at a new address, Companion Link retries there at once. |
+| B9 Two statuses on `disconnect()` | fixed | One `disconnected` status with both protocols `off`. |
+| B10 `CompanionLinkSession.#close()` and a throwing socket close | fixed | The session ends anyway; `close()` logs a warning and resolves. Not reachable with the current `Connection`, guarded anyway. |
+| B11 Multiroom unusable without internals | fixed | `multiroom.outputs` with a `change` event, plus `getVolume`, `setVolume`, `mute` and `unmute` per output. |
+| B12 `artwork.get()` returns null while AirPlay is down | fixed | It throws `UnavailableError`, like `getAnimated()`; the rule holds without exception. |
+| B13 Two unicast queries instead of one | open, recorded | Kept: combining them changes the mDNS bytes and the query order. Recorded in section 0 of `devices-api.md`. |
+| C1 LICENSE and README per package | fixed | 629d47c. |
+| C2 `engines` | fixed | `^18.17.0 \|\| >=20.3.0` on every published package; the docs state it. |
+| C3 Third-party notices | dropped | Owner decision. |
+| C4 Doc errors | fixed | The website, README, package READMEs and CLAUDE.md follow the code; m6 above is closed. |
+| C5 Website deploy | fixed | `wrangler.toml` and `.github/workflows/website.yml` deploy corewire.dev to Cloudflare Workers; the account, the secrets and the domain are set up by Bas. |
+
+Wire changes of round 2, decided by Bas and still to confirm at the TV during a PIN pairing: the pair-setup M5 name is `CoreWire` or the identity name (was `basmilius/apple-protocols`); the client name in the AirPlay SETUP, URL playback, MRP device info and Companion Link `_systemInfo` is `CoreWire` or the identity name; the RAOP placeholder metadata reads `Streaming with CoreWire` and `CoreWire`.
+
+## Audit of the behavior inventory
 
 Independent audit of all 311 items of `behavior-inventory.md` against the new code. Every verdict was checked in code; the verdict tables in `devices-api.md` and the commit bodies were only used to decide whether a change is documented.
 

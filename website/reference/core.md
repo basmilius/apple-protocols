@@ -28,6 +28,8 @@ Every class takes a `message: string`; the connection errors have a default mess
 | `InvalidResponseError` | `AppleProtocolError` |
 | `TimeoutError` | `AppleProtocolError` |
 | `PlaybackError` | `AppleProtocolError` |
+| `DecryptionError` | `EncryptionError`; the authentication tag of a ChaCha20-Poly1305 frame did not match |
+| `TLV8PairingError` | `PairingError`; `constructor(message: string, code?: number)`, `code: number \| undefined` holds the TLV8 error code of the accessory |
 
 ### Logging
 
@@ -41,7 +43,7 @@ Every class takes a `message: string`; the connection errors have a default mess
 | type `ReporterEntry` | `{group: DebugGroup; deviceId: string \| null; args: readonly unknown[]; timestamp: number}` |
 | type `ReporterSink` | `(entry: ReporterEntry) => void` |
 | type `ReporterSinkOptions` | `{groups?: readonly DebugGroup[]; silenceConsole?: boolean}` |
-| type `TrafficEntry` | `{protocol: TrafficProtocol; direction: TrafficDirection; summary: string; decoded?: unknown; bytes?: Uint8Array; timestamp: number}` |
+| type `TrafficEntry` | `{deviceId: string \| null; protocol: TrafficProtocol; direction: TrafficDirection; summary: string; decoded?: unknown; bytes?: Uint8Array; timestamp: number}` |
 | type `TrafficSink` | `(entry: TrafficEntry) => void` |
 | type `TrafficDirection` | `'in' \| 'out'` |
 | type `TrafficProtocol` | `string` |
@@ -51,24 +53,20 @@ Every class takes a `message: string`; the connection errors have a default mess
 | Export | Description |
 | --- | --- |
 | `waitFor(ms: number): Promise<void>` | |
-| `getLocalIP(): string \| null` | The first non-internal IPv4 address |
-| `getMacAddress(): string` | |
-| `randomInt32(): number`, `randomInt64(): bigint` | |
-| `uint16ToBE(value: number): Buffer`, `uint53ToLE(value: number): Buffer` | |
-| `HTTP_TIMEOUT` | 6000 ms |
-| `SOCKET_TIMEOUT` | 30000 ms |
 | type `EventMap` | `Record<string, any>` |
 
 ## @corewire/core/crypto
 
+The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, `ChaCha20`, `HKDF`.
+
 | Export | Description |
 | --- | --- |
-| `Chacha20` | `encrypt(key, nonce, aad, plaintext): EncryptedData`, `decrypt(key, nonce, aad, ciphertext, authTag): Buffer`, `padNonce(nonce)`, `CHACHA20_AUTH_TAG_LENGTH` (16), `CHACHA20_NONCE_LENGTH` (12), `DecryptionError`, type `EncryptedData` (`{ciphertext; authTag}`) |
+| `ChaCha20` | `encrypt(key, nonce, aad, plaintext): EncryptedData`, `decrypt(key, nonce, aad, ciphertext, authTag): Buffer` (throws `DecryptionError` from the main entry), `padNonce(nonce)`, `CHACHA20_AUTH_TAG_LENGTH` (16), `CHACHA20_NONCE_LENGTH` (12), type `EncryptedData` (`{ciphertext; authTag}`) |
 | `Ed25519` | `generateKeyPair(): KeyPair`, `sign(message, secretKey)`, `verify(message, signature, publicKey)` |
 | `Curve25519` | `generateKeyPair(): KeyPair`, `generateSharedSecKey(priKey, pubKey)` |
-| `Aes` | `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`; AES-128-CTR |
-| `hkdf(options: HKDFOptions): Buffer` | `{hash; key; length; salt; info}` |
-| `deriveEncryptionKeys(sharedSecret: Buffer, salt: string, readInfo: string, writeInfo: string): {readKey: Buffer; writeKey: Buffer}` | |
+| `AES` | `encrypt(key, iv, plaintext)`, `decrypt(key, iv, ciphertext)`; AES-128-CTR |
+| `HKDF` | `derive(options: HKDFOptions): Buffer`; `deriveEncryptionKeys(sharedSecret: Buffer, salt: string, readInfo: string, writeInfo: string): {readKey: Buffer; writeKey: Buffer}` |
+| type `HKDFOptions` | `{hash; key; length; salt; info}` |
 | type `KeyPair` | `{publicKey: Uint8Array; secretKey: Uint8Array}` |
 
 ## @corewire/core/discovery
@@ -79,7 +77,8 @@ Every class takes a `message: string`; the connection errors have a default mess
 | `mdnsMulticast(services: string[], timeout = 4): Promise<MdnsService[]>` | Timeout in seconds |
 | `mdnsUnicast(hosts: string[], services: string[], timeout = 4, wakePorts = []): Promise<MdnsService[]>` | |
 | `class MdnsResponder` | `constructor(logger: Logger, service: AdvertisedService, address?: string)`; `start()`, `stop()`, static `localAddress()` |
-| type `DiscoveryResult` | `{id; txt; fqdn; address; modelName; familyName; service: {port; protocol; type}; packet}` |
+| type `DiscoveryResult` | `{id: string; fqdn: string; address: string; txt: Readonly<Record<string, string>>; service: {port: number; protocol: 'tcp' \| 'udp'; type: string}}`. The model identifier sits in `txt.model` or `txt.am` |
+| type `DiscoverOptions` | `{useCache?: boolean}`; reuses a scan younger than 30 seconds, default true. The one definition the protocol packages and devices share |
 | type `MdnsService` | `{name; type; address; port; properties: Record<string, string>}` |
 | type `AdvertisedService` | `{instance; type; host; port; txt}` |
 
@@ -87,7 +86,7 @@ Every class takes a `message: string`; the connection errors have a default mess
 
 | Export | Description |
 | --- | --- |
-| `TLV8` | `encode(entries)`, `decode(buffer)`, `bail(data)`, `Value`, `State`, `Method`, `Flags`, `ErrorCode`, `TLV8PairingError` |
+| `TLV8` | `encode(entries)`, `decode(buffer)`, `bail(data)` (throws `TLV8PairingError` from the main entry), `Value`, `State`, `Method`, `Flags`, `ErrorCode` |
 | `OPack` | `encode(data)`, `decode(data)`, `int(value)`, `float(value)`, `sizedInteger(value, size)` |
 | `Plist` | `serialize(value)`, `parse(buffer)`, types `PlistValue`, `PlistDictionary` |
 | `DAAP` | `encodeTag()`, `encodeContainer()`, `encodeTagWithSize()`, `encodePlaybackStatus()`, `encodeTrackMetadata()`, `decode()`, `decodeTag()`, `decodeToObject()`, `decodeTrackMetadata()`, `ContentCode`, `TagType` and their types |
@@ -119,12 +118,13 @@ Every class takes a `message: string`; the connection errors have a default mess
 
 | Export | Description |
 | --- | --- |
-| `class Context` | `constructor(deviceId: string, identity?: Partial<DeviceIdentity>, sink?: LogSink)`; `deviceId`, `identity`, `logger` |
+| `class Context` | `constructor(deviceId: string, identity: DeviceIdentity = {}, sink?: LogSink)`; `deviceId`, `identity` (only the overrides you passed), `logger` |
+| `DEFAULT_CLIENT_NAME` | `'CoreWire'`: the name a client presents when `identity.name` is not set |
 | `class Connection<TEventMap>` | `constructor(context, address, port)`; `connect()`, `disconnect()`, `destroy(error?)`, `write(data)`, `debug(enabled)`; `address`, `port`, `localAddress`, `isConnected`, `state`, `signal`, `context`; events `connect`, `data`, `error`, `closed` |
-| `class EncryptionAwareConnection<TEventMap>` | `Connection` plus `enableEncryption(readKey, writeKey)`, `isEncrypted` |
+| `class EncryptionAwareConnection<TEventMap>` | `Connection` plus `enableEncryption(readKey, writeKey)`, `isEncrypted`, and the protected getter `encryption: EncryptionState \| undefined` for subclasses |
 | `class EncryptionState` | `constructor(readKey, writeKey)`; `readKey`, `readCount`, `writeKey`, `writeCount` |
 | `buildNonce(counter: number, format: NonceFormat): Buffer` | A 12-byte nonce |
 | type `NonceFormat` | `'counter-at-0' \| 'counter-at-4'` |
-| type `DeviceIdentity` | `{name; model; osName; osVersion; osBuildVersion; sourceVersion; applicationBundleIdentifier; applicationBundleVersion}` |
+| type `DeviceIdentity` | `{name?; model?; osName?; osVersion?; osBuildVersion?; sourceVersion?; applicationBundleIdentifier?; applicationBundleVersion?}`, all strings. A field you leave out, or set to `undefined`, keeps the default of the protocol package |
 | type `CloseReason` | `'local' \| 'remote' \| 'timeout' \| 'error'` |
 | type `ConnectionState` | `'closing' \| 'connected' \| 'connecting' \| 'disconnected' \| 'failed'` |

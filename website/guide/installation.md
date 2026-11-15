@@ -16,9 +16,9 @@ bun add @corewire/audio-source
 
 ## Requirements
 
-- Node.js or Bun. The packages use `node:net`, `node:dgram`, `node:crypto` and `node:events`, so they do not run in a browser.
+- Node.js 18.17 or later (20.3 or later on the 20 line), or Bun. Every package declares this in `engines`. The packages use `node:net`, `node:dgram`, `node:crypto` and `node:events`, so they do not run in a browser.
 - The process must reach the devices on the local network: TCP to the AirPlay and Companion Link ports, UDP for mDNS on port 5353, and UDP for audio streams and timing.
-- The `Ffmpeg` audio source needs `ffmpeg` on the `PATH`. The other sources decode in WebAssembly or plain TypeScript.
+- The `FfmpegSource` audio source needs `ffmpeg` on the `PATH`. The other sources decode in WebAssembly or plain TypeScript.
 
 The packages ship as ES modules with type declarations. There is no CommonJS build.
 
@@ -30,13 +30,13 @@ Every package releases under the same version from one GitHub release. Upgrade t
 
 | Import | Contents |
 | --- | --- |
-| `@corewire/devices` | `AppleTV`, `HomePod`, `discover`, `createDevice`, `Credentials`, `Pairing`, `UnavailableError`, device models |
-| `@corewire/devices/catalog` | `fetchLyrics`, `fetchAnimatedArtwork` |
+| `@corewire/devices` | `AppleTV`, `HomePod`, `discover`, `createDevice`, `Credentials`, `Pairing`, every error class, device models |
+| `@corewire/devices/catalog` | `fetchLyrics`, `fetchAnimatedArtwork`, `CatalogError` |
 | `@corewire/airplay` | `connect`, `pair`, `discover`, `AirPlaySession`, channels, URL playback, audio streams, timing |
 | `@corewire/airplay/mrp` | `MediaRemote`, `MediaRemoteState`, keys, commands, volume, keyboard, message codec, protobuf types |
-| `@corewire/airplay/raop` | `RaopClient` and the RAOP building blocks |
+| `@corewire/airplay/raop` | `connect`, `discover`, `RaopSession` and the TXT record helpers |
 | `@corewire/airplay/rtsp` | `RtspClient`, request and response parsing |
 | `@corewire/companion-link` | `connect`, `pair`, `discover`, `CompanionLinkSession` and its groups |
-| `@corewire/audio-source` | `Mp3`, `Ogg`, `Wav`, `Pcm`, `File`, `Url`, `Ffmpeg`, `Live`, `SineWave` |
-| `@corewire/core` | Errors, `Logger`, `reporter` and small helpers |
+| `@corewire/audio-source` | `Mp3Source`, `OggSource`, `WavSource`, `PcmSource`, `FileSource`, `UrlSource`, `FfmpegSource`, `LiveSource`, `SineWaveSource` |
+| `@corewire/core` | Errors, `Logger`, `reporter` and `waitFor` |
 | `@corewire/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport` | The shared building blocks |

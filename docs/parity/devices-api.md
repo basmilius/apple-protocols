@@ -12,13 +12,23 @@ Where the code differs from the sections below:
 - **Audio playback teardown.** When an audio stream ends or fails, `AudioPlayback` closes its AirPlay session (control and event channel, feedback timer) before it waits for the source to stop, so a source whose `stop()` rejects or hangs cannot keep that session open. `AudioStream.stream()` no longer waits for the source to stop either; the bytes and their order on the wire stay the same (TEARDOWN, then the UDP sockets, then the session connections).
 - **TEARDOWN window.** A remote close of a channel normally ends the whole AirPlay session at once. Once TEARDOWN went out, a remote close of the event or data channel waits instead: the control channel stays open until the TEARDOWN reply arrives or its 6 s timeout passes, and then the session closes with reason `local`. An Apple TV closes the event channel right after TEARDOWN, often before its `200 OK`; without this window the control channel closed first and the end of every audio stream rejected. If the receiver closes the control channel itself before it answers, `ControlChannel.teardown()` resolves with `undefined` (logged at debug) instead of rejecting, and the session closes with reason `remote`. The bytes on the wire stay the same. URL playback sends TEARDOWN only after a failed start and gets the same rule; its `stop()` sends none.
 - **Volume `change` is deduplicated.** It fires only when level, muted, availability or mode differ from the last emitted value. ST-19 changes: a VOLUME_DID_CHANGE with the same level no longer fires. The getters keep their values across sessions, while `volume.up()`/`down()` still step from the model, which a new session clears to 0 until the device reports (as before, AP-HS-03).
-- **`AppleDevice`** is `AppleDevice<TCapability extends AppleTVCapability = Capability>` with a protected constructor. It exposes `protected mediaRemoteState` and `protected companionLinkState` for the subclass; nothing else is protected.
-- **`Credentials.from(accessoryCredentials)`** is public, for credentials from a protocol `pair()`. Diagnostics needs it.
-- **`MediaPlayback` is a class.** Its `ended` getter starts waiting on first read. For a URL that starts the `/playback-info` poll or the play-queue watch, so a consumer that never reads it sends nothing extra (the old `waitForPlaybackEnd()` was opt-in too).
+- **`AppleDevice`** is `AppleDevice<TCapability extends AppleTVCapability = Capability>` with a protected constructor. It exposes `protected mediaRemoteState` and `protected companionLinkState` for the subclass, and since round 2 one protected hook: `reset()`, which runs at the start of `disconnect()`. `AppleTV` overrides it to reset power; its own `disconnect()` override is gone.
+- **`Credentials.from(accessoryCredentials)`** is public, for credentials from a protocol `pair()`. Diagnostics needs it. `Credentials.toFields()` writes the hex object form `parse()` reads, for storage an older release has to read (audit m6).
+- **`MediaPlayback` is an interface** (round 2; it was a class). `instanceof MediaPlayback` no longer works. Its `ended` getter starts waiting on first read. For a URL that starts the `/playback-info` poll or the play-queue watch, so a consumer that never reads it sends nothing extra (the old `waitForPlaybackEnd()` was opt-in too).
 - **`playUrl` on a device without URL playback** throws `UnavailableError` before it connects. The old code connected, paired and then threw `PlaybackError`.
 - **The MRP model** also gets `outputDevicesChanged(devices)` and `participantsChanged(participants)`, and `deviceInfo` messages no longer have a handler of their own (they update the cluster and output device UID only). Removed events: `configureConnection`, `deviceInfo`, `deviceInfoUpdate`, `keyboard`, `originClientProperties`, `playerClientProperties`, `removeClient`, `removePlayer`, `sendCommandResult`, `setArtwork`, `setDefaultSupportedCommands`, `setNowPlayingClient`, `setNowPlayingPlayer`, `setState`, `updateClient`, `updateContentItem`, `updateContentItemArtwork`, `updatePlayer`, `updateOutputDevice`, `playerClientParticipantsUpdate`, `volumeControlAvailability`, `volumeControlCapabilitiesDidChange`, `volumeDidChange`, `volumeMutedDidChange`.
 - **Logging.** `Logger` takes an optional `LogSink` (`(group, args) => void`, exported from core); `Context(deviceId, identity?, sink?)` passes it on. The device formats entries with `util.format`.
 - **Companion Link start.** The first Companion Link attempt starts once the first AirPlay attempt settled, so the wire order stays AirPlay then Companion Link. Its unicast query therefore runs after the AirPlay connect; Homey ran it before. That moves an mDNS query, not session bytes.
+- **No combined unicast query (finding B13, kept).** Section 3.4 describes one unicast DNS-SD query for both protocols. The code still sends two: AirPlay before its connect, Companion Link after the first AirPlay attempt. Combining them changes the mDNS query bytes and moves the Companion Link query before the AirPlay connect, and the wire rule of round 2 kept the current order and bytes. A combined query can come later, with a device test.
+- **Companion Link follows AirPlay to a new address** (round 2, HY-16). When AirPlay comes back at a new address after a re-resolve, a Companion Link link that waits in its 2 or 15 minute phase retries there at once.
+- **`resolve(last, signal)`** (round 2). The option gets an `AbortSignal` that aborts after 15 s or when `disconnect()` cancels the attempt. After a timeout the attempt goes on with the last known address, so a lookup that hangs no longer freezes the device.
+- **Capabilities are interfaces** (round 2): `NowPlayingControl`, `VolumeControl`, `PowerControl`, `TextControl`, `AppsControl`, `AccountsControl`, `SystemControl`, `TouchControl`, `RemoteControl`, `PlaybackControl`, `ArtworkControl`, `MediaControl`, `MultiroomControl`, `MediaPlayback`. The classes behind them are internal. Gone from the public surface: `nowPlaying.hold()`, `resume()`, `stop()`, `reset()`, `volume.reset()`, `power.reset()` and every capability constructor. The ones with events extend `EventEmitter` with an exported map: `NowPlayingEventMap`, `VolumeEventMap`, `PowerEventMap`, `TextEventMap`, `MultiroomEventMap`.
+- **Error boundary** (round 2). The index re-exports every error class of core (`AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError`, `TLV8PairingError`), so a consumer imports every error from devices. A refused playback command throws `CommandRefusedError extends CommandError` with string `reason` (send error, lower camel case) and `status` (handler status), and the `SendCommandError` with `Proto` enums as `cause`. `/catalog` throws `CatalogError` with `reason` and HTTP `status` instead of bare `Error`s; `fetchLyrics` still returns null on 404.
+- **`artwork.get()` follows the rule** (round 2, finding B12). `artwork.get()` and `artwork.getAnimated()` throw `UnavailableError` while AirPlay is down, like every other capability method. They returned `null` and `[]` before. No exception to the rule remains.
+- **Multiroom outputs** (round 2, finding B11). Section 1.7 had no way to learn the output UIDs. `multiroom.outputs` lists them as `OutputDevice` (`uid`, `name`, `model`, `groupId`, `isLocal`, `isGroupLeader`, `hasVolumeControl`; no protobuf types), with a `change` event that fires only when the list differs from the last one announced. The list survives a reconnect like the volume and `disconnect()` clears it. Per output: `getVolume(uid)` (GET_VOLUME), `setVolume(uid, level)` (SET_VOLUME with the output UID, clamped to 0 to 1), `mute(uid)` and `unmute(uid)` (SET_VOLUME_MUTED). They replace `getForDevice`, `setForDevice`, `muteDevice` and `unmuteDevice` of the production sdk and throw `UnavailableError` while AirPlay is down.
+- **Client name CoreWire** (round 2, wire change decided by Bas). `ClientIdentity.name` defaults to `CoreWire` (`DEFAULT_CLIENT_NAME` in core) and sets the pair-setup M5 name (was `basmilius/apple-protocols`), the AirPlay SETUP `name`, the URL playback `clientProcName`, the MRP device info `name` and `computerName` (were `apple-protocols`) and the Companion Link `_systemInfo` name (was `AP Companion Link`, which ignored the identity). Unchanged on purpose: the URL playback `clientBundleID` `com.basmilius.apple-protocols` and the RAOP digest username `apple-protocols`.
+- **Shared timing server** (round 2). It is reference counted: the first device that connects without its own `timing` starts it, the last one that disconnects closes it, so a Node script exits after `disconnect()`. Its errors go to the `log` option of the devices that use it (logger id `timing-server`).
+- **Status listeners** (round 2). A listener that throws no longer stops the other listeners or leaves a new session unwatched; the link watches the session before it announces `established`, and the error is logged.
 - **Status** reports `connecting` while AirPlay is up and the first Companion Link attempt runs, so a consumer sees no `degraded` flash before `connected`.
 - **Diagnostics** keeps its own copy of the old discovery merge (`src/main/discovery.ts`), because its panels and pairing show the raw discovery results that `discover()` no longer returns. AirPlay pairing in diagnostics uses `pair()` from `@corewire/airplay` directly, since storage keeps raw credentials; `AppleTV.pair()` sends the same messages. Audio telemetry is only reported for the PTP experiment, because the device does not expose the stream's counters. The catalog lookups in the Now playing panel and the panels outside section 6 fail at runtime until step 2.
 - **Style.** Function members of types are method signatures, also in the rebuild types outside devices (`Outstanding` in the AirPlay data channel, `Pending` in the Companion Link stream, `RemoteControlOptions.subscribe`).
@@ -38,7 +48,9 @@ The MRP model is cleared at the start of every AirPlay session (AP-HS-03) and fi
 
 `nowPlaying.current` and `nowPlaying.elapsed` return the last item and elapsed time while the new session has not reported yet. `nowPlaying.supports(command)` answers from the commands that item supported when the old session ended, so a consumer does not see every command disappear for the length of the restore.
 
-This holding back is for recoveries only. An explicit `disconnect()` forgets what was announced: `nowPlaying` drops the last item, state and artwork, `volume` returns to level 0, unmuted, unavailable, mode `none`, and `power.state` to `unknown`. The next `connect()` then announces the current item, state, volume and power as a new device does, without a restore. A consumer that cleared its own view (a restart button: `await disconnect(); await connect();`) gets it filled again.
+This holding back is for recoveries only. An explicit `disconnect()` forgets what was announced: `nowPlaying` drops the last item, state and artwork (`current` is null, `elapsed` 0), `volume` returns to level 0, unmuted, unavailable, mode `none`, `power.state` to `unknown`, `text.state` to its defaults, and `multiroom` to no cluster and no outputs. Both models (MRP and Companion Link) are cleared too. The next `connect()` then announces the current item, state, volume and power as a new device does, without a restore. A consumer that cleared its own view (a restart button: `disconnect(); connect();`) gets it filled again.
+
+Since round 2 this reset runs synchronously at the start of `disconnect()`, followed by one `status` (`disconnected`, reason `requested`, both protocols `off`), before the wait for the sessions to close (a graceful Companion Link stop takes up to 10 s). Before, `disconnect()` emitted two statuses, the first still showing `companionLink: connected`, and reset after the wait; a `connect()` right after an unawaited `disconnect()` then lost the values of its new session. Now `disconnect(); connect();`, also in the same tick, starts a new attempt and keeps its values. A `connect()` that was still pending rejects. Before round 2, `nowPlaying.current` still returned the old item after `disconnect()`, against this section.
 
 `disconnect()` cancels the restore timers. No capability event (`nowPlaying`, `volume`, `power`, `text`) fires once `disconnect()` resolved: the sessions are closed by then and the models only change on device messages. A restore that was in flight ends with the reset.
 
@@ -51,18 +63,35 @@ This holding back is for recoveries only. An explicit `disconnect()` forgets wha
 export { AppleDevice, AppleTV, HomePod } from './device';
 export { Credentials } from './credentials';
 export { Pairing } from './pairing';
-export { UnavailableError } from './errors';
+export { CommandRefusedError, UnavailableError } from './errors';
 export { createDevice, discover, WAKE_PORTS } from './discovery';
 export { DeviceFamily, DeviceModel, getDeviceFamily, getDeviceModelName, isAirPort, isAppleTV, isHomePod, lookupDeviceModel } from './deviceModel';
+
+// Errors of core, re-exported (round 2)
+export {
+    AppleProtocolError, AuthenticationError, CommandError, ConnectionClosedError, ConnectionError, ConnectionTimeoutError,
+    CredentialsError, DecryptionError, DiscoveryError, EncryptionError, InvalidResponseError, PairingError, PlaybackError,
+    SetupError, TimeoutError, TLV8PairingError
+} from '@corewire/core';
+
+// Capability interfaces and their event maps (round 2)
+export type {
+    AccountsControl, AppsControl, ArtworkControl, MediaControl, MediaPlayback, MultiroomControl, MultiroomEventMap,
+    NowPlayingControl, NowPlayingEventMap, PlaybackControl, PowerControl, PowerEventMap, RemoteControl, SystemControl,
+    TextControl, TextEventMap, TouchControl, VolumeControl, VolumeEventMap
+};
 
 export type {
     Account, AnimatedArtwork, App, AppleTVCapability, AppleTVOptions, Artwork, AudioSource, Capability, ClientIdentity,
     DeviceOptions, DeviceSessions, DeviceState, DeviceTarget, DiscoveredDevice, DiscoverOptions, HomePodCapability,
-    LinkState, LogEntry, LogLevel, Lyrics, MediaKind, MediaPlayback, NowPlaying, NowPlayingCommand, PlaybackState,
-    PlayUrlOptions, PowerState, PressMode, PressOptions, ProtocolStatus, RemoteKey, RepeatMode, RetryPhase,
-    ServiceRecord, ShuffleMode, Status, StatusReason, StreamAudioOptions, TextState, VolumeMode, VolumeState
+    LinkState, LogEntry, LogLevel, Lyrics, MediaKind, NowPlaying, NowPlayingCommand, NowPlayingSeries, OutputDevice,
+    PairOptions, PlaybackState, PlayUrlOptions, PowerState, PressMode, PressOptions, ProtocolStatus, RemoteKey, RepeatMode,
+    RetryPhase, ServiceRecord, ShuffleMode, Status, StatusReason, StreamAudioOptions, SwipeDirection, TextState,
+    VolumeMode, VolumeState
 } from './types';
 ```
+
+This block shows what the index exports, not its literal source. `DiscoverOptions` is the type of `@corewire/core/discovery`, re-exported.
 
 Gone from the index: every controller, `AirPlayManager`, `CompanionLinkManager`, `AirPlayState`/`Client`/`Player` aliases, `AIRPLAY_PROTOCOL`/`COMPANION_LINK_PROTOCOL`, `configure`, `HomePodMini`, `PairingSession`, `discoverAll`, `mdnsUnicast`, and the re-exports of `Proto`, `TimingServer`, `reporter`, `Storage`/`JsonStorage`/`MemoryStorage`, `mdnsMulticast`, `ConnectionRecovery`, `AIRPLAY_SERVICE`, `RAOP_SERVICE`, `COMPANION_LINK_SERVICE`. Who needs those imports them from the protocol package or `core`.
 
@@ -115,7 +144,7 @@ export type DeviceOptions = {
      * Homey plugs in its own discovery strategy here. A device with this option never scans with multicast:
      * the consumer owns discovery (decision by Bas).
      */
-    resolve?(last: DeviceTarget): Promise<DeviceTarget | null>;
+    resolve?(last: DeviceTarget, signal: AbortSignal): Promise<DeviceTarget | null>;   // signal: round 2, aborts after 15 s or on disconnect()
 
     /** Overrides of the identity this client presents. */
     readonly identity?: ClientIdentity;
@@ -167,7 +196,8 @@ export abstract class AppleDevice<TCapability extends AppleTVCapability = Capabi
     connect(): Promise<void>;
 
     /**
-     * Stops all retries, ends the media sessions and every protocol session, then emits `disconnected`. Idempotent.
+     * Stops all retries, resets the announced values and emits `disconnected` at once (round 2), then ends the media
+     * sessions and every protocol session and resolves. Idempotent.
      * The Companion Link graceful stop and socket close get 10 s together; after that the socket is destroyed.
      */
     disconnect(): Promise<void>;
@@ -330,7 +360,7 @@ export interface PlaybackControl {
 }
 ```
 
-All `playback` methods send MRP SEND_COMMAND exactly as `Commands` does now, and throw `SendCommandError`/`TimeoutError` as before (HY-24). The rarer commands (like, chapters, sleep timer, fast forward) stay on `device.sessions.mediaRemote.commands`.
+All `playback` methods send MRP SEND_COMMAND exactly as `Commands` does now, and throw `TimeoutError` as before (HY-24). A refusal throws `CommandRefusedError` with string reasons since round 2; it was `SendCommandError` with `Proto` enums. The rarer commands (like, chapters, sleep timer, fast forward) stay on `device.sessions.mediaRemote.commands`.
 
 ### 1.6 Volume, remote, power, text
 
@@ -438,18 +468,25 @@ export type Artwork = {readonly url: string | null; readonly data: Uint8Array | 
 export type AnimatedArtwork = {readonly format: string; readonly url: string | null; readonly source: 'device' | 'apple-music'};
 
 export interface ArtworkControl {
-    get(width?: number, height?: number): Promise<Artwork | null>;          // 600, -1 (ST-18, HY-23)
+    get(width?: number, height?: number): Promise<Artwork | null>;          // 600, -1 (ST-18, HY-23); null: the item has no artwork
     getAnimated(width?: number, height?: number): Promise<AnimatedArtwork[]>;
-}
+}                                                                           // both throw UnavailableError while AirPlay is down (round 2)
 
-export interface MultiroomControl {
+export interface MultiroomControl extends EventEmitter<MultiroomEventMap> {
     readonly clusterId: string | null;
     readonly isLeader: boolean;
     readonly isClusterAware: boolean;
+    readonly outputs: readonly OutputDevice[];                  // round 2
     add(...deviceUids: string[]): Promise<void>;
     remove(...deviceUids: string[]): Promise<void>;
     set(...deviceUids: string[]): Promise<void>;
+    getVolume(deviceUid: string): Promise<number>;              // round 2, 0 to 1
+    setVolume(deviceUid: string, level: number): Promise<void>; // round 2, clamped 0 to 1
+    mute(deviceUid: string): Promise<void>;                     // round 2
+    unmute(deviceUid: string): Promise<void>;                   // round 2
 }
+
+export type MultiroomEventMap = {change: [outputs: readonly OutputDevice[]]};
 ```
 
 `Account` renames `accountId` to `id`. Up Next, caption settings, TV provider and the rest stay on `sessions.companionLink`.

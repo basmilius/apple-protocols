@@ -21,7 +21,19 @@ await tv.playback.setRepeat('one');
 | `setShuffle(mode)` | `off`, `albums` or `songs` |
 | `setRate(rate)` | Playback speed; 1 is normal |
 
-Every method throws `UnavailableError` while AirPlay is down. When the app refuses a command, the method rejects with a `SendCommandError` from `@corewire/airplay/mrp`, which carries the `sendError` and `handlerReturnStatus` the device reported.
+Every method throws `UnavailableError` while AirPlay is down. When the app refuses a command, the method rejects with a `CommandRefusedError`. Its `reason` is the send error in lower camel case, such as `applicationNotFound`, and its `status` the handler status, such as `noActionableNowPlayingItem`.
+
+```ts
+import { CommandRefusedError } from '@corewire/devices';
+
+try {
+    await tv.playback.next();
+} catch (err) {
+    if (err instanceof CommandRefusedError) {
+        console.log('refused', err.reason, err.status);
+    }
+}
+```
 
 ## What the app accepts
 

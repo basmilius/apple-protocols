@@ -12,7 +12,7 @@ See [Companion Link](/protocols/companion-link).
 | --- | --- |
 | `connect(target: CompanionLinkTarget, options: ConnectOptions): Promise<CompanionLinkSession>` | Pair-verify, encryption and the startup. Throws `CredentialsError`, `PairingError`, `ConnectionClosedError` |
 | `pair(target: CompanionLinkTarget, options?: PairOptions): Promise<PinPairing>` | Sends pair-setup M1; the Apple TV shows its PIN |
-| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The devices that accept Companion Link |
+| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The devices that accept Companion Link; `DiscoverOptions` comes from `@corewire/core/discovery` |
 | `toTarget(result: DiscoveryResult): CompanionLinkTarget` | |
 | `COMPANION_LINK_SERVICE` | `'_companion-link._tcp.local'` |
 
@@ -34,7 +34,7 @@ See [Companion Link](/protocols/companion-link).
 | `target: CompanionLinkTarget` | |
 | `accounts: Accounts`, `apps: Apps`, `hid: Hid`, `interests: Interests`, `media: Media`, `power: Power`, `system: System`, `text: Text`, `touch: Touch` | The groups |
 | `state: CompanionLinkState` | |
-| `close(): Promise<void>` | |
+| `close(): Promise<void>` | Ends the session. Resolves also when closing the socket fails; that logs a warning |
 | `noOp(): void` | Sends a NoOp frame, which stays plaintext |
 | event `closed` | Fires once |
 
@@ -98,9 +98,8 @@ Events: `attentionStateChanged: [AttentionState]`, `mediaControlFlagsChanged: [f
 | Type | Definition |
 | --- | --- |
 | `CompanionLinkTarget` | `{address: string; port: number; id?: string; txt?: Readonly<Record<string, string>>}` |
-| `ConnectOptions` | `{credentials: AccessoryCredentials; context?: Context; identity?: Partial<DeviceIdentity>; activeUserAccount?: string; state?: CompanionLinkState; signal?: AbortSignal}` |
+| `ConnectOptions` | `{credentials: AccessoryCredentials; context?: Context; identity?: DeviceIdentity; activeUserAccount?: string; state?: CompanionLinkState; signal?: AbortSignal}`. `identity.name` is the name in `_systemInfo` and in the pair-setup M5 message, `CoreWire` when omitted |
 | `PairOptions` | `Pick<ConnectOptions, 'context' \| 'identity' \| 'signal'>` |
-| `DiscoverOptions` | `{useCache?: boolean}` |
 | `SessionCloseReason` | `'local' \| 'remote' \| 'timeout' \| 'error'` |
 | `AttentionState` | `'unknown' \| 'asleep' \| 'screensaver' \| 'awake' \| 'idle'` |
 | `ButtonPressType` | `'DoubleTap' \| 'Hold' \| 'SingleTap'` |

@@ -30,6 +30,7 @@ export type AgentServerOptions = {
 type Filter = {
     readonly cursorOf: (entry: any) => number;
     readonly since: (after: number) => readonly unknown[];
+
     /** Query parameter to the field it has to equal. */
     readonly fields: Record<string, string>;
 };

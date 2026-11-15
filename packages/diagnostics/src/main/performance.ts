@@ -19,6 +19,7 @@ export class RuntimeMetrics {
 
     status(): PerformanceStatus {
         const memory = process.memoryUsage();
+
         return {sampledAt: this.#sampledAt, startedAt: this.#startedAt, eventLoop: {...this.#sample, peakMs: this.#peakMs}, memory: {rss: memory.rss, heapUsed: memory.heapUsed, external: memory.external, arrayBuffers: memory.arrayBuffers}, retention: this.#retention()};
     }
 
@@ -28,6 +29,7 @@ export class RuntimeMetrics {
         this.#peakMs = 0;
         this.#sample = {p95Ms: 0, p99Ms: 0, maxMs: 0, utilization: 0};
         this.#sampledAt = this.#startedAt = Date.now();
+
         return this.status();
     }
 

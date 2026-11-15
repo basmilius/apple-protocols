@@ -19,7 +19,7 @@ import type { JsonStorage } from './storage';
 
 type Device = AppleTV | HomePod;
 
-/** The sources whose events change what a snapshot reports. The model no longer echoes messages, so the data stream counts too. */
+/** The sources whose events change what a snapshot reports. The model does not echo messages, so the data stream counts too. */
 const SNAPSHOT_SOURCES: readonly DeviceEventSource[] = ['device', 'state', 'airplayState', 'companionLink', 'dataStream'];
 
 const SESSION_STATUS: Record<Status['state'], DeviceSessionStatus> = {
@@ -357,7 +357,6 @@ export class DeviceSession {
     }
 }
 
-
 /** Shares one timing server across sessions so disconnecting one device does not interrupt the others. */
 export class SessionManager {
     readonly #sessions = new Map<string, DeviceSession>();
@@ -512,6 +511,7 @@ let sequence = 0;
 
 function nextSequence(): number {
     sequence += 1;
+
     return sequence;
 }
 

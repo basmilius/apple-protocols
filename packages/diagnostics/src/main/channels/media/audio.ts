@@ -30,10 +30,12 @@ type AudioState = {
     startedAt: number | null;
     error: string | null;
     built: BuiltSource | null;
+
     /** Only set for the PTP experiment, which runs on an AirPlay session of its own. */
     ptpAbort: AbortController | null;
     ptpPlayback: AudioPlayback | null;
     ptpMaster: PtpMaster | null;
+
     telemetry: NodeJS.Timeout | null;
     urlPlayback: MediaPlayback | null;
     audioPlayback: MediaPlayback | null;
@@ -98,7 +100,7 @@ export function registerAudioChannels(context: ChannelContext): void {
         return device.media;
     };
 
-    /* The counters live on the stream's own connection; the device does not expose it, so only the PTP experiment reports them for now. */
+    /* The counters live on the stream's own connection, which the device does not expose, so only the PTP experiment reports them. */
     const readTelemetry = (deviceId: string): AudioTelemetry | null => {
         const state = stateOf(deviceId);
         const playback = state.ptpPlayback;

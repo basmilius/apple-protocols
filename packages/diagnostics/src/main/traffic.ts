@@ -28,6 +28,7 @@ export class TrafficBuffer {
 
     onListener(listener: (record: TrafficRecord) => void): () => void {
         this.#listeners.add(listener);
+
         return () => this.#listeners.delete(listener);
     }
 

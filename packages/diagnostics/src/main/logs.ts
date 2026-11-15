@@ -35,6 +35,7 @@ export class LogBuffer {
 
     onListener(listener: (entry: LogEntry) => void): () => void {
         this.#listeners.add(listener);
+
         return () => this.#listeners.delete(listener);
     }
 
@@ -44,6 +45,7 @@ export class LogBuffer {
 
     onReport(entry: ReporterEntry): void {
         const args = serializeAll(entry.args);
+
         const record: LogEntry = {
             id: this.#next,
             group: entry.group,

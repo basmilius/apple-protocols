@@ -72,6 +72,7 @@ const registerChannels = (): void => {
     handle('performance:status', () => metrics.status());
     handle('performance:reset', () => metrics.reset());
     handle('statistics:history', request => statistics.snapshot(request.deviceId));
+
     handle('app:info', () => ({
         platform: process.platform,
         versions: {electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node},
@@ -91,19 +92,23 @@ const registerChannels = (): void => {
 
         return snapshot;
     });
+
     handle('device:disconnect', async request => {
         await resume.remove(request.deviceId);
         await sessions.disconnect(request.deviceId);
     });
+
     handle('device:snapshot', request => sessions.snapshot(request.deviceId));
     handle('device:call', async request => await sessions.call(request));
 
     handle('log:history', () => logs.entries);
+
     handle('log:clear', () => {
         logs.clear();
     });
 
     handle('traffic:history', () => traffic.ring.entries);
+
     handle('traffic:clear', () => {
         traffic.ring.clear();
     });
@@ -113,14 +118,15 @@ const registerChannels = (): void => {
 };
 
 const start = async (): Promise<void> => {
-    /* The sink receives every group without enabling console output. */
     logs.install();
+
     logs.onListener(entry => {
         statistics.recordLog(entry);
         send('log:entry', entry);
     });
 
     traffic.install();
+
     traffic.onListener(record => {
         statistics.recordTraffic(record);
         send('traffic:entry', record);
@@ -131,6 +137,7 @@ const start = async (): Promise<void> => {
     registerChannels();
 
     window = createWindow();
+
     window.on('closed', () => {
         window = null;
     });
@@ -169,6 +176,7 @@ app.whenReady().then(start);
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
         window = createWindow();
+
         window.on('closed', () => {
             window = null;
         });

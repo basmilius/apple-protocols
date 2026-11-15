@@ -44,12 +44,16 @@ function optionsOf(source: object): readonly RawParamOption[] {
 }
 
 const asString = (args: Args, name: string): string => String(args[name] ?? '');
+
 const asNumber = (args: Args, name: string, fallback = 0): number => {
     const value = Number(args[name]);
+
     return Number.isFinite(value) ? value : fallback;
 };
+
 const asBoolean = (args: Args, name: string): boolean => args[name] === true;
 const asList = (args: Args, name: string): string[] => (Array.isArray(args[name]) ? (args[name] as unknown[]).map(entry => String(entry)) : []);
+
 const asRecord = (args: Args, name: string): Record<string, unknown> => {
     const value = args[name];
 

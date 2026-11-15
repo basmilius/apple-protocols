@@ -9,6 +9,7 @@ const MAX_ENTRIES = 500;
 const CUT = '[cut]';
 const MAX_BYTES = 16 * 1024;
 const MAX_CHARACTERS = 64 * 1024;
+
 type Budget = {characters: number; nodes: number};
 
 /**
@@ -41,6 +42,7 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>, budget: Budg
     if (--budget.nodes < 0 || budget.characters <= 0) {
         return CUT;
     }
+
     if (value === null || value === undefined) {
         return value ?? null;
     }
@@ -58,6 +60,7 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>, budget: Budg
         case 'boolean':
         case 'number':
             return value;
+
         case 'string':
             return text(value, budget);
     }
@@ -97,15 +100,19 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>, budget: Budg
 
         if (object instanceof Map || object instanceof Set) {
             const kept: unknown[] = [];
+
             for (const entry of object) {
                 if (kept.length >= MAX_ENTRIES || budget.nodes <= 0 || budget.characters <= 0) {
                     kept.push(CUT);
+
                     break;
                 }
+
                 kept.push(object instanceof Map
                     ? {key: walk(entry[0], depth + 1, seen, budget), value: walk(entry[1], depth + 1, seen, budget)}
                     : walk(entry, depth + 1, seen, budget));
             }
+
             return kept;
         }
 
@@ -118,17 +125,20 @@ function walk(value: unknown, depth: number, seen: WeakSet<object>, budget: Budg
 function text(value: string, budget: Budget): string {
     const length = Math.min(value.length, 8192, budget.characters);
     budget.characters -= length;
+
     return length < value.length ? value.slice(0, length) + CUT : value;
 }
 
 function bytesOf(bytes: Uint8Array, budget: Budget): {$bytes: string; length: number; truncated?: boolean} {
     const length = Math.min(bytes.byteLength, MAX_BYTES, Math.floor(budget.characters / 2));
     budget.characters -= length * 2;
+
     return {$bytes: Buffer.from(bytes.subarray(0, length)).toString('hex'), length: bytes.byteLength, ...(length < bytes.byteLength ? {truncated: true} : {})};
 }
 
 function list(values: readonly unknown[], depth: number, seen: WeakSet<object>, budget: Budget, deeper = true): unknown[] {
     const kept = values.slice(0, MAX_ENTRIES).map(entry => (deeper ? walk(entry, depth + 1, seen, budget) : entry));
+
     return values.length > MAX_ENTRIES ? [...kept, `${CUT} ${values.length - MAX_ENTRIES} more`] : kept;
 }
 
@@ -139,6 +149,7 @@ function record(object: object, depth: number, seen: WeakSet<object>, budget: Bu
     for (const key of Object.keys(object)) {
         if (count === MAX_ENTRIES || budget.nodes <= 0 || budget.characters <= 0) {
             result[CUT] = 'more keys';
+
             break;
         }
 
@@ -151,6 +162,7 @@ function record(object: object, depth: number, seen: WeakSet<object>, budget: Bu
         if (budget.nodes <= 0 || budget.characters <= 0) {
             break;
         }
+
         if (key in result) {
             continue;
         }

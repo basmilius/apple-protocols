@@ -3,7 +3,7 @@ import { FfmpegSource, FileSource, LiveSource, Mp3Source, OggSource, PcmSource, 
 import type { AudioSource } from '@corewire/airplay';
 import type { AudioSourceSpec } from '@shared/contract';
 
-/** 44100 Hz, 16 bit, stereo: the format every AirPlay receiver in this repo negotiates. */
+/** 44100 Hz, 16 bit, stereo: the format the AirPlay streams negotiate. */
 const SAMPLE_RATE = 44100;
 const CHANNELS = 2;
 const BYTES_PER_CHANNEL = 2;
@@ -15,6 +15,7 @@ export type BuiltSource = {
     readonly source: AudioSource;
     readonly description: string;
     bufferStats(): {bufferedBytes: number; peakBufferedBytes: number; bufferLimit: number; paused: boolean} | null;
+
     /** Stops whatever keeps feeding the source, for {@link LiveSource}. */
     dispose(): void;
 };
@@ -44,6 +45,7 @@ export async function buildSource(spec: AudioSourceSpec): Promise<BuiltSource> {
 
         case 'pcm': {
             const buffer = await readFile(demand(spec.path, 'path'));
+
             return plain(new PcmSource(buffer, {sampleRate: spec.sampleRate ?? SAMPLE_RATE}), `Pcm ${spec.path} at ${spec.sampleRate ?? SAMPLE_RATE} Hz`);
         }
 

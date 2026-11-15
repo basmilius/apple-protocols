@@ -31,18 +31,23 @@ export class Ring<T> {
     push(entry: T): void {
         const bytes = Buffer.byteLength(JSON.stringify(entry));
         this.#head = this.#cursorOf(entry);
+
         if (bytes > this.#byteLimit) {
             this.#dropped++;
+
             return;
         }
+
         this.#entries.push(entry);
         this.#sizes.push(bytes);
         this.#bytes += bytes;
+
         while (this.#entries.length - this.#offset > this.#capacity || this.#bytes > this.#byteLimit) {
             this.#bytes -= this.#sizes[this.#offset];
             this.#entries[this.#offset++] = undefined!;
             this.#dropped++;
         }
+
         if (this.#offset > 1024 && this.#offset > this.#entries.length / 2) {
             this.#entries.splice(0, this.#offset);
             this.#sizes.splice(0, this.#offset);

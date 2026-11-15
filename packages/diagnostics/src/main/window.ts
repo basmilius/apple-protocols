@@ -32,6 +32,7 @@ const isDiagnosticsUrl = (url: string): boolean => {
 
     try {
         const parsed = new URL(url);
+
         return parsed.protocol === 'file:' && fileURLToPath(parsed) === join(here, '../renderer/index.html');
     } catch {
         return false;
@@ -45,6 +46,7 @@ export function createWindow(): BrowserWindow {
     if (state === null) {
         const directory = app.getPath('userData');
         mkdirSync(directory, {recursive: true});
+
         state = createWindowState({
             storage: fileStorage(join(directory, 'window-state.json')),
             displays: () => screen.getAllDisplays(),
@@ -79,6 +81,7 @@ export function createWindow(): BrowserWindow {
 
     window.webContents.setWindowOpenHandler(({url}) => {
         openExternal(url);
+
         return {action: 'deny'};
     });
 

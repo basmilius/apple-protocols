@@ -1,4 +1,3 @@
-
 const HEX = /^[0-9a-f]*$/i;
 
 /** Accepts hex with whitespace, colons or an `0x` prefix. Other strings are decoded as base64. */
@@ -43,6 +42,7 @@ export function toHex(value: Buffer | Uint8Array | ArrayBuffer): string {
 
 export function readString(args: Readonly<Record<string, unknown>>, field: string, fallback = ''): string {
     const value = args[field];
+
     return value === undefined || value === null ? fallback : String(value);
 }
 

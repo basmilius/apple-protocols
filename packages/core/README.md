@@ -7,7 +7,7 @@ Part of [CoreWire](https://corewire.dev). Most applications use `@corewire/devic
 ## Install
 
 ```sh
-npm install @corewire/core
+npm install @corewire/core@next
 ```
 
 Requires Node.js 18.17 or later (20.3 or later on the 20 line).

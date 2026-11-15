@@ -41,23 +41,18 @@ bun --cwd packages/airplay gen:proto   # buf generate → packages/airplay/src/m
 
 ## Validation against the Homey app
 
-The Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is the main consumer. It imports only `@corewire/devices` and `@corewire/audio-source`. While the app still runs on `@basmilius/apple-sdk`, validate with diagnostics. Once the app imports `@corewire`, it must keep building after every change:
+The Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is the main consumer. It imports only `@corewire/devices` and `@corewire/audio-source`, from npm, pinned to `1.0.0-next.1` (dist-tag `next`). The app must keep building after every change here:
 
 ```bash
-# 1. Build
+# 1. Build the libraries
 bash build.sh
 
-# 2. Copy the dist of devices, audio-source and their dependencies into Homey
-for pkg in core airplay companion-link devices audio-source; do
-  rm -rf ~/Development/Projects/homey/com.basmilius.apple/node_modules/@corewire/${pkg}/dist
-  cp -r "packages/${pkg}/dist" ~/Development/Projects/homey/com.basmilius.apple/node_modules/@corewire/${pkg}/dist
-done
-
-# 3. Type check the Homey app
+# 2. Copy the built packages into the app and type check it
+bun --cwd ~/Development/Projects/homey/com.basmilius.apple run corewire:local
 bun --cwd ~/Development/Projects/homey/com.basmilius.apple run build
 ```
 
-If step 3 fails, the public API has a breaking change. `audio-source` bundles a `decode-worker.mjs` and shared decoder chunks, so always copy the whole `dist`. If the worker cannot load (`MODULE_NOT_FOUND`), `audio-source` decodes on the calling thread instead of failing. `diagnostics` is only a consumer and does not need to be copied.
+`corewire:local` copies the built packages into the app's `node_modules` as version `0.0.0-local`. The next `bun install` in the app restores the npm version. If the build fails, the public API has a breaking change. `audio-source` bundles a `decode-worker.mjs` and shared decoder chunks. If the worker cannot load (`MODULE_NOT_FOUND`), `audio-source` decodes on the calling thread instead of failing. `diagnostics` is only a consumer and does not need to be copied.
 
 ## Packages (build order)
 
@@ -315,7 +310,7 @@ A reference (`0xA0` to `0xC4`) points to the nth value in a table that the encod
 
 ## CI/CD
 
-`.github/workflows/checks.yml` runs on pull requests and pushes to main: `bash build.sh` (diagnostics included, into `out-check/`), the pairing test of core, the proxy smoke test and the docs build. `.github/workflows/released.yml` (trigger: every published GitHub Release) replaces `"0.0.0"` → version (the tag without `v`) and `workspace:*` → version, builds the five libraries and publishes `core`, `airplay`, `companion-link`, `audio-source` and `devices` with `npm publish --provenance --access public`, under dist-tag `next` for a prerelease and `latest` for a regular release. Then it deploys the docs with `cloudflare/wrangler-action` to Cloudflare Workers (corewire.dev): live for a release, as a version without traffic for a prerelease. `.github/workflows/docs.yml` deploys the docs manually from `main`. The deploys use the secret `CLOUDFLARE_API_TOKEN`; the account id is in the workflow. The workflow runs on Node 24 with npm `^11.5.1` (npm 12 does not install on every Node version). Publishing goes through npm trusted publishing (OIDC, `id-token: write`), without `NPM_TOKEN`; Bas sets up the trust per package on npm himself. `diagnostics` is private and is not published.
+`.github/workflows/checks.yml` runs on pull requests and pushes to main: `bash build.sh` (diagnostics included, into `out-check/`), the pairing test of core, the proxy smoke test and the docs build. `.github/workflows/released.yml` (trigger: every published GitHub Release) replaces `"0.0.0"` → version (the tag without `v`) and `workspace:*` → version, builds the five libraries and publishes `core`, `airplay`, `companion-link`, `audio-source` and `devices` with `npm publish --provenance --access public`, under dist-tag `next` for a prerelease and `latest` for a regular release. Then it deploys the docs with `cloudflare/wrangler-action` to Cloudflare Workers (corewire.dev): live for a release, as a version without traffic for a prerelease. `.github/workflows/docs.yml` deploys the docs manually from `main`. The deploys use the secret `CLOUDFLARE_API_TOKEN`; the account id is in the workflow. Without that repository secret the docs steps of `released.yml` (which run after npm publish) and `docs.yml` fail. The workflow runs on Node 24 with npm `^11.5.1` (npm 12 does not install on every Node version). Publishing goes through npm trusted publishing (OIDC, `id-token: write`), without `NPM_TOKEN`; Bas sets up the trust per package on npm himself. `diagnostics` is private and is not published.
 
 ## Tests and tooling
 

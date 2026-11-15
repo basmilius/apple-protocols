@@ -27,7 +27,7 @@ Apple documents none of these protocols. I worked out most of it from network ca
 ## Example
 
 ```bash
-bun add @corewire/devices
+bun add @corewire/devices@next
 ```
 
 ```ts

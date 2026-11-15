@@ -7,7 +7,7 @@ Part of [CoreWire](https://corewire.dev). To control a device without handling s
 ## Install
 
 ```sh
-npm install @corewire/airplay
+npm install @corewire/airplay@next
 ```
 
 Requires Node.js 18.17 or later (20.3 or later on the 20 line).

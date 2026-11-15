@@ -14,7 +14,24 @@
         "url": "https://github.com/basmilius/apple-protocols",
         "directory": "packages/audio-source"
     },
-    "keywords": [],
+    "homepage": "https://corewire.dev",
+    "bugs": {
+        "url": "https://github.com/basmilius/apple-protocols/issues"
+    },
+    "keywords": [
+        "audio",
+        "airplay",
+        "mp3",
+        "ogg",
+        "vorbis",
+        "wav",
+        "flac",
+        "qoa",
+        "pcm",
+        "ffmpeg",
+        "decoder",
+        "streaming"
+    ],
     "files": [
         "dist",
         "LICENSE",

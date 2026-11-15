@@ -7,7 +7,7 @@ Part of [CoreWire](https://corewire.dev).
 ## Install
 
 ```sh
-npm install @corewire/audio-source
+npm install @corewire/audio-source@next
 ```
 
 Requires Node.js 18.17 or later (20.3 or later on the 20 line). `FfmpegSource` needs `ffmpeg` on the PATH.

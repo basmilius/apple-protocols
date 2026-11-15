@@ -1,16 +1,18 @@
 # Installation
 
+The packages are in pre-release under the `next` tag, so install them with `@next` until the first stable release.
+
 ```sh
-bun add @corewire/devices
+bun add @corewire/devices@next
 ```
 
 Add `@corewire/audio-source` only when your process streams audio to a device itself:
 
 ```sh
-bun add @corewire/audio-source
+bun add @corewire/audio-source@next
 ```
 
-`npm install` and `pnpm add` work too. For a protocol without the device layer, install `@corewire/airplay`, `@corewire/companion-link` or `@corewire/core` directly. `@corewire/devices` already depends on all three.
+`npm install` and `pnpm add` work too, with the same `@next` suffix. For a protocol without the device layer, install `@corewire/airplay`, `@corewire/companion-link` or `@corewire/core` directly. `@corewire/devices` already depends on all three.
 
 ## Requirements
 

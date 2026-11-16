@@ -90,7 +90,7 @@ export function RaopPanel({deviceId}: PanelProps) {
                     </Field>
                 </div>
                 <ControlRow label="Volume" icon={ICONS.volume} value={`${volume}%`}>
-                    <Slider label="Volume" value={volume} disabled={!open} onValueChange={setVolume} onValueCommitted={next => void action.run(() => invoke('raop:setVolume', {deviceId, volume: next}))}/>
+                    <Slider label="Volume" value={volume} min={0} max={100} heading={false} disabled={!open} onValueChange={setVolume} onValueCommitted={next => void action.run(() => invoke('raop:setVolume', {deviceId, volume: next}))}/>
                 </ControlRow>
                 <div className="flex flex-wrap items-center gap-2">
                     <Button variant="primary" size="sm" disabled={action.busy || !open || streaming} onClick={() => void action.run(() => invoke('raop:stream', {deviceId, source, metadata: {title, artist}, volume}))}>

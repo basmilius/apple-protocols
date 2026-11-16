@@ -16,6 +16,7 @@ export {
     Pill,
     RelativeTime,
     Separator,
+    Slider,
     Spinner,
     Switch as Toggle,
     Table,
@@ -35,7 +36,6 @@ export { ContextMenu, ContextMenuItem, Menu, MenuItem, MenuSeparator } from './M
 export { Section } from './Section';
 export { Segmented, type SegmentedItem } from './Segmented';
 export { Select, type SelectGroup, type SelectItem } from './Select';
-export { Slider } from './Slider';
 export { BoolValue, CountPill, type Status, StatusBar, StatusPill } from './Status';
 export { TextArea } from './TextArea';
 export { TextInput } from './TextInput';

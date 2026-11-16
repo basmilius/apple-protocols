@@ -31,7 +31,11 @@ function OutputVolume({uid, name, volume, call, connected}: { readonly uid: stri
                 <Slider
                     label={`Volume of ${name}`}
                     value={level}
+                    min={0}
+                    max={100}
+                    heading={false}
                     disabled={!connected}
+                    className="w-full"
                     onValueChange={setDragging}
                     onValueCommitted={next => {
                         setDragging(null);

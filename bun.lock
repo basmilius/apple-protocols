@@ -97,15 +97,14 @@
       "name": "@apple-protocols/diagnostics",
       "version": "0.0.0",
       "devDependencies": {
-        "@adecore/charts": "^0.66.8",
-        "@adecore/shell": "^0.66.8",
-        "@adecore/ui": "^0.66.8",
+        "@adecore/charts": "^0.66.10",
+        "@adecore/shell": "^0.66.10",
+        "@adecore/ui": "^0.66.10",
         "@apple-protocols/airplay": "workspace:*",
         "@apple-protocols/audio-source": "workspace:*",
         "@apple-protocols/companion-link": "workspace:*",
         "@apple-protocols/core": "workspace:*",
         "@apple-protocols/devices": "workspace:*",
-        "@base-ui/react": "^1.9.0",
         "@fontsource-variable/geist": "^5.3.0",
         "@fontsource-variable/jetbrains-mono": "^5.3.0",
         "@tailwindcss/vite": "^4.3.3",
@@ -138,13 +137,13 @@
   "packages": {
     "@11ty/gray-matter": ["@11ty/gray-matter@3.0.0", "", { "dependencies": { "js-yaml": "^5.2.2", "section-matter": "^1.0.0" } }, "sha512-mi6KB36DZCpCfCb9XP3NtDDNXe1N0jKtuFj9mTCZNy5H7vTabODyMgFmmOiGIGJKt+i8mJqEb/REtK+JTEzlpQ=="],
 
-    "@adecore/charts": ["@adecore/charts@0.66.8", "", { "dependencies": { "@types/d3-scale": "^4.0.9", "@types/d3-shape": "^3.2.0", "clsx": "^2.1.1", "d3-scale": "^4.0.2", "d3-shape": "^3.2.0", "lucide-react": "^1.65.0" }, "peerDependencies": { "@adecore/ui": "^0.66.8", "i18next": "^26.4.2", "react": "^19.3.0", "react-dom": "^19.3.0", "react-i18next": "^17.0.15" } }, "sha512-5BEdV4QFrIeQe4549FmqAHrkJYetE3aieXthZ2huQOjCpDrONWBEG7U1vYY2mObUDPhigcyfRc+tFWwIDe3OPg=="],
+    "@adecore/charts": ["@adecore/charts@0.66.10", "", { "dependencies": { "@types/d3-scale": "^4.0.9", "@types/d3-shape": "^3.2.0", "clsx": "^2.1.1", "d3-scale": "^4.0.2", "d3-shape": "^3.2.0", "lucide-react": "^1.65.0" }, "peerDependencies": { "@adecore/ui": "^0.66.10", "i18next": "^26.4.2", "react": "^19.3.0", "react-dom": "^19.3.0", "react-i18next": "^17.0.15" } }, "sha512-w3YPlT6czSX1HoqC1DOORIGm1ovzXVHajMHOAoRvtzW7x4Oz0gLkPyHLR+vAlEWOxI9m/eEGaq/iQpLeeZcqFA=="],
 
-    "@adecore/shell": ["@adecore/shell@0.66.8", "", { "dependencies": { "@adecore/utils": "0.66.8" }, "peerDependencies": { "electron": ">=44", "electron-updater": "^6.8.9" }, "optionalPeers": ["electron", "electron-updater"] }, "sha512-KqHMsPF4LHrD/n+0yH2Xfn/4QHlYph5KZta8NK6IP0sDuFZ6n+d8AGG+C9UkuH6XblAIKpKM7TgRn4YP03q2HA=="],
+    "@adecore/shell": ["@adecore/shell@0.66.10", "", { "dependencies": { "@adecore/utils": "0.66.10" }, "peerDependencies": { "electron": ">=44", "electron-updater": "^6.8.9" }, "optionalPeers": ["electron", "electron-updater"] }, "sha512-aOshrkTjB3f1PEwN4ObhbI7Babbhd7iW7+LX4WJJ7/L49B37rStg+TRj4SJUql2bLa0K1w6osV5/rj7WjR9K8w=="],
 
-    "@adecore/ui": ["@adecore/ui@0.66.8", "", { "dependencies": { "@base-ui/react": "^1.9.0", "@pierre/trees": "1.0.0-beta.6", "@tanstack/react-virtual": "^3.14.24", "clsx": "^2.1.1", "lucide-react": "^1.65.0", "zustand": "^5.0.16" }, "peerDependencies": { "i18next": "^26.4.2", "oxc-parser": "^0.156.0", "react": "^19.3.0", "react-dom": "^19.3.0", "react-i18next": "^17.0.15" }, "optionalPeers": ["oxc-parser"] }, "sha512-8eh0kgCWBgSGyCxSiZVA1EinXMl52l1frrholk0RWEWitv81Qs5BdFnLb3Q96sHyiH7ihbzEVooqnjvpggJvag=="],
+    "@adecore/ui": ["@adecore/ui@0.66.10", "", { "dependencies": { "@base-ui/react": "^1.9.0", "@pierre/trees": "1.0.0-beta.6", "@tanstack/react-virtual": "^3.14.24", "clsx": "^2.1.1", "lucide-react": "^1.65.0", "zustand": "^5.0.16" }, "peerDependencies": { "i18next": "^26.4.2", "oxc-parser": "^0.156.0", "react": "^19.3.0", "react-dom": "^19.3.0", "react-i18next": "^17.0.15" }, "optionalPeers": ["oxc-parser"] }, "sha512-vTcfNFMBglsRJ+rMcQYW1wUi9nqtVcKMWmXD693sXn+kMYkL2t6AQjOTOmd5nB1NmkxvWzVG4+Fdn5SSfdTTgw=="],
 
-    "@adecore/utils": ["@adecore/utils@0.66.8", "", {}, "sha512-j/1/Yg49GjuD9t3BI8nADsSgu65E+RLue4PcdNX/OSI+NoaYBdpbEtpcnF+vWY06cuX60sEreDZ6BBh0ZnwnJg=="],
+    "@adecore/utils": ["@adecore/utils@0.66.10", "", {}, "sha512-CsgF+q8D2yyAF/cdRS2h9LzQywUWJIQP2OWpkFZqWCvFPpiqelYFplCS7HkAPwvC61i1V7yKxNJ4wgq0DS96HA=="],
 
     "@apple-protocols/airplay": ["@apple-protocols/airplay@workspace:packages/airplay"],
 

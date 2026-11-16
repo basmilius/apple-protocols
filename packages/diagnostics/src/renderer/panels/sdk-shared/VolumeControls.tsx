@@ -79,6 +79,10 @@ export function VolumeControls({volume, connected, call}: VolumeControlsProps) {
                 <Slider
                     label="Volume"
                     value={level}
+                    min={0}
+                    max={100}
+                    heading={false}
+                    className="w-full"
                     onValueChange={setDragging}
                     onValueCommitted={next => {
                         setDragging(null);

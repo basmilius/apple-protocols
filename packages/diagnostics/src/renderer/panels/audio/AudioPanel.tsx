@@ -67,7 +67,7 @@ export function AudioPanel({deviceId}: PanelProps) {
 
                     <Section title="Volume and timing" icon={ICONS.volume}>
                         <ControlRow label="Volume" icon={ICONS.volume} value={`${volumeDb} dB`} hint="A fresh audio session starts silent, so the stream sets this before the first packet. -144 mutes, 0 is the loudest.">
-                            <Slider label="Stream volume in dB" value={volumeDb} min={-60} max={0} step={1} disabled={playing} onValueChange={setVolumeDb}/>
+                            <Slider label="Stream volume in dB" value={volumeDb} min={-60} max={0} step={1} heading={false} disabled={playing} onValueChange={setVolumeDb}/>
                         </ControlRow>
                         <ControlRow
                             label="Timing"

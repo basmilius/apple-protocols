@@ -84,9 +84,12 @@ function Scrubber({elapsed, duration, connected, call}: { readonly elapsed: numb
             <Slider
                 label="Position"
                 value={Math.min(position, max)}
+                min={0}
                 max={max}
                 step={1}
+                heading={false}
                 disabled={!connected || duration <= 0}
+                className="w-full"
                 onValueChange={setDragging}
                 onValueCommitted={next => {
                     setDragging(null);

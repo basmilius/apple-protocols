@@ -7,7 +7,7 @@ on:
 env:
     RELEASE_TAG: ${{ github.event.release.tag_name }}
 
-    # A pre-release goes out under the dist-tag next, so `npm install @corewire/devices` keeps the stable version.
+    # A pre-release goes out under the dist-tag next, so `npm install @apple-protocols/devices` keeps the stable version.
     DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
 
 permissions:

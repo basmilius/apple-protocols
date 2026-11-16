@@ -1,5 +1,5 @@
-import type { DiscoveryResult } from '@corewire/core/discovery';
-import { connect as connectRaop, discover as discoverRaop, pctToDbfs, type RaopPlayback, type RaopSession, toTarget } from '@corewire/airplay/raop';
+import type { DiscoveryResult } from '@apple-protocols/core/discovery';
+import { connect as connectRaop, discover as discoverRaop, pctToDbfs, type RaopPlayback, type RaopSession, toTarget } from '@apple-protocols/airplay/raop';
 import type { RaopServiceInfo, RaopStatus } from '@shared/contract';
 import { modelOf } from '../../discovery';
 import { handle } from '../../ipc';
@@ -193,7 +193,7 @@ export function registerRaopChannels(context: ChannelContext): void {
         push(request.deviceId);
 
         const metadata = {
-            title: request.metadata?.title ?? 'CoreWire Diagnostics',
+            title: request.metadata?.title ?? 'Apple Protocols Diagnostics',
             artist: request.metadata?.artist ?? '',
             album: request.metadata?.album ?? '',
             duration: request.metadata?.duration ?? 0

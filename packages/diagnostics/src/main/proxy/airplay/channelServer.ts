@@ -1,8 +1,8 @@
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import type { Context } from '@corewire/core/transport';
-import { HKDF } from '@corewire/core/crypto';
-import { parseRequest, parseResponse } from '@corewire/airplay/rtsp';
-import { parseMessages } from '@corewire/airplay/mrp';
+import type { Context } from '@apple-protocols/core/transport';
+import { HKDF } from '@apple-protocols/core/crypto';
+import { parseRequest, parseResponse } from '@apple-protocols/airplay/rtsp';
+import { parseMessages } from '@apple-protocols/airplay/mrp';
 import type { ProxyTap } from '../core/tap';
 import { AirPlayCipher, ChannelRelay, type RelayDirection, type RelayLogger } from './channelRelay';
 

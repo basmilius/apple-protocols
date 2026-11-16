@@ -1,4 +1,4 @@
-import { reporter, type TrafficEntry } from '@corewire/core';
+import { reporter, type TrafficEntry } from '@apple-protocols/core';
 import type { TrafficProtocol, TrafficRecord } from '@shared/contract';
 import { Ring } from './ring';
 import { serialize } from './serialize';

@@ -1,5 +1,5 @@
-import type { AccessoryCredentials } from '@corewire/core/pairing';
-import type { CloseReason, Context, DeviceIdentity } from '@corewire/core/transport';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
+import type { CloseReason, Context, DeviceIdentity } from '@apple-protocols/core/transport';
 import type { DataChannel } from './channels/data';
 import type { EventChannel } from './channels/event';
 import type { PtpMaster, TimingServer } from './timing';

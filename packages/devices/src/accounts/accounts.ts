@@ -1,4 +1,4 @@
-import type { CompanionLinkSession } from '@corewire/companion-link';
+import type { CompanionLinkSession } from '@apple-protocols/companion-link';
 import { requireSession } from '../errors';
 import type { Account } from '../types';
 

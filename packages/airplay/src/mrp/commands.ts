@@ -1,5 +1,5 @@
 import type { DescExtension } from '@bufbuild/protobuf';
-import { CommandError } from '@corewire/core';
+import { CommandError } from '@apple-protocols/core';
 import type { DataChannel } from '../channels/data';
 import * as Messages from './messages';
 import * as Proto from './proto';

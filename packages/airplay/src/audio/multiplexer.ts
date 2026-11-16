@@ -1,4 +1,4 @@
-import type { Context } from '@corewire/core/transport';
+import type { Context } from '@apple-protocols/core/transport';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
 import { type AudioLink, type AirPlaySession, openAudioLink } from '../session';
 import type { StreamAudioOptions } from '../types';

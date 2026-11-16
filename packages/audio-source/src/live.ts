@@ -1,4 +1,4 @@
-import type { AudioSource } from '@corewire/airplay';
+import type { AudioSource } from '@apple-protocols/airplay';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 
 /** The default capacity of the ring buffer, in seconds of audio. */

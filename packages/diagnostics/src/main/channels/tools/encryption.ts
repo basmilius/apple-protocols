@@ -1,4 +1,4 @@
-import { AES, ChaCha20, Curve25519, Ed25519, HKDF } from '@corewire/core/crypto';
+import { AES, ChaCha20, Curve25519, Ed25519, HKDF } from '@apple-protocols/core/crypto';
 import type { ToolInputOption } from '@shared/contract';
 import { parseBytes, readBoolean, readNumber, readString, toHex } from './bytes';
 import { keyInput, type ToolDefinition } from './registry';
@@ -186,7 +186,7 @@ export const ENCRYPTION_TOOLS: readonly ToolDefinition[] = [
     {
         id: 'hkdf.derive',
         title: 'Derive a key with HKDF',
-        description: 'The presets hold the salt and info strings CoreWire derives with. Pick Custom to enter your own.',
+        description: 'The presets hold the salt and info strings Apple Protocols derives with. Pick Custom to enter your own.',
         category: 'encryption',
         section: 'HKDF',
         inputs: [

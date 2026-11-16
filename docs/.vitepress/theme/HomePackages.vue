@@ -38,27 +38,27 @@
             title: 'Devices',
             summary: 'An Apple TV or HomePod as one object that connects, recovers and exposes what the device can do.',
             packages: [
-                {name: '@corewire/devices', link: '/guide/getting-started', blurb: 'AppleTV, HomePod, discovery, pairing and credentials'},
-                {name: '@corewire/devices/catalog', link: '/guide/catalog', blurb: 'Lyrics and animated artwork from Apple Music'},
-                {name: '@corewire/audio-source', link: '/guide/media', blurb: 'MP3, OGG, WAV, FLAC and QOA decoders, PCM, FFmpeg, live input'}
+                {name: '@apple-protocols/devices', link: '/guide/getting-started', blurb: 'AppleTV, HomePod, discovery, pairing and credentials'},
+                {name: '@apple-protocols/devices/catalog', link: '/guide/catalog', blurb: 'Lyrics and animated artwork from Apple Music'},
+                {name: '@apple-protocols/audio-source', link: '/guide/media', blurb: 'MP3, OGG, WAV, FLAC and QOA decoders, PCM, FFmpeg, live input'}
             ]
         },
         {
             title: 'Protocols',
             summary: 'The sessions underneath, for a protocol without the device layer.',
             packages: [
-                {name: '@corewire/airplay', link: '/protocols/airplay', blurb: 'AirPlay 2 sessions, URL playback, audio streams and timing'},
-                {name: '@corewire/airplay/mrp', link: '/protocols/mrp', blurb: 'Media Remote: keys, commands, volume and now playing state'},
-                {name: '@corewire/airplay/raop', link: '/protocols/raop', blurb: 'Audio to RAOP receivers such as the AirPort Express'},
-                {name: '@corewire/companion-link', link: '/protocols/companion-link', blurb: 'Apps, accounts, power, text input and touch on an Apple TV'}
+                {name: '@apple-protocols/airplay', link: '/protocols/airplay', blurb: 'AirPlay 2 sessions, URL playback, audio streams and timing'},
+                {name: '@apple-protocols/airplay/mrp', link: '/protocols/mrp', blurb: 'Media Remote: keys, commands, volume and now playing state'},
+                {name: '@apple-protocols/airplay/raop', link: '/protocols/raop', blurb: 'Audio to RAOP receivers such as the AirPort Express'},
+                {name: '@apple-protocols/companion-link', link: '/protocols/companion-link', blurb: 'Apps, accounts, power, text input and touch on an Apple TV'}
             ]
         },
         {
             title: 'Core',
             summary: 'What the protocols share. It knows no protocol itself.',
             packages: [
-                {name: '@corewire/core', link: '/protocols/pairing', blurb: 'HAP pairing, encrypted transport, mDNS, errors and logging'},
-                {name: '@corewire/core/encoding', link: '/protocols/encoding', blurb: 'TLV8, OPack, plist, DAAP, NTP and RTI codecs'}
+                {name: '@apple-protocols/core', link: '/protocols/pairing', blurb: 'HAP pairing, encrypted transport, mDNS, errors and logging'},
+                {name: '@apple-protocols/core/encoding', link: '/protocols/encoding', blurb: 'TLV8, OPack, plist, DAAP, NTP and RTI codecs'}
             ]
         }
     ];

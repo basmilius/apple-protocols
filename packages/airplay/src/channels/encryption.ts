@@ -1,5 +1,5 @@
-import { ChaCha20 } from '@corewire/core/crypto';
-import { buildNonce, type EncryptionState } from '@corewire/core/transport';
+import { ChaCha20 } from '@apple-protocols/core/crypto';
+import { buildNonce, type EncryptionState } from '@apple-protocols/core/transport';
 
 /** Frames we send carry at most this much plaintext. */
 const FRAME_LENGTH = 1024;

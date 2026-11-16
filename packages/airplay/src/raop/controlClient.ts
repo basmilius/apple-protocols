@@ -1,7 +1,7 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
-import { NTP } from '@corewire/core/encoding';
-import type { Context } from '@corewire/core/transport';
+import { NTP } from '@apple-protocols/core/encoding';
+import type { Context } from '@apple-protocols/core/transport';
 import { decodeRetransmitRequest, PacketFifo, SyncPacket } from './packets';
 import type { StreamContext } from './types';
 

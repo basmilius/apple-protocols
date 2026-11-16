@@ -1,7 +1,7 @@
 # AirPlay sessions and channels
 
 ```ts
-import { AirPlaySession, connect, discover, pair, toTarget } from '@corewire/airplay';
+import { AirPlaySession, connect, discover, pair, toTarget } from '@apple-protocols/airplay';
 ```
 
 ## Finding a receiver
@@ -9,7 +9,7 @@ import { AirPlaySession, connect, discover, pair, toTarget } from '@corewire/air
 `discover()` scans for `_airplay._tcp`. Each `AirPlayDiscoveryResult` is a core `DiscoveryResult` plus the parsed `features` mask. `toTarget()` turns one into an `AirPlayTarget`.
 
 ```ts
-import { discover, toTarget } from '@corewire/airplay';
+import { discover, toTarget } from '@apple-protocols/airplay';
 
 const receivers = await discover();
 const target = toTarget(receivers[0]);
@@ -24,7 +24,7 @@ An `AirPlayTarget` needs only an `address`. `port` defaults to 7000. `id` tags t
 A HomePod accepts a transient pairing, which `connect()` runs when you pass no credentials. An Apple TV wants a PIN pairing once:
 
 ```ts
-import { pair } from '@corewire/airplay';
+import { pair } from '@apple-protocols/airplay';
 
 const pairing = await pair({address: '192.168.1.20'});
 
@@ -38,8 +38,8 @@ pairing.close();
 ## Connecting
 
 ```ts
-import { connect, type AirPlayTarget } from '@corewire/airplay';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
+import { connect, type AirPlayTarget } from '@apple-protocols/airplay';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
 
 declare const target: AirPlayTarget;
 declare const credentials: AccessoryCredentials;
@@ -55,7 +55,7 @@ console.log(session.info.name, session.features.toString(16), session.supportsUr
 | --- | --- |
 | `credentials` | Long-term credentials for pair-verify. Without them the session pairs transiently |
 | `context` | A `Context` with the logger and identity to use |
-| `identity` | Overrides of the identity this client presents; ignored when you pass a context. The name defaults to `CoreWire` and goes into SETUP, URL playback, the MRP device info and the pair-setup M5 message |
+| `identity` | Overrides of the identity this client presents; ignored when you pass a context. The name defaults to `Apple Protocols` and goes into SETUP, URL playback, the MRP device info and the pair-setup M5 message |
 | `timing` | A listening `TimingServer` to announce in every SETUP. Without one, SETUP announces no timing |
 | `signal` | Ends the session, or interrupts the handshake, when aborted |
 
@@ -79,7 +79,7 @@ Once remote control is open, the session sends a `/feedback` keepalive every 2 s
 `openRemoteControl()` runs the SETUP with the remote control features, opens the event channel, sends RECORD, then sets up and connects the MRP data channel. It resolves the two channels. You usually call `MediaRemote.open()` instead, which also runs the MRP startup. See [Media Remote](/protocols/mrp).
 
 ```ts
-import { connect } from '@corewire/airplay';
+import { connect } from '@apple-protocols/airplay';
 
 const session = await connect({address: '192.168.1.30'});
 
@@ -103,7 +103,7 @@ events.on('sessionDied', () => console.log('the receiver ended the session'));
 The data and event channels are encrypted from their first byte with keys derived from the pair-verify secret. A frame that does not decrypt or parse ends the channel with reason `error`, and the session with it.
 
 ```ts
-import { connect } from '@corewire/airplay';
+import { connect } from '@apple-protocols/airplay';
 
 const session = await connect({address: '192.168.1.30'});
 const response = await session.control.getProperty('Volume');
@@ -117,7 +117,7 @@ console.log(response.status, Buffer.from(await response.arrayBuffer()));
 `parseFeatures()` reads the `features` TXT value. `AirPlayFeatureFlags` names the bits, `hasFeatureFlag()` tests one and `describeFlags()` lists the names that are set. `getPairingRequirement(txt)`, `isPasswordRequired(txt)`, `isRemoteControlSupported(txt)` and `getProtocolVersion(txt)` read a TXT record.
 
 ```ts
-import { AirPlayFeatureFlags, describeFlags, hasFeatureFlag, parseFeatures } from '@corewire/airplay';
+import { AirPlayFeatureFlags, describeFlags, hasFeatureFlag, parseFeatures } from '@apple-protocols/airplay';
 
 const features = parseFeatures('0x4A7FDFD5,0xBC157FDE');
 

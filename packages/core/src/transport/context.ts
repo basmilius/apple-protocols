@@ -1,7 +1,7 @@
 import { Logger, type LogSink } from '../reporter';
 
 /** The name every protocol presents for this client when the identity has none. */
-export const DEFAULT_CLIENT_NAME = 'CoreWire';
+export const DEFAULT_CLIENT_NAME = 'Apple Protocols';
 
 /**
  * Overrides of the identity this client presents to Apple devices during pairing and protocol

@@ -3,9 +3,9 @@
  * Run: bun run packages/diagnostics/test/proxy-smoke.ts
  */
 
-import { MdnsResponder } from '@corewire/core/discovery';
-import { generateAccessoryIdentity } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { MdnsResponder } from '@apple-protocols/core/discovery';
+import { generateAccessoryIdentity } from '@apple-protocols/core/pairing';
+import { Context } from '@apple-protocols/core/transport';
 import { AirPlayProxy } from '../src/main/proxy/airplay/proxy';
 import { ControlConnection } from '../src/main/proxy/airplay/controlConnection';
 import { CompanionLinkProxy } from '../src/main/proxy/companionLink/proxy';

@@ -1,7 +1,7 @@
 import { dialog } from 'electron';
-import { type AudioPlayback, connect, PtpMaster, toTarget } from '@corewire/airplay';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
-import type { MediaControl, MediaPlayback } from '@corewire/devices';
+import { type AudioPlayback, connect, PtpMaster, toTarget } from '@apple-protocols/airplay';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
+import type { MediaControl, MediaPlayback } from '@apple-protocols/devices';
 import type { AudioSourceKind, AudioStatus, AudioTelemetry, PtpTelemetry } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';

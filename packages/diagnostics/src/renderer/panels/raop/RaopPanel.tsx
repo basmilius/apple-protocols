@@ -16,7 +16,7 @@ export function RaopPanel({deviceId}: PanelProps) {
     const [services, setServices] = useState<readonly RaopServiceInfo[]>([]);
     const [serviceId, setServiceId] = useState<string | null>(null);
     const [source, setSource] = useState<AudioSourceSpec>(DEFAULT_SOURCE);
-    const [title, setTitle] = useState('CoreWire Diagnostics');
+    const [title, setTitle] = useState('Apple Protocols Diagnostics');
     const [artist, setArtist] = useState('');
     const [volume, setVolume] = useState(30);
     const action = useAsyncAction();

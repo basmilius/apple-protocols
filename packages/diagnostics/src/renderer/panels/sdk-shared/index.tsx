@@ -16,7 +16,7 @@ function itemsOf(entries: readonly NamedValue[]): readonly SelectItem<string>[] 
     return entries.map(entry => ({value: entry.name, label: entry.name}));
 }
 
-/** `ShuffleMode` and `RepeatMode` of `@corewire/devices`. */
+/** `ShuffleMode` and `RepeatMode` of `@apple-protocols/devices`. */
 export const SHUFFLE_MODES: readonly string[] = ['off', 'albums', 'songs'];
 export const REPEAT_MODES: readonly string[] = ['off', 'one', 'all'];
 
@@ -53,7 +53,7 @@ export const HID_PRESETS: readonly { readonly name: string; readonly page: numbe
     {name: 'Mute', page: 12, usage: 0xe2}
 ];
 
-/** `HidCommand` from `@corewire/companion-link`, by name. */
+/** `HidCommand` from `@apple-protocols/companion-link`, by name. */
 export const COMPANION_HID_COMMANDS = [
     'Up',
     'Down',
@@ -90,7 +90,7 @@ export type CompanionHidCommand = (typeof COMPANION_HID_COMMANDS)[number];
 
 export const BUTTON_PRESS_TYPES: readonly string[] = ['SingleTap', 'DoubleTap', 'Hold'];
 
-/** `MediaControlCommand` from `@corewire/companion-link`, by name. */
+/** `MediaControlCommand` from `@apple-protocols/companion-link`, by name. */
 export const MEDIA_CONTROL_COMMANDS: readonly string[] = [
     'Play',
     'Pause',

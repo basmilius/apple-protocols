@@ -1,6 +1,6 @@
-import { PlaybackError, waitFor } from '@corewire/core';
-import { Plist } from '@corewire/core/encoding';
-import type { Context } from '@corewire/core/transport';
+import { PlaybackError, waitFor } from '@apple-protocols/core';
+import { Plist } from '@apple-protocols/core/encoding';
+import type { Context } from '@apple-protocols/core/transport';
 import { AirPlayFeatureFlags, hasFeatureFlag } from '../airplayFeatures';
 import type { ControlChannel } from '../channels/control';
 import type { EventChannel } from '../channels/event';

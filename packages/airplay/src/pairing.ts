@@ -1,6 +1,6 @@
-import { ConnectionClosedError, PairingError } from '@corewire/core';
-import { type AccessoryCredentials, type AccessoryKeys, deriveControlKeys, PairSetup, type PairingTransport, PairVerify } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { ConnectionClosedError, PairingError } from '@apple-protocols/core';
+import { type AccessoryCredentials, type AccessoryKeys, deriveControlKeys, PairSetup, type PairingTransport, PairVerify } from '@apple-protocols/core/pairing';
+import { Context } from '@apple-protocols/core/transport';
 import { ControlChannel } from './channels/control';
 import { DEFAULT_PORT } from './const';
 import { fetchInfo } from './info';

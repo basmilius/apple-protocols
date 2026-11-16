@@ -1,6 +1,6 @@
 import type { EventEmitter } from 'node:events';
-import { TimingServer } from '@corewire/airplay';
-import { AppleTV, Credentials, HomePod, type Status } from '@corewire/devices';
+import { TimingServer } from '@apple-protocols/airplay';
+import { AppleTV, Credentials, HomePod, type Status } from '@apple-protocols/devices';
 import type { CallRequest, CallResult, DeviceEvent, DeviceEventSource, DeviceSessionStatus, DiscoveredDeviceInfo, ProtocolName, ServiceInfo, StateSnapshot } from '@shared/contract';
 import { runCall, type CallRoots } from './call';
 import { type DiscoveredDevice, discoverDevices, targetOf } from './discovery';

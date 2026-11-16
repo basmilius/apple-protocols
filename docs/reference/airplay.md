@@ -1,7 +1,7 @@
-# @corewire/airplay
+# @apple-protocols/airplay
 
 ```ts
-import { AirPlaySession, connect, pair } from '@corewire/airplay';
+import { AirPlaySession, connect, pair } from '@apple-protocols/airplay';
 ```
 
 See [Sessions and channels](/protocols/airplay) and [URLs and audio streams](/protocols/airplay-media).
@@ -103,7 +103,7 @@ Requests resolve with any status. The caller checks it.
 
 ## Playback
 
-`UrlPlayback` and `AudioPlayback` share one shape for waiting until playback is done: `ended: Promise<void>`. RAOP and `@corewire/devices` use the same shape.
+`UrlPlayback` and `AudioPlayback` share one shape for waiting until playback is done: `ended: Promise<void>`. RAOP and `@apple-protocols/devices` use the same shape.
 
 ### UrlPlayback
 
@@ -156,7 +156,7 @@ Experimental IEEE 1588 grandmaster for receivers with PTP support.
 | Export | Description |
 | --- | --- |
 | `AIRPLAY_SERVICE` | `'_airplay._tcp.local'` |
-| `discover(options?: DiscoverOptions): Promise<AirPlayDiscoveryResult[]>` | The AirPlay receivers on the network; `DiscoverOptions` comes from `@corewire/core/discovery` |
+| `discover(options?: DiscoverOptions): Promise<AirPlayDiscoveryResult[]>` | The AirPlay receivers on the network; `DiscoverOptions` comes from `@apple-protocols/core/discovery` |
 | `toTarget(result: DiscoveryResult): AirPlayTarget` | The connect target for a result |
 | `withFeatures(result: DiscoveryResult): AirPlayDiscoveryResult` | Adds the parsed feature mask |
 | `parseFeatures(features: string): bigint` | Reads a `features` TXT value: one hex value or `low,high` |
@@ -195,4 +195,4 @@ Experimental IEEE 1588 grandmaster for receivers with PTP support.
 
 ## Client identity
 
-`identity` in `ConnectOptions` and `PairOptions` overrides what the client presents. A field you leave out keeps its default. The defaults are name `CoreWire` (`DEFAULT_CLIENT_NAME` of `@corewire/core/transport`), model `iPhone17,3`, OS `iPhone OS` 26.3 (`25D63`), source version `935.7.1`, bundle `com.apple.TVRemote` version `700`. The name goes into the SETUP body, the URL playback body, the MRP device info and the pair-setup M5 message.
+`identity` in `ConnectOptions` and `PairOptions` overrides what the client presents. A field you leave out keeps its default. The defaults are name `Apple Protocols` (`DEFAULT_CLIENT_NAME` of `@apple-protocols/core/transport`), model `iPhone17,3`, OS `iPhone OS` 26.3 (`25D63`), source version `935.7.1`, bundle `com.apple.TVRemote` version `700`. The name goes into the SETUP body, the URL playback body, the MRP device info and the pair-setup M5 message.

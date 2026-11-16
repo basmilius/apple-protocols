@@ -1,4 +1,4 @@
-import { CommandError } from '@corewire/core';
+import { CommandError } from '@apple-protocols/core';
 import { FrameType } from './frame';
 import type { OPackMessage } from './messages';
 import type { Stream } from './stream';

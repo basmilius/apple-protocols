@@ -1,17 +1,17 @@
 # Discovery
 
 ```ts
-import { Discovery, mdnsMulticast, mdnsUnicast } from '@corewire/core/discovery';
+import { Discovery, mdnsMulticast, mdnsUnicast } from '@apple-protocols/core/discovery';
 ```
 
-`@corewire/core/discovery` has its own DNS encoder and decoder, with no dependencies. It sends DNS-SD queries over multicast or unicast from a socket per network interface.
+`@apple-protocols/core/discovery` has its own DNS encoder and decoder, with no dependencies. It sends DNS-SD queries over multicast or unicast from a socket per network interface.
 
 ## The Discovery class
 
 A `Discovery` searches for one service type.
 
 ```ts
-import { Discovery } from '@corewire/core/discovery';
+import { Discovery } from '@apple-protocols/core/discovery';
 
 const airplay = new Discovery('_airplay._tcp.local');
 
@@ -33,16 +33,16 @@ console.log(all.length, one.address, byAddress?.service.port);
 
 A `DiscoveryResult` has the `id`, `address`, `txt` record, `fqdn` and the `service` port, protocol and type. The model identifier is in the TXT record, as `txt.model` or `txt.am`.
 
-`DiscoverOptions` (`{useCache?: boolean}`) lives here once. The `discover()` of every protocol package and of `@corewire/devices` takes it.
+`DiscoverOptions` (`{useCache?: boolean}`) lives here once. The `discover()` of every protocol package and of `@apple-protocols/devices` takes it.
 
-The service constants live in the protocol packages: `AIRPLAY_SERVICE` in `@corewire/airplay`, `RAOP_SERVICE` in `@corewire/airplay/raop` and `COMPANION_LINK_SERVICE` in `@corewire/companion-link`. Each package also has a `discover()` of its own.
+The service constants live in the protocol packages: `AIRPLAY_SERVICE` in `@apple-protocols/airplay`, `RAOP_SERVICE` in `@apple-protocols/airplay/raop` and `COMPANION_LINK_SERVICE` in `@apple-protocols/companion-link`. Each package also has a `discover()` of its own.
 
 ## Raw queries
 
 `mdnsMulticast(services, timeout = 4)` and `mdnsUnicast(hosts, services, timeout = 4, wakePorts = [])` return `MdnsService` records with `name`, `type`, `address`, `port` and `properties`. Timeouts are in seconds.
 
 ```ts
-import { mdnsUnicast } from '@corewire/core/discovery';
+import { mdnsUnicast } from '@apple-protocols/core/discovery';
 
 const services = await mdnsUnicast(['192.168.1.20'], ['_airplay._tcp.local', '_companion-link._tcp.local'], 5, [7000]);
 
@@ -56,8 +56,8 @@ for (const service of services) {
 `MdnsResponder` advertises one service with periodic multicasts and answers queries for its type. It does not fully parse DNS questions, so keep it to quiet test networks.
 
 ```ts
-import { MdnsResponder } from '@corewire/core/discovery';
-import { Context } from '@corewire/core/transport';
+import { MdnsResponder } from '@apple-protocols/core/discovery';
+import { Context } from '@apple-protocols/core/transport';
 
 const responder = new MdnsResponder(new Context('test').logger, {
     instance: 'Test Receiver',

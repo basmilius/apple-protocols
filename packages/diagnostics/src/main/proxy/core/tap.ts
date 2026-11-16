@@ -1,5 +1,5 @@
 import { createWriteStream, type WriteStream } from 'node:fs';
-import type { Context } from '@corewire/core/transport';
+import type { Context } from '@apple-protocols/core/transport';
 
 export type TapDirection = 'controller->device' | 'device->controller';
 

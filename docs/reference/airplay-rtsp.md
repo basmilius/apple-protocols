@@ -1,7 +1,7 @@
-# @corewire/airplay/rtsp
+# @apple-protocols/airplay/rtsp
 
 ```ts
-import { buildResponse, parseRequest, parseResponse, RtspClient } from '@corewire/airplay/rtsp';
+import { buildResponse, parseRequest, parseResponse, RtspClient } from '@apple-protocols/airplay/rtsp';
 ```
 
 See [RTSP](/protocols/rtsp).

@@ -1,5 +1,5 @@
 import { createSocket, type RemoteInfo, type Socket } from 'node:dgram';
-import { Logger } from '@corewire/core';
+import { Logger } from '@apple-protocols/core';
 import { generateClockIdentity } from './clockIdentity';
 import {
     decodeMessage,

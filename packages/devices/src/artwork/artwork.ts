@@ -1,4 +1,4 @@
-import type { MediaRemote } from '@corewire/airplay/mrp';
+import type { MediaRemote } from '@apple-protocols/airplay/mrp';
 import { requireSession } from '../errors';
 import type { AnimatedArtwork, Artwork } from '../types';
 

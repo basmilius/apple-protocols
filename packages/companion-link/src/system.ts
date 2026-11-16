@@ -1,4 +1,4 @@
-import { Plist } from '@corewire/core/encoding';
+import { Plist } from '@apple-protocols/core/encoding';
 import type { Channel } from './channel';
 import * as Messages from './messages';
 

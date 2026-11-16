@@ -21,11 +21,11 @@ Only devices that play URLs themselves can do this. `supports('playUrl')` tells 
 
 ## Streaming audio
 
-Install `@corewire/audio-source` for ready sources, or write your own [`AudioSource`](#your-own-source).
+Install `@apple-protocols/audio-source` for ready sources, or write your own [`AudioSource`](#your-own-source).
 
 ```ts
-import { UrlSource } from '@corewire/audio-source';
-import { HomePod } from '@corewire/devices';
+import { UrlSource } from '@apple-protocols/audio-source';
+import { HomePod } from '@apple-protocols/devices';
 
 const pod = new HomePod({address: '192.168.1.30'});
 await pod.connect();
@@ -66,7 +66,7 @@ try {
 
 ## Audio sources
 
-`@corewire/audio-source` decodes to the format AirPlay streams: 44100 Hz, stereo, signed 16-bit big-endian PCM. Every class name ends in `Source`.
+`@apple-protocols/audio-source` decodes to the format AirPlay streams: 44100 Hz, stereo, signed 16-bit big-endian PCM. Every class name ends in `Source`.
 
 | Source | Creates from |
 | --- | --- |
@@ -85,7 +85,7 @@ The decoded sources load the whole file into memory before streaming starts. Use
 ### Live input
 
 ```ts
-import { LiveSource } from '@corewire/audio-source';
+import { LiveSource } from '@apple-protocols/audio-source';
 
 const live = new LiveSource({bufferDuration: 2});
 const playback = await pod.media.streamAudio(live, {volume: 0.3});
@@ -106,7 +106,7 @@ await playback.ended;
 An `AudioSource` produces interleaved 44100 Hz stereo PCM, signed 16-bit big-endian, in complete frames:
 
 ```ts
-import type { AudioSource } from '@corewire/devices';
+import type { AudioSource } from '@apple-protocols/devices';
 
 class Silence implements AudioSource {
     readonly duration = 5;

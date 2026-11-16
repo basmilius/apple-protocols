@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AnimatedArtwork as AnimatedArtworkResult, Lyrics as LyricsResult } from '@corewire/devices';
+import type { AnimatedArtwork as AnimatedArtworkResult, Lyrics as LyricsResult } from '@apple-protocols/devices';
 import { formatDuration, isBytes } from '@shared/helpers';
 import { invoke } from '@/client';
 import { useAppleMusic } from '@/state/apple-music';

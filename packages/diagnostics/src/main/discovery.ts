@@ -1,8 +1,8 @@
-import { AIRPLAY_SERVICE, withFeatures } from '@corewire/airplay';
-import { RAOP_SERVICE } from '@corewire/airplay/raop';
-import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import { Discovery, type DiscoveryResult } from '@corewire/core/discovery';
-import type { DeviceTarget } from '@corewire/devices';
+import { AIRPLAY_SERVICE, withFeatures } from '@apple-protocols/airplay';
+import { RAOP_SERVICE } from '@apple-protocols/airplay/raop';
+import { COMPANION_LINK_SERVICE } from '@apple-protocols/companion-link';
+import { Discovery, type DiscoveryResult } from '@apple-protocols/core/discovery';
+import type { DeviceTarget } from '@apple-protocols/devices';
 import type { DeviceType } from '@shared/contract';
 
 /**

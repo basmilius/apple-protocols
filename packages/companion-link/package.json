@@ -1,5 +1,5 @@
 {
-    "name": "@corewire/companion-link",
+    "name": "@apple-protocols/companion-link",
     "description": "Companion Link client for Node.js, for remote control, text input, apps, accounts and power of an Apple TV.",
     "version": "0.0.0",
     "type": "module",
@@ -11,12 +11,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/basmilius/corewire",
+        "url": "https://github.com/basmilius/apple-protocols",
         "directory": "packages/companion-link"
     },
-    "homepage": "https://corewire.dev",
+    "homepage": "https://apple-protocols.dev",
     "bugs": {
-        "url": "https://github.com/basmilius/corewire/issues"
+        "url": "https://github.com/basmilius/apple-protocols/issues"
     },
     "keywords": [
         "apple",
@@ -50,7 +50,7 @@
         }
     },
     "dependencies": {
-        "@corewire/core": "workspace:*"
+        "@apple-protocols/core": "workspace:*"
     },
     "devDependencies": {
         "@types/bun": "^1.3.14",

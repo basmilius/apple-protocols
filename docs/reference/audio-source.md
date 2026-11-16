@@ -1,10 +1,10 @@
-# @corewire/audio-source
+# @apple-protocols/audio-source
 
 ```ts
-import { FileSource, LiveSource, UrlSource } from '@corewire/audio-source';
+import { FileSource, LiveSource, UrlSource } from '@apple-protocols/audio-source';
 ```
 
-Every source implements `AudioSource` from `@corewire/airplay` and produces 44100 Hz stereo signed 16-bit big-endian PCM. Every class name ends in `Source`, so none of them shadows a global such as `File` or `URL`. See [URLs and audio streams](/guide/media#audio-sources).
+Every source implements `AudioSource` from `@apple-protocols/airplay` and produces 44100 Hz stereo signed 16-bit big-endian PCM. Every class name ends in `Source`, so none of them shadows a global such as `File` or `URL`. See [URLs and audio streams](/guide/media#audio-sources).
 
 ## Sources
 

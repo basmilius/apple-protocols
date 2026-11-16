@@ -5,7 +5,7 @@
 Pass `log` to a device and it receives the entries of that device at the levels in `logLevels`. The default levels are `error` and `warn`.
 
 ```ts
-import { HomePod } from '@corewire/devices';
+import { HomePod } from '@apple-protocols/devices';
 
 const pod = new HomePod({address: '192.168.1.30', id: 'Kitchen.local'}, {
     logLevels: ['error', 'warn', 'info'],
@@ -28,10 +28,10 @@ A `LogEntry` has the `level`, the `device` id, the `message` formatted with `uti
 
 ### The global reporter
 
-Every entry also goes to the global `reporter` in `@corewire/core`, which prints the groups you enable to the console. All groups are off until you enable one.
+Every entry also goes to the global `reporter` in `@apple-protocols/core`, which prints the groups you enable to the console. All groups are off until you enable one.
 
 ```ts
-import { reporter } from '@corewire/core';
+import { reporter } from '@apple-protocols/core';
 
 reporter.enable('warn');
 reporter.enable('error');
@@ -41,10 +41,10 @@ reporter.enable('error');
 
 ## Errors
 
-Every error the packages throw on purpose extends `AppleProtocolError`. `@corewire/devices` re-exports every error class of `@corewire/core`, so one import covers them all:
+Every error the packages throw on purpose extends `AppleProtocolError`. `@apple-protocols/devices` re-exports every error class of `@apple-protocols/core`, so one import covers them all:
 
 ```ts
-import { CommandRefusedError, PairingError, UnavailableError } from '@corewire/devices';
+import { CommandRefusedError, PairingError, UnavailableError } from '@apple-protocols/devices';
 ```
 
 ```
@@ -52,14 +52,14 @@ AppleProtocolError
 ├── ConnectionError
 │   ├── ConnectionTimeoutError
 │   └── ConnectionClosedError
-│       └── SetupClosedError        (@corewire/companion-link)
+│       └── SetupClosedError        (@apple-protocols/companion-link)
 ├── PairingError
 │   ├── AuthenticationError
 │   ├── CredentialsError
 │   └── TLV8PairingError
 ├── CommandError
-│   ├── CommandRefusedError         (@corewire/devices)
-│   └── SendCommandError            (@corewire/airplay/mrp)
+│   ├── CommandRefusedError         (@apple-protocols/devices)
+│   └── SendCommandError            (@apple-protocols/airplay/mrp)
 ├── SetupError
 ├── DiscoveryError
 ├── EncryptionError
@@ -67,13 +67,13 @@ AppleProtocolError
 ├── InvalidResponseError
 ├── TimeoutError
 ├── PlaybackError
-├── UnavailableError                (@corewire/devices)
-└── CatalogError                    (@corewire/devices/catalog)
+├── UnavailableError                (@apple-protocols/devices)
+└── CatalogError                    (@apple-protocols/devices/catalog)
 ```
 
-The classes without a package name come from `@corewire/core`.
+The classes without a package name come from `@apple-protocols/core`.
 
-The errors `@corewire/devices` throws:
+The errors `@apple-protocols/devices` throws:
 
 | Error | When |
 | --- | --- |

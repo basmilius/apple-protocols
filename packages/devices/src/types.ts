@@ -1,9 +1,9 @@
-import type { AirPlaySession, TimingServer } from '@corewire/airplay';
-import type { MediaRemote } from '@corewire/airplay/mrp';
-import type { CompanionLinkSession } from '@corewire/companion-link';
+import type { AirPlaySession, TimingServer } from '@apple-protocols/airplay';
+import type { MediaRemote } from '@apple-protocols/airplay/mrp';
+import type { CompanionLinkSession } from '@apple-protocols/companion-link';
 import type { DeviceFamily, DeviceModel } from './deviceModel';
 
-export type { AudioSource } from '@corewire/airplay';
+export type { AudioSource } from '@apple-protocols/airplay';
 
 /** Where a device is. Only the address is required. */
 export type DeviceTarget = {
@@ -32,7 +32,7 @@ export type LogEntry = {
 /** Overrides of the identity this client presents to the device. */
 export type ClientIdentity = Partial<{
     /**
-     * The name this client presents, `CoreWire` when omitted: the name the Apple TV lists after a
+     * The name this client presents, `Apple Protocols` when omitted: the name the Apple TV lists after a
      * PIN pairing, and the name in the AirPlay SETUP, URL playback, MRP device info and Companion
      * Link system info.
      */

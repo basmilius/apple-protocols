@@ -1,5 +1,5 @@
-import { CredentialsError } from '@corewire/core';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
+import { CredentialsError } from '@apple-protocols/core';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
 
 const PREFIX = 'cw1';
 const BINARY_FIELDS = ['accessoryLongTermPublicKey', 'pairingId', 'publicKey', 'secretKey'] as const;

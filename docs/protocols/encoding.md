@@ -1,8 +1,8 @@
 # Encoding and crypto
 
 ```ts
-import { DAAP, NSKeyedArchiver, NTP, OPack, Plist, RTI, TLV8 } from '@corewire/core/encoding';
-import { AES, ChaCha20, Curve25519, Ed25519, HKDF } from '@corewire/core/crypto';
+import { DAAP, NSKeyedArchiver, NTP, OPack, Plist, RTI, TLV8 } from '@apple-protocols/core/encoding';
+import { AES, ChaCha20, Curve25519, Ed25519, HKDF } from '@apple-protocols/core/crypto';
 ```
 
 Each codec and each cipher is a namespace. Acronyms stay in capitals in their names. They work on `Buffer` and `Uint8Array` and have no dependencies.
@@ -22,7 +22,7 @@ Each codec and each cipher is a namespace. Acronyms stay in capitals in their na
 ### TLV8
 
 ```ts
-import { TLV8 } from '@corewire/core/encoding';
+import { TLV8 } from '@apple-protocols/core/encoding';
 
 const payload = TLV8.encode([
     [TLV8.Value.State, 1],
@@ -33,12 +33,12 @@ const fields = TLV8.decode(payload);
 console.log(fields.get(TLV8.Value.State));
 ```
 
-`encode(entries)` splits values over 255 bytes into fragments. `decode(buffer)` joins adjacent fragments again into a `Map` of type to value. When a type comes back after another type, the map keeps the first value. For a list in which a type repeats, `decodeEntries(buffer)` returns every `[type, value]` in order, with adjacent fragments joined. `bail(fields)` throws a `TLV8PairingError` (a `PairingError` from `@corewire/core`, with the TLV8 error `code`) when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
+`encode(entries)` splits values over 255 bytes into fragments. `decode(buffer)` joins adjacent fragments again into a `Map` of type to value. When a type comes back after another type, the map keeps the first value. For a list in which a type repeats, `decodeEntries(buffer)` returns every `[type, value]` in order, with adjacent fragments joined. `bail(fields)` throws a `TLV8PairingError` (a `PairingError` from `@apple-protocols/core`, with the TLV8 error `code`) when a pairing reply carries an error or a back-off. `Value`, `State`, `Method`, `Flags` and `ErrorCode` name the HAP constants.
 
 ### OPack
 
 ```ts
-import { OPack } from '@corewire/core/encoding';
+import { OPack } from '@apple-protocols/core/encoding';
 
 const bytes = OPack.encode({_i: '_launchApp', _c: {_bundleID: 'com.apple.TVMusic'}, _x: OPack.int(42)});
 const message = OPack.decode(bytes);
@@ -53,7 +53,7 @@ A repeated value becomes a reference to its first occurrence. That holds for str
 ### Plist
 
 ```ts
-import { Plist } from '@corewire/core/encoding';
+import { Plist } from '@apple-protocols/core/encoding';
 
 const bytes = Plist.serialize({deviceID: 'AA:BB:CC:DD:EE:FF', streams: [{type: 130}]});
 const value = Plist.parse(bytes as ArrayBuffer);
@@ -79,7 +79,7 @@ console.log(value);
 
 ```ts
 import { randomBytes } from 'node:crypto';
-import { ChaCha20 } from '@corewire/core/crypto';
+import { ChaCha20 } from '@apple-protocols/core/crypto';
 
 const key = randomBytes(32);
 const nonce = ChaCha20.padNonce(Buffer.from([1, 0, 0, 0, 0, 0, 0, 0]));
@@ -90,4 +90,4 @@ const plaintext = ChaCha20.decrypt(key, nonce, null, ciphertext, authTag);
 console.log(plaintext.toString());
 ```
 
-A wrong key, nonce or tag throws `DecryptionError`, an `EncryptionError` from `@corewire/core`.
+A wrong key, nonce or tag throws `DecryptionError`, an `EncryptionError` from `@apple-protocols/core`.

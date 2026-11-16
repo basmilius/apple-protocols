@@ -1,4 +1,4 @@
-import { PlaybackError } from '@corewire/core';
+import { PlaybackError } from '@apple-protocols/core';
 
 /** Limits of an audio download. */
 export type FetchOptions = {

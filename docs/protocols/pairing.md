@@ -1,10 +1,10 @@
 # Pairing
 
 ```ts
-import { PairSetup, PairVerify } from '@corewire/core/pairing';
+import { PairSetup, PairVerify } from '@apple-protocols/core/pairing';
 ```
 
-AirPlay and Companion Link pair with the HomeKit Accessory Protocol (HAP): pair-setup with SRP and a PIN (M1 to M6), and pair-verify with Curve25519 on every connect (M1 to M4). `@corewire/core/pairing` implements both sides and knows no protocol. A protocol hands it a `PairingTransport` that carries the TLV8 payloads.
+AirPlay and Companion Link pair with the HomeKit Accessory Protocol (HAP): pair-setup with SRP and a PIN (M1 to M6), and pair-verify with Curve25519 on every connect (M1 to M4). `@apple-protocols/core/pairing` implements both sides and knows no protocol. A protocol hands it a `PairingTransport` that carries the TLV8 payloads.
 
 You only need this page when you add a protocol or build a test peer. `pair()` and `connect()` of the protocol packages run pairing for you.
 
@@ -13,7 +13,7 @@ You only need this page when you add a protocol or build a test peer. `pair()` a
 A `PairingTransport` is a function that sends one payload and resolves the reply. `step` says which message it is (`m1`, `m3` or `m5`), for protocols that frame each step differently.
 
 ```ts
-import type { PairingTransport } from '@corewire/core/pairing';
+import type { PairingTransport } from '@apple-protocols/core/pairing';
 
 declare function post(path: string, body: Buffer): Promise<Buffer>;
 
@@ -23,8 +23,8 @@ const transport: PairingTransport = async payload => await post('/pair-setup', p
 ## Pair-setup
 
 ```ts
-import { PairSetup, type PairingTransport } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { PairSetup, type PairingTransport } from '@apple-protocols/core/pairing';
+import { Context } from '@apple-protocols/core/transport';
 
 declare const transport: PairingTransport;
 
@@ -36,7 +36,7 @@ const credentials = await setup.pin(async () => await askForPin());
 console.log(credentials.accessoryIdentifier);
 ```
 
-`start()` generates the controller's long-term Ed25519 key pair. `pin(askPin)` runs M1 to M6 and calls `askPin` between M1 and M2, when the device shows its PIN. It resolves `AccessoryCredentials` with the accessory identifier and long-term public key, plus this controller's pairing id and key pair. M5 carries the controller name that the device lists with its pairings. That is the `name` of the context identity, or `CoreWire` without one.
+`start()` generates the controller's long-term Ed25519 key pair. `pin(askPin)` runs M1 to M6 and calls `askPin` between M1 and M2, when the device shows its PIN. It resolves `AccessoryCredentials` with the accessory identifier and long-term public key, plus this controller's pairing id and key pair. M5 carries the controller name that the device lists with its pairings. That is the `name` of the context identity, or `Apple Protocols` without one.
 
 The steps are public too (`m1()` to `m6()`) for a caller that has to wait for the PIN between M1 and M2 across calls, as `PinPairing` does.
 
@@ -47,8 +47,8 @@ The steps are public too (`m1()` to `m6()`) for a caller that has to wait for th
 ## Pair-verify
 
 ```ts
-import { PairVerify, type AccessoryCredentials, type PairingTransport } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { PairVerify, type AccessoryCredentials, type PairingTransport } from '@apple-protocols/core/pairing';
+import { Context } from '@apple-protocols/core/transport';
 
 declare const transport: PairingTransport;
 declare const credentials: AccessoryCredentials;
@@ -66,8 +66,8 @@ console.log(keys.sharedSecret.byteLength);
 `PairSetupServer` and `PairVerifyServer` answer pair-setup and pair-verify as an accessory would. `generateAccessoryIdentity()` creates an identity for them. Use them to test a controller, or to build a peer that sits between a controller and a device.
 
 ```ts
-import { generateAccessoryIdentity, PairSetup, PairSetupServer } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { generateAccessoryIdentity, PairSetup, PairSetupServer } from '@apple-protocols/core/pairing';
+import { Context } from '@apple-protocols/core/transport';
 
 const context = new Context('test');
 const identity = generateAccessoryIdentity();

@@ -1,5 +1,5 @@
-import type { Hid, MediaRemote } from '@corewire/airplay/mrp';
-import type { CompanionLinkSession } from '@corewire/companion-link';
+import type { Hid, MediaRemote } from '@apple-protocols/airplay/mrp';
+import type { CompanionLinkSession } from '@apple-protocols/companion-link';
 import { UnavailableError } from '../errors';
 import type { PressOptions, RemoteKey } from '../types';
 import { AIRPLAY_KEYS, COMPANION_LINK_KEYS } from './keys';

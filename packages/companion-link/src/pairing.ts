@@ -1,7 +1,7 @@
-import { ConnectionClosedError, InvalidResponseError, PairingError } from '@corewire/core';
-import { HKDF } from '@corewire/core/crypto';
-import { type AccessoryCredentials, type AccessoryKeys, PairSetup, type PairingTransport, PairVerify } from '@corewire/core/pairing';
-import { Context } from '@corewire/core/transport';
+import { ConnectionClosedError, InvalidResponseError, PairingError } from '@apple-protocols/core';
+import { HKDF } from '@apple-protocols/core/crypto';
+import { type AccessoryCredentials, type AccessoryKeys, PairSetup, type PairingTransport, PairVerify } from '@apple-protocols/core/pairing';
+import { Context } from '@apple-protocols/core/transport';
 import { FrameType } from './frame';
 import { Stream } from './stream';
 import type { CompanionLinkTarget, PairOptions } from './types';

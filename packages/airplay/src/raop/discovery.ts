@@ -1,4 +1,4 @@
-import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@apple-protocols/core/discovery';
 import type { RaopTarget } from './types';
 
 export const RAOP_SERVICE = '_raop._tcp.local';

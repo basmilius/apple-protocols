@@ -1,6 +1,6 @@
 {
-    "name": "@corewire/core",
-    "description": "Shared core for the CoreWire protocol packages: encoding, crypto, transport, pairing and discovery.",
+    "name": "@apple-protocols/core",
+    "description": "Shared core for the Apple Protocols packages: encoding, crypto, transport, pairing and discovery.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -11,12 +11,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/basmilius/corewire",
+        "url": "https://github.com/basmilius/apple-protocols",
         "directory": "packages/core"
     },
-    "homepage": "https://corewire.dev",
+    "homepage": "https://apple-protocols.dev",
     "bugs": {
-        "url": "https://github.com/basmilius/corewire/issues"
+        "url": "https://github.com/basmilius/apple-protocols/issues"
     },
     "keywords": [
         "apple",

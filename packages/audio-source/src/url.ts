@@ -1,4 +1,4 @@
-import { PlaybackError } from '@corewire/core';
+import { PlaybackError } from '@apple-protocols/core';
 import { BufferAudioSource } from './bufferAudioSource';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, durationOf } from './const';
 import { decode } from './decoder';

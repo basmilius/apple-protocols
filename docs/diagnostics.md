@@ -5,7 +5,7 @@
 ## What it does
 
 - Pairs Apple TVs and stores the credentials.
-- Connects several devices at once, through `@corewire/devices`.
+- Connects several devices at once, through `@apple-protocols/devices`.
 - Has panels for remote control, now playing, volume, audio streaming, RAOP, multiroom, mDNS scans, encoding tools and stored credentials.
 - Shows every message it sends or receives in a traffic view, decrypted and decoded. This is the traffic sink of [`reporter`](/protocols/transport#traffic).
 - Shows the log of each device, the events of its capabilities and statistics per device.

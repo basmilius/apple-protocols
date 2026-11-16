@@ -23,28 +23,28 @@
             "@shared/*": [
                 "./src/shared/*"
             ],
-            "@corewire/airplay": [
+            "@apple-protocols/airplay": [
                 "./../airplay/src"
             ],
-            "@corewire/airplay/*": [
+            "@apple-protocols/airplay/*": [
                 "./../airplay/src/*"
             ],
-            "@corewire/audio-source": [
+            "@apple-protocols/audio-source": [
                 "./../audio-source/src"
             ],
-            "@corewire/companion-link": [
+            "@apple-protocols/companion-link": [
                 "./../companion-link/src"
             ],
-            "@corewire/core": [
+            "@apple-protocols/core": [
                 "./../core/src"
             ],
-            "@corewire/core/*": [
+            "@apple-protocols/core/*": [
                 "./../core/src/*"
             ],
-            "@corewire/devices": [
+            "@apple-protocols/devices": [
                 "./../devices/src"
             ],
-            "@corewire/devices/*": [
+            "@apple-protocols/devices/*": [
                 "./../devices/src/*"
             ]
         }

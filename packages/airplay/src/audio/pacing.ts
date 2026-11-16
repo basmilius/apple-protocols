@@ -1,4 +1,4 @@
-import { type Logger, waitFor } from '@corewire/core';
+import { type Logger, waitFor } from '@apple-protocols/core';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
 
 /** Maximum number of extra packets per cycle when catching up. */

@@ -1,7 +1,7 @@
-# @corewire/airplay/raop
+# @apple-protocols/airplay/raop
 
 ```ts
-import { connect, discover, toTarget } from '@corewire/airplay/raop';
+import { connect, discover, toTarget } from '@apple-protocols/airplay/raop';
 ```
 
 See [RAOP](/protocols/raop).
@@ -11,7 +11,7 @@ See [RAOP](/protocols/raop).
 | Export | Description |
 | --- | --- |
 | `connect(target: RaopTarget, options: RaopConnectOptions): Promise<RaopSession>` | Connects over RTSP and returns a ready session: the control channel, `GET /info`, `/auth-setup` for an AirPort, then ANNOUNCE and SETUP. Throws `ConnectionClosedError` when the signal aborts during the handshake |
-| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The RAOP receivers on the network; `DiscoverOptions` comes from `@corewire/core/discovery` |
+| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The RAOP receivers on the network; `DiscoverOptions` comes from `@apple-protocols/core/discovery` |
 | `toTarget(result: DiscoveryResult): RaopTarget` | A target from a discovery result: address, port, id and TXT record |
 | `RAOP_SERVICE` | `'_raop._tcp.local'` |
 
@@ -60,7 +60,7 @@ One RAOP connection to a receiver. It ends exactly once, with a reason. Then its
 | Type | Definition |
 | --- | --- |
 | `RaopTarget` | `{address: string; port?: number; id?: string; txt?: Readonly<Record<string, string>>}`; port 7000 when omitted |
-| `RaopConnectOptions` | `{timing: TimingServer; context?: Context; metadata?: Partial<{title; artist; album}>; password?: string; signal?: AbortSignal}`. The port of `timing` goes into SETUP. `metadata` shows while a stream has none of its own: title `Streaming with CoreWire`, artist `CoreWire`, album `AirPlay` when omitted. `password` answers a digest challenge on ANNOUNCE |
+| `RaopConnectOptions` | `{timing: TimingServer; context?: Context; metadata?: Partial<{title; artist; album}>; password?: string; signal?: AbortSignal}`. The port of `timing` goes into SETUP. `metadata` shows while a stream has none of its own: title `Streaming with Apple Protocols`, artist `Apple Protocols`, album `AirPlay` when omitted. `password` answers a digest challenge on ANNOUNCE |
 | `RaopStreamOptions` | `{metadata?: MediaMetadata; volumeDb?: number}` |
 | `RaopPlayback` | `{ended: Promise<void>; stop(): void}` |
 | `RaopEventMap` | `{closed: [reason: CloseReason, error?: Error]; playing: [info: RaopPlaybackInfo]; stopped: []}` |

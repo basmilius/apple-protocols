@@ -1,4 +1,4 @@
-import type { AudioSource } from '@corewire/airplay';
+import type { AudioSource } from '@apple-protocols/airplay';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS } from './const';
 
 /** PCM-buffer source with shared reading and lifecycle methods. Subclasses supply the buffer, duration and optional frame size. */

@@ -1,4 +1,4 @@
-import { type MediaRemote, SendCommandError } from '@corewire/airplay/mrp';
+import { type MediaRemote, SendCommandError } from '@apple-protocols/airplay/mrp';
 import { CommandRefusedError, UnavailableError } from '../errors';
 import { REPEAT_TO_PROTO, SHUFFLE_TO_PROTO } from '../nowPlaying/snapshot';
 import type { RepeatMode, ShuffleMode } from '../types';

@@ -1,5 +1,5 @@
-import { CommandError, waitFor } from '@corewire/core';
-import type { Context } from '@corewire/core/transport';
+import { CommandError, waitFor } from '@apple-protocols/core';
+import type { Context } from '@apple-protocols/core/transport';
 import type { DataChannel } from '../channels/data';
 import type { Hid } from './hid';
 import * as Messages from './messages';

@@ -1,4 +1,4 @@
-import { waitFor } from '@corewire/core';
+import { waitFor } from '@apple-protocols/core';
 import type { DataChannel } from '../channels/data';
 import * as Messages from './messages';
 import type { MediaRemoteState } from './state';

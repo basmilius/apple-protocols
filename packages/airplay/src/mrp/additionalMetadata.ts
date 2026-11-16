@@ -1,4 +1,4 @@
-import { NSKeyedArchiver, Plist } from '@corewire/core/encoding';
+import { NSKeyedArchiver, Plist } from '@apple-protocols/core/encoding';
 
 /**
  * Fields from the `TVRAdditionalMetadata` entry of an archived now-playing info dictionary.

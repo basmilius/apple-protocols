@@ -1,8 +1,8 @@
 import { type DescExtension, getExtension, toBinary } from '@bufbuild/protobuf';
-import { ConnectionClosedError, reporter, TimeoutError } from '@corewire/core';
-import { HKDF } from '@corewire/core/crypto';
-import { Plist } from '@corewire/core/encoding';
-import type { Context } from '@corewire/core/transport';
+import { ConnectionClosedError, reporter, TimeoutError } from '@apple-protocols/core';
+import { HKDF } from '@apple-protocols/core/crypto';
+import { Plist } from '@apple-protocols/core/encoding';
+import type { Context } from '@apple-protocols/core/transport';
 import { encodeVarint, messageKind, type MrpMessageMap, type MrpMessageName, parseMessages } from '../mrp/codec';
 import { describeProtocolMessage } from '../mrp/describe';
 import * as Proto from '../mrp/proto';

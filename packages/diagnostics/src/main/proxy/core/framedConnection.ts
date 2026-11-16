@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { Socket } from 'node:net';
-import { buildNonce, type Context, EncryptionState } from '@corewire/core/transport';
-import { ChaCha20 } from '@corewire/core/crypto';
+import { buildNonce, type Context, EncryptionState } from '@apple-protocols/core/transport';
+import { ChaCha20 } from '@apple-protocols/core/crypto';
 
 /** One type byte and a 3-byte big-endian payload length. */
 const HEADER_SIZE = 4;

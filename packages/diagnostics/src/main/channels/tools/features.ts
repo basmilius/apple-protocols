@@ -6,7 +6,7 @@ import {
     isPasswordRequired,
     isRemoteControlSupported,
     parseFeatures
-} from '@corewire/airplay';
+} from '@apple-protocols/airplay';
 import {
     getDeviceFamily,
     getDeviceModelName,
@@ -14,7 +14,7 @@ import {
     isAppleTV,
     isHomePod,
     lookupDeviceModel
-} from '@corewire/devices';
+} from '@apple-protocols/devices';
 import { readString } from './bytes';
 import type { ToolDefinition } from './registry';
 
@@ -58,7 +58,7 @@ export const FEATURE_TOOLS: readonly ToolDefinition[] = [
     {
         id: 'features.catalog',
         title: 'List every known flag',
-        description: 'Every flag name CoreWire knows, with the bit it occupies.',
+        description: 'Every flag name Apple Protocols knows, with the bit it occupies.',
         category: 'features',
         section: 'Feature flags',
         inputs: [],

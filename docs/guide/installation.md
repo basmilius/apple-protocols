@@ -3,16 +3,16 @@
 The packages are in pre-release under the `next` tag, so install them with `@next` until the first stable release.
 
 ```sh
-bun add @corewire/devices@next
+bun add @apple-protocols/devices@next
 ```
 
-Add `@corewire/audio-source` only when your process streams audio to a device itself:
+Add `@apple-protocols/audio-source` only when your process streams audio to a device itself:
 
 ```sh
-bun add @corewire/audio-source@next
+bun add @apple-protocols/audio-source@next
 ```
 
-`npm install` and `pnpm add` work too, with the same `@next` suffix. For a protocol without the device layer, install `@corewire/airplay`, `@corewire/companion-link` or `@corewire/core` directly. `@corewire/devices` already depends on all three.
+`npm install` and `pnpm add` work too, with the same `@next` suffix. For a protocol without the device layer, install `@apple-protocols/airplay`, `@apple-protocols/companion-link` or `@apple-protocols/core` directly. `@apple-protocols/devices` already depends on all three.
 
 ## Requirements
 
@@ -30,13 +30,13 @@ One GitHub release publishes every package under the same version. Upgrade them 
 
 | Import | Contents |
 | --- | --- |
-| `@corewire/devices` | `AppleTV`, `HomePod`, `discover`, `createDevice`, `Credentials`, `Pairing`, every error class, device models |
-| `@corewire/devices/catalog` | `fetchLyrics`, `fetchAnimatedArtwork`, `CatalogError` |
-| `@corewire/airplay` | `connect`, `pair`, `discover`, `AirPlaySession`, channels, URL playback, audio streams, timing |
-| `@corewire/airplay/mrp` | `MediaRemote`, `MediaRemoteState`, keys, commands, volume, keyboard, message codec, protobuf types |
-| `@corewire/airplay/raop` | `connect`, `discover`, `RaopSession` and the TXT record helpers |
-| `@corewire/airplay/rtsp` | `RtspClient`, request and response parsing |
-| `@corewire/companion-link` | `connect`, `pair`, `discover`, `CompanionLinkSession` and its groups |
-| `@corewire/audio-source` | `Mp3Source`, `OggSource`, `WavSource`, `PcmSource`, `FileSource`, `UrlSource`, `FfmpegSource`, `LiveSource`, `SineWaveSource` |
-| `@corewire/core` | Errors, `Logger`, `reporter` and `waitFor` |
-| `@corewire/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport` | The shared building blocks |
+| `@apple-protocols/devices` | `AppleTV`, `HomePod`, `discover`, `createDevice`, `Credentials`, `Pairing`, every error class, device models |
+| `@apple-protocols/devices/catalog` | `fetchLyrics`, `fetchAnimatedArtwork`, `CatalogError` |
+| `@apple-protocols/airplay` | `connect`, `pair`, `discover`, `AirPlaySession`, channels, URL playback, audio streams, timing |
+| `@apple-protocols/airplay/mrp` | `MediaRemote`, `MediaRemoteState`, keys, commands, volume, keyboard, message codec, protobuf types |
+| `@apple-protocols/airplay/raop` | `connect`, `discover`, `RaopSession` and the TXT record helpers |
+| `@apple-protocols/airplay/rtsp` | `RtspClient`, request and response parsing |
+| `@apple-protocols/companion-link` | `connect`, `pair`, `discover`, `CompanionLinkSession` and its groups |
+| `@apple-protocols/audio-source` | `Mp3Source`, `OggSource`, `WavSource`, `PcmSource`, `FileSource`, `UrlSource`, `FfmpegSource`, `LiveSource`, `SineWaveSource` |
+| `@apple-protocols/core` | Errors, `Logger`, `reporter` and `waitFor` |
+| `@apple-protocols/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport` | The shared building blocks |

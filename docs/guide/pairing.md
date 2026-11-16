@@ -7,7 +7,7 @@ A HomePod accepts a transient pairing on every connect and needs nothing from yo
 `AppleTV.pair()` connects over AirPlay and asks the Apple TV to show a PIN. It resolves once the PIN is on screen. `pin()` runs pair-setup with the code and returns `Credentials`.
 
 ```ts
-import { AppleTV } from '@corewire/devices';
+import { AppleTV } from '@apple-protocols/devices';
 
 const pairing = await AppleTV.pair({address: '192.168.1.20'});
 
@@ -25,7 +25,7 @@ try {
 - On success `pin()` closes the connection itself.
 - `close()` gives up without credentials.
 
-`pair()` takes `PairOptions`: an `identity` that overrides the name, model and versions this client presents, and an abort `signal`. The Apple TV lists the pairing under `identity.name`, or `CoreWire` without one. A home hub can pass its own name here.
+`pair()` takes `PairOptions`: an `identity` that overrides the name, model and versions this client presents, and an abort `signal`. The Apple TV lists the pairing under `identity.name`, or `Apple Protocols` without one. A home hub can pass its own name here.
 
 The credentials come from AirPlay pair-setup and serve Companion Link too. One pairing covers both protocols.
 
@@ -34,7 +34,7 @@ The credentials come from AirPlay pair-setup and serve Companion Link too. One p
 `toString()` returns a compact string: `cw1.` followed by five base64url fields. `toJSON()` returns the same string, so `JSON.stringify` writes it for an object that holds credentials.
 
 ```ts
-import { Credentials } from '@corewire/devices';
+import { Credentials } from '@apple-protocols/devices';
 
 const credentials = Credentials.parse(await load());
 
@@ -63,11 +63,11 @@ console.log(fields.accessoryIdentifier, fields.pairingId);
 
 ## Credentials from a protocol package
 
-`pair()` from `@corewire/airplay` or `@corewire/companion-link` returns raw `AccessoryCredentials`. `Credentials.from()` wraps them for a device:
+`pair()` from `@apple-protocols/airplay` or `@apple-protocols/companion-link` returns raw `AccessoryCredentials`. `Credentials.from()` wraps them for a device:
 
 ```ts
-import { pair } from '@corewire/airplay';
-import { AppleTV, Credentials } from '@corewire/devices';
+import { pair } from '@apple-protocols/airplay';
+import { AppleTV, Credentials } from '@apple-protocols/devices';
 
 const pairing = await pair({address: '192.168.1.20'});
 const raw = await pairing.pin(await askForPin());
@@ -85,7 +85,7 @@ An `AppleTV` without credentials still connects. AirPlay pairs transiently, whic
 When the user removes the pairing on the Apple TV, pair-verify fails. The device keeps retrying on its schedule, and the error sits in `status.airplay.error` or `status.companionLink.error`. Check for a `PairingError` there and offer to pair again:
 
 ```ts
-import { PairingError } from '@corewire/devices';
+import { PairingError } from '@apple-protocols/devices';
 
 tv.on('status', status => {
     if (status.companionLink?.error instanceof PairingError) {
@@ -94,4 +94,4 @@ tv.on('status', status => {
 });
 ```
 
-`@corewire/devices` exports every error class. See [Logging and errors](/guide/logging-and-errors).
+`@apple-protocols/devices` exports every error class. See [Logging and errors](/guide/logging-and-errors).

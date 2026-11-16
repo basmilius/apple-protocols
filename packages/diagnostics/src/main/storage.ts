@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
-import { Credentials } from '@corewire/devices';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
+import { Credentials } from '@apple-protocols/devices';
 
 /** Protocols that can have stored pairing credentials. */
 export type ProtocolType = 'airplay' | 'companionLink' | 'raop';

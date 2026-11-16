@@ -1,4 +1,4 @@
-import type { HidCommandKey } from '@corewire/companion-link';
+import type { HidCommandKey } from '@apple-protocols/companion-link';
 import type { RemoteKey } from '../types';
 
 const GENERIC_DESKTOP = 1;

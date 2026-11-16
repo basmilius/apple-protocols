@@ -1,7 +1,7 @@
 # Companion Link
 
 ```ts
-import { CompanionLinkSession, connect, discover, pair, toTarget } from '@corewire/companion-link';
+import { CompanionLinkSession, connect, discover, pair, toTarget } from '@apple-protocols/companion-link';
 ```
 
 Companion Link is the protocol the Remote app on an iPhone uses with an Apple TV. It carries apps, accounts, power state, text input, touch and system settings as OPack messages over an encrypted TCP connection.
@@ -11,8 +11,8 @@ Companion Link is the protocol the Remote app on an iPhone uses with an Apple TV
 Companion Link always needs credentials from a PIN pairing. The AirPlay credentials of an Apple TV work, so one pairing covers both protocols.
 
 ```ts
-import { connect, discover, toTarget } from '@corewire/companion-link';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
+import { connect, discover, toTarget } from '@apple-protocols/companion-link';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
 
 declare const credentials: AccessoryCredentials;
 
@@ -61,7 +61,7 @@ A `CompanionLinkTarget` needs the `address` and the `port` of the `_companion-li
 | `state` | The `CompanionLinkState` |
 
 ```ts
-import type { CompanionLinkSession } from '@corewire/companion-link';
+import type { CompanionLinkSession } from '@apple-protocols/companion-link';
 
 declare const session: CompanionLinkSession;
 
@@ -76,7 +76,7 @@ await session.system.setAppearance(false);
 `CompanionLinkState` collects what the device reports: `attentionState`, `textInputState`, `mediaControlFlags` and `mediaCapabilities`, `nowPlayingInfo`, `supportedActions` and `volumeAvailable`. Its events are `attentionStateChanged`, `textInputChanged`, `mediaControlFlagsChanged`, `nowPlayingInfoChanged`, `supportedActionsChanged` and `volumeAvailabilityChanged`. Like the MRP state it does no I/O: `apply(name, content)` feeds it one event.
 
 ```ts
-import type { CompanionLinkSession } from '@corewire/companion-link';
+import type { CompanionLinkSession } from '@apple-protocols/companion-link';
 
 declare const session: CompanionLinkSession;
 

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { ConnectionClosedError } from '@corewire/core';
-import type { CloseReason } from '@corewire/core/transport';
+import { ConnectionClosedError } from '@apple-protocols/core';
+import type { CloseReason } from '@apple-protocols/core/transport';
 import type { LinkState, ProtocolStatus, RetryPhase, StatusReason } from '../types';
 import { nextRetry, type Schedule } from './schedule';
 

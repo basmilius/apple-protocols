@@ -1,4 +1,4 @@
-/* The PCM format an AudioSource delivers; keep in sync with the AUDIO_* constants of @corewire/airplay. */
+/* The PCM format an AudioSource delivers; keep in sync with the AUDIO_* constants of @apple-protocols/airplay. */
 
 /** Default number of bytes per audio channel sample (16-bit PCM). */
 export const AUDIO_BYTES_PER_CHANNEL = 2;

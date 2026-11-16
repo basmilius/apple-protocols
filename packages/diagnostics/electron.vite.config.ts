@@ -10,11 +10,11 @@ const packages = fileURLToPath(new URL('..', import.meta.url));
 
 /* Resolve protocol packages to source, matching tsconfig aliases, so protocol edits need no separate build. A key also covers its subpaths. */
 const protocolAliases = {
-    '@corewire/airplay': `${packages}/airplay/src`,
-    '@corewire/audio-source': `${packages}/audio-source/src`,
-    '@corewire/companion-link': `${packages}/companion-link/src`,
-    '@corewire/core': `${packages}/core/src`,
-    '@corewire/devices': `${packages}/devices/src`
+    '@apple-protocols/airplay': `${packages}/airplay/src`,
+    '@apple-protocols/audio-source': `${packages}/audio-source/src`,
+    '@apple-protocols/companion-link': `${packages}/companion-link/src`,
+    '@apple-protocols/core': `${packages}/core/src`,
+    '@apple-protocols/devices': `${packages}/devices/src`
 };
 
 /* `DIAGNOSTICS_OUT_DIR` builds elsewhere than `out/`, so a check build never rewrites the files of a running app. */

@@ -1,7 +1,7 @@
 # Apple Music catalog
 
 ```ts
-import { fetchAnimatedArtwork, fetchLyrics } from '@corewire/devices/catalog';
+import { fetchAnimatedArtwork, fetchLyrics } from '@apple-protocols/devices/catalog';
 ```
 
 A device never goes to the internet by itself. The `/catalog` entry point holds two functions that do, and you decide when to call them. Both take an id from the [now playing snapshot](/guide/now-playing) and an optional abort `signal`.
@@ -11,7 +11,7 @@ A device never goes to the internet by itself. The `/catalog` entry point holds 
 `fetchAnimatedArtwork(albumId, options?)` reads the public Apple Music page of an album and returns its animated artwork, as `AnimatedArtwork` entries with a `format`, a `url` and `source: 'apple-music'`. It needs no account.
 
 ```ts
-import { fetchAnimatedArtwork } from '@corewire/devices/catalog';
+import { fetchAnimatedArtwork } from '@apple-protocols/devices/catalog';
 
 const item = tv.nowPlaying.current;
 
@@ -37,7 +37,7 @@ The request times out after 10 seconds. A page over 2 MB is refused. Only video 
 `fetchLyrics(catalogId, options)` fetches the time-synced lyrics of a song, as a TTML string, from the Apple Music catalog. It resolves null when the song has none.
 
 ```ts
-import { fetchLyrics } from '@corewire/devices/catalog';
+import { fetchLyrics } from '@apple-protocols/devices/catalog';
 
 const id = tv.nowPlaying.current?.lyricsId;
 
@@ -76,7 +76,7 @@ Both functions throw a `CatalogError`, also for a network failure or a timeout. 
 | `tooLarge` | The response is over 2 MB |
 
 ```ts
-import { CatalogError, fetchLyrics } from '@corewire/devices/catalog';
+import { CatalogError, fetchLyrics } from '@apple-protocols/devices/catalog';
 
 try {
     await fetchLyrics('1440857781', {

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import type { Client, MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
+import type { Client, MediaRemote, MediaRemoteState } from '@apple-protocols/airplay/mrp';
 import { UnavailableError } from '../errors';
 import type { Lyrics, NowPlaying, NowPlayingCommand, PlaybackState } from '../types';
 import { COMMANDS, playbackStateOf, toNowPlaying } from './snapshot';

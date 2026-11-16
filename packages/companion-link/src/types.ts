@@ -1,5 +1,5 @@
-import type { AccessoryCredentials } from '@corewire/core/pairing';
-import type { CloseReason, Context, DeviceIdentity } from '@corewire/core/transport';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
+import type { CloseReason, Context, DeviceIdentity } from '@apple-protocols/core/transport';
 import type { CompanionLinkState } from './state';
 
 /** Where a Companion Link device listens. The port comes from discovery; it is not fixed. */

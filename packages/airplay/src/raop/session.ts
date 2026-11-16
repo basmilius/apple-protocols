@@ -1,7 +1,7 @@
 import type { Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
-import { ConnectionClosedError, PlaybackError } from '@corewire/core';
-import { type CloseReason, Context } from '@corewire/core/transport';
+import { ConnectionClosedError, PlaybackError } from '@apple-protocols/core';
+import { type CloseReason, Context } from '@apple-protocols/core/transport';
 import type { AudioSource } from '../audio/source';
 import { AudioSourceSession } from '../audio/sourceSession';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_FRAMES_PER_PACKET, AUDIO_SAMPLE_RATE } from '../const';

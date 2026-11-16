@@ -1,8 +1,8 @@
 import { randomInt } from 'node:crypto';
-import { ConnectionClosedError, reporter, TimeoutError } from '@corewire/core';
-import { ChaCha20 } from '@corewire/core/crypto';
-import { OPack } from '@corewire/core/encoding';
-import { buildNonce, type Connection, type Context, EncryptionAwareConnection } from '@corewire/core/transport';
+import { ConnectionClosedError, reporter, TimeoutError } from '@apple-protocols/core';
+import { ChaCha20 } from '@apple-protocols/core/crypto';
+import { OPack } from '@apple-protocols/core/encoding';
+import { buildNonce, type Connection, type Context, EncryptionAwareConnection } from '@apple-protocols/core/transport';
 import { FrameType, MessageType, OPackFrameTypes, PairingFrameTypes } from './frame';
 
 /** A 1-byte frame type and a 3-byte big-endian payload length. */

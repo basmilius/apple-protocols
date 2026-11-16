@@ -1,4 +1,4 @@
-import { AppleProtocolError } from '@corewire/core';
+import { AppleProtocolError } from '@apple-protocols/core';
 
 /**
  * Why an Apple Music catalog lookup failed: arguments it cannot send (`invalidArgument`), a token

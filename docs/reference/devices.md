@@ -1,7 +1,7 @@
-# @corewire/devices
+# @apple-protocols/devices
 
 ```ts
-import { AppleTV, HomePod } from '@corewire/devices';
+import { AppleTV, HomePod } from '@apple-protocols/devices';
 ```
 
 ## Devices
@@ -92,11 +92,11 @@ The constructor is private.
 | `pin(code: string): Promise<Credentials>` | Runs pair-setup with the PIN. Closes the connection on success; a wrong PIN keeps it open |
 | `close(): void` | Closes the connection without credentials |
 
-Start one with `AppleTV.pair()`. The name the Apple TV lists for the pairing is `identity.name`, `CoreWire` when omitted.
+Start one with `AppleTV.pair()`. The name the Apple TV lists for the pairing is `identity.name`, `Apple Protocols` when omitted.
 
 ## Errors
 
-The entry point re-exports every error class of `@corewire/core`, so all errors import from `@corewire/devices`. These are `AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError` and `TLV8PairingError`. See [Logging and errors](/guide/logging-and-errors#errors) for the hierarchy.
+The entry point re-exports every error class of `@apple-protocols/core`, so all errors import from `@apple-protocols/devices`. These are `AppleProtocolError`, `AuthenticationError`, `CommandError`, `ConnectionClosedError`, `ConnectionError`, `ConnectionTimeoutError`, `CredentialsError`, `DecryptionError`, `DiscoveryError`, `EncryptionError`, `InvalidResponseError`, `PairingError`, `PlaybackError`, `SetupError`, `TimeoutError` and `TLV8PairingError`. See [Logging and errors](/guide/logging-and-errors#errors) for the hierarchy.
 
 ### CommandRefusedError
 
@@ -107,7 +107,7 @@ The device refused a playback command, for example because nothing plays or the 
 | Member | Description |
 | --- | --- |
 | `constructor(reason: string, status: string)` | |
-| `static from(error: SendCommandError): CommandRefusedError` | Translates the protocol error of `@corewire/airplay/mrp`; that error becomes the `cause` |
+| `static from(error: SendCommandError): CommandRefusedError` | Translates the protocol error of `@apple-protocols/airplay/mrp`; that error becomes the `cause` |
 | `reason: string` | The send error in lower camel case, such as `applicationNotFound`, `timedOut` or `noError` |
 | `status: string` | The handler status, such as `noActionableNowPlayingItem`, `commandFailed` or `success` |
 
@@ -294,7 +294,7 @@ Every method throws `UnavailableError` while AirPlay is down and `CommandRefused
 | `DeviceOptions` | `{log?(entry: LogEntry): void; logLevels?: readonly LogLevel[]; timing?: TimingServer \| false; resolve?(last: DeviceTarget, signal: AbortSignal): Promise<DeviceTarget \| null>; identity?: ClientIdentity}`. The `signal` of `resolve` aborts after 15 seconds or when `disconnect()` cancels the attempt |
 | `AppleTVOptions` | `DeviceOptions & {credentials?: Credentials; activeUserAccount?: string}` |
 | `PairOptions` | `{identity?: ClientIdentity; signal?: AbortSignal}` |
-| `ClientIdentity` | `Partial<{name; model; osName; osVersion; osBuildVersion; sourceVersion}>`, all strings. `name` defaults to `CoreWire`: the name the Apple TV lists after a PIN pairing, and the name in the AirPlay SETUP, URL playback, MRP device info and Companion Link system info |
+| `ClientIdentity` | `Partial<{name; model; osName; osVersion; osBuildVersion; sourceVersion}>`, all strings. `name` defaults to `Apple Protocols`: the name the Apple TV lists after a PIN pairing, and the name in the AirPlay SETUP, URL playback, MRP device info and Companion Link system info |
 | `LogLevel` | `'debug' \| 'error' \| 'info' \| 'net' \| 'raw' \| 'warn'` |
 | `LogEntry` | `{level: LogLevel; device: string; message: string; args: readonly unknown[]; timestamp: number}` |
 | `DeviceState` | `'disconnected' \| 'connecting' \| 'connected' \| 'degraded' \| 'recovering' \| 'offline'` |
@@ -327,12 +327,12 @@ Every method throws `UnavailableError` while AirPlay is down and `CommandRefused
 | `SwipeDirection` | `'up' \| 'down' \| 'left' \| 'right'` |
 | `Artwork` | `{url: string \| null; data: Uint8Array \| null; mimeType: string; identifier: string \| null; width: number; height: number}` |
 | `AnimatedArtwork` | `{format: string; url: string \| null; source?: 'device' \| 'apple-music'}` |
-| `AudioSource` | The audio source interface of `@corewire/airplay`, re-exported |
+| `AudioSource` | The audio source interface of `@apple-protocols/airplay`, re-exported |
 | `PlayUrlOptions` | `{position?: number; signal?: AbortSignal}` |
 | `StreamAudioOptions` | `{volume?: number; signal?: AbortSignal}`; volume is 0 to 1 |
 | `ServiceRecord` | `{name: string; port: number; txt: Readonly<Record<string, string>>}` |
 | `DiscoveredDevice` | `{id; name; address; model: DeviceModel; modelName; family: DeviceFamily; mac: string \| null; target: DeviceTarget; services: {airplay?; companionLink?; raop?: ServiceRecord}}` |
-| `DiscoverOptions` | `{useCache?: boolean}`; default true. The type of `@corewire/core/discovery`, re-exported |
+| `DiscoverOptions` | `{useCache?: boolean}`; default true. The type of `@apple-protocols/core/discovery`, re-exported |
 | `OutputDevice` | `{uid: string; name: string; model: string; groupId: string \| null; isLocal: boolean; isGroupLeader: boolean; hasVolumeControl: boolean}`; a speaker or TV in the multiroom group. `isLocal` marks the device the session runs on |
 | `NowPlayingEventMap` | `{change: [item: NowPlaying \| null]; state: [state: PlaybackState, previous: PlaybackState, item: NowPlaying]; artwork: [item: NowPlaying]}` |
 | `VolumeEventMap` | `{change: [volume: VolumeState]}` |
@@ -340,10 +340,10 @@ Every method throws `UnavailableError` while AirPlay is down and `CommandRefused
 | `TextEventMap` | `{change: [state: TextState]}` |
 | `MultiroomEventMap` | `{change: [outputs: readonly OutputDevice[]]}` |
 
-## @corewire/devices/catalog
+## @apple-protocols/devices/catalog
 
 ```ts
-import { fetchAnimatedArtwork, fetchLyrics } from '@corewire/devices/catalog';
+import { fetchAnimatedArtwork, fetchLyrics } from '@apple-protocols/devices/catalog';
 ```
 
 | Export | Description |

@@ -37,7 +37,7 @@ export {
     SetupError,
     TimeoutError,
     TLV8PairingError
-} from '@corewire/core';
+} from '@apple-protocols/core';
 
 export {
     createDevice,
@@ -46,7 +46,7 @@ export {
 
 export type {
     DiscoverOptions
-} from '@corewire/core/discovery';
+} from '@apple-protocols/core/discovery';
 
 export {
     WAKE_PORTS

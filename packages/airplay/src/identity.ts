@@ -1,4 +1,4 @@
-import { type Context, DEFAULT_CLIENT_NAME, type DeviceIdentity } from '@corewire/core/transport';
+import { type Context, DEFAULT_CLIENT_NAME, type DeviceIdentity } from '@apple-protocols/core/transport';
 
 /** Every identity field, with the defaults filled in. */
 export type ResolvedIdentity = Required<DeviceIdentity>;

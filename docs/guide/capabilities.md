@@ -51,7 +51,7 @@ A call that cannot work throws an `UnavailableError`. It carries the `capability
 | `unsupported` | The device cannot do this at all, such as `playUrl` on a HomePod |
 
 ```ts
-import { UnavailableError } from '@corewire/devices';
+import { UnavailableError } from '@apple-protocols/devices';
 
 try {
     await tv.apps.launch('com.apple.TVMusic');

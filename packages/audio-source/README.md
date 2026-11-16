@@ -1,13 +1,13 @@
-# @corewire/audio-source
+# @apple-protocols/audio-source
 
 Audio sources for AirPlay streaming, each delivering 44100 Hz 16-bit stereo PCM. There are decoders for files and URLs (MP3, OGG Vorbis, WAV, FLAC, QOA), raw PCM, FFmpeg, a sine wave and a live ring buffer.
 
-Part of [CoreWire](https://corewire.dev).
+Part of [Apple Protocols](https://apple-protocols.dev).
 
 ## Install
 
 ```sh
-npm install @corewire/audio-source@next
+npm install @apple-protocols/audio-source@next
 ```
 
 Requires Node.js 18.17 or later (20.3 or later on the 20 line). `FfmpegSource` needs `ffmpeg` on the PATH.
@@ -15,8 +15,8 @@ Requires Node.js 18.17 or later (20.3 or later on the 20 line). `FfmpegSource` n
 ## Example
 
 ```ts
-import { UrlSource } from '@corewire/audio-source';
-import { HomePod } from '@corewire/devices';
+import { UrlSource } from '@apple-protocols/audio-source';
+import { HomePod } from '@apple-protocols/devices';
 
 const pod = new HomePod({address: '192.168.1.20'});
 await pod.connect();

@@ -1,8 +1,8 @@
-# CoreWire
+# Apple Protocols
 
-CoreWire is a TypeScript monorepo for Apple device protocols (AirPlay 2, MRP, RAOP, Companion Link) under the npm scope `@corewire`. It is a Bun workspace. The GitHub repository is `basmilius/corewire`; the local folder may still be called `apple-protocols`.
+Apple Protocols is a TypeScript monorepo for Apple device protocols (AirPlay 2, MRP, RAOP, Companion Link) under the npm scope `@apple-protocols`. It is a Bun workspace. The GitHub repository is `basmilius/apple-protocols`. The packages were briefly published as `@corewire/*` (deprecated).
 
-The brand name is **CoreWire** (capital C and W) in prose, titles, the docs site, READMEs, UI text and default names. Package names (`@corewire/*`), import paths, the domain `corewire.dev` and identifiers stay lowercase.
+The brand name is **Apple Protocols** (two words, both capitalized) in prose, titles, the docs site, READMEs, UI text and default names. Package names (`@apple-protocols/*`), import paths, the domain `apple-protocols.dev` and identifiers stay lowercase.
 
 ## Build
 
@@ -20,16 +20,16 @@ After a change, run these checks. CI runs them too:
 rm -rf packages/*/dist && bash build.sh
 bun run packages/core/test/pairing-server.ts          # pair-setup and pair-verify in memory
 bun run packages/diagnostics/test/proxy-smoke.ts      # create the proxy parts without sockets
-bun --cwd docs build                                  # the documentation on corewire.dev
+bun --cwd docs build                                  # the documentation on apple-protocols.dev
 ```
 
 All published packages have `engines.node` `^18.17.0 || >=20.3.0` (`AbortSignal.any` is the newest API the code uses), a `README.md` and a `LICENSE`.
 
 ### Docs
 
-`docs/` is the VitePress site for corewire.dev: guide, protocols and a reference per package. Every export appears in the reference and every name the docs mention exists. After an API change, update the reference, the guides, `README.md` and the README of each affected package. The code examples must type check against the sources with the repo's path aliases.
+`docs/` is the VitePress site for apple-protocols.dev: guide, protocols and a reference per package. Every export appears in the reference and every name the docs mention exists. After an API change, update the reference, the guides, `README.md` and the README of each affected package. The code examples must type check against the sources with the repo's path aliases.
 
-Deploy: `wrangler.toml` in the root (Cloudflare Workers with static assets from `docs/.vitepress/dist`, custom domain corewire.dev). The release workflow deploys the docs as well. A regular release puts them live. A prerelease only uploads a version tagged `prerelease-<version>`, without traffic. `.github/workflows/docs.yml` deploys manually from `main`, for a fix between two releases. A local deploy works too: `bun --cwd docs build && bunx wrangler@4.141.0 deploy`.
+Deploy: `wrangler.toml` in the root (Cloudflare Workers with static assets from `docs/.vitepress/dist`, custom domain apple-protocols.dev). The release workflow deploys the docs as well. A regular release puts them live. A prerelease only uploads a version tagged `prerelease-<version>`, without traffic. `.github/workflows/docs.yml` deploys manually from `main`, for a fix between two releases. A local deploy works too: `bun --cwd docs build && bunx wrangler@4.141.0 deploy`.
 
 ### Generate protobuf
 
@@ -41,31 +41,31 @@ bun --cwd packages/airplay gen:proto   # buf generate → packages/airplay/src/m
 
 ## Validation against the Homey app
 
-The Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is the main consumer. It imports only `@corewire/devices` and `@corewire/audio-source`, from npm, pinned to `1.0.0-next.1` (dist-tag `next`). The app must keep building after every change here:
+The Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is the main consumer. It imports only `@apple-protocols/devices` and `@apple-protocols/audio-source`, from npm, pinned to `1.0.0-next.1` (dist-tag `next`). The app must keep building after every change here:
 
 ```bash
 # 1. Build the libraries
 bash build.sh
 
 # 2. Copy the built packages into the app and type check it
-bun --cwd ~/Development/Projects/homey/com.basmilius.apple run corewire:local
+bun --cwd ~/Development/Projects/homey/com.basmilius.apple run apple-protocols:local
 bun --cwd ~/Development/Projects/homey/com.basmilius.apple run build
 ```
 
-`corewire:local` copies the built packages into the app's `node_modules` as version `0.0.0-local`. The next `bun install` in the app restores the npm version. If the build fails, the public API has a breaking change. `audio-source` bundles a `decode-worker.mjs` and shared decoder chunks. If the worker cannot load (`MODULE_NOT_FOUND`), `audio-source` decodes on the calling thread instead of failing. `diagnostics` is only a consumer and does not need to be copied.
+`apple-protocols:local` copies the built packages into the app's `node_modules` as version `0.0.0-local`. The next `bun install` in the app restores the npm version. If the build fails, the public API has a breaking change. `audio-source` bundles a `decode-worker.mjs` and shared decoder chunks. If the worker cannot load (`MODULE_NOT_FOUND`), `audio-source` decodes on the calling thread instead of failing. `diagnostics` is only a consumer and does not need to be copied.
 
 ## Packages (build order)
 
 | Package                    | Path                      | Purpose                                                                                                  |
 |----------------------------|---------------------------|----------------------------------------------------------------------------------------------------------|
-| `@corewire/core`           | `packages/core`           | Protocol neutral core: codecs, crypto, transport, pairing, mDNS, error classes, logger                   |
-| `@corewire/airplay`        | `packages/airplay`        | AirPlay 2 session and channels, URL playback, audio stream, timing; MRP on `/mrp`, RAOP session on `/raop`, RTSP on `/rtsp` |
-| `@corewire/companion-link` | `packages/companion-link` | Companion Link session with groups: HID, touch, text, power, apps, accounts, media, system, interests   |
-| `@corewire/audio-source`   | `packages/audio-source`   | Audio sources and decoders: `Mp3Source`, `OggSource`, `WavSource`, `PcmSource`, `FileSource`, `UrlSource`, `FfmpegSource`, `LiveSource`, `SineWaveSource` |
-| `@corewire/devices`        | `packages/devices`        | `AppleTV` and `HomePod` with recovery, capabilities, credentials, discovery, all error classes; Apple Music on `/catalog` |
-| `@corewire/diagnostics`    | `packages/diagnostics`    | Private Electron app for protocol diagnostics, with the proxy and the storage inside (React 19 + Tailwind 4) |
+| `@apple-protocols/core`           | `packages/core`           | Protocol neutral core: codecs, crypto, transport, pairing, mDNS, error classes, logger                   |
+| `@apple-protocols/airplay`        | `packages/airplay`        | AirPlay 2 session and channels, URL playback, audio stream, timing; MRP on `/mrp`, RAOP session on `/raop`, RTSP on `/rtsp` |
+| `@apple-protocols/companion-link` | `packages/companion-link` | Companion Link session with groups: HID, touch, text, power, apps, accounts, media, system, interests   |
+| `@apple-protocols/audio-source`   | `packages/audio-source`   | Audio sources and decoders: `Mp3Source`, `OggSource`, `WavSource`, `PcmSource`, `FileSource`, `UrlSource`, `FfmpegSource`, `LiveSource`, `SineWaveSource` |
+| `@apple-protocols/devices`        | `packages/devices`        | `AppleTV` and `HomePod` with recovery, capabilities, credentials, discovery, all error classes; Apple Music on `/catalog` |
+| `@apple-protocols/diagnostics`    | `packages/diagnostics`    | Private Electron app for protocol diagnostics, with the proxy and the storage inside (React 19 + Tailwind 4) |
 
-Subpaths of core: `@corewire/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport`. The main entry has the error classes, `reporter`/`Logger` and `waitFor`. AirPlay helpers (`HTTP_TIMEOUT`, `getMacAddress`, `randomInt32/64`, `uint16ToBE`) and the default identity are internal to airplay. `core/crypto` has only namespaces (`AES`, `ChaCha20`, `Curve25519`, `Ed25519`, `HKDF`) plus the types `KeyPair` and `HKDFOptions`. Abbreviations are uppercase: `AES`, `ChaCha20`, `HKDF`, `DAAP`, `NTP`, `OPack`, `RTI`, `TLV8`. `DiscoverOptions` exists once, in `core/discovery`. `DiscoveryResult` has `id`, `fqdn`, `address`, `txt` and `service` (the model comes from `txt.model ?? txt.am`).
+Subpaths of core: `@apple-protocols/core/crypto`, `/discovery`, `/encoding`, `/pairing`, `/transport`. The main entry has the error classes, `reporter`/`Logger` and `waitFor`. AirPlay helpers (`HTTP_TIMEOUT`, `getMacAddress`, `randomInt32/64`, `uint16ToBE`) and the default identity are internal to airplay. `core/crypto` has only namespaces (`AES`, `ChaCha20`, `Curve25519`, `Ed25519`, `HKDF`) plus the types `KeyPair` and `HKDFOptions`. Abbreviations are uppercase: `AES`, `ChaCha20`, `HKDF`, `DAAP`, `NTP`, `OPack`, `RTI`, `TLV8`. `DiscoverOptions` exists once, in `core/discovery`. `DiscoveryResult` has `id`, `fqdn`, `address`, `txt` and `service` (the model comes from `txt.model ?? txt.am`).
 
 Audio source classes end in `Source`, so none of them shadows a global such as `File` or `URL`. Classes with a factory (`fromPath`, `fromUrl`, `fromBuffer`) have a private constructor. The others take an options object (`new SineWaveSource({duration})`, `new FfmpegSource({path, duration})`, `new LiveSource({bufferDuration})`, `new PcmSource(pcm, {sampleRate})`).
 
@@ -88,21 +88,21 @@ A protocol package depends only on `core`, never on another protocol. `devices` 
 devices (AppleTV, HomePod)
   ├── lifecycle/                link per protocol, retry schedule, re-resolve, status
   ├── one folder per capability remote, nowPlaying, playback, volume, power, text, apps, multiroom, ...
-  ├── @corewire/airplay         connect() → AirPlaySession
+  ├── @apple-protocols/airplay         connect() → AirPlaySession
   │     ├── ControlChannel (RTSP), EventChannel, DataChannel
   │     ├── /mrp                MediaRemote.open(session), MediaRemoteState (model without I/O)
   │     ├── /raop               connect() → RaopSession (AirPlay 1 audio)
   │     ├── playUrl() / streamAudio()   own connections inside the package
   │     └── timing/             NTP TimingServer, PTP master
-  └── @corewire/companion-link  connect() → CompanionLinkSession
-        └── @corewire/core      pairing, transport, discovery, encoding, crypto
+  └── @apple-protocols/companion-link  connect() → CompanionLinkSession
+        └── @apple-protocols/core      pairing, transport, discovery, encoding, crypto
 ```
 
 - `AppleTV` = AirPlay + Companion Link (remote, media, apps, accounts, power, text, touch, system). `HomePod` = AirPlay only. There is no `HomePodMini`; use `device.model`.
 - You create a device from a target (`{address, port?, txt?, id?}`) plus options. Logger, credentials, timing, `resolve` and `identity` are options. There is no `configure()` and there are no setters afterwards.
 - Capabilities are interfaces (`NowPlayingControl`, `VolumeControl`, `PowerControl`, `TextControl`, `AppsControl`, `AccountsControl`, `SystemControl`, `TouchControl`, `RemoteControl`, `PlaybackControl`, `ArtworkControl`, `MediaControl`, `MultiroomControl`, `MediaPlayback`); the classes behind them are internal. Lifecycle methods (`hold`, `resume`, `reset`) and constructors that take `MediaRemoteState` or sessions are therefore not public. Capabilities with events extend `EventEmitter<...EventMap>`. `AppleDevice` has one protected hook: `reset()`, at the start of `disconnect()`. `AppleTV` overrides it for power.
 - `devices` is the error boundary. It re-exports all error classes of core, translates `SendCommandError` into `CommandRefusedError` (`reason` and `status` as strings), and `/catalog` throws `CatalogError` (`reason`, `status`). A consumer imports no `Proto` enums or core errors.
-- The client name is `CoreWire` everywhere (`DEFAULT_CLIENT_NAME` in `core/transport`) unless `identity.name` says otherwise: pair-setup M5, AirPlay SETUP, URL playback (`clientProcName`), MRP device info and Companion Link `_systemInfo`. The RAOP metadata without stream metadata is `Streaming with CoreWire` / `CoreWire` / `AirPlay`, configurable with the `metadata` option of RAOP `connect()`. Deliberately unchanged: `clientBundleID` `com.basmilius.apple-protocols`, the RAOP digest username `apple-protocols` and the paths under `~/.config/apple-protocols`.
+- The client name is `Apple Protocols` everywhere (`DEFAULT_CLIENT_NAME` in `core/transport`) unless `identity.name` says otherwise: pair-setup M5, AirPlay SETUP, URL playback (`clientProcName`), MRP device info and Companion Link `_systemInfo`. The RAOP metadata without stream metadata is `Streaming with Apple Protocols` / `Apple Protocols` / `AirPlay`, configurable with the `metadata` option of RAOP `connect()`. Deliberately unchanged: `clientBundleID` `com.basmilius.apple-protocols`, the RAOP digest username `apple-protocols` and the paths under `~/.config/apple-protocols`.
 - Design and deviations: `.research/reports/package-structure.tsx` (approved design) and `.research/parity/devices-api.md` (the devices API, section 0 for what changed). `.research/` is a local folder that git ignores. It holds working notes and exists only on the owner's machine.
 
 ## Patterns
@@ -127,7 +127,7 @@ Deadlines and timeouts run on `performance.now()` (monotonic): the 30 s keepaliv
 Remote control uses USB HID usage pages: Generic Desktop (0x01) for navigation, Consumer (0x0c) for media. `MediaRemote.hid` (`packages/airplay/src/mrp/hid.ts`) has the keys and the primitives `press`, `longPress` and `doublePress`. `device.remote.press(key, {mode})` picks the protocol: a tap goes through AirPlay HID if the key exists there, hold and double go through Companion Link if it is connected.
 
 ### Pairing
-`PairSetup` (M1 to M6, or M1 to M4 transient) and `PairVerify` (Curve25519) live in `packages/core/src/pairing/client.ts`, the accessory side (`PairSetupServer`, `PairVerifyServer`) in `server.ts`. A protocol supplies only a `PairingTransport`: a function that sends one message and returns the answer (HTTP body for AirPlay, OPack frame for Companion Link). `pair(target)` in `airplay` and `companion-link` starts a PIN pairing; `AppleTV.pair(target)` returns a `Pairing` that yields `Credentials`. `Credentials` has one text form. `Credentials.parse()` also reads the hex and base64 objects that Homey and the old storage keep, and `toFields()` writes that hex object for storage that an older release still has to read. M5 sends `{name}` from the identity, `CoreWire` by default.
+`PairSetup` (M1 to M6, or M1 to M4 transient) and `PairVerify` (Curve25519) live in `packages/core/src/pairing/client.ts`, the accessory side (`PairSetupServer`, `PairVerifyServer`) in `server.ts`. A protocol supplies only a `PairingTransport`: a function that sends one message and returns the answer (HTTP body for AirPlay, OPack frame for Companion Link). `pair(target)` in `airplay` and `companion-link` starts a PIN pairing; `AppleTV.pair(target)` returns a `Pairing` that yields `Credentials`. `Credentials` has one text form. `Credentials.parse()` also reads the hex and base64 objects that Homey and the old storage keep, and `toFields()` writes that hex object for storage that an older release still has to read. M5 sends `{name}` from the identity, `Apple Protocols` by default.
 
 ### Connection management
 - `Connection<TEventMap>` (`core/transport`): TCP socket wrapper. It connects once without retry, uses `keepAlive(true, 10s)` and ends through one `closed` event with a reason.
@@ -148,7 +148,7 @@ Storage belongs to the app, not to the libraries. Diagnostics has `JsonStorage` 
 
 ## Diagnostics app
 
-`packages/diagnostics`: `src/main` (Electron main), `src/preload`, `src/renderer` (React), `src/shared` (IPC contract). The `@corewire/*` deps are in `devDependencies` on purpose: electron-vite externalizes `dependencies`, and then the alias to `../*/src` stops working.
+`packages/diagnostics`: `src/main` (Electron main), `src/preload`, `src/renderer` (React), `src/shared` (IPC contract). The `@apple-protocols/*` deps are in `devDependencies` on purpose: electron-vite externalizes `dependencies`, and then the alias to `../*/src` stops working.
 
 - Several devices at once: `SessionManager` (`src/main/session.ts`) keeps a `DeviceSession` per device, with one shared `TimingServer` and a save queue around `JsonStorage`.
 - Diagnostics runs only on the public APIs. `device:call { deviceId, root, path, args }` calls a path on one of the roots `device` (the `AppleTV`/`HomePod` object), `airplay`, `mediaRemote` and `companionLink` (the sessions from `device.sessions`). Without `args` it reads a getter. It cannot call setters.
@@ -264,7 +264,7 @@ All packages share these settings:
 - `target: esnext`, `module: esnext`, `moduleResolution: bundler`
 - `strict: false`, `isolatedModules: true`, `skipLibCheck: true`
 - `isolatedDeclarations: true` (except `devices`)
-- Path aliases for dev time cross package imports: `@corewire/core/*` → `../core/src/*`, `@corewire/airplay/*` → `../airplay/src/*`, `@corewire/*` → `../*/src`
+- Path aliases for dev time cross package imports: `@apple-protocols/core/*` → `../core/src/*`, `@apple-protocols/airplay/*` → `../airplay/src/*`, `@apple-protocols/*` → `../*/src`
 - Output: ESM (`.mjs` + `.d.mts`) per entry in `dist`. Audio-source also bundles `decode-worker.mjs` and the shared decoder chunks. The decoders run in that worker. If the file is missing (`MODULE_NOT_FOUND`), they decode on the calling thread
 - tsdown takes the output target from `engines.node` (`^18.17.0 || >=20.3.0`)
 
@@ -310,7 +310,7 @@ A reference (`0xA0` to `0xC4`) points to the nth value in a table that the encod
 
 ## CI/CD
 
-`.github/workflows/checks.yml` runs on pull requests and pushes to main: `bash build.sh` (diagnostics included, into `out-check/`), the pairing test of core, the proxy smoke test and the docs build. `.github/workflows/released.yml` (trigger: every published GitHub Release) replaces `"0.0.0"` → version (the tag without `v`) and `workspace:*` → version, builds the five libraries and publishes `core`, `airplay`, `companion-link`, `audio-source` and `devices` with `npm publish --provenance --access public`, under dist-tag `next` for a prerelease and `latest` for a regular release. Then it deploys the docs with `cloudflare/wrangler-action` to Cloudflare Workers (corewire.dev): live for a release, as a version without traffic for a prerelease. `.github/workflows/docs.yml` deploys the docs manually from `main`. The deploys use the secret `CLOUDFLARE_API_TOKEN`; the account id is in the workflow. Without that repository secret the docs steps of `released.yml` (which run after npm publish) and `docs.yml` fail. The workflow runs on Node 24 with npm `^11.5.1` (npm 12 does not install on every Node version). Publishing goes through npm trusted publishing (OIDC, `id-token: write`), without `NPM_TOKEN`; Bas sets up the trust per package on npm himself. `diagnostics` is private and is not published.
+`.github/workflows/checks.yml` runs on pull requests and pushes to main: `bash build.sh` (diagnostics included, into `out-check/`), the pairing test of core, the proxy smoke test and the docs build. `.github/workflows/released.yml` (trigger: every published GitHub Release) replaces `"0.0.0"` → version (the tag without `v`) and `workspace:*` → version, builds the five libraries and publishes `core`, `airplay`, `companion-link`, `audio-source` and `devices` with `npm publish --provenance --access public`, under dist-tag `next` for a prerelease and `latest` for a regular release. Then it deploys the docs with `cloudflare/wrangler-action` to Cloudflare Workers (apple-protocols.dev): live for a release, as a version without traffic for a prerelease. `.github/workflows/docs.yml` deploys the docs manually from `main`. The deploys use the secret `CLOUDFLARE_API_TOKEN`; the account id is in the workflow. Without that repository secret the docs steps of `released.yml` (which run after npm publish) and `docs.yml` fail. The workflow runs on Node 24 with npm `^11.5.1` (npm 12 does not install on every Node version). Publishing goes through npm trusted publishing (OIDC, `id-token: write`), without `NPM_TOKEN`; Bas sets up the trust per package on npm himself. `diagnostics` is private and is not published.
 
 ## Tests and tooling
 

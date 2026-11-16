@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { ConnectionClosedError, PlaybackError, SetupError, TimeoutError } from '@corewire/core';
-import { Plist } from '@corewire/core/encoding';
-import type { AccessoryKeys } from '@corewire/core/pairing';
-import { type CloseReason, Context } from '@corewire/core/transport';
+import { ConnectionClosedError, PlaybackError, SetupError, TimeoutError } from '@apple-protocols/core';
+import { Plist } from '@apple-protocols/core/encoding';
+import type { AccessoryKeys } from '@apple-protocols/core/pairing';
+import { type CloseReason, Context } from '@apple-protocols/core/transport';
 import { AirPlayFeatureFlags, hasFeatureFlag, SENDER_FEATURES_AUDIO, SENDER_FEATURES_REMOTE_CONTROL } from './airplayFeatures';
 import { AudioPlayback } from './audio/playback';
 import type { AudioSource } from './audio/source';

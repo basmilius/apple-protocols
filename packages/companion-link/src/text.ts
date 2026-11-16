@@ -1,4 +1,4 @@
-import { RTI } from '@corewire/core/encoding';
+import { RTI } from '@apple-protocols/core/encoding';
 import type { Channel } from './channel';
 import * as Messages from './messages';
 import type { CompanionLinkState } from './state';

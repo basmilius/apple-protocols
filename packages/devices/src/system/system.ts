@@ -1,4 +1,4 @@
-import type { CompanionLinkSession } from '@corewire/companion-link';
+import type { CompanionLinkSession } from '@apple-protocols/companion-link';
 import { requireSession } from '../errors';
 
 /** System settings and Siri of an Apple TV, over Companion Link. */

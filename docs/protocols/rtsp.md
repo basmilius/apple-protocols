@@ -1,7 +1,7 @@
 # RTSP
 
 ```ts
-import { buildResponse, parseRequest, parseResponse, RtspClient } from '@corewire/airplay/rtsp';
+import { buildResponse, parseRequest, parseResponse, RtspClient } from '@apple-protocols/airplay/rtsp';
 ```
 
 AirPlay control and RAOP both speak RTSP. This entry point holds the client they build on and the parsers.
@@ -11,8 +11,8 @@ AirPlay control and RAOP both speak RTSP. This entry point holds the client they
 `RtspClient` is a `Connection` that sends requests with CSeq tracking and a response timeout, and serializes object bodies as binary plists. Its `exchange()` method is protected, so you extend the class and give it the requests your protocol needs.
 
 ```ts
-import { RtspClient } from '@corewire/airplay/rtsp';
-import { Context } from '@corewire/core/transport';
+import { RtspClient } from '@apple-protocols/airplay/rtsp';
+import { Context } from '@apple-protocols/core/transport';
 
 class InfoClient extends RtspClient {
     async info(): Promise<Response> {
@@ -47,7 +47,7 @@ Three more protected methods are the extension points: `getDefaultHeaders()` add
 `parseRequest(buffer)` and `parseResponse(buffer)` parse one message from the start of a buffer. They return null while the buffer is incomplete, so you can call them as TCP data arrives. The result says how many bytes it used (`requestLength`, `responseLength`). `buildResponse(options)` formats a response with `Content-Length` set.
 
 ```ts
-import { buildResponse, parseRequest } from '@corewire/airplay/rtsp';
+import { buildResponse, parseRequest } from '@apple-protocols/airplay/rtsp';
 
 declare function write(data: Buffer): void;
 

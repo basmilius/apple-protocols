@@ -2,7 +2,7 @@ import { randomInt } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { Context } from '@corewire/core/transport';
+import { Context } from '@apple-protocols/core/transport';
 import { PROXY_PROTOCOLS, type ProxyProtocol, type ProxyStartRequest, type ProxyStatus } from '@shared/contract';
 import type { SessionManager } from '../session';
 import type { JsonStorage } from '../storage';

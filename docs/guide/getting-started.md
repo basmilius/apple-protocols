@@ -7,7 +7,7 @@ Connect to an Apple TV, read what plays and press a few keys. A HomePod works th
 `discover()` runs one multicast scan of about four seconds. It returns every Apple TV, HomePod and AirPlay receiver it heard, one entry per host.
 
 ```ts
-import { discover } from '@corewire/devices';
+import { discover } from '@apple-protocols/devices';
 
 const found = await discover();
 
@@ -23,7 +23,7 @@ You don't need discovery to connect. A device built from only an address finds i
 A HomePod needs no pairing. An Apple TV shows a four digit PIN, and the credentials it returns are yours to store.
 
 ```ts
-import { AppleTV } from '@corewire/devices';
+import { AppleTV } from '@apple-protocols/devices';
 
 const pairing = await AppleTV.pair({address: '192.168.1.20'});
 
@@ -38,7 +38,7 @@ await save(credentials.toString());
 ## Connect
 
 ```ts
-import { AppleTV, Credentials } from '@corewire/devices';
+import { AppleTV, Credentials } from '@apple-protocols/devices';
 
 const tv = new AppleTV({address: '192.168.1.20'}, {
     credentials: Credentials.parse(await load()),
@@ -84,7 +84,7 @@ await tv.disconnect();
 ## A HomePod
 
 ```ts
-import { HomePod } from '@corewire/devices';
+import { HomePod } from '@apple-protocols/devices';
 
 const pod = new HomePod({address: '192.168.1.30'});
 await pod.connect();

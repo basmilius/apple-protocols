@@ -1,5 +1,5 @@
-import { CommandError, ConnectionClosedError, TimeoutError } from '@corewire/core';
-import { RTI } from '@corewire/core/encoding';
+import { CommandError, ConnectionClosedError, TimeoutError } from '@apple-protocols/core';
+import { RTI } from '@apple-protocols/core/encoding';
 import type { DataChannel } from '../channels/data';
 import * as Messages from './messages';
 import type * as Proto from './proto';

@@ -1,6 +1,6 @@
-import { ConnectionClosedError, ConnectionTimeoutError, InvalidResponseError, reporter, TimeoutError } from '@corewire/core';
-import { Plist } from '@corewire/core/encoding';
-import { type CloseReason, Connection, type Context } from '@corewire/core/transport';
+import { ConnectionClosedError, ConnectionTimeoutError, InvalidResponseError, reporter, TimeoutError } from '@apple-protocols/core';
+import { Plist } from '@apple-protocols/core/encoding';
+import { type CloseReason, Connection, type Context } from '@apple-protocols/core/transport';
 import { HTTP_TIMEOUT } from '../const';
 import { type Method, parseResponse } from './encoding';
 

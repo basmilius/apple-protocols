@@ -1,6 +1,6 @@
 import { createSocket, RemoteInfo, Socket } from 'node:dgram';
-import { Logger } from '@corewire/core';
-import { NTP } from '@corewire/core/encoding';
+import { Logger } from '@apple-protocols/core';
+import { NTP } from '@apple-protocols/core/encoding';
 
 /**
  * NTP timing server for AirPlay audio synchronization.

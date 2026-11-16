@@ -1,7 +1,7 @@
-import * as AirPlay from '@corewire/airplay';
-import * as CompanionLink from '@corewire/companion-link';
-import type { DiscoveryResult } from '@corewire/core/discovery';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
+import * as AirPlay from '@apple-protocols/airplay';
+import * as CompanionLink from '@apple-protocols/companion-link';
+import type { DiscoveryResult } from '@apple-protocols/core/discovery';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
 import type { PairRequest, PairStage, PairStatus, ProtocolName } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';

@@ -1,5 +1,5 @@
-import { Plist } from '@corewire/core/encoding';
-import { type CloseReason, type Context, EncryptionState } from '@corewire/core/transport';
+import { Plist } from '@apple-protocols/core/encoding';
+import { type CloseReason, type Context, EncryptionState } from '@apple-protocols/core/transport';
 import { HTTP_TIMEOUT } from '../const';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '../identifiers';
 import { resolveIdentity } from '../identity';

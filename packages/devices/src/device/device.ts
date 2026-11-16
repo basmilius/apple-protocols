@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events';
 import { format } from 'node:util';
-import { type AirPlaySession, type AirPlayTarget, connect as connectAirPlay, parseFeatures } from '@corewire/airplay';
-import { MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
-import { type CompanionLinkSession, CompanionLinkState, connect as connectCompanionLink } from '@corewire/companion-link';
-import { ConnectionClosedError, CredentialsError, type DebugGroup, DiscoveryError, type LogSink } from '@corewire/core';
-import { type CloseReason, Context } from '@corewire/core/transport';
+import { type AirPlaySession, type AirPlayTarget, connect as connectAirPlay, parseFeatures } from '@apple-protocols/airplay';
+import { MediaRemote, MediaRemoteState } from '@apple-protocols/airplay/mrp';
+import { type CompanionLinkSession, CompanionLinkState, connect as connectCompanionLink } from '@apple-protocols/companion-link';
+import { ConnectionClosedError, CredentialsError, type DebugGroup, DiscoveryError, type LogSink } from '@apple-protocols/core';
+import { type CloseReason, Context } from '@apple-protocols/core/transport';
 import { ArtworkController, type ArtworkControl } from '../artwork/artwork';
 import { accessoryCredentialsOf, type Credentials } from '../credentials/credentials';
 import { lookupDeviceModel, type DeviceModel } from '../deviceModel';

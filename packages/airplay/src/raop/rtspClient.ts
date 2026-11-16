@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { DAAP, Plist } from '@corewire/core/encoding';
-import type { Context } from '@corewire/core/transport';
+import { DAAP, Plist } from '@apple-protocols/core/encoding';
+import type { Context } from '@apple-protocols/core/transport';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
 import { generateActiveRemoteId, generateDacpId, generateSessionId } from '../identifiers';
 import { RtspClient } from '../rtsp';

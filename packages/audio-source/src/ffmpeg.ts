@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import type { AudioSource } from '@corewire/airplay';
-import { PlaybackError } from '@corewire/core';
+import type { AudioSource } from '@apple-protocols/airplay';
+import { PlaybackError } from '@apple-protocols/core';
 import { AUDIO_BYTES_PER_CHANNEL, AUDIO_CHANNELS, AUDIO_SAMPLE_RATE } from './const';
 
 const FRAME_SIZE = AUDIO_CHANNELS * AUDIO_BYTES_PER_CHANNEL;

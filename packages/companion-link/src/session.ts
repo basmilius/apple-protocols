@@ -1,8 +1,8 @@
 import { randomInt } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { ConnectionClosedError, CredentialsError } from '@corewire/core';
-import type { AccessoryCredentials } from '@corewire/core/pairing';
-import { Context, DEFAULT_CLIENT_NAME } from '@corewire/core/transport';
+import { ConnectionClosedError, CredentialsError } from '@apple-protocols/core';
+import type { AccessoryCredentials } from '@apple-protocols/core/pairing';
+import { Context, DEFAULT_CLIENT_NAME } from '@apple-protocols/core/transport';
 import { Accounts } from './accounts';
 import { Apps } from './apps';
 import { Channel, type EventListener } from './channel';

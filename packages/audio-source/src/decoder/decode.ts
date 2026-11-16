@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { PlaybackError } from '@corewire/core';
+import { PlaybackError } from '@apple-protocols/core';
 import { decodeDirect } from './decodeDirect';
 
 const MAX_INPUT_BYTES = 64 * 1024 * 1024;

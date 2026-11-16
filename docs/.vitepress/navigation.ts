@@ -10,14 +10,14 @@ function group(text: string, items: [string, string][]): DefaultTheme.SidebarIte
 
 // The nav and the reference sidebar list the packages in this order.
 const PACKAGES: [string, string][] = [
-    ['@corewire/devices', '/reference/devices'],
-    ['@corewire/airplay', '/reference/airplay'],
-    ['@corewire/airplay/mrp', '/reference/airplay-mrp'],
-    ['@corewire/airplay/raop', '/reference/airplay-raop'],
-    ['@corewire/airplay/rtsp', '/reference/airplay-rtsp'],
-    ['@corewire/companion-link', '/reference/companion-link'],
-    ['@corewire/audio-source', '/reference/audio-source'],
-    ['@corewire/core', '/reference/core']
+    ['@apple-protocols/devices', '/reference/devices'],
+    ['@apple-protocols/airplay', '/reference/airplay'],
+    ['@apple-protocols/airplay/mrp', '/reference/airplay-mrp'],
+    ['@apple-protocols/airplay/raop', '/reference/airplay-raop'],
+    ['@apple-protocols/airplay/rtsp', '/reference/airplay-rtsp'],
+    ['@apple-protocols/companion-link', '/reference/companion-link'],
+    ['@apple-protocols/audio-source', '/reference/audio-source'],
+    ['@apple-protocols/core', '/reference/core']
 ];
 
 export const nav: DefaultTheme.NavItem[] = [

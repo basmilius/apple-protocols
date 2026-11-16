@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { type MediaRemote, type MediaRemoteState, Proto } from '@corewire/airplay/mrp';
+import { type MediaRemote, type MediaRemoteState, Proto } from '@apple-protocols/airplay/mrp';
 import { UnavailableError } from '../errors';
 import type { VolumeMode, VolumeState } from '../types';
 

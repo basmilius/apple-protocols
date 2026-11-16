@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import type { MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
-import type { CompanionLinkSession, CompanionLinkState, TextInputState } from '@corewire/companion-link';
+import type { MediaRemote, MediaRemoteState } from '@apple-protocols/airplay/mrp';
+import type { CompanionLinkSession, CompanionLinkState, TextInputState } from '@apple-protocols/companion-link';
 import { UnavailableError } from '../errors';
 import type { TextState } from '../types';
 

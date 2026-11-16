@@ -1,7 +1,7 @@
 # Media Remote (MRP)
 
 ```ts
-import { MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
+import { MediaRemote, MediaRemoteState } from '@apple-protocols/airplay/mrp';
 ```
 
 The Media Remote Protocol carries remote control, now playing, volume and text input inside an AirPlay session. Its messages are protobuf `ProtocolMessage`s on the data channel.
@@ -9,8 +9,8 @@ The Media Remote Protocol carries remote control, now playing, volume and text i
 ## Opening
 
 ```ts
-import { connect } from '@corewire/airplay';
-import { MediaRemote } from '@corewire/airplay/mrp';
+import { connect } from '@apple-protocols/airplay';
+import { MediaRemote } from '@apple-protocols/airplay/mrp';
 
 const session = await connect({address: '192.168.1.30'});
 const remote = await MediaRemote.open(session);
@@ -51,7 +51,7 @@ A command the app refuses rejects with `SendCommandError`, which has the `sendEr
 HID events go out with `send()`, not `exchange()`, because the receiver never replies to one. Touch is not part of MRP here, since tvOS drops the session on a virtual touch event. Use Companion Link for touch.
 
 ```ts
-import type { MediaRemote } from '@corewire/airplay/mrp';
+import type { MediaRemote } from '@apple-protocols/airplay/mrp';
 
 declare const remote: MediaRemote;
 
@@ -82,7 +82,7 @@ A `Client` is an app. It holds `Player`s and proxies its getters (`title`, `arti
 The state does no I/O. `apply(name, message)` feeds it one decoded message. `decodeMessage()` turns a `ProtocolMessage` into that pair.
 
 ```ts
-import { decodeMessage, MediaRemoteState, parseMessages } from '@corewire/airplay/mrp';
+import { decodeMessage, MediaRemoteState, parseMessages } from '@apple-protocols/airplay/mrp';
 
 declare const recorded: Buffer;
 
@@ -106,7 +106,7 @@ for (const message of parseMessages(recorded)) {
 `Messages` builds `ProtocolMessage`s with their extension. `Proto` holds the generated protobuf types and enums. Send them on the data channel:
 
 ```ts
-import { Messages, Proto, type MediaRemote } from '@corewire/airplay/mrp';
+import { Messages, Proto, type MediaRemote } from '@apple-protocols/airplay/mrp';
 
 declare const remote: MediaRemote;
 

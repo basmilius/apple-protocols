@@ -1,4 +1,4 @@
-import { type Client, DEFAULT_PLAYER_ID, Proto } from '@corewire/airplay/mrp';
+import { type Client, DEFAULT_PLAYER_ID, Proto } from '@apple-protocols/airplay/mrp';
 import type { MediaKind, NowPlaying, NowPlayingCommand, PlaybackState, RepeatMode, ShuffleMode } from '../types';
 
 const PLAYBACK_STATES: Record<number, PlaybackState> = {

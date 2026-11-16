@@ -7,7 +7,7 @@ Both return a playback with the same shape for waiting: `ended: Promise<void>`.
 ## URL playback
 
 ```ts
-import { connect } from '@corewire/airplay';
+import { connect } from '@apple-protocols/airplay';
 
 const session = await connect({address: '192.168.1.20'});
 
@@ -35,8 +35,8 @@ A HomePod advertises no video feature and has `supportsUrlPlayback` false. Strea
 ## Audio streams
 
 ```ts
-import { connect, TimingServer } from '@corewire/airplay';
-import { SineWaveSource } from '@corewire/audio-source';
+import { connect, TimingServer } from '@apple-protocols/airplay';
+import { SineWaveSource } from '@apple-protocols/audio-source';
 
 const timing = new TimingServer();
 await timing.listen();

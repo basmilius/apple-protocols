@@ -1,11 +1,11 @@
-# @corewire/core
+# @apple-protocols/core
 
-`@corewire/core` has a main entry point and five subpaths. It knows no protocol.
+`@apple-protocols/core` has a main entry point and five subpaths. It knows no protocol.
 
-## @corewire/core
+## @apple-protocols/core
 
 ```ts
-import { AppleProtocolError, Logger, reporter } from '@corewire/core';
+import { AppleProtocolError, Logger, reporter } from '@apple-protocols/core';
 ```
 
 ### Errors
@@ -55,7 +55,7 @@ Every class takes a `message: string`. The connection errors have a default mess
 | `waitFor(ms: number): Promise<void>` | |
 | type `EventMap` | `Record<string, any>` |
 
-## @corewire/core/crypto
+## @apple-protocols/core/crypto
 
 The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, `ChaCha20`, `HKDF`.
 
@@ -69,7 +69,7 @@ The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, 
 | type `HKDFOptions` | `{hash; key; length; salt; info}` |
 | type `KeyPair` | `{publicKey: Uint8Array; secretKey: Uint8Array}` |
 
-## @corewire/core/discovery
+## @apple-protocols/core/discovery
 
 | Export | Description |
 | --- | --- |
@@ -82,7 +82,7 @@ The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, 
 | type `MdnsService` | `{name; type; address; port; properties: Record<string, string>}` |
 | type `AdvertisedService` | `{instance; type; host; port; txt}` |
 
-## @corewire/core/encoding
+## @apple-protocols/core/encoding
 
 | Export | Description |
 | --- | --- |
@@ -94,7 +94,7 @@ The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, 
 | `NSKeyedArchiver` | `decode(archive)`, `decodeAsArray(archive)` |
 | `RTI` | `decodeSession(data)`, `encodeOperation(sessionUUID, text, clear)`, type `TextInputSession` |
 
-## @corewire/core/pairing
+## @apple-protocols/core/pairing
 
 | Export | Description |
 | --- | --- |
@@ -114,12 +114,12 @@ The subpath exports namespaces and two types. Acronyms stay in capitals: `AES`, 
 | type `PairingStep` | `'m1' \| 'm3' \| 'm5'` |
 | type `PairingTransport` | `(payload: Buffer, step: PairingStep) => Promise<Buffer>` |
 
-## @corewire/core/transport
+## @apple-protocols/core/transport
 
 | Export | Description |
 | --- | --- |
 | `class Context` | `constructor(deviceId: string, identity: DeviceIdentity = {}, sink?: LogSink)`; `deviceId`, `identity` (only the overrides you passed), `logger` |
-| `DEFAULT_CLIENT_NAME` | `'CoreWire'`: the name a client presents when `identity.name` is not set |
+| `DEFAULT_CLIENT_NAME` | `'Apple Protocols'`: the name a client presents when `identity.name` is not set |
 | `class Connection<TEventMap>` | `constructor(context, address, port)`; `connect()`, `disconnect()`, `destroy(error?)`, `write(data)`, `debug(enabled)`; `address`, `port`, `localAddress`, `isConnected`, `state`, `signal`, `context`; events `connect`, `data`, `error`, `closed` |
 | `class EncryptionAwareConnection<TEventMap>` | `Connection` plus `enableEncryption(readKey, writeKey)`, `isEncrypted`, and the protected getter `encryption: EncryptionState \| undefined` for subclasses |
 | `class EncryptionState` | `constructor(readKey, writeKey)`; `readKey`, `readCount`, `writeKey`, `writeCount` |

@@ -1,5 +1,5 @@
 import { inspect } from 'node:util';
-import { reporter, type ReporterEntry } from '@corewire/core';
+import { reporter, type ReporterEntry } from '@apple-protocols/core';
 import type { LogEntry } from '@shared/contract';
 import { Ring } from './ring';
 import { serializeAll } from './serialize';

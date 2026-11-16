@@ -1,4 +1,4 @@
-import { pair, type PinPairing } from '@corewire/airplay';
+import { pair, type PinPairing } from '@apple-protocols/airplay';
 import { Credentials } from '../credentials/credentials';
 import type { ClientIdentity, DeviceTarget } from '../types';
 

@@ -1,7 +1,7 @@
 # RAOP
 
 ```ts
-import { connect, discover, toTarget } from '@corewire/airplay/raop';
+import { connect, discover, toTarget } from '@apple-protocols/airplay/raop';
 ```
 
 RAOP is the older AirPlay audio protocol, over RTSP and RTP. Use it for receivers that do not speak AirPlay 2, such as an AirPort Express. For an Apple TV or HomePod, [AirPlay audio streams](/protocols/airplay-media) are the better choice.
@@ -9,9 +9,9 @@ RAOP is the older AirPlay audio protocol, over RTSP and RTP. Use it for receiver
 ## Streaming
 
 ```ts
-import { TimingServer } from '@corewire/airplay';
-import { connect, discover, pctToDbfs, toTarget } from '@corewire/airplay/raop';
-import { FileSource } from '@corewire/audio-source';
+import { TimingServer } from '@apple-protocols/airplay';
+import { connect, discover, pctToDbfs, toTarget } from '@apple-protocols/airplay/raop';
+import { FileSource } from '@apple-protocols/audio-source';
 
 const timing = new TimingServer();
 await timing.listen();
@@ -54,7 +54,7 @@ The RAOP target needs the `port` of the `_raop._tcp` service. `toTarget()` takes
 | Option | Meaning |
 | --- | --- |
 | `context` | A `Context` for the logger and the client identity |
-| `metadata` | Title, artist and album to show while a stream has no metadata of its own. Defaults to `Streaming with CoreWire`, `CoreWire` and `AirPlay` |
+| `metadata` | Title, artist and album to show while a stream has no metadata of its own. Defaults to `Streaming with Apple Protocols`, `Apple Protocols` and `AirPlay` |
 | `password` | Answers a digest challenge on ANNOUNCE for a receiver with a password |
 | `signal` | Aborts the handshake |
 

@@ -1,7 +1,7 @@
 import { createSocket, type Socket as UdpSocket } from 'node:dgram';
 import { EventEmitter } from 'node:events';
-import { waitFor } from '@corewire/core';
-import type { Context } from '@corewire/core/transport';
+import { waitFor } from '@apple-protocols/core';
+import type { Context } from '@apple-protocols/core/transport';
 import type { AudioSource } from '../audio/source';
 import { AUDIO_FRAMES_PER_PACKET } from '../const';
 import type { TimingServer } from '../timing';

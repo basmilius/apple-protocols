@@ -1,4 +1,4 @@
-import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@apple-protocols/core/discovery';
 import { parseFeatures } from './features';
 import type { AirPlayTarget } from './types';
 

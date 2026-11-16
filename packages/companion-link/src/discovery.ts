@@ -1,4 +1,4 @@
-import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@apple-protocols/core/discovery';
 import type { CompanionLinkTarget } from './types';
 
 export const COMPANION_LINK_SERVICE = '_companion-link._tcp.local';

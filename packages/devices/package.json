@@ -1,5 +1,5 @@
 {
-    "name": "@corewire/devices",
+    "name": "@apple-protocols/devices",
     "description": "Controls an Apple TV or HomePod over AirPlay and Companion Link, and reconnects when the device drops.",
     "version": "0.0.0",
     "type": "module",
@@ -11,12 +11,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/basmilius/corewire",
+        "url": "https://github.com/basmilius/apple-protocols",
         "directory": "packages/devices"
     },
-    "homepage": "https://corewire.dev",
+    "homepage": "https://apple-protocols.dev",
     "bugs": {
-        "url": "https://github.com/basmilius/corewire/issues"
+        "url": "https://github.com/basmilius/apple-protocols/issues"
     },
     "keywords": [
         "apple",
@@ -56,9 +56,9 @@
         }
     },
     "dependencies": {
-        "@corewire/airplay": "workspace:*",
-        "@corewire/companion-link": "workspace:*",
-        "@corewire/core": "workspace:*"
+        "@apple-protocols/airplay": "workspace:*",
+        "@apple-protocols/companion-link": "workspace:*",
+        "@apple-protocols/core": "workspace:*"
     },
     "devDependencies": {
         "@types/bun": "^1.3.14",

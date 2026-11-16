@@ -8,7 +8,7 @@ import type { CallResult, DeviceEvent, DiscoveredDeviceInfo, LogEntry, ProxyStat
 
 const CONFIG = join(homedir(), '.config', 'apple-protocols');
 
-const HELP = `diag: drive the running CoreWire Diagnostics app and read what it captured.
+const HELP = `diag: drive the running Apple Protocols Diagnostics app and read what it captured.
 
   status                                  bridge, cursors and devices
   wait-ready [--timeout 60]               wait for the app (after a restart) and its reconnects
@@ -67,7 +67,7 @@ async function readState(): Promise<AgentState> {
     try {
         return JSON.parse(await readFile(join(CONFIG, AGENT_STATE_FILE), 'utf8'));
     } catch {
-        throw new Error('CoreWire Diagnostics is not running with its agent bridge. Ask the user to start it with bun --cwd packages/diagnostics dev:agent');
+        throw new Error('Apple Protocols Diagnostics is not running with its agent bridge. Ask the user to start it with bun --cwd packages/diagnostics dev:agent');
     }
 }
 

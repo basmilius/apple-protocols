@@ -1,4 +1,4 @@
-import { NSKeyedArchiver, Plist } from '@corewire/core/encoding';
+import { NSKeyedArchiver, Plist } from '@apple-protocols/core/encoding';
 
 /** MRAnimatedArtwork serializes its NSURL with NSKeyedArchiver, not UTF-8. */
 export function decodeArtworkAssetURL(data: Uint8Array | undefined): string | null {

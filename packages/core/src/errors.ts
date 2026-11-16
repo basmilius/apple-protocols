@@ -1,4 +1,4 @@
-/** Base class of the CoreWire errors, so one `instanceof` check catches all of them. */
+/** Base class of the Apple Protocols errors, so one `instanceof` check catches all of them. */
 export class AppleProtocolError extends Error {
     constructor(message: string) {
         super(message);

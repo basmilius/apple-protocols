@@ -1,4 +1,4 @@
-import { OPack } from '@corewire/core/encoding';
+import { OPack } from '@apple-protocols/core/encoding';
 import { MediaControlCommand } from './const';
 import { MessageType } from './frame';
 

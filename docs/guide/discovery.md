@@ -1,7 +1,7 @@
 # Discovering devices
 
 ```ts
-import { createDevice, discover } from '@corewire/devices';
+import { createDevice, discover } from '@apple-protocols/devices';
 ```
 
 ## Scanning
@@ -9,7 +9,7 @@ import { createDevice, discover } from '@corewire/devices';
 `discover()` sends one multicast DNS-SD query for `_airplay._tcp`, `_companion-link._tcp` and `_raop._tcp` and listens for about four seconds. It merges the answers of one host by address into a `DiscoveredDevice`.
 
 ```ts
-import { discover } from '@corewire/devices';
+import { discover } from '@apple-protocols/devices';
 
 const found = await discover();
 
@@ -22,7 +22,7 @@ for (const device of found) {
 A scan less than 30 seconds old is reused. Pass `{useCache: false}` to force a new one. Two scans that run at the same time share one query.
 
 ```ts
-import { discover } from '@corewire/devices';
+import { discover } from '@apple-protocols/devices';
 
 const fresh = await discover({useCache: false});
 ```
@@ -44,7 +44,7 @@ const fresh = await discover({useCache: false});
 `createDevice()` returns an `AppleTV` for the Apple TV family and a `HomePod` for every other receiver. It takes the same options as the `AppleTV` constructor.
 
 ```ts
-import { AppleTV, createDevice, Credentials, discover } from '@corewire/devices';
+import { AppleTV, createDevice, Credentials, discover } from '@apple-protocols/devices';
 
 const [first] = await discover();
 const device = createDevice(first, {credentials: Credentials.parse(await load())});
@@ -61,7 +61,7 @@ You can also pass `first.target` to a constructor. The target carries the addres
 A device built from only an address works. Before the first connect, and before every retry, it asks that address for its services with a unicast DNS-SD query. See [Connection and recovery](/guide/connection#finding-the-device-again).
 
 ```ts
-import { HomePod } from '@corewire/devices';
+import { HomePod } from '@apple-protocols/devices';
 
 const pod = new HomePod({address: '192.168.1.30'});
 ```
@@ -71,7 +71,7 @@ const pod = new HomePod({address: '192.168.1.30'});
 `lookupDeviceModel()` maps a model identifier (`AppleTV6,2`) or an internal code name (`J305AP`) to a `DeviceModel`. `getDeviceModelName()` gives a display name, `getDeviceFamily()` the family, and `isAppleTV()`, `isHomePod()` and `isAirPort()` test the family.
 
 ```ts
-import { DeviceModel, getDeviceModelName, isHomePod, lookupDeviceModel } from '@corewire/devices';
+import { DeviceModel, getDeviceModelName, isHomePod, lookupDeviceModel } from '@apple-protocols/devices';
 
 const model = lookupDeviceModel('AudioAccessory5,1');
 

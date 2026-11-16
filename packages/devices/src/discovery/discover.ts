@@ -1,7 +1,7 @@
-import { AIRPLAY_SERVICE } from '@corewire/airplay';
-import { RAOP_SERVICE } from '@corewire/airplay/raop';
-import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@corewire/core/discovery';
+import { AIRPLAY_SERVICE } from '@apple-protocols/airplay';
+import { RAOP_SERVICE } from '@apple-protocols/airplay/raop';
+import { COMPANION_LINK_SERVICE } from '@apple-protocols/companion-link';
+import { type DiscoverOptions, Discovery, type DiscoveryResult } from '@apple-protocols/core/discovery';
 import { AppleTV, type AppleTVOptions, HomePod } from '../device';
 import { DeviceFamily, getDeviceFamily, lookupDeviceModel } from '../deviceModel';
 import { macOf } from '../lifecycle/resolve';

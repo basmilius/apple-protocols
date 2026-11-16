@@ -19,7 +19,7 @@ const logger = new Logger('discovery');
  *
  * Results stay cached for 30 seconds per service type, and concurrent scans for the same types
  * share one multicast query. All instances share the cache on purpose, so protocol packages and
- * `@corewire/devices` do not each flood the network with their own query.
+ * `@apple-protocols/devices` do not each flood the network with their own query.
  */
 export class Discovery {
     static #cache: Map<string, CacheEntry> = new Map();

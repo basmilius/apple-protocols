@@ -1,6 +1,6 @@
 {
-    "name": "@corewire/audio-source",
-    "description": "Audio sources and decoders for CoreWire audio streaming: MP3, Ogg, WAV, PCM, FFmpeg, URLs and live input.",
+    "name": "@apple-protocols/audio-source",
+    "description": "Audio sources and decoders for Apple Protocols audio streaming: MP3, Ogg, WAV, PCM, FFmpeg, URLs and live input.",
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
@@ -11,12 +11,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/basmilius/corewire",
+        "url": "https://github.com/basmilius/apple-protocols",
         "directory": "packages/audio-source"
     },
-    "homepage": "https://corewire.dev",
+    "homepage": "https://apple-protocols.dev",
     "bugs": {
-        "url": "https://github.com/basmilius/corewire/issues"
+        "url": "https://github.com/basmilius/apple-protocols/issues"
     },
     "keywords": [
         "audio",
@@ -57,10 +57,10 @@
         }
     },
     "dependencies": {
-        "@corewire/core": "workspace:*"
+        "@apple-protocols/core": "workspace:*"
     },
     "devDependencies": {
-        "@corewire/airplay": "workspace:*",
+        "@apple-protocols/airplay": "workspace:*",
         "@types/bun": "^1.3.14",
         "@types/node": "^25.9.2",
         "@wasm-audio-decoders/flac": "^0.2.4",

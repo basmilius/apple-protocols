@@ -1,5 +1,5 @@
-import type { AirPlaySession, AudioSource } from '@corewire/airplay';
-import { ConnectionClosedError } from '@corewire/core';
+import type { AirPlaySession, AudioSource } from '@apple-protocols/airplay';
+import { ConnectionClosedError } from '@apple-protocols/core';
 import { requireSession, UnavailableError } from '../errors';
 import type { PlayUrlOptions, StreamAudioOptions } from '../types';
 

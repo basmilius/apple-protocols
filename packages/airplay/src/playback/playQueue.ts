@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { PlaybackError } from '@corewire/core';
-import { Plist } from '@corewire/core/encoding';
-import type { Context } from '@corewire/core/transport';
+import { PlaybackError } from '@apple-protocols/core';
+import { Plist } from '@apple-protocols/core/encoding';
+import type { Context } from '@apple-protocols/core/transport';
 import type { ControlChannel } from '../channels/control';
 import type { EventChannel } from '../channels/event';
 import type { PlaybackInfo } from './playback';

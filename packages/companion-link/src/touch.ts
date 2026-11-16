@@ -1,4 +1,4 @@
-import { waitFor } from '@corewire/core';
+import { waitFor } from '@apple-protocols/core';
 import type { Channel } from './channel';
 import type { Hid } from './hid';
 import * as Messages from './messages';

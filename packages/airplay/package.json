@@ -1,5 +1,5 @@
 {
-    "name": "@corewire/airplay",
+    "name": "@apple-protocols/airplay",
     "description": "AirPlay 2 client for Node.js, with MRP remote control, URL playback, audio streaming and RAOP.",
     "version": "0.0.0",
     "type": "module",
@@ -11,12 +11,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/basmilius/corewire",
+        "url": "https://github.com/basmilius/apple-protocols",
         "directory": "packages/airplay"
     },
-    "homepage": "https://corewire.dev",
+    "homepage": "https://apple-protocols.dev",
     "bugs": {
-        "url": "https://github.com/basmilius/corewire/issues"
+        "url": "https://github.com/basmilius/apple-protocols/issues"
     },
     "keywords": [
         "apple",
@@ -65,7 +65,7 @@
         }
     },
     "dependencies": {
-        "@corewire/core": "workspace:*"
+        "@apple-protocols/core": "workspace:*"
     },
     "devDependencies": {
         "@bufbuild/buf": "^1.70.0",

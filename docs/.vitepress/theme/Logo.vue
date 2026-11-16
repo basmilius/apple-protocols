@@ -2,7 +2,7 @@
     <span
         :class="[$style.logo, {[$style.logoHero]: variant === 'hero'}]"
         role="img"
-        aria-label="CoreWire">
+        aria-label="Apple Protocols">
         <svg
             xmlns="http://www.w3.org/2000/svg"
             :class="$style.mark"
@@ -21,7 +21,7 @@
                 opacity="0.55"
                 d="M8.11 8.11a5.5 5.5 0 0 0 0 7.78M15.89 8.11a5.5 5.5 0 0 1 0 7.78M5.28 5.28a9.5 9.5 0 0 0 0 13.44M18.72 5.28a9.5 9.5 0 0 1 0 13.44"/>
         </svg>
-        <span :class="$style.word">CoreWire</span>
+        <span :class="$style.word">Apple Protocols</span>
     </span>
 </template>
 

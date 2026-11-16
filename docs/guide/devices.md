@@ -1,7 +1,7 @@
 # Apple TV and HomePod
 
 ```ts
-import { AppleTV, HomePod } from '@corewire/devices';
+import { AppleTV, HomePod } from '@apple-protocols/devices';
 ```
 
 Both classes extend `AppleDevice`, which holds the connection, the status and the capabilities they share. You never construct an `AppleDevice` yourself.
@@ -22,7 +22,7 @@ Both classes extend `AppleDevice`, which holds the connection, the status and th
 A `DeviceTarget` says where the device is. Only the address is required.
 
 ```ts
-import type { DeviceTarget } from '@corewire/devices';
+import type { DeviceTarget } from '@apple-protocols/devices';
 
 const target: DeviceTarget = {
     address: '192.168.1.20',
@@ -45,7 +45,7 @@ A `DiscoveredDevice` has a ready `target`.
 Both constructors take `DeviceOptions`. `AppleTV` takes `AppleTVOptions`, which adds `credentials` and `activeUserAccount`.
 
 ```ts
-import { AppleTV, Credentials } from '@corewire/devices';
+import { AppleTV, Credentials } from '@apple-protocols/devices';
 
 const tv = new AppleTV({address: '192.168.1.20'}, {
     credentials: Credentials.parse(await load()),
@@ -63,7 +63,7 @@ const tv = new AppleTV({address: '192.168.1.20'}, {
 | `logLevels` | Default `['error', 'warn']`. Any of `debug`, `error`, `info`, `net`, `raw`, `warn` |
 | `timing` | The NTP `TimingServer` announced in every SETUP. Omitted: one server shared by all devices, started at the first connect and closed when the last device disconnects. `false`: no timing |
 | `resolve(last, signal)` | Looks the device up before a retry when the unicast query at the last address found nothing. With this option the device never scans with multicast. The `signal` aborts after 15 seconds or on `disconnect()` |
-| `identity` | Overrides of the name, model, OS and version this client presents to the device. The name, `CoreWire` when omitted, is what the Apple TV lists after a PIN pairing |
+| `identity` | Overrides of the name, model, OS and version this client presents to the device. The name, `Apple Protocols` when omitted, is what the Apple TV lists after a PIN pairing |
 
 ## Properties
 

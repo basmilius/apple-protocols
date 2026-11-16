@@ -24,7 +24,7 @@ await tv.playback.setRepeat('one');
 Every method throws `UnavailableError` while AirPlay is down. When the app refuses a command, the method rejects with a `CommandRefusedError`. Its `reason` is the send error in lower camel case, such as `applicationNotFound`, and its `status` the handler status, such as `noActionableNowPlayingItem`.
 
 ```ts
-import { CommandRefusedError } from '@corewire/devices';
+import { CommandRefusedError } from '@apple-protocols/devices';
 
 try {
     await tv.playback.next();

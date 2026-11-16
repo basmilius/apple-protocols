@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { connect, createServer, type Server, type Socket } from 'node:net';
-import { FrameType, PairingFrameTypes } from '@corewire/companion-link';
-import { HKDF } from '@corewire/core/crypto';
-import { type DiscoveryResult, MdnsResponder } from '@corewire/core/discovery';
-import { OPack } from '@corewire/core/encoding';
-import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@corewire/core/pairing';
-import type { Context } from '@corewire/core/transport';
+import { FrameType, PairingFrameTypes } from '@apple-protocols/companion-link';
+import { HKDF } from '@apple-protocols/core/crypto';
+import { type DiscoveryResult, MdnsResponder } from '@apple-protocols/core/discovery';
+import { OPack } from '@apple-protocols/core/encoding';
+import { type AccessoryCredentials, type AccessoryIdentity, PairSetupServer, PairVerify, PairVerifyServer } from '@apple-protocols/core/pairing';
+import type { Context } from '@apple-protocols/core/transport';
 import { FramedConnection } from '../core/framedConnection';
 import { listen, type ProtocolProxy } from '../core/protocolProxy';
 import type { ProxyTap } from '../core/tap';

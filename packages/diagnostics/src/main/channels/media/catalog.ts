@@ -1,5 +1,5 @@
-import type { AppleTV, HomePod, NowPlaying } from '@corewire/devices';
-import { fetchAnimatedArtwork, fetchLyrics } from '@corewire/devices/catalog';
+import type { AppleTV, HomePod, NowPlaying } from '@apple-protocols/devices';
+import { fetchAnimatedArtwork, fetchLyrics } from '@apple-protocols/devices/catalog';
 import { handle } from '../../ipc';
 import type { ChannelContext } from '../context';
 

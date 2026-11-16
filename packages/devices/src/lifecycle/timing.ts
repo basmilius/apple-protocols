@@ -1,5 +1,5 @@
-import { TimingServer } from '@corewire/airplay';
-import { Logger, type LogSink } from '@corewire/core';
+import { TimingServer } from '@apple-protocols/airplay';
+import { Logger, type LogSink } from '@apple-protocols/core';
 
 type Shared = {
     readonly server: Promise<TimingServer | undefined>;

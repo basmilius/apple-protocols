@@ -1,8 +1,8 @@
 # Transport and logging
 
 ```ts
-import { Connection, Context, EncryptionAwareConnection } from '@corewire/core/transport';
-import { Logger, reporter } from '@corewire/core';
+import { Connection, Context, EncryptionAwareConnection } from '@apple-protocols/core/transport';
+import { Logger, reporter } from '@apple-protocols/core';
 ```
 
 ## Context
@@ -10,7 +10,7 @@ import { Logger, reporter } from '@corewire/core';
 A `Context` ties a connection to a device: its `deviceId`, the `identity` this client presents, and the `logger` that tags every line with the device.
 
 ```ts
-import { Context } from '@corewire/core/transport';
+import { Context } from '@apple-protocols/core/transport';
 
 const context = new Context('Living-Room.local', {name: 'Kitchen hub'}, (group, args) => {
     console.log(group, ...args);
@@ -19,7 +19,7 @@ const context = new Context('Living-Room.local', {name: 'Kitchen hub'}, (group, 
 context.logger.info('[example]', 'hello');
 ```
 
-The second argument is a `DeviceIdentity` with the fields you override (`name`, `model`, `osName`, `osVersion`, `osBuildVersion`, `sourceVersion`, `applicationBundleIdentifier`, `applicationBundleVersion`), all optional. `context.identity` returns only those overrides. Each protocol package fills in its own defaults where it sends the identity. The name defaults to `DEFAULT_CLIENT_NAME`, `CoreWire`. The third argument is a `LogSink` that receives every log call of this context.
+The second argument is a `DeviceIdentity` with the fields you override (`name`, `model`, `osName`, `osVersion`, `osBuildVersion`, `sourceVersion`, `applicationBundleIdentifier`, `applicationBundleVersion`), all optional. `context.identity` returns only those overrides. Each protocol package fills in its own defaults where it sends the identity. The name defaults to `DEFAULT_CLIENT_NAME`, `Apple Protocols`. The third argument is a `LogSink` that receives every log call of this context.
 
 Pass one context to several connections of the same device, such as an AirPlay and a Companion Link session, so their logs line up.
 
@@ -45,7 +45,7 @@ There are two layers. A `Logger` belongs to a context and has a method per group
 The `reporter` decides what reaches the console and what reaches a sink:
 
 ```ts
-import { reporter } from '@corewire/core';
+import { reporter } from '@apple-protocols/core';
 
 reporter.enable('info');
 reporter.disable('debug');
@@ -70,7 +70,7 @@ reporter.setSink(entry => {
 The protocol packages report every message they send and receive with `logger.traffic()`: the protocol, the direction, a one-line summary, the decoded message and the plaintext bytes. Without a traffic sink the call does nothing. With one you can build a traffic view, as the [diagnostics app](/diagnostics) does.
 
 ```ts
-import { reporter } from '@corewire/core';
+import { reporter } from '@apple-protocols/core';
 
 reporter.setTrafficSink(entry => {
     console.log(entry.protocol, entry.direction, entry.summary);

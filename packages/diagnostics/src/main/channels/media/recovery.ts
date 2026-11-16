@@ -1,5 +1,5 @@
-import { Discovery } from '@corewire/core/discovery';
-import { type ProtocolStatus, WAKE_PORTS } from '@corewire/devices';
+import { Discovery } from '@apple-protocols/core/discovery';
+import { type ProtocolStatus, WAKE_PORTS } from '@apple-protocols/devices';
 import type { RecoveryLink, RecoveryStatus } from '@shared/contract';
 import { handle } from '../../ipc';
 import type { DeviceSession } from '../../session';

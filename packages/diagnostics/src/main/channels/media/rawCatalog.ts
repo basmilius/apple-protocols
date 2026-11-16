@@ -1,6 +1,6 @@
-import { Messages, Proto } from '@corewire/airplay/mrp';
-import { type CompanionLinkSession, FrameType } from '@corewire/companion-link';
-import { Plist } from '@corewire/core/encoding';
+import { Messages, Proto } from '@apple-protocols/airplay/mrp';
+import { type CompanionLinkSession, FrameType } from '@apple-protocols/companion-link';
+import { Plist } from '@apple-protocols/core/encoding';
 import type { RawBuilderInfo, RawMessageRequest, RawParam, RawParamOption, RawTransport } from '@shared/contract';
 
 export type RawEntry = RawBuilderInfo & {

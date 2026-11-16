@@ -1,7 +1,7 @@
-import { AIRPLAY_SERVICE } from '@corewire/airplay';
-import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import { ConnectionClosedError, type Logger } from '@corewire/core';
-import { Discovery, type MdnsService, mdnsUnicast } from '@corewire/core/discovery';
+import { AIRPLAY_SERVICE } from '@apple-protocols/airplay';
+import { COMPANION_LINK_SERVICE } from '@apple-protocols/companion-link';
+import { ConnectionClosedError, type Logger } from '@apple-protocols/core';
+import { Discovery, type MdnsService, mdnsUnicast } from '@apple-protocols/core/discovery';
 import type { DeviceTarget } from '../types';
 
 /** Ports knocked on to wake a sleeping Apple TV or HomePod; 7000 is AirPlay, 3689 is DAAP. */

@@ -1,5 +1,5 @@
 import type { Socket as UdpSocket } from 'node:dgram';
-import type { CloseReason, Context } from '@corewire/core/transport';
+import type { CloseReason, Context } from '@apple-protocols/core/transport';
 import type { TimingServer } from '../timing';
 
 /** Where a RAOP receiver is. */
@@ -156,7 +156,7 @@ export type RaopConnectOptions = {
     /** Logger to use. Built from {@link RaopTarget.id} when omitted. */
     readonly context?: Context;
 
-    /** Shown on the receiver while a stream comes without metadata. Title `Streaming with CoreWire`, artist `CoreWire` and album `AirPlay` when omitted. */
+    /** Shown on the receiver while a stream comes without metadata. Title `Streaming with Apple Protocols`, artist `Apple Protocols` and album `AirPlay` when omitted. */
     readonly metadata?: Partial<Pick<MediaMetadata, 'title' | 'artist' | 'album'>>;
 
     /** Answers a digest challenge on ANNOUNCE from a receiver with a password. */

@@ -1,5 +1,5 @@
-import { type Client as AirPlayClient, MediaRemoteState as AirPlayState, type Player as AirPlayPlayer, Proto } from '@corewire/airplay/mrp';
-import type { AppleTV, AppleTVCapability, HomePod, PlaybackState } from '@corewire/devices';
+import { type Client as AirPlayClient, MediaRemoteState as AirPlayState, type Player as AirPlayPlayer, Proto } from '@apple-protocols/airplay/mrp';
+import type { AppleTV, AppleTVCapability, HomePod, PlaybackState } from '@apple-protocols/devices';
 import type {
     ClientSnapshot,
     ConnectionSnapshot,

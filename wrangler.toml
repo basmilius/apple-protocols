@@ -1,6 +1,6 @@
-name = "corewire-website"
+name = "apple-protocols-website"
 compatibility_date = "2026-09-01"
-routes = [{ pattern = "corewire.dev", custom_domain = true }]
+routes = [{ pattern = "apple-protocols.dev", custom_domain = true }]
 
 # VitePress builds with clean URLs: /guide/installation is served from guide/installation.html.
 [assets]

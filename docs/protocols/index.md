@@ -5,16 +5,16 @@ The device layer covers what most apps need. Use a protocol package for a messag
 ## The layers
 
 ```
-@corewire/devices          AppleTV, HomePod: connection upkeep, capabilities
-├── @corewire/airplay      AirPlay 2 sessions, URL playback, audio streams, timing
+@apple-protocols/devices          AppleTV, HomePod: connection upkeep, capabilities
+├── @apple-protocols/airplay      AirPlay 2 sessions, URL playback, audio streams, timing
 │   ├── /mrp               Media Remote on the AirPlay data channel
 │   ├── /raop              RAOP audio streaming
 │   └── /rtsp              The RTSP client the others build on
-├── @corewire/companion-link
-└── @corewire/core         pairing, encryption, transport, mDNS, codecs, errors, logging
+├── @apple-protocols/companion-link
+└── @apple-protocols/core         pairing, encryption, transport, mDNS, codecs, errors, logging
 ```
 
-`@corewire/audio-source` sits beside them. It depends on `core` and produces the `AudioSource` that AirPlay and RAOP stream.
+`@apple-protocols/audio-source` sits beside them. It depends on `core` and produces the `AudioSource` that AirPlay and RAOP stream.
 
 ## Sessions live once
 
@@ -30,7 +30,7 @@ A device object reconnects. A protocol session does not. `connect()` returns a s
 When it ends, its `closed` event fires with the reason and an optional error, its `signal` aborts, and every channel, timer and pending request on it goes too. To continue, connect again. The device layer does that, with backoff and a fresh lookup.
 
 ```ts
-import { connect } from '@corewire/airplay';
+import { connect } from '@apple-protocols/airplay';
 
 const session = await connect({address: '192.168.1.30'});
 
@@ -54,4 +54,4 @@ session.signal.addEventListener('abort', () => console.log('aborted'));
 - [URLs and audio streams](/protocols/airplay-media): `playUrl`, `streamAudio`, multiroom audio and timing.
 - [RAOP](/protocols/raop) and [RTSP](/protocols/rtsp).
 - [Companion Link](/protocols/companion-link).
-- [Pairing](/protocols/pairing), [Discovery](/protocols/discovery), [Encoding and crypto](/protocols/encoding), [Transport and logging](/protocols/transport) in `@corewire/core`.
+- [Pairing](/protocols/pairing), [Discovery](/protocols/discovery), [Encoding and crypto](/protocols/encoding), [Transport and logging](/protocols/transport) in `@apple-protocols/core`.

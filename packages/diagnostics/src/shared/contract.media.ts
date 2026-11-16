@@ -179,7 +179,7 @@ export type RawMessageRequest = {
     readonly exchange?: boolean;
 };
 
-/** One protocol link of the device, as `Status` of `@corewire/devices` reports it. */
+/** One protocol link of the device, as `Status` of `@apple-protocols/devices` reports it. */
 export type RecoveryLink = {
     readonly state: 'off' | 'connecting' | 'connected' | 'waiting';
 

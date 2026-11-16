@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { NSKeyedArchiver, Plist, RTI } from '@corewire/core/encoding';
+import { NSKeyedArchiver, Plist, RTI } from '@apple-protocols/core/encoding';
 import { MediaControlFlag } from './const';
 import type { AttentionState, MediaCapabilities, TextInputState } from './types';
 import { convertAttentionState } from './utils';

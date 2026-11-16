@@ -1,5 +1,5 @@
 import type { EventEmitter } from 'node:events';
-import { ConnectionClosedError } from '@corewire/core';
+import { ConnectionClosedError } from '@apple-protocols/core';
 import type { DataChannel } from '../channels/data';
 import { resolveIdentity } from '../identity';
 import type { AirPlaySession } from '../session';

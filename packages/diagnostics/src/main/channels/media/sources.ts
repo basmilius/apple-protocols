@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { FfmpegSource, FileSource, LiveSource, Mp3Source, OggSource, PcmSource, SineWaveSource, UrlSource, WavSource } from '@corewire/audio-source';
-import type { AudioSource } from '@corewire/airplay';
+import { FfmpegSource, FileSource, LiveSource, Mp3Source, OggSource, PcmSource, SineWaveSource, UrlSource, WavSource } from '@apple-protocols/audio-source';
+import type { AudioSource } from '@apple-protocols/airplay';
 import type { AudioSourceSpec } from '@shared/contract';
 
 /** 44100 Hz, 16 bit, stereo: the format the AirPlay streams negotiate. */

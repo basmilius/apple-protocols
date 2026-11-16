@@ -1,7 +1,7 @@
-# @corewire/airplay/mrp
+# @apple-protocols/airplay/mrp
 
 ```ts
-import { MediaRemote, MediaRemoteState } from '@corewire/airplay/mrp';
+import { MediaRemote, MediaRemoteState } from '@apple-protocols/airplay/mrp';
 ```
 
 See [Media Remote (MRP)](/protocols/mrp).

@@ -1,7 +1,7 @@
-# @corewire/companion-link
+# @apple-protocols/companion-link
 
 ```ts
-import { CompanionLinkSession, connect, pair } from '@corewire/companion-link';
+import { CompanionLinkSession, connect, pair } from '@apple-protocols/companion-link';
 ```
 
 See [Companion Link](/protocols/companion-link).
@@ -12,7 +12,7 @@ See [Companion Link](/protocols/companion-link).
 | --- | --- |
 | `connect(target: CompanionLinkTarget, options: ConnectOptions): Promise<CompanionLinkSession>` | Pair-verify, encryption and the startup. Throws `CredentialsError`, `PairingError`, `ConnectionClosedError` |
 | `pair(target: CompanionLinkTarget, options?: PairOptions): Promise<PinPairing>` | Sends pair-setup M1; the Apple TV shows its PIN |
-| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The devices that accept Companion Link; `DiscoverOptions` comes from `@corewire/core/discovery` |
+| `discover(options?: DiscoverOptions): Promise<DiscoveryResult[]>` | The devices that accept Companion Link; `DiscoverOptions` comes from `@apple-protocols/core/discovery` |
 | `toTarget(result: DiscoveryResult): CompanionLinkTarget` | |
 | `COMPANION_LINK_SERVICE` | `'_companion-link._tcp.local'` |
 
@@ -98,7 +98,7 @@ Events: `attentionStateChanged: [AttentionState]`, `mediaControlFlagsChanged: [f
 | Type | Definition |
 | --- | --- |
 | `CompanionLinkTarget` | `{address: string; port: number; id?: string; txt?: Readonly<Record<string, string>>}` |
-| `ConnectOptions` | `{credentials: AccessoryCredentials; context?: Context; identity?: DeviceIdentity; activeUserAccount?: string; state?: CompanionLinkState; signal?: AbortSignal}`. `identity.name` is the name in `_systemInfo` and in the pair-setup M5 message, `CoreWire` when omitted |
+| `ConnectOptions` | `{credentials: AccessoryCredentials; context?: Context; identity?: DeviceIdentity; activeUserAccount?: string; state?: CompanionLinkState; signal?: AbortSignal}`. `identity.name` is the name in `_systemInfo` and in the pair-setup M5 message, `Apple Protocols` when omitted |
 | `PairOptions` | `Pick<ConnectOptions, 'context' \| 'identity' \| 'signal'>` |
 | `SessionCloseReason` | `'local' \| 'remote' \| 'timeout' \| 'error'` |
 | `AttentionState` | `'unknown' \| 'asleep' \| 'screensaver' \| 'awake' \| 'idle'` |

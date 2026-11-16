@@ -14,7 +14,7 @@ hero:
             link: /guide/
         -   theme: alt
             text: GitHub
-            link: https://github.com/basmilius/corewire
+            link: https://github.com/basmilius/apple-protocols
 ---
 
 <HomePackages />

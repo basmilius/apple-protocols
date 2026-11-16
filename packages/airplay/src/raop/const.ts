@@ -11,8 +11,8 @@ export const SLOW_WARNING_THRESHOLD = 5;
 
 /** Metadata for a stream without metadata from the caller. */
 export const MISSING_METADATA: MediaMetadata = {
-    title: 'Streaming with CoreWire',
-    artist: 'CoreWire',
+    title: 'Streaming with Apple Protocols',
+    artist: 'Apple Protocols',
     album: 'AirPlay',
     duration: 0
 };

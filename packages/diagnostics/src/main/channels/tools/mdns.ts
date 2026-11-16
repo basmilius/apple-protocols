@@ -1,4 +1,4 @@
-import { Discovery, mdnsMulticast, mdnsUnicast } from '@corewire/core/discovery';
+import { Discovery, mdnsMulticast, mdnsUnicast } from '@apple-protocols/core/discovery';
 import {
     AIRPLAY_SERVICE,
     describeFlags,
@@ -7,10 +7,10 @@ import {
     isPasswordRequired,
     isRemoteControlSupported,
     parseFeatures
-} from '@corewire/airplay';
-import { RAOP_SERVICE } from '@corewire/airplay/raop';
-import { COMPANION_LINK_SERVICE } from '@corewire/companion-link';
-import { getDeviceModelName, lookupDeviceModel, WAKE_PORTS } from '@corewire/devices';
+} from '@apple-protocols/airplay';
+import { RAOP_SERVICE } from '@apple-protocols/airplay/raop';
+import { COMPANION_LINK_SERVICE } from '@apple-protocols/companion-link';
+import { getDeviceModelName, lookupDeviceModel, WAKE_PORTS } from '@apple-protocols/devices';
 import type { DiscoveryService, MdnsCombinedRecord, MdnsFeatures, MdnsQuery, MdnsRecord } from '@shared/contract';
 import { discoverAllDevices } from '../../discovery';
 

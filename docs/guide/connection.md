@@ -115,7 +115,7 @@ AirPlay and Companion Link each send their own unicast query. AirPlay sends it b
 Pass `resolve` when your app runs its own discovery, or when multicast does not reach the device:
 
 ```ts
-import { AppleTV, type DeviceTarget } from '@corewire/devices';
+import { AppleTV, type DeviceTarget } from '@apple-protocols/devices';
 
 const known = new Map<string, DeviceTarget>();
 

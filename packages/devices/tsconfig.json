@@ -24,13 +24,13 @@
             "node"
         ],
         "paths": {
-            "@corewire/airplay/*": [
+            "@apple-protocols/airplay/*": [
                 "../airplay/src/*"
             ],
-            "@corewire/core/*": [
+            "@apple-protocols/core/*": [
                 "../core/src/*"
             ],
-            "@corewire/*": [
+            "@apple-protocols/*": [
                 "../*/src"
             ]
         }

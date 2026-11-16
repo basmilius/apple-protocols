@@ -1,5 +1,5 @@
-import { Proto, type SendCommandError } from '@corewire/airplay/mrp';
-import { AppleProtocolError, CommandError } from '@corewire/core';
+import { Proto, type SendCommandError } from '@apple-protocols/airplay/mrp';
+import { AppleProtocolError, CommandError } from '@apple-protocols/core';
 
 /** A capability was called while it cannot work: its protocol is down, or the device cannot do it at all. */
 export class UnavailableError extends AppleProtocolError {

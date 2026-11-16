@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { MediaRemote, MediaRemoteState, Proto } from '@corewire/airplay/mrp';
+import type { MediaRemote, MediaRemoteState, Proto } from '@apple-protocols/airplay/mrp';
 import { requireSession } from '../errors';
 import type { OutputDevice } from '../types';
 

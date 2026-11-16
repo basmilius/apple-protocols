@@ -312,6 +312,16 @@ A reference (`0xA0` to `0xC4`) points to the nth value in a table that the encod
 
 `.github/workflows/checks.yml` runs on pull requests and pushes to main: `bash build.sh` (diagnostics included, into `out-check/`), the pairing test of core, the proxy smoke test and the docs build. `.github/workflows/released.yml` (trigger: every published GitHub Release) replaces `"0.0.0"` → version (the tag without `v`) and `workspace:*` → version, builds the five libraries and publishes `core`, `airplay`, `companion-link`, `audio-source` and `devices` with `npm publish --provenance --access public`, under dist-tag `next` for a prerelease and `latest` for a regular release. Then it deploys the docs with `cloudflare/wrangler-action` to Cloudflare Workers (apple-protocols.dev): live for a release, as a version without traffic for a prerelease. `.github/workflows/docs.yml` deploys the docs manually from `main`. The deploys use the secret `CLOUDFLARE_API_TOKEN`; the account id is in the workflow. Without that repository secret the docs steps of `released.yml` (which run after npm publish) and `docs.yml` fail. The workflow runs on Node 24 with npm `^11.5.1` (npm 12 does not install on every Node version). Publishing goes through npm trusted publishing (OIDC, `id-token: write`), without `NPM_TOKEN`; Bas sets up the trust per package on npm himself. `diagnostics` is private and is not published.
 
+A prerelease cannot create the docs Worker: `wrangler versions upload` needs a Worker that exists. A new Worker gets its first deploy through `docs.yml`.
+
+## Releasing
+
+Releases go through the `release` and `release-notes` skills, with an `unslop` pass over the notes.
+
+- Tags have no prefix (`1.0.0-beta.2`) and the title is `Release <version>`. A pre-release publishes the five packages under the npm dist-tag `next` and uploads the docs as a version without traffic. A regular release publishes under `latest` and puts the docs live on apple-protocols.dev.
+- Check command: `rm -rf packages/*/dist && bash build.sh && bun run packages/core/test/pairing-server.ts && bun run packages/diagnostics/test/proxy-smoke.ts && bun --cwd docs build`.
+- The changelog uses "New packages" as its noun and groups features by package (**Devices**, **AirPlay**, **Companion Link**, **Audio source**, **Core**).
+
 ## Tests and tooling
 
 - Automated tests are postponed to a separate, thorough testing effort. Do not add tests for now. Validate changes with the builds, the two test scripts above, the docs build and diagnostics.

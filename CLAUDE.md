@@ -41,7 +41,7 @@ bun --cwd packages/airplay gen:proto   # buf generate → packages/airplay/src/m
 
 ## Validation against the Homey app
 
-The Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is the main consumer. It imports only `@apple-protocols/devices` and `@apple-protocols/audio-source`, from npm, pinned to `1.0.0-beta.2` (dist-tag `next`). The app must keep building after every change here:
+The Homey app (`~/Development/Projects/homey/com.basmilius.apple`) is the main consumer. It imports only `@apple-protocols/devices` and `@apple-protocols/audio-source`, from npm, pinned to an exact version (see the app's `package.json`). The app must keep building after every change here:
 
 ```bash
 # 1. Build the libraries
